@@ -1,33 +1,40 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import AuthLayout from '../layouts/AuthLayout'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import DashboardLayout from '../layouts/DashboardLayout'
-import LoginPage from '../features/auth/pages/LoginPage'
 import DashboardPage from '../features/dashboard/pages/DashboardPage'
 import UsersPage from '../features/users/pages/UsersPage'
 import ProgramsPage from '../features/programs/pages/ProgramsPage'
+import ProgramBuilderPage from '../features/programs/pages/ProgramBuilderPage'
+import CategoriesPage from '../features/categories/pages/CategoriesPage'
+import LessonsPage from '../features/lessons/pages/LessonsPage'
+import LessonBuilderPage from '../features/lessons/pages/LessonBuilderPage'
+import SectionsPage from '../features/sections/pages/SectionsPage'
+import SectionBuilderPage from '../features/sections/pages/SectionBuilderPage'
+import QuizzesPage from '../features/quizzes/pages/QuizzesPage'
+import QuizBuilderPage from '../features/quizzes/pages/QuizBuilderPage'
 import PlaceholderPage from '../features/shared/pages/PlaceholderPage'
-import NotFoundPage from '../features/shared/pages/NotFoundPage'
+import ProtectedRoute from '../components/layout/ProtectedRoute'
+import LoginPage from '../features/auth/pages/LoginPage'
 
 function AdminRoute({ children }) {
-  return <DashboardLayout>{children}</DashboardLayout>
-}
-
-function AuthRoute({ children }) {
-  return <AuthLayout>{children}</AuthLayout>
+  return (
+    <ProtectedRoute>
+      <DashboardLayout>{children}</DashboardLayout>
+    </ProtectedRoute>
+  )
 }
 
 export default function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<LoginPage />} />
 
         <Route
-          path="/login"
+          path="/"
           element={
-            <AuthRoute>
-              <LoginPage />
-            </AuthRoute>
+            <AdminRoute>
+              <Navigate to="/dashboard" replace />
+            </AdminRoute>
           }
         />
 
@@ -59,28 +66,19 @@ export default function AppRouter() {
         />
 
         <Route
-          path="/enrollments"
-          element={
-            <AdminRoute>
-              <PlaceholderPage />
-            </AdminRoute>
-          }
-        />
-
-        <Route
           path="/categories"
           element={
             <AdminRoute>
-              <PlaceholderPage />
+              <CategoriesPage />
             </AdminRoute>
           }
         />
 
         <Route
-          path="/sections"
+          path="/programs/edit"
           element={
             <AdminRoute>
-              <PlaceholderPage />
+              <ProgramBuilderPage />
             </AdminRoute>
           }
         />
@@ -89,7 +87,34 @@ export default function AppRouter() {
           path="/lessons"
           element={
             <AdminRoute>
-              <PlaceholderPage />
+              <LessonsPage />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/lessons/edit"
+          element={
+            <AdminRoute>
+              <LessonBuilderPage />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/sections"
+          element={
+            <AdminRoute>
+              <SectionsPage />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/sections/edit"
+          element={
+            <AdminRoute>
+              <SectionBuilderPage />
             </AdminRoute>
           }
         />
@@ -98,7 +123,16 @@ export default function AppRouter() {
           path="/quizzes"
           element={
             <AdminRoute>
-              <PlaceholderPage />
+              <QuizzesPage />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/quizzes/edit"
+          element={
+            <AdminRoute>
+              <QuizBuilderPage />
             </AdminRoute>
           }
         />
@@ -121,7 +155,7 @@ export default function AppRouter() {
           }
         />
 
-        <Route path="*" element={<NotFoundPage />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   )

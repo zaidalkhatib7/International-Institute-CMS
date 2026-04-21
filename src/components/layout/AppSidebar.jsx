@@ -1,11 +1,24 @@
 import { branding } from '../../config/branding'
-import { sidebarNavigation } from '../../routes/navigation'
+import { getSidebarNavigation } from '../../routes/navigation'
+import { getAdminLanguage } from '../../services/languageStorage'
 import SidebarNav from './SidebarNav'
 
 export default function AppSidebar() {
+  const sidebarNavigation = getSidebarNavigation()
+  const language = getAdminLanguage()
+  const isArabic = language === 'ar'
+  const roleLabel =
+    language === 'ar'
+      ? 'منسق إداري'
+      : language === 'nl'
+      ? 'Admin Curator'
+      : 'Admin Curator'
+
   return (
     <aside
-      className="fixed left-0 top-0 z-30 flex h-full flex-col border-r px-6 py-8 text-white transition-all"
+      className={`fixed top-0 z-30 flex h-full flex-col px-6 py-8 text-white transition-all ${
+        isArabic ? 'right-0 border-l' : 'left-0 border-r'
+      }`}
       style={{
         width: 'var(--layout-sidebar-width)',
         backgroundColor: '#162E45',
@@ -26,7 +39,7 @@ export default function AppSidebar() {
         <div className="mt-6 rounded-2xl border p-3" style={{ borderColor: 'rgba(203,213,225,0.12)', backgroundColor: 'rgba(255,255,255,0.03)' }}>
           <p className="text-sm font-semibold text-white">Dr. Arjan</p>
           <p className="text-xs uppercase tracking-[0.12em] text-[#CBD5E1]">
-            Admin Curator
+            {roleLabel}
           </p>
         </div>
       </div>

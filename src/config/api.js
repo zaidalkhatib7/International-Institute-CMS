@@ -1,5 +1,6 @@
 export const apiConfig = {
-  baseURL: 'http://localhost:8000/api',
-  tokenStorageKey: 'cms_admin_token',
+  baseURL: 'https://international-institute-main-vrqh7a.laravel.cloud/api',
+  tokenStorageKey: 'ii_admin_token',
+  languageStorageKey: 'ii_admin_language',
   requestTimeout: 15000,
 }
