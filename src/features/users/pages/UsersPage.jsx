@@ -4,10 +4,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Filter,
+  FilterX,
+  Minus,
   Plus,
   Search,
   SlidersHorizontal,
 } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Badge,
   Button,
@@ -18,7 +22,7 @@ import {
   Select,
 } from '../../../components/ui'
 import { getCurrentLanguage } from '../../../utils/localization'
-import { fetchUsers } from '../services/usersService'
+import { createUser, fetchUsers } from '../services/usersService'
 
 const USERS_TABLE_GRID = 'grid-cols-[minmax(260px,2fr)_minmax(240px,2.2fr)_1fr_1fr_1fr]'
 
@@ -122,7 +126,58 @@ function formatNumber(value, language) {
   return Number(value || 0).toLocaleString(locale)
 }
 
-function UserRow({ user, language }) {
+function normalizeDate(value) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function matchesDateFilter(value, filter) {
+  if (filter === 'all') return true
+  const date = normalizeDate(value)
+  if (!date) return false
+
+  const now = new Date()
+  if (filter === 'last30') {
+    const minDate = new Date(now)
+    minDate.setDate(now.getDate() - 30)
+    return date >= minDate
+  }
+
+  if (filter === 'thisYear') {
+    return date.getFullYear() === now.getFullYear()
+  }
+
+  return true
+}
+
+function escapeCsvValue(value) {
+  const input = value == null ? '' : String(value)
+  const escaped = input.replace(/"/g, '""')
+  return `"${escaped}"`
+}
+
+function buildUsersCsv(users, language) {
+  const headers =
+    language === 'ar'
+      ? ['المعرف', 'الاسم', 'البريد الإلكتروني', 'الدور', 'تاريخ التسجيل', 'رصيد المحفظة']
+      : language === 'nl'
+        ? ['ID', 'Naam', 'E-mail', 'Rol', 'Registratiedatum', 'Wallet-saldo']
+        : ['ID', 'Name', 'Email', 'Role', 'Registration Date', 'Wallet Balance']
+
+  const rows = users.map((user) => [
+    `IIS-${user.id}`,
+    user.name || '',
+    user.email || '',
+    user.role || '',
+    user.created_at || '',
+    Number(user?.wallet?.balance ?? 0),
+  ])
+
+  const lines = [headers, ...rows]
+  return lines.map((line) => line.map(escapeCsvValue).join(',')).join('\n')
+}
+
+function UserRow({ user, language, copy, onAddPoints, onDecreasePoints }) {
   const roleKey = getRoleKey(user.role)
   const displayRole = formatRoleLabel(roleKey, language)
 
@@ -150,7 +205,25 @@ function UserRow({ user, language }) {
       </div>
 
       <div className="text-xl font-semibold text-[var(--color-accent-dark,#765A1F)]">
-        {formatWallet(user.wallet)}
+        <div>{formatWallet(user.wallet)}</div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onAddPoints(user)}
+            className="inline-flex h-9 min-w-[124px] items-center justify-center gap-1 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 shadow-[0_2px_10px_rgba(16,185,129,0.14)] transition-all hover:-translate-y-[1px] hover:bg-emerald-100 hover:shadow-[0_6px_16px_rgba(16,185,129,0.2)]"
+          >
+            <Plus size={13} strokeWidth={2.4} />
+            {copy.addPoints}
+          </button>
+          <button
+            type="button"
+            onClick={() => onDecreasePoints(user)}
+            className="inline-flex h-9 min-w-[124px] items-center justify-center gap-1 whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 shadow-[0_2px_10px_rgba(244,63,94,0.12)] transition-all hover:-translate-y-[1px] hover:bg-rose-100 hover:shadow-[0_6px_16px_rgba(244,63,94,0.18)]"
+          >
+            <Minus size={13} strokeWidth={2.4} />
+            {copy.decreasePoints}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -185,6 +258,8 @@ function SummaryCard({ label, value, hint, dark = false }) {
 }
 
 export default function UsersPage() {
+  const navigate = useNavigate()
+  const location = useLocation()
   const language = getCurrentLanguage()
   const copy = useMemo(() => {
     if (language === 'ar') {
@@ -201,6 +276,27 @@ export default function UsersPage() {
         asc: 'تصاعدي',
         desc: 'تنازلي',
         addUser: 'إضافة مستخدم',
+        createUserTitle: 'إضافة مستخدم جديد',
+        userName: 'الاسم',
+        email: 'البريد الإلكتروني',
+        phoneNumber: 'رقم الهاتف',
+        password: 'كلمة المرور',
+        roleLabel: 'الدور',
+        save: 'حفظ',
+        cancel: 'إلغاء',
+        creating: 'جارٍ الإنشاء...',
+        createdSuccess: 'تم إنشاء المستخدم بنجاح.',
+        createFailed: 'فشل إنشاء المستخدم.',
+        walletTopupTitle: 'إضافة نقاط للمحفظة',
+        amount: 'المبلغ',
+        descriptionLabel: 'الوصف',
+        descriptionPlaceholder: 'سبب الإضافة (اختياري)',
+        addPoints: 'إضافة نقاط',
+        decreasePoints: 'خصم نقاط',
+        crediting: 'جارٍ الإضافة...',
+        creditedSuccess: 'تمت إضافة النقاط بنجاح.',
+        creditFailed: 'فشل إضافة النقاط.',
+        invalidAmount: 'أدخل مبلغًا أكبر من 0.',
         totalFilteredUsers: 'إجمالي المستخدمين المفلترين',
         adminAccounts: 'حسابات المدير',
         totalWalletBalance: 'إجمالي رصيد المحفظة',
@@ -208,6 +304,18 @@ export default function UsersPage() {
         allUsers: 'كل المستخدمين',
         liveData: 'بيانات حية مقسمة من واجهة الإدارة',
         exportCsv: 'تصدير CSV',
+        exporting: 'جاري التصدير...',
+        filters: 'عوامل التصفية',
+        walletFilter: 'فلترة المحفظة',
+        walletAll: 'كل الأرصدة',
+        walletPositive: 'رصيد أكبر من 0',
+        walletZero: 'رصيد 0',
+        registrationFilter: 'فلترة التسجيل',
+        registrationAll: 'كل التواريخ',
+        registrationLast30: 'آخر 30 يوماً',
+        registrationThisYear: 'هذا العام',
+        clearFilters: 'مسح الفلاتر',
+        noCsvData: 'لا توجد بيانات للتصدير.',
         nameIdentity: 'الاسم والهوية',
         institutionalEmail: 'البريد المؤسسي',
         role: 'الدور',
@@ -238,6 +346,27 @@ export default function UsersPage() {
         asc: 'Oplopend',
         desc: 'Aflopend',
         addUser: 'Gebruiker toevoegen',
+        createUserTitle: 'Nieuwe gebruiker toevoegen',
+        userName: 'Naam',
+        email: 'E-mail',
+        phoneNumber: 'Telefoonnummer',
+        password: 'Wachtwoord',
+        roleLabel: 'Rol',
+        save: 'Opslaan',
+        cancel: 'Annuleren',
+        creating: 'Aanmaken...',
+        createdSuccess: 'Gebruiker succesvol aangemaakt.',
+        createFailed: 'Gebruiker aanmaken mislukt.',
+        walletTopupTitle: 'Wallet-punten toevoegen',
+        amount: 'Bedrag',
+        descriptionLabel: 'Beschrijving',
+        descriptionPlaceholder: 'Reden voor bijschrijving (optioneel)',
+        addPoints: 'Punten toevoegen',
+        decreasePoints: 'Punten verlagen',
+        crediting: 'Bijschrijven...',
+        creditedSuccess: 'Punten succesvol toegevoegd.',
+        creditFailed: 'Punten toevoegen mislukt.',
+        invalidAmount: 'Voer een bedrag groter dan 0 in.',
         totalFilteredUsers: 'Totaal gefilterde gebruikers',
         adminAccounts: 'Beheerdersaccounts',
         totalWalletBalance: 'Totaal wallet-saldo',
@@ -245,6 +374,18 @@ export default function UsersPage() {
         allUsers: 'Alle gebruikers',
         liveData: 'Live gepagineerde data van de admin API',
         exportCsv: 'CSV exporteren',
+        exporting: 'Exporteren...',
+        filters: 'Filters',
+        walletFilter: 'Walletfilter',
+        walletAll: 'Alle saldi',
+        walletPositive: 'Saldo groter dan 0',
+        walletZero: 'Saldo 0',
+        registrationFilter: 'Registratiefilter',
+        registrationAll: 'Alle datums',
+        registrationLast30: 'Laatste 30 dagen',
+        registrationThisYear: 'Dit jaar',
+        clearFilters: 'Filters wissen',
+        noCsvData: 'Geen gegevens om te exporteren.',
         nameIdentity: 'Naam en identiteit',
         institutionalEmail: 'Institutionele e-mail',
         role: 'Rol',
@@ -274,6 +415,27 @@ export default function UsersPage() {
       asc: 'Asc',
       desc: 'Desc',
       addUser: 'Add User',
+      createUserTitle: 'Add New User',
+      userName: 'Name',
+      email: 'Email',
+      phoneNumber: 'Phone Number',
+      password: 'Password',
+      roleLabel: 'Role',
+      save: 'Save',
+      cancel: 'Cancel',
+      creating: 'Creating...',
+      createdSuccess: 'User created successfully.',
+      createFailed: 'Failed to create user.',
+      walletTopupTitle: 'Add Wallet Points',
+      amount: 'Amount',
+      descriptionLabel: 'Description',
+      descriptionPlaceholder: 'Reason for credit (optional)',
+      addPoints: 'Add Points',
+      decreasePoints: 'Decrease Points',
+      crediting: 'Crediting...',
+      creditedSuccess: 'Points credited successfully.',
+      creditFailed: 'Failed to credit points.',
+      invalidAmount: 'Enter an amount greater than 0.',
       totalFilteredUsers: 'Total Filtered Users',
       adminAccounts: 'Admin Accounts',
       totalWalletBalance: 'Total Wallet Balance',
@@ -281,6 +443,18 @@ export default function UsersPage() {
       allUsers: 'All Users',
       liveData: 'Live paginated data from admin API',
       exportCsv: 'Export CSV',
+      exporting: 'Exporting...',
+      filters: 'Filters',
+      walletFilter: 'Wallet Filter',
+      walletAll: 'All balances',
+      walletPositive: 'Balance greater than 0',
+      walletZero: 'Balance 0',
+      registrationFilter: 'Registration Filter',
+      registrationAll: 'All dates',
+      registrationLast30: 'Last 30 days',
+      registrationThisYear: 'This year',
+      clearFilters: 'Clear Filters',
+      noCsvData: 'No data available to export.',
       nameIdentity: 'Name & Identity',
       institutionalEmail: 'Institutional Email',
       role: 'Role',
@@ -304,6 +478,23 @@ export default function UsersPage() {
   const [sortDirection, setSortDirection] = useState('asc')
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [currentPage, setCurrentPage] = useState(1)
+  const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false)
+  const [walletFilter, setWalletFilter] = useState('all')
+  const [registrationFilter, setRegistrationFilter] = useState('all')
+  const [isExporting, setIsExporting] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [actionMessage, setActionMessage] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    email: '',
+    phone_number: '',
+    password: '',
+    password_confirmation: '',
+    role: 'user',
+  })
   const [pagination, setPagination] = useState({
     current_page: 1,
     last_page: 1,
@@ -354,7 +545,7 @@ export default function UsersPage() {
     }
 
     loadUsers()
-  }, [search, role, currentPage, rowsPerPage])
+  }, [search, role, currentPage, rowsPerPage, refreshKey])
 
   useEffect(() => {
     let cancelled = false
@@ -426,11 +617,28 @@ export default function UsersPage() {
     return () => {
       cancelled = true
     }
-  }, [search, role])
+  }, [search, role, refreshKey])
 
   useEffect(() => {
     setCurrentPage(1)
   }, [search, role, rowsPerPage])
+
+  useEffect(() => {
+    const walletActionMessage = location.state?.walletActionMessage
+    const walletActionError = location.state?.walletActionError
+    if (!walletActionMessage && !walletActionError) return
+
+    if (walletActionError) {
+      setActionError(walletActionError)
+      setActionMessage('')
+    } else if (walletActionMessage) {
+      setActionMessage(walletActionMessage)
+      setActionError('')
+      setRefreshKey((prev) => prev + 1)
+    }
+
+    navigate(location.pathname, { replace: true, state: null })
+  }, [location.pathname, location.state, navigate])
 
   const visibleUsers = useMemo(() => {
     return [...users].sort((a, b) => {
@@ -440,6 +648,163 @@ export default function UsersPage() {
       return sortDirection === 'asc' ? result : -result
     })
   }, [users, sortBy, sortDirection, language])
+
+  const filteredVisibleUsers = useMemo(() => {
+    return visibleUsers.filter((user) => {
+      const walletBalance = Number(user?.wallet?.balance ?? 0)
+      const walletMatches =
+        walletFilter === 'all' ||
+        (walletFilter === 'positive' && walletBalance > 0) ||
+        (walletFilter === 'zero' && walletBalance === 0)
+
+      const registrationMatches = matchesDateFilter(user?.created_at, registrationFilter)
+      return walletMatches && registrationMatches
+    })
+  }, [visibleUsers, walletFilter, registrationFilter])
+
+  const hasAdvancedFilters = walletFilter !== 'all' || registrationFilter !== 'all'
+  const filteredShowingFrom = hasAdvancedFilters
+    ? (filteredVisibleUsers.length ? 1 : 0)
+    : Number(pagination.from || 0)
+  const filteredShowingTo = hasAdvancedFilters
+    ? filteredVisibleUsers.length
+    : Number(pagination.to || 0)
+  const filteredShowingTotal = hasAdvancedFilters
+    ? filteredVisibleUsers.length
+    : Number(pagination.total || 0)
+
+  const resetCreateForm = () => {
+    setCreateForm({
+      name: '',
+      email: '',
+      phone_number: '',
+      password: '',
+      password_confirmation: '',
+      role: 'user',
+    })
+  }
+
+  const handleCreateUser = async () => {
+    setIsCreating(true)
+    setActionError('')
+    setActionMessage('')
+
+    try {
+      const payload = {
+        ...createForm,
+        password_confirmation: createForm.password_confirmation || createForm.password,
+      }
+      await createUser(payload)
+      setActionMessage(copy.createdSuccess)
+      setIsCreateOpen(false)
+      resetCreateForm()
+      setRefreshKey((prev) => prev + 1)
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.message || copy.createFailed
+      setActionError(message)
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const openWalletAction = (user, action) => {
+    if (!user?.id) return
+    const params = new URLSearchParams()
+    params.set('userId', String(user.id))
+    params.set('action', action)
+    if (user.name) params.set('name', user.name)
+    navigate(`/users/wallet?${params.toString()}`)
+  }
+
+  const clearAdvancedFilters = () => {
+    setWalletFilter('all')
+    setRegistrationFilter('all')
+  }
+
+  const fetchAllUsersForExport = async () => {
+    const query = {
+      ...(search ? { search } : {}),
+      ...(role !== 'all' ? { role } : {}),
+    }
+
+    const firstPageResult = await fetchUsers({
+      ...query,
+      per_page: 100,
+      page: 1,
+    })
+
+    const firstPage = getUsersPage(firstPageResult)
+    const allUsers = [...firstPage.items]
+
+    if (firstPage.lastPage > 1) {
+      const remainingRequests = []
+      for (let page = 2; page <= firstPage.lastPage; page += 1) {
+        remainingRequests.push(
+          fetchUsers({
+            ...query,
+            per_page: 100,
+            page,
+          })
+        )
+      }
+
+      const remainingResults = await Promise.all(remainingRequests)
+      remainingResults.forEach((result) => {
+        const { items } = getUsersPage(result)
+        allUsers.push(...items)
+      })
+    }
+
+    return allUsers
+  }
+
+  const handleExportCsv = async () => {
+    setIsExporting(true)
+    setActionError('')
+    setActionMessage('')
+
+    try {
+      const allUsers = await fetchAllUsersForExport()
+      const usersForExport = [...allUsers]
+        .filter((user) => {
+          const walletBalance = Number(user?.wallet?.balance ?? 0)
+          const walletMatches =
+            walletFilter === 'all' ||
+            (walletFilter === 'positive' && walletBalance > 0) ||
+            (walletFilter === 'zero' && walletBalance === 0)
+          const registrationMatches = matchesDateFilter(user?.created_at, registrationFilter)
+          return walletMatches && registrationMatches
+        })
+        .sort((a, b) => {
+          const valueA = getSortValue(a, sortBy, language)
+          const valueB = getSortValue(b, sortBy, language)
+          const result = compareValues(valueA, valueB)
+          return sortDirection === 'asc' ? result : -result
+        })
+
+      if (!usersForExport.length) {
+        setActionError(copy.noCsvData)
+        return
+      }
+
+      const csvContent = buildUsersCsv(usersForExport, language)
+      const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' })
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const link = document.createElement('a')
+      const blobUrl = URL.createObjectURL(blob)
+      link.href = blobUrl
+      link.download = `users-${timestamp}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(blobUrl)
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.message || 'Failed to export CSV.'
+      setActionError(message)
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -451,6 +816,18 @@ export default function UsersPage() {
       {error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-600">
           {error}
+        </div>
+      ) : null}
+
+      {actionError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-600">
+          {actionError}
+        </div>
+      ) : null}
+
+      {actionMessage ? (
+        <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-700">
+          {actionMessage}
         </div>
       ) : null}
 
@@ -488,13 +865,85 @@ export default function UsersPage() {
               {sortDirection === 'asc' ? copy.asc : copy.desc}
             </Button>
 
-            <Button variant="secondary">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setIsCreateOpen((prev) => !prev)
+                setActionError('')
+                setActionMessage('')
+              }}
+            >
               <Plus size={18} />
               {copy.addUser}
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      {isCreateOpen ? (
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="text-xl font-semibold text-[var(--color-text)]">{copy.createUserTitle}</h3>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <Input
+                label={copy.userName}
+                value={createForm.name}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, name: e.target.value }))}
+              />
+              <Input
+                label={copy.email}
+                value={createForm.email}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, email: e.target.value }))}
+              />
+              <Input
+                label={copy.phoneNumber}
+                value={createForm.phone_number}
+                onChange={(e) =>
+                  setCreateForm((prev) => ({ ...prev, phone_number: e.target.value }))
+                }
+              />
+              <Select
+                label={copy.roleLabel}
+                value={createForm.role}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, role: e.target.value }))}
+              >
+                <option value="user">{formatRoleLabel('user', language)}</option>
+                <option value="student">{formatRoleLabel('student', language)}</option>
+                <option value="trainer">{formatRoleLabel('trainer', language)}</option>
+                <option value="admin">{formatRoleLabel('admin', language)}</option>
+              </Select>
+              <Input
+                type="password"
+                label={copy.password}
+                value={createForm.password}
+                onChange={(e) =>
+                  setCreateForm((prev) => ({
+                    ...prev,
+                    password: e.target.value,
+                    password_confirmation: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            <div className="mt-5 flex items-center gap-3">
+              <Button variant="secondary" onClick={handleCreateUser} disabled={isCreating}>
+                {isCreating ? copy.creating : copy.save}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsCreateOpen(false)
+                  resetCreateForm()
+                }}
+                disabled={isCreating}
+              >
+                {copy.cancel}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <section className="grid gap-6 xl:grid-cols-3">
         <SummaryCard
@@ -523,18 +972,60 @@ export default function UsersPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCsv}
+              disabled={isExporting}
+              className="min-w-[138px] rounded-full border-[1.5px] bg-white shadow-sm"
+            >
               <Download size={16} />
-              {copy.exportCsv}
+              {isExporting ? copy.exporting : copy.exportCsv}
             </Button>
             <button
               type="button"
-              className="rounded-2xl p-3 text-[var(--color-text-muted)] hover:bg-black/5"
+              onClick={() => setIsAdvancedFiltersOpen((prev) => !prev)}
+              className={`rounded-2xl border border-[var(--color-border)] p-3 transition-all ${
+                isAdvancedFiltersOpen
+                  ? 'bg-[var(--color-primary)] text-white'
+                  : 'text-[var(--color-text-muted)] hover:bg-black/5'
+              }`}
             >
-              <SlidersHorizontal size={20} />
+              {isAdvancedFiltersOpen ? <Filter size={20} /> : <SlidersHorizontal size={20} />}
             </button>
           </div>
         </div>
+
+        {isAdvancedFiltersOpen ? (
+          <div className="mt-6 grid gap-4 border-t border-[var(--color-border)] px-8 py-5 lg:grid-cols-[1fr_1fr_auto]">
+            <Select
+              label={copy.walletFilter}
+              value={walletFilter}
+              onChange={(event) => setWalletFilter(event.target.value)}
+            >
+              <option value="all">{copy.walletAll}</option>
+              <option value="positive">{copy.walletPositive}</option>
+              <option value="zero">{copy.walletZero}</option>
+            </Select>
+
+            <Select
+              label={copy.registrationFilter}
+              value={registrationFilter}
+              onChange={(event) => setRegistrationFilter(event.target.value)}
+            >
+              <option value="all">{copy.registrationAll}</option>
+              <option value="last30">{copy.registrationLast30}</option>
+              <option value="thisYear">{copy.registrationThisYear}</option>
+            </Select>
+
+            <div className="flex items-end">
+              <Button variant="outline" onClick={clearAdvancedFilters} className="w-full lg:w-auto">
+                <FilterX size={16} />
+                {copy.clearFilters}
+              </Button>
+            </div>
+          </div>
+        ) : null}
 
         <div
           className={`mt-8 grid ${USERS_TABLE_GRID} gap-4 bg-[var(--color-surface-muted)] px-8 py-5 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]`}
@@ -548,17 +1039,26 @@ export default function UsersPage() {
 
         {isLoading ? (
           <div className="px-8 py-10 text-[var(--color-text-muted)]">{copy.loadingUsers}</div>
-        ) : visibleUsers.length === 0 ? (
+        ) : filteredVisibleUsers.length === 0 ? (
           <div className="px-8 py-10 text-[var(--color-text-muted)]">{copy.noUsersFound}</div>
         ) : (
-          visibleUsers.map((user) => <UserRow key={user.id} user={user} language={language} />)
+          filteredVisibleUsers.map((user) => (
+            <UserRow
+              key={user.id}
+              user={user}
+              language={language}
+              copy={copy}
+              onAddPoints={(targetUser) => openWalletAction(targetUser, 'credit')}
+              onDecreasePoints={(targetUser) => openWalletAction(targetUser, 'debit')}
+            />
+          ))
         )}
 
         <div className="flex flex-col gap-4 border-t border-[var(--color-border)] px-8 py-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--color-text-muted)]">
             <span>
-              {copy.showing} <b>{pagination.from || 0}</b>-<b>{pagination.to || 0}</b> {copy.of}{' '}
-              <b>{pagination.total}</b> {copy.total}
+              {copy.showing} <b>{filteredShowingFrom}</b>-<b>{filteredShowingTo}</b> {copy.of}{' '}
+              <b>{filteredShowingTotal}</b> {copy.total}
             </span>
 
             <span className="hidden text-[var(--color-border)] lg:inline">|</span>

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import DashboardLayout from '../layouts/DashboardLayout'
 import DashboardPage from '../features/dashboard/pages/DashboardPage'
 import UsersPage from '../features/users/pages/UsersPage'
+import UserWalletActionPage from '../features/users/pages/UserWalletActionPage'
 import ProgramsPage from '../features/programs/pages/ProgramsPage'
 import ProgramBuilderPage from '../features/programs/pages/ProgramBuilderPage'
 import CategoriesPage from '../features/categories/pages/CategoriesPage'
@@ -52,6 +53,15 @@ export default function AppRouter() {
           element={
             <AdminRoute>
               <UsersPage />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/users/wallet"
+          element={
+            <AdminRoute>
+              <UserWalletActionPage />
             </AdminRoute>
           }
         />
