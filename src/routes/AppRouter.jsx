@@ -12,6 +12,7 @@ import SectionsPage from '../features/sections/pages/SectionsPage'
 import SectionBuilderPage from '../features/sections/pages/SectionBuilderPage'
 import QuizzesPage from '../features/quizzes/pages/QuizzesPage'
 import QuizBuilderPage from '../features/quizzes/pages/QuizBuilderPage'
+import SettingsPage from '../features/settings/pages/SettingsPage'
 import PlaceholderPage from '../features/shared/pages/PlaceholderPage'
 import ProtectedRoute from '../components/layout/ProtectedRoute'
 import LoginPage from '../features/auth/pages/LoginPage'
@@ -151,7 +152,7 @@ export default function AppRouter() {
           path="/settings"
           element={
             <AdminRoute>
-              <PlaceholderPage />
+              <SettingsPage />
             </AdminRoute>
           }
         />
