@@ -107,7 +107,7 @@ export default function AppTopbar() {
     if (language === 'nl') {
       return {
         searchPlaceholder:
-          'Zoek in programma\'s, gebruikers, categorieen, secties, lessen of quizzen...',
+          'Zoek in programma\'s, gebruikers, categorieen, secties, lessen of vraagbanken...',
         reviewInactivePrograms: 'Inactieve programma\'s bekijken',
         languageTitle: `Taal: ${language.toUpperCase()}`,
         role: 'Super Admin',
@@ -116,7 +116,7 @@ export default function AppTopbar() {
     }
     return {
       searchPlaceholder:
-        'Search programs, users, categories, sections, lessons, or quizzes...',
+        'Search programs, users, categories, sections, lessons, or question banks...',
       reviewInactivePrograms: 'Review inactive programs',
       languageTitle: `Language: ${language.toUpperCase()}`,
       role: 'Super Admin',

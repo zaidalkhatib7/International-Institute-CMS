@@ -43,6 +43,10 @@ function getSectionTitle(section) {
   return readLocalized(section?.title) || `Section ${section?.id ?? ''}`.trim()
 }
 
+function getQuizSectionId(quiz) {
+  return quiz?.section_id ?? quiz?.course_section_id ?? ''
+}
+
 function compareValues(a, b) {
   if (typeof a === 'number' && typeof b === 'number') return a - b
   return String(a).localeCompare(String(b), undefined, {
@@ -52,8 +56,8 @@ function compareValues(a, b) {
 }
 
 function getSortValue(quiz, sectionsById, sortBy) {
-  if (sortBy === 'section') return sectionsById[String(quiz?.course_section_id)] || '-'
-  if (sortBy === 'pass_percentage') return Number(quiz?.pass_percentage ?? 0)
+  if (sortBy === 'section') return sectionsById[String(getQuizSectionId(quiz))] || '-'
+  if (sortBy === 'pass_percentage') return Number(quiz?.questions_per_attempt ?? 0)
   if (sortBy === 'questions_count') return Number(quiz?.questions_count ?? 0)
   return getQuizTitle(quiz)
 }
@@ -76,7 +80,7 @@ function MetricCard({ label, value, variant = 'neutral' }) {
 
 function QuizRow({ quiz, sectionName, onEdit, onDelete, isDeleting, labels }) {
   const title = getQuizTitle(quiz)
-  const passPercentage = Number(quiz?.pass_percentage ?? 0)
+  const questionsPerAttempt = Number(quiz?.questions_per_attempt ?? 0)
   const questionsCount = quiz?.questions_count ?? '-'
 
   return (
@@ -89,17 +93,17 @@ function QuizRow({ quiz, sectionName, onEdit, onDelete, isDeleting, labels }) {
         </div>
         <div>
           <h4 className="text-xl font-semibold text-[var(--color-text)]">{title}</h4>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">Quiz ID: {quiz.id}</p>
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">Bank ID: {quiz.id}</p>
         </div>
       </div>
 
       <div className="truncate text-lg text-[var(--color-text-body,#43474D)]">{sectionName}</div>
-      <div className="text-base font-semibold text-[var(--color-text)]">{passPercentage}%</div>
+      <div className="text-base font-semibold text-[var(--color-text)]">{questionsPerAttempt}</div>
       <div className="text-base text-[var(--color-text-body,#43474D)]">{questionsCount}</div>
 
       <div>
-        <Badge variant={passPercentage >= 70 ? 'success' : 'warning'}>
-          {passPercentage >= 70 ? labels.standardThreshold : labels.lowThreshold}
+        <Badge variant={questionsPerAttempt > 0 ? 'success' : 'warning'}>
+          {questionsPerAttempt > 0 ? labels.standardThreshold : labels.lowThreshold}
         </Badge>
       </div>
 
@@ -173,18 +177,18 @@ export default function QuizzesPage() {
     }
     if (language === 'nl') {
       return {
-        title: 'Quizzen',
-        description: 'Beheer sectiequizzen, slagingsdrempels en vraagsets.',
-        newQuiz: 'Nieuwe quiz',
-        totalQuizzes: 'Totaal quizzen',
-        standardThreshold: 'Standaarddrempel',
-        lowThreshold: 'Lage drempel',
-        avgPass: 'Gem. slagings% ',
-        searchQuizzes: 'Zoek quizzen...',
+        title: 'Vraagbanken',
+        description: 'Beheer sectievraagbanken, vragenaantallen en bijdrage per poging.',
+        newQuiz: 'Nieuwe vraagbank',
+        totalQuizzes: 'Totaal vraagbanken',
+        standardThreshold: 'Geconfigureerd',
+        lowThreshold: 'Nul bijdrage',
+        avgPass: 'Vragen / poging',
+        searchQuizzes: 'Zoek vraagbanken...',
         allSections: 'Alle secties',
         sortTitle: 'Sorteren: Titel',
         sortSection: 'Sorteren: Sectie',
-        sortPass: 'Sorteren: Slagings%',
+        sortPass: 'Sorteren: Vragen per poging',
         sortQuestions: 'Sorteren: Vragen',
         asc: 'Oplopend',
         desc: 'Aflopend',
@@ -192,14 +196,14 @@ export default function QuizzesPage() {
         rows10: '10 rijen',
         rows20: '20 rijen',
         rows50: '50 rijen',
-        quiz: 'Quiz',
+        quiz: 'Vraagbank',
         section: 'Sectie',
-        pass: 'Slagings%',
+        pass: 'Per poging',
         questions: 'Vragen',
-        threshold: 'Drempel',
+        threshold: 'Status',
         actions: 'Acties',
-        loading: 'Quizzen laden...',
-        noResults: 'Geen quizzen gevonden.',
+        loading: 'Vraagbanken laden...',
+        noResults: 'Geen vraagbanken gevonden.',
         showing: 'Toont',
         of: 'van',
         filtered: 'gefilterd',
@@ -210,18 +214,18 @@ export default function QuizzesPage() {
       }
     }
     return {
-      title: 'Quizzes',
-      description: 'Manage section quizzes, pass thresholds, and question sets.',
-      newQuiz: 'New Quiz',
-      totalQuizzes: 'Total Quizzes',
-      standardThreshold: 'Standard Threshold',
-      lowThreshold: 'Low Threshold',
-      avgPass: 'Avg Pass %',
-      searchQuizzes: 'Search quizzes...',
+      title: 'Question Banks',
+      description: 'Manage section question banks, question counts, and per-attempt contribution.',
+      newQuiz: 'New Question Bank',
+      totalQuizzes: 'Total Question Banks',
+      standardThreshold: 'Configured Banks',
+      lowThreshold: 'Zero Contribution',
+      avgPass: 'Questions / Attempt',
+      searchQuizzes: 'Search question banks...',
       allSections: 'All Sections',
       sortTitle: 'Sort: Title',
       sortSection: 'Sort: Section',
-      sortPass: 'Sort: Pass %',
+      sortPass: 'Sort: Questions / Attempt',
       sortQuestions: 'Sort: Questions',
       asc: 'Asc',
       desc: 'Desc',
@@ -229,14 +233,14 @@ export default function QuizzesPage() {
       rows10: '10 rows',
       rows20: '20 rows',
       rows50: '50 rows',
-      quiz: 'Quiz',
+      quiz: 'Question Bank',
       section: 'Section',
-      pass: 'Pass %',
+      pass: 'Per Attempt',
       questions: 'Questions',
-      threshold: 'Threshold',
+      threshold: 'Status',
       actions: 'Actions',
-      loading: 'Loading quizzes...',
-      noResults: 'No quizzes found.',
+      loading: 'Loading question banks...',
+      noResults: 'No question banks found.',
       showing: 'Showing',
       of: 'of',
       filtered: 'filtered',
@@ -286,11 +290,17 @@ export default function QuizzesPage() {
 
               return {
                 ...quiz,
+                section_id: getQuizSectionId(detail) || getQuizSectionId(quiz) || null,
+                questions_per_attempt: Number(
+                  detail?.questions_per_attempt ?? quiz?.questions_per_attempt ?? 0
+                ),
                 questions_count: questionsCount,
               }
             } catch {
               return {
                 ...quiz,
+                section_id: getQuizSectionId(quiz) || null,
+                questions_per_attempt: Number(quiz?.questions_per_attempt ?? 0),
                 questions_count: Number(quiz?.questions_count ?? 0),
               }
             }
@@ -299,7 +309,8 @@ export default function QuizzesPage() {
 
         setQuizzes(quizzesWithQuestionCounts)
       } catch (err) {
-        const message = err?.response?.data?.message || err?.message || 'Failed to load quizzes.'
+        const message =
+          err?.response?.data?.message || err?.message || 'Failed to load question banks.'
         setError(message)
       } finally {
         setIsLoading(false)
@@ -326,7 +337,7 @@ export default function QuizzesPage() {
     const query = search.trim().toLowerCase()
 
     const base = quizzes.filter((quiz) => {
-      if (sectionFilter !== 'all' && String(quiz?.course_section_id) !== sectionFilter) {
+      if (sectionFilter !== 'all' && String(getQuizSectionId(quiz)) !== sectionFilter) {
         return false
       }
 
@@ -334,7 +345,7 @@ export default function QuizzesPage() {
 
       const haystack = [
         getQuizTitle(quiz),
-        sectionsById[String(quiz?.course_section_id)] || '',
+        sectionsById[String(getQuizSectionId(quiz))] || '',
       ]
         .join(' ')
         .toLowerCase()
@@ -369,20 +380,19 @@ export default function QuizzesPage() {
 
   const metrics = useMemo(() => {
     const total = quizzes.length
-    const standard = quizzes.filter((q) => Number(q?.pass_percentage ?? 0) >= 70).length
+    const standard = quizzes.filter((q) => Number(q?.questions_per_attempt ?? 0) > 0).length
     const lowThreshold = total - standard
-    const avgPassPercentage = total
-      ? Math.round(
-          quizzes.reduce((sum, item) => sum + Number(item?.pass_percentage ?? 0), 0) / total
-        )
-      : 0
+    const avgPassPercentage = quizzes.reduce(
+      (sum, item) => sum + Number(item?.questions_per_attempt ?? 0),
+      0
+    )
     return { total, standard, lowThreshold, avgPassPercentage }
   }, [quizzes])
 
   const handleDeleteQuiz = async (quiz) => {
     if (!quiz?.id) return
     const shouldDelete = globalThis.confirm(
-      `Delete quiz "${getQuizTitle(quiz)}"? This action cannot be undone.`
+      `Delete question bank "${getQuizTitle(quiz)}"? This action cannot be undone.`
     )
     if (!shouldDelete) return
 
@@ -393,9 +403,10 @@ export default function QuizzesPage() {
     try {
       await deleteAdminQuiz(quiz.id)
       setQuizzes((prev) => prev.filter((item) => item.id !== quiz.id))
-      setStatusMessage('Quiz deleted successfully.')
+      setStatusMessage('Question bank deleted successfully.')
     } catch (err) {
-      const message = err?.response?.data?.message || err?.message || 'Failed to delete quiz.'
+      const message =
+        err?.response?.data?.message || err?.message || 'Failed to delete question bank.'
       setError(message)
     } finally {
       setDeletingQuizId(null)
@@ -431,7 +442,7 @@ export default function QuizzesPage() {
         <MetricCard label={copy.totalQuizzes} value={String(metrics.total)} variant="info" />
         <MetricCard label={copy.standardThreshold} value={String(metrics.standard)} variant="success" />
         <MetricCard label={copy.lowThreshold} value={String(metrics.lowThreshold)} variant="warning" />
-        <MetricCard label={copy.avgPass} value={`${metrics.avgPassPercentage}%`} variant="secondary" />
+        <MetricCard label={copy.avgPass} value={String(metrics.avgPassPercentage)} variant="secondary" />
       </section>
 
       <Card>
@@ -503,7 +514,7 @@ export default function QuizzesPage() {
               key={quiz.id}
               quiz={quiz}
               labels={copy}
-              sectionName={sectionsById[String(quiz?.course_section_id)] || '-'}
+              sectionName={sectionsById[String(getQuizSectionId(quiz))] || '-'}
               onEdit={(selectedQuiz) => navigate(`/quizzes/edit?id=${selectedQuiz.id}`)}
               onDelete={handleDeleteQuiz}
               isDeleting={deletingQuizId === quiz.id}

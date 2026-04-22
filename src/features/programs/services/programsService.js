@@ -10,7 +10,23 @@ function normalizeProgramPayload(payload) {
   return payload?.data?.data || payload?.data || payload
 }
 
+function buildLocalizedField(value) {
+  const localized = {
+    en: readLocalized(value),
+    ar: value?.ar || '',
+    nl: value?.nl || '',
+  }
+
+  return Object.values(localized).some((entry) => String(entry || '').trim()) ? localized : null
+}
+
 function buildProgramPayloadForUpdate(program, featuredValue) {
+  const finalQuizTitle = buildLocalizedField(program?.final_quiz_title)
+  const finalQuizPassPercentage =
+    program?.final_quiz_pass_percentage === '' || program?.final_quiz_pass_percentage == null
+      ? null
+      : Number(program.final_quiz_pass_percentage)
+
   return {
     category_id: program?.category_id
       ? Number(program.category_id)
@@ -65,6 +81,10 @@ function buildProgramPayloadForUpdate(program, featuredValue) {
       ar: program?.intro_text?.ar || '',
       nl: program?.intro_text?.nl || '',
     },
+    ...(finalQuizTitle ? { final_quiz_title: finalQuizTitle } : {}),
+    ...(finalQuizPassPercentage != null
+      ? { final_quiz_pass_percentage: finalQuizPassPercentage }
+      : {}),
     is_featured: Boolean(featuredValue),
   }
 }

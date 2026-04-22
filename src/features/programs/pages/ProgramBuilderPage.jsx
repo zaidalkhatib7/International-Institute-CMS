@@ -51,6 +51,11 @@ function normalizeProgramPayload(payload) {
   return payload?.data?.data || payload?.data || payload
 }
 
+function hasAnyLocalizedValue(value) {
+  if (!value || typeof value !== 'object') return false
+  return Object.values(value).some((entry) => String(entry || '').trim())
+}
+
 function mapProgramToFormData(program) {
   return {
     category_id: program?.category_id
@@ -103,6 +108,13 @@ function mapProgramToFormData(program) {
       ar: program?.intro_text?.ar || '',
       nl: program?.intro_text?.nl || '',
     },
+    final_quiz_title: {
+      en: readLocalized(program?.final_quiz_title),
+      ar: program?.final_quiz_title?.ar || '',
+      nl: program?.final_quiz_title?.nl || '',
+    },
+    final_quiz_pass_percentage:
+      program?.final_quiz_pass_percentage != null ? String(program.final_quiz_pass_percentage) : '',
     is_featured: Boolean(program?.is_featured),
     is_active: Boolean(program?.is_active),
     category_name:
@@ -116,6 +128,16 @@ function mapProgramToFormData(program) {
 }
 
 function buildProgramPayload(formData) {
+  const finalQuizTitle = {
+    en: formData.final_quiz_title?.en || '',
+    ar: formData.final_quiz_title?.ar || '',
+    nl: formData.final_quiz_title?.nl || '',
+  }
+  const finalQuizPassPercentage =
+    formData.final_quiz_pass_percentage === ''
+      ? null
+      : Number(formData.final_quiz_pass_percentage)
+
   return {
     category_id: formData.category_id ? Number(formData.category_id) : null,
     title: {
@@ -163,6 +185,10 @@ function buildProgramPayload(formData) {
       ar: formData.intro_text?.ar || '',
       nl: formData.intro_text?.nl || '',
     },
+    ...(hasAnyLocalizedValue(finalQuizTitle) ? { final_quiz_title: finalQuizTitle } : {}),
+    ...(finalQuizPassPercentage != null
+      ? { final_quiz_pass_percentage: finalQuizPassPercentage }
+      : {}),
     is_featured: Boolean(formData.is_featured),
   }
 }
@@ -291,6 +317,9 @@ function SnapshotCard({ copy }) {
 }
 
 function PricingSnapshotCard({ formData, copy }) {
+  const finalQuizTitle =
+    formData.final_quiz_title?.en || formData.final_quiz_title?.ar || formData.final_quiz_title?.nl
+
   return (
     <Card>
       <CardContent className="p-6">
@@ -315,6 +344,20 @@ function PricingSnapshotCard({ formData, copy }) {
             <span className="text-[var(--color-text-muted)]">{copy.pricePoints}</span>
             <span className="font-medium text-[var(--color-accent-dark,#765A1F)]">
               {formData.price_points || copy.notAvailable}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-[var(--color-text-muted)]">{copy.finalQuizTitle}</span>
+            <span className="max-w-[170px] truncate text-right font-medium text-[var(--color-text)]">
+              {finalQuizTitle || copy.notAvailable}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-[var(--color-text-muted)]">{copy.finalQuizPassPercentage}</span>
+            <span className="font-medium text-[var(--color-text)]">
+              {formData.final_quiz_pass_percentage || copy.notAvailable}
             </span>
           </div>
 
@@ -594,7 +637,14 @@ function AcademicContentContent({
   )
 }
 
-function PricingContent({ formData, updateField, copy }) {
+function PricingContent({
+  formData,
+  activeLanguage,
+  setActiveLanguage,
+  updateField,
+  updateLocalizedField,
+  copy,
+}) {
   return (
     <div className="space-y-8">
       <SectionCard icon={<Wallet size={24} />} title={copy.tuitionAndCurrency}>
@@ -652,6 +702,39 @@ function PricingContent({ formData, updateField, copy }) {
               </div>
             </div>
           </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard icon={<Target size={24} />} title={copy.finalQuizSettings}>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-4">
+              <label className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--color-text)]">
+                {copy.finalQuizTitle}
+              </label>
+              <LanguageTabs activeLanguage={activeLanguage} onChange={setActiveLanguage} />
+            </div>
+
+            <Input
+              placeholder={copy.finalQuizTitlePlaceholder}
+              value={formData.final_quiz_title?.[activeLanguage] || ''}
+              onChange={(e) =>
+                updateLocalizedField('final_quiz_title', activeLanguage, e.target.value)
+              }
+            />
+          </div>
+
+          <Input
+            label={copy.finalQuizPassPercentage}
+            type="number"
+            min="0"
+            max="100"
+            placeholder={copy.finalQuizPassPercentagePlaceholder}
+            value={formData.final_quiz_pass_percentage}
+            onChange={(e) => updateField('final_quiz_pass_percentage', e.target.value)}
+          />
+
+          <p className="text-sm text-[var(--color-text-muted)]">{copy.finalQuizSettingsHint}</p>
         </div>
       </SectionCard>
 
@@ -970,6 +1053,13 @@ export default function ProgramBuilderPage() {
         pricePointsRequired: 'نقاط السعر *',
         pricePointsPlaceholder: '500',
         pointsPricingHint: 'يمكن تسعير البرامج بنقاط المؤسسة بجانب العملة.',
+        finalQuizSettings: 'إعدادات الاختبار النهائي',
+        finalQuizTitle: 'عنوان الاختبار النهائي',
+        finalQuizTitlePlaceholder: 'Strategic Leadership Final Assessment',
+        finalQuizPassPercentage: 'نسبة نجاح الاختبار النهائي',
+        finalQuizPassPercentagePlaceholder: '70',
+        finalQuizSettingsHint:
+          'يحدد البرنامج عنوان الاختبار النهائي ونسبة النجاح، بينما تحدد بنوك الأسئلة عدد الأسئلة المساهمة من كل قسم.',
         currencyPrice: 'السعر بالعملة',
         pointsPrice: 'السعر بالنقاط',
         pricingGuidance: 'إرشادات التسعير',
@@ -1097,6 +1187,13 @@ export default function ProgramBuilderPage() {
         pricePointsRequired: 'Prijspunten *',
         pricePointsPlaceholder: '500',
         pointsPricingHint: 'Programma\'s kunnen geprijsd worden in institutionele punten naast valuta.',
+        finalQuizSettings: 'Eindquizinstellingen',
+        finalQuizTitle: 'Titel eindquiz',
+        finalQuizTitlePlaceholder: 'Strategic Leadership Final Assessment',
+        finalQuizPassPercentage: 'Slaagpercentage eindquiz',
+        finalQuizPassPercentagePlaceholder: '70',
+        finalQuizSettingsHint:
+          'Het programma bepaalt de titel en slaaggrens van de eindquiz. De vraagbanken per sectie bepalen hoeveel vragen per poging worden bijgedragen.',
         currencyPrice: 'Prijs in valuta',
         pointsPrice: 'Prijs in punten',
         pricingGuidance: 'Prijsrichtlijn',
@@ -1223,6 +1320,13 @@ export default function ProgramBuilderPage() {
       pricePointsRequired: 'Price Points *',
       pricePointsPlaceholder: '500',
       pointsPricingHint: 'Programs can be priced in institutional points alongside currency.',
+      finalQuizSettings: 'Final Quiz Settings',
+      finalQuizTitle: 'Final Quiz Title',
+      finalQuizTitlePlaceholder: 'e.g. Strategic Leadership Final Assessment',
+      finalQuizPassPercentage: 'Final Quiz Pass Percentage',
+      finalQuizPassPercentagePlaceholder: '70',
+      finalQuizSettingsHint:
+        'Programs now own the learner-facing final quiz title and pass percentage. Section question banks control how many questions they contribute per attempt.',
       currencyPrice: 'Currency Price',
       pointsPrice: 'Points Price',
       pricingGuidance: 'Pricing Guidance',
@@ -1296,6 +1400,8 @@ export default function ProgramBuilderPage() {
     featured_image: '',
     intro_video_url: '',
     intro_text: { en: '', ar: '', nl: '' },
+    final_quiz_title: { en: '', ar: '', nl: '' },
+    final_quiz_pass_percentage: '',
     is_featured: false,
     is_active: false,
   })
@@ -1477,7 +1583,16 @@ export default function ProgramBuilderPage() {
           />
         )
       case 'pricing':
-        return <PricingContent formData={formData} updateField={updateField} copy={copy} />
+        return (
+          <PricingContent
+            formData={formData}
+            activeLanguage={activeLanguage}
+            setActiveLanguage={setActiveLanguage}
+            updateField={updateField}
+            updateLocalizedField={updateLocalizedField}
+            copy={copy}
+          />
+        )
       case 'media':
         return <MediaContent formData={formData} updateField={updateField} copy={copy} />
       case 'publish':

@@ -49,6 +49,10 @@ function getQuizTitle(quiz, language, copy) {
   return readLocalized(quiz?.title, language) || `${copy.quizLabel} ${quiz?.id ?? ''}`.trim()
 }
 
+function getQuizSectionId(quiz) {
+  return quiz?.section_id ?? quiz?.course_section_id ?? ''
+}
+
 function getCreatedAt(item) {
   return item?.created_at || item?.updated_at || null
 }
@@ -189,21 +193,21 @@ export default function DashboardPage() {
         loadingActivity: 'Activiteit laden...',
         noRecentActivity: 'Nog geen recente activiteit beschikbaar.',
         quickSearch: 'Snel zoeken',
-        quickSearchPlaceholder: 'Zoek gebruikers, programma\'s, secties, lessen of quizzen...',
+        quickSearchPlaceholder: 'Zoek gebruikers, programma\'s, secties, lessen of vraagbanken...',
         noMatchingRecords: 'Geen overeenkomende resultaten.',
         users: 'Gebruikers',
         programs: 'Programma\'s',
         sections: 'Secties',
         lessons: 'Lessen',
-        quizzes: 'Quizzen',
+        quizzes: 'Vraagbanken',
         programUpdated: 'Programma bijgewerkt',
         sectionUpdated: 'Sectie bijgewerkt',
         lessonUpdated: 'Les bijgewerkt',
-        quizUpdated: 'Quiz bijgewerkt',
+        quizUpdated: 'Vraagbank bijgewerkt',
         untitledProgram: 'Programma zonder titel',
         sectionLabel: 'Sectie',
         lessonLabel: 'Les',
-        quizLabel: 'Quiz',
+        quizLabel: 'Vraagbank',
         idPrefix: 'ID',
         programPrefix: 'Programma',
         sectionPrefix: 'Sectie',
@@ -211,7 +215,7 @@ export default function DashboardPage() {
         typeProgram: 'Programma',
         typeSection: 'Sectie',
         typeLesson: 'Les',
-        typeQuiz: 'Quiz',
+        typeQuiz: 'Vraagbank',
       }
     }
     return {
@@ -229,21 +233,21 @@ export default function DashboardPage() {
       loadingActivity: 'Loading activity...',
       noRecentActivity: 'No recent activity available yet.',
       quickSearch: 'Quick Search',
-      quickSearchPlaceholder: 'Search users, programs, sections, lessons or quizzes...',
+      quickSearchPlaceholder: 'Search users, programs, sections, lessons or question banks...',
       noMatchingRecords: 'No matching records.',
       users: 'Users',
       programs: 'Programs',
       sections: 'Sections',
       lessons: 'Lessons',
-      quizzes: 'Quizzes',
+      quizzes: 'Question Banks',
       programUpdated: 'Program updated',
       sectionUpdated: 'Section updated',
       lessonUpdated: 'Lesson updated',
-      quizUpdated: 'Quiz updated',
+      quizUpdated: 'Question bank updated',
       untitledProgram: 'Untitled Program',
       sectionLabel: 'Section',
       lessonLabel: 'Lesson',
-      quizLabel: 'Quiz',
+      quizLabel: 'Question Bank',
       idPrefix: 'ID',
       programPrefix: 'Program',
       sectionPrefix: 'Section',
@@ -251,7 +255,7 @@ export default function DashboardPage() {
       typeProgram: 'Program',
       typeSection: 'Section',
       typeLesson: 'Lesson',
-      typeQuiz: 'Quiz',
+      typeQuiz: 'Question Bank',
     }
   }, [language])
 
@@ -307,7 +311,7 @@ export default function DashboardPage() {
       const pendingReview = programs.filter((program) => !program?.is_active).length
       const sectionQuizIds = new Set(
         quizzes
-          .map((quiz) => String(quiz?.course_section_id ?? ''))
+          .map((quiz) => String(getQuizSectionId(quiz) ?? ''))
           .filter(Boolean)
       )
       const readySections = sections.filter(
@@ -385,7 +389,7 @@ export default function DashboardPage() {
           id: `quiz-${quiz.id}`,
           type: copy.typeQuiz,
           title: getQuizTitle(quiz, language, copy),
-          subtitle: `${copy.sectionPrefix} ${quiz?.course_section_id ?? '-'}`,
+          subtitle: `${copy.sectionPrefix} ${getQuizSectionId(quiz) || '-'}`,
           onClick: () => navigate(`/quizzes/edit?id=${quiz.id}`),
         })),
       ]

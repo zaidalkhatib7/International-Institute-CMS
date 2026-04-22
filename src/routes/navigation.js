@@ -14,10 +14,10 @@ const navigationLabelMap = {
   dashboard: { en: 'Dashboard', ar: 'لوحة التحكم', nl: 'Dashboard' },
   users: { en: 'Users', ar: 'المستخدمون', nl: 'Gebruikers' },
   categories: { en: 'Categories', ar: 'التصنيفات', nl: 'Categorieen' },
-  programs: { en: 'Programs', ar: 'البرامج', nl: 'Programma\'s' },
+  programs: { en: 'Programs', ar: 'البرامج', nl: "Programma's" },
   sections: { en: 'Sections', ar: 'الأقسام', nl: 'Secties' },
   lessons: { en: 'Lessons', ar: 'الدروس', nl: 'Lessen' },
-  quizzes: { en: 'Quizzes', ar: 'الاختبارات', nl: 'Quizzen' },
+  quizzes: { en: 'Question Banks', ar: 'بنوك الأسئلة', nl: 'Vraagbanken' },
   settings: { en: 'Settings', ar: 'الإعدادات', nl: 'Instellingen' },
 }
 

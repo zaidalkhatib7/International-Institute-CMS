@@ -22,6 +22,10 @@ function getSectionTitle(section) {
   return readLocalized(section?.title) || `Section ${section?.id ?? ''}`.trim()
 }
 
+function getQuizSectionId(quiz) {
+  return quiz?.section_id ?? quiz?.course_section_id ?? ''
+}
+
 function createEmptyOption(sortOrder) {
   return {
     option_text: { en: '', ar: '', nl: '' },
@@ -45,9 +49,9 @@ function createEmptyQuestion(sortOrder) {
 
 function mapQuizToFormData(quiz) {
   return {
-    section_id: quiz?.course_section_id ? String(quiz.course_section_id) : '',
-    pass_percentage:
-      quiz?.pass_percentage != null ? String(quiz.pass_percentage) : '70',
+    section_id: getQuizSectionId(quiz) ? String(getQuizSectionId(quiz)) : '',
+    questions_per_attempt:
+      quiz?.questions_per_attempt != null ? String(quiz.questions_per_attempt) : '0',
     title: {
       en: readLocalized(quiz?.title),
       ar: quiz?.title?.ar || '',
@@ -55,6 +59,7 @@ function mapQuizToFormData(quiz) {
     },
     questions: Array.isArray(quiz?.questions) && quiz.questions.length
       ? quiz.questions.map((question, questionIndex) => ({
+          id: question?.id,
           question_text: {
             en: readLocalized(question?.question_text),
             ar: question?.question_text?.ar || '',
@@ -64,6 +69,7 @@ function mapQuizToFormData(quiz) {
           options:
             Array.isArray(question?.options) && question.options.length
               ? question.options.map((option, optionIndex) => ({
+                  id: option?.id,
                   option_text: {
                     en: readLocalized(option?.option_text),
                     ar: option?.option_text?.ar || '',
@@ -91,9 +97,10 @@ function buildQuizPayload(formData) {
       ar: formData.title?.ar || '',
       nl: formData.title?.nl || '',
     },
-    pass_percentage:
-      formData.pass_percentage === '' ? 70 : Number(formData.pass_percentage),
+    questions_per_attempt:
+      formData.questions_per_attempt === '' ? 0 : Number(formData.questions_per_attempt),
     questions: (formData.questions || []).map((question, questionIndex) => ({
+      ...(question?.id ? { id: question.id } : {}),
       question_text: {
         en: question?.question_text?.en || '',
         ar: question?.question_text?.ar || '',
@@ -101,6 +108,7 @@ function buildQuizPayload(formData) {
       },
       sort_order: question?.sort_order ?? questionIndex + 1,
       options: (question?.options || []).map((option, optionIndex) => ({
+        ...(option?.id ? { id: option.id } : {}),
         option_text: {
           en: option?.option_text?.en || '',
           ar: option?.option_text?.ar || '',
@@ -182,21 +190,21 @@ export default function QuizBuilderPage() {
     }
     if (language === 'nl') {
       return {
-        editQuiz: 'Quiz bewerken',
-        createQuiz: 'Quiz maken',
+        editQuiz: 'Vraagbank bewerken',
+        createQuiz: 'Vraagbank maken',
         breadcrumbAdmin: 'Beheer',
-        breadcrumbQuizzes: 'Quizzen',
-        subtitle: 'Bewerk quizmetadata en vraagopties voor een sectie.',
-        backToQuizzes: 'Terug naar quizzen',
-        saveQuiz: 'Quiz opslaan',
+        breadcrumbQuizzes: 'Vraagbanken',
+        subtitle: 'Beheer de vraagbank van een sectie en hoeveel vragen die per poging bijdraagt.',
+        backToQuizzes: 'Terug naar vraagbanken',
+        saveQuiz: 'Vraagbank opslaan',
         saving: 'Opslaan...',
-        loadingQuiz: 'Quiz laden...',
-        quizBasics: 'Quizbasis',
+        loadingQuiz: 'Vraagbank laden...',
+        quizBasics: 'Vraagbankbasis',
         section: 'Sectie',
         selectSection: 'Selecteer sectie',
-        passPercentage: 'Slagingspercentage',
-        quizTitle: 'Quiztitel',
-        quizTitlePlaceholder: 'bijv. Leadership Foundations Quiz',
+        passPercentage: 'Vragen per poging',
+        quizTitle: 'Titel vraagbank',
+        quizTitlePlaceholder: 'bijv. Leadership Foundations Question Bank',
         question: 'Vraag',
         remove: 'Verwijderen',
         questionText: 'Vraagtekst',
@@ -207,33 +215,33 @@ export default function QuizBuilderPage() {
         addQuestion: 'Vraag toevoegen',
         sectionRequired: 'Sectie is verplicht.',
         englishTitleRequired: 'Engelse quiztitel is verplicht.',
-        passRequired: 'Slagingspercentage is verplicht.',
+        passRequired: 'Vragen per poging is verplicht.',
         atLeastOneQuestion: 'Minimaal een vraag is verplicht.',
         atLeastTwoOptions: 'Minimaal twee opties zijn verplicht.',
         exactlyOneCorrect: 'Precies een correcte optie is verplicht.',
         englishTextRequired: 'Engelse tekst is verplicht.',
-        updated: 'Quiz succesvol bijgewerkt.',
-        created: 'Quiz succesvol aangemaakt.',
-        loadError: 'Quiz laden mislukt.',
-        saveError: 'Quiz opslaan mislukt.',
+        updated: 'Vraagbank succesvol bijgewerkt.',
+        created: 'Vraagbank succesvol aangemaakt.',
+        loadError: 'Vraagbank laden mislukt.',
+        saveError: 'Vraagbank opslaan mislukt.',
       }
     }
     return {
-      editQuiz: 'Edit Quiz',
-      createQuiz: 'Create Quiz',
+      editQuiz: 'Edit Question Bank',
+      createQuiz: 'Create Question Bank',
       breadcrumbAdmin: 'Admin',
-      breadcrumbQuizzes: 'Quizzes',
-      subtitle: 'Build quiz metadata and question options for a section.',
-      backToQuizzes: 'Back to Quizzes',
-      saveQuiz: 'Save Quiz',
+      breadcrumbQuizzes: 'Question Banks',
+      subtitle: 'Manage the section question bank and how many questions it contributes per attempt.',
+      backToQuizzes: 'Back to Question Banks',
+      saveQuiz: 'Save Question Bank',
       saving: 'Saving...',
-      loadingQuiz: 'Loading quiz...',
-      quizBasics: 'Quiz Basics',
+      loadingQuiz: 'Loading question bank...',
+      quizBasics: 'Question Bank Basics',
       section: 'Section',
       selectSection: 'Select section',
-      passPercentage: 'Pass Percentage',
-      quizTitle: 'Quiz Title',
-      quizTitlePlaceholder: 'e.g. Leadership Foundations Quiz',
+      passPercentage: 'Questions Per Attempt',
+      quizTitle: 'Question Bank Title',
+      quizTitlePlaceholder: 'e.g. Leadership Foundations Question Bank',
       question: 'Question',
       remove: 'Remove',
       questionText: 'Question Text',
@@ -244,15 +252,15 @@ export default function QuizBuilderPage() {
       addQuestion: 'Add Question',
       sectionRequired: 'Section is required.',
       englishTitleRequired: 'English quiz title is required.',
-      passRequired: 'Pass percentage is required.',
+      passRequired: 'Questions per attempt is required.',
       atLeastOneQuestion: 'At least one question is required.',
       atLeastTwoOptions: 'At least two options are required.',
       exactlyOneCorrect: 'Exactly one correct option is required.',
       englishTextRequired: 'English text is required.',
-      updated: 'Quiz updated successfully.',
-      created: 'Quiz created successfully.',
-      loadError: 'Failed to load quiz.',
-      saveError: 'Failed to save quiz.',
+      updated: 'Question bank updated successfully.',
+      created: 'Question bank created successfully.',
+      loadError: 'Failed to load question bank.',
+      saveError: 'Failed to save question bank.',
     }
   }, [language])
 
@@ -266,7 +274,7 @@ export default function QuizBuilderPage() {
 
   const [formData, setFormData] = useState({
     section_id: '',
-    pass_percentage: '70',
+    questions_per_attempt: '0',
     title: { en: '', ar: '', nl: '' },
     questions: [createEmptyQuestion(1)],
   })
@@ -408,8 +416,16 @@ export default function QuizBuilderPage() {
   const validateBeforeSave = () => {
     if (!formData.section_id) return copy.sectionRequired
     if (!formData.title?.en?.trim()) return copy.englishTitleRequired
-    if (!formData.pass_percentage) return copy.passRequired
+    if (formData.questions_per_attempt === '') return copy.passRequired
     if (!formData.questions.length) return copy.atLeastOneQuestion
+
+    const questionsPerAttempt = Number(formData.questions_per_attempt)
+    if (Number.isNaN(questionsPerAttempt) || questionsPerAttempt < 0) {
+      return 'Questions per attempt must be 0 or greater.'
+    }
+    if (questionsPerAttempt > formData.questions.length) {
+      return 'Questions per attempt cannot exceed the current question count.'
+    }
 
     for (let q = 0; q < formData.questions.length; q += 1) {
       const question = formData.questions[q]
@@ -566,9 +582,9 @@ export default function QuizBuilderPage() {
                   label={copy.passPercentage}
                   type="number"
                   min="0"
-                  max="100"
-                  value={formData.pass_percentage}
-                  onChange={(e) => updateField('pass_percentage', e.target.value)}
+                  max={Math.max(formData.questions.length, 0)}
+                  value={formData.questions_per_attempt}
+                  onChange={(e) => updateField('questions_per_attempt', e.target.value)}
                 />
 
                 <div className="space-y-2">
