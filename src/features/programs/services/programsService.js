@@ -26,6 +26,10 @@ function buildProgramPayloadForUpdate(program, featuredValue) {
     program?.final_quiz_pass_percentage === '' || program?.final_quiz_pass_percentage == null
       ? null
       : Number(program.final_quiz_pass_percentage)
+  const finalQuizDurationMinutes =
+    program?.final_quiz_duration_minutes === '' || program?.final_quiz_duration_minutes == null
+      ? null
+      : Number(program.final_quiz_duration_minutes)
 
   return {
     category_id: program?.category_id
@@ -84,6 +88,9 @@ function buildProgramPayloadForUpdate(program, featuredValue) {
     ...(finalQuizTitle ? { final_quiz_title: finalQuizTitle } : {}),
     ...(finalQuizPassPercentage != null
       ? { final_quiz_pass_percentage: finalQuizPassPercentage }
+      : {}),
+    ...(finalQuizDurationMinutes != null
+      ? { final_quiz_duration_minutes: finalQuizDurationMinutes }
       : {}),
     is_featured: Boolean(featuredValue),
   }

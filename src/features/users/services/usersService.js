@@ -43,62 +43,17 @@ export async function creditUserWallet(userId, payload) {
 
 export async function debitUserWallet(userId, payload) {
   const safeAmount = Math.abs(Number(payload?.amount ?? 0))
+  const description = payload?.description
+
+  if (!safeAmount || safeAmount < 1) {
+    throw new Error('The amount field must be at least 1.')
+  }
+
   const normalizedPayload = {
-    ...payload,
     amount: safeAmount,
+    description,
   }
 
-  const attempts = [
-    { url: `/admin/wallets/${userId}/debit`, body: normalizedPayload },
-    { url: `/admin/wallets/${userId}/deduct`, body: normalizedPayload },
-    { url: `/admin/wallets/${userId}/decrease`, body: normalizedPayload },
-    {
-      url: `/admin/wallets/${userId}/adjust`,
-      body: {
-        ...normalizedPayload,
-        type: 'debit',
-      },
-    },
-    {
-      url: `/admin/wallets/${userId}/credit`,
-      body: {
-        ...normalizedPayload,
-        operation: 'debit',
-      },
-    },
-    {
-      url: `/admin/wallets/${userId}/credit`,
-      body: {
-        ...normalizedPayload,
-        amount: -safeAmount,
-      },
-    },
-  ]
-
-  let lastError
-
-  for (const attempt of attempts) {
-    try {
-      const response = await http.post(attempt.url, attempt.body)
-      return response.data
-    } catch (error) {
-      const status = Number(error?.response?.status ?? 0)
-      const message = String(error?.response?.data?.message ?? '').toLowerCase()
-      const hasBalanceError =
-        message.includes('insufficient') || message.includes('balance')
-
-      if (status === 422 && hasBalanceError) {
-        throw error
-      }
-
-      if (status === 404 || status === 405 || status === 422 || status === 400) {
-        lastError = error
-        continue
-      }
-
-      throw error
-    }
-  }
-
-  throw lastError ?? new Error('Unable to process wallet debit with available endpoints.')
+  const response = await http.post(`/admin/wallets/${userId}/debit`, normalizedPayload)
+  return response.data
 }

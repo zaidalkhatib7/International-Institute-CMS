@@ -115,6 +115,10 @@ function mapProgramToFormData(program) {
     },
     final_quiz_pass_percentage:
       program?.final_quiz_pass_percentage != null ? String(program.final_quiz_pass_percentage) : '',
+    final_quiz_duration_minutes:
+      program?.final_quiz_duration_minutes != null
+        ? String(program.final_quiz_duration_minutes)
+        : '',
     is_featured: Boolean(program?.is_featured),
     is_active: Boolean(program?.is_active),
     category_name:
@@ -137,6 +141,10 @@ function buildProgramPayload(formData) {
     formData.final_quiz_pass_percentage === ''
       ? null
       : Number(formData.final_quiz_pass_percentage)
+  const finalQuizDurationMinutes =
+    formData.final_quiz_duration_minutes === ''
+      ? null
+      : Number(formData.final_quiz_duration_minutes)
 
   return {
     category_id: formData.category_id ? Number(formData.category_id) : null,
@@ -188,6 +196,9 @@ function buildProgramPayload(formData) {
     ...(hasAnyLocalizedValue(finalQuizTitle) ? { final_quiz_title: finalQuizTitle } : {}),
     ...(finalQuizPassPercentage != null
       ? { final_quiz_pass_percentage: finalQuizPassPercentage }
+      : {}),
+    ...(finalQuizDurationMinutes != null
+      ? { final_quiz_duration_minutes: finalQuizDurationMinutes }
       : {}),
     is_featured: Boolean(formData.is_featured),
   }
@@ -358,6 +369,17 @@ function PricingSnapshotCard({ formData, copy }) {
             <span className="text-[var(--color-text-muted)]">{copy.finalQuizPassPercentage}</span>
             <span className="font-medium text-[var(--color-text)]">
               {formData.final_quiz_pass_percentage || copy.notAvailable}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-[var(--color-text-muted)]">
+              {copy.finalQuizDurationMinutes || 'Final Quiz Duration'}
+            </span>
+            <span className="font-medium text-[var(--color-text)]">
+              {formData.final_quiz_duration_minutes
+                ? `${formData.final_quiz_duration_minutes} ${copy.minutesShort || 'minutes'}`
+                : copy.notAvailable}
             </span>
           </div>
 
@@ -639,10 +661,7 @@ function AcademicContentContent({
 
 function PricingContent({
   formData,
-  activeLanguage,
-  setActiveLanguage,
   updateField,
-  updateLocalizedField,
   copy,
 }) {
   return (
@@ -705,6 +724,31 @@ function PricingContent({
         </div>
       </SectionCard>
 
+      <Card>
+        <CardContent className="p-6">
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+            {copy.pricingGuidance}
+          </p>
+
+          <p className="mt-4 text-lg leading-8 text-[var(--color-text-muted)]">
+            {copy.pricingGuidanceBody}
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function FinalQuizContent({
+  formData,
+  activeLanguage,
+  setActiveLanguage,
+  updateField,
+  updateLocalizedField,
+  copy,
+}) {
+  return (
+    <div className="space-y-8">
       <SectionCard icon={<Target size={24} />} title={copy.finalQuizSettings}>
         <div className="space-y-6">
           <div className="space-y-2">
@@ -734,21 +778,18 @@ function PricingContent({
             onChange={(e) => updateField('final_quiz_pass_percentage', e.target.value)}
           />
 
+          <Input
+            label={copy.finalQuizDurationMinutes || 'Final Quiz Duration (Minutes)'}
+            type="number"
+            min="1"
+            placeholder={copy.finalQuizDurationMinutesPlaceholder || '30'}
+            value={formData.final_quiz_duration_minutes}
+            onChange={(e) => updateField('final_quiz_duration_minutes', e.target.value)}
+          />
+
           <p className="text-sm text-[var(--color-text-muted)]">{copy.finalQuizSettingsHint}</p>
         </div>
       </SectionCard>
-
-      <Card>
-        <CardContent className="p-6">
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-            {copy.pricingGuidance}
-          </p>
-
-          <p className="mt-4 text-lg leading-8 text-[var(--color-text-muted)]">
-            {copy.pricingGuidanceBody}
-          </p>
-        </CardContent>
-      </Card>
     </div>
   )
 }
@@ -1058,6 +1099,9 @@ export default function ProgramBuilderPage() {
         finalQuizTitlePlaceholder: 'Strategic Leadership Final Assessment',
         finalQuizPassPercentage: 'نسبة نجاح الاختبار النهائي',
         finalQuizPassPercentagePlaceholder: '70',
+        finalQuizDurationMinutes: 'مدة الاختبار النهائي (بالدقائق)',
+        finalQuizDurationMinutesPlaceholder: '30',
+        minutesShort: 'دقيقة',
         finalQuizSettingsHint:
           'يحدد البرنامج عنوان الاختبار النهائي ونسبة النجاح، بينما تحدد بنوك الأسئلة عدد الأسئلة المساهمة من كل قسم.',
         currencyPrice: 'السعر بالعملة',
@@ -1192,8 +1236,11 @@ export default function ProgramBuilderPage() {
         finalQuizTitlePlaceholder: 'Strategic Leadership Final Assessment',
         finalQuizPassPercentage: 'Slaagpercentage eindquiz',
         finalQuizPassPercentagePlaceholder: '70',
+        finalQuizDurationMinutes: 'Eindquizduur (minuten)',
+        finalQuizDurationMinutesPlaceholder: '30',
+        minutesShort: 'min',
         finalQuizSettingsHint:
-          'Het programma bepaalt de titel en slaaggrens van de eindquiz. De vraagbanken per sectie bepalen hoeveel vragen per poging worden bijgedragen.',
+          'Het programma bepaalt de titel, slaaggrens en duur van de eindquiz. De vraagbanken per sectie bepalen hoeveel vragen per poging worden bijgedragen.',
         currencyPrice: 'Prijs in valuta',
         pointsPrice: 'Prijs in punten',
         pricingGuidance: 'Prijsrichtlijn',
@@ -1325,8 +1372,11 @@ export default function ProgramBuilderPage() {
       finalQuizTitlePlaceholder: 'e.g. Strategic Leadership Final Assessment',
       finalQuizPassPercentage: 'Final Quiz Pass Percentage',
       finalQuizPassPercentagePlaceholder: '70',
+      finalQuizDurationMinutes: 'Final Quiz Duration (Minutes)',
+      finalQuizDurationMinutesPlaceholder: '30',
+      minutesShort: 'minutes',
       finalQuizSettingsHint:
-        'Programs now own the learner-facing final quiz title and pass percentage. Section question banks control how many questions they contribute per attempt.',
+        'Programs now own the learner-facing final quiz title, pass percentage, and duration timer. Section question banks control how many questions they contribute per attempt.',
       currencyPrice: 'Currency Price',
       pointsPrice: 'Points Price',
       pricingGuidance: 'Pricing Guidance',
@@ -1374,6 +1424,29 @@ export default function ProgramBuilderPage() {
     }
   }, [language])
 
+  const builderTabs = useMemo(() => {
+    const sourceTabs = Array.isArray(copy.tabs) ? copy.tabs : []
+    if (sourceTabs.some((tab) => tab?.key === 'final-quiz')) {
+      return sourceTabs
+    }
+
+    const insertIndex = sourceTabs.findIndex((tab) => tab?.key === 'media')
+    const finalQuizTab = {
+      key: 'final-quiz',
+      label: copy.finalQuizSettings || 'Final Quiz',
+    }
+
+    if (insertIndex < 0) {
+      return [...sourceTabs, finalQuizTab]
+    }
+
+    return [
+      ...sourceTabs.slice(0, insertIndex),
+      finalQuizTab,
+      ...sourceTabs.slice(insertIndex),
+    ]
+  }, [copy.tabs, copy.finalQuizSettings])
+
   const [activeLanguage, setActiveLanguage] = useState(
     language === 'ar' || language === 'nl' ? language : 'en'
   )
@@ -1402,6 +1475,7 @@ export default function ProgramBuilderPage() {
     intro_text: { en: '', ar: '', nl: '' },
     final_quiz_title: { en: '', ar: '', nl: '' },
     final_quiz_pass_percentage: '',
+    final_quiz_duration_minutes: '',
     is_featured: false,
     is_active: false,
   })
@@ -1586,6 +1660,14 @@ export default function ProgramBuilderPage() {
         return (
           <PricingContent
             formData={formData}
+            updateField={updateField}
+            copy={copy}
+          />
+        )
+      case 'final-quiz':
+        return (
+          <FinalQuizContent
+            formData={formData}
             activeLanguage={activeLanguage}
             setActiveLanguage={setActiveLanguage}
             updateField={updateField}
@@ -1673,7 +1755,7 @@ export default function ProgramBuilderPage() {
           </div>
         ) : null}
 
-        <BuilderTabs activeTab={activeTab} onTabChange={handleTabChange} tabs={copy.tabs} />
+        <BuilderTabs activeTab={activeTab} onTabChange={handleTabChange} tabs={builderTabs} />
       </div>
 
       {isLoading ? (
@@ -1692,7 +1774,7 @@ export default function ProgramBuilderPage() {
 
           <div className="space-y-6">
             <PreviewCard formData={formData} activeLanguage={activeLanguage} copy={copy} />
-            {activeTab === 'pricing' ? (
+            {activeTab === 'pricing' || activeTab === 'final-quiz' ? (
               <PricingSnapshotCard formData={formData} copy={copy} />
             ) : activeTab === 'publish' ? (
               <PublishSnapshotCard formData={formData} copy={copy} />

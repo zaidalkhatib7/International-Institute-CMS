@@ -122,7 +122,9 @@ export default function UserWalletActionPage() {
       })
     } catch (requestError) {
       const fallbackMessage = isDebit ? copy.debitFailed : copy.creditFailed
-      const message = requestError?.response?.data?.message || requestError?.message || fallbackMessage
+      const message = String(
+        requestError?.response?.data?.message || requestError?.message || fallbackMessage
+      )
       setError(message)
     } finally {
       setIsSubmitting(false)
