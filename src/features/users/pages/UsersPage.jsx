@@ -43,20 +43,20 @@ function formatRoleLabel(role, language) {
   if (language === 'ar') {
     if (roleKey === 'admin') return 'مدير'
     if (roleKey === 'trainer') return 'مدرب'
-    if (roleKey === 'student') return 'طالب'
+    if (roleKey === 'student') return 'متقدم'
     return 'مستخدم'
   }
 
   if (language === 'nl') {
     if (roleKey === 'admin') return 'Beheerder'
     if (roleKey === 'trainer') return 'Trainer'
-    if (roleKey === 'student') return 'Student'
+    if (roleKey === 'student') return 'Aanvrager'
     return 'Gebruiker'
   }
 
   if (roleKey === 'admin') return 'Admin'
   if (roleKey === 'trainer') return 'Trainer'
-  if (roleKey === 'student') return 'Student'
+  if (roleKey === 'student') return 'Applicant'
   return 'User'
 }
 
@@ -165,7 +165,7 @@ function buildUsersCsv(users, language) {
         : ['ID', 'Name', 'Email', 'Role', 'Registration Date', 'Wallet Balance']
 
   const rows = users.map((user) => [
-    `IIS-${user.id}`,
+    `ICPC-${user.id}`,
     user.name || '',
     user.email || '',
     user.role || '',
@@ -190,7 +190,7 @@ function UserRow({ user, language, copy, onAddPoints, onDecreasePoints }) {
 
         <div>
           <h4 className="text-xl font-semibold text-[var(--color-text)]">{user.name}</h4>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">ID: IIS-{user.id}</p>
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">ID: ICPC-{user.id}</p>
         </div>
       </div>
 

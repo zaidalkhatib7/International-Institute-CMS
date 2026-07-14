@@ -243,7 +243,7 @@ export default function ProgramsPage() {
     if (language === 'ar') {
       return {
         title: 'البرامج',
-        description: 'إدارة البرامج الأكاديمية والتسعير والظهور وحالة النشر.',
+        description: 'إدارة البرامج التدريبية والحقائب والتسعير والظهور وحالة النشر.',
         viewCategories: 'عرض التصنيفات',
         newProgram: 'برنامج جديد',
         totalPrograms: 'إجمالي البرامج',
@@ -286,7 +286,7 @@ export default function ProgramsPage() {
     if (language === 'nl') {
       return {
         title: 'Programma\'s',
-        description: 'Beheer academische programma\'s, prijzen, zichtbaarheid en publicatiestatus.',
+        description: 'Beheer trainingsprogramma\'s, prijzen, zichtbaarheid en publicatiestatus.',
         viewCategories: 'Categorieen bekijken',
         newProgram: 'Nieuw programma',
         totalPrograms: 'Totaal programma\'s',
@@ -328,7 +328,7 @@ export default function ProgramsPage() {
     }
     return {
       title: 'Programs',
-      description: 'Manage academic programs, pricing, visibility, and publication status.',
+      description: 'Manage training programs, packages, pricing, visibility, and publication status.',
       viewCategories: 'View Categories',
       newProgram: 'New Program',
       totalPrograms: 'Total Programs',

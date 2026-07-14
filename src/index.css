@@ -1,9 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: var(--color-text, #0b1220);
-  background-color: var(--color-background, #f5f1e8);
+  font-family: "IBM Plex Sans Arabic", "Noto Sans Arabic", Tahoma, Arial, sans-serif;
+  color: var(--color-text, #0c3d5e);
+  background-color: var(--color-background, #f7fafc);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
 }
 
 * {
@@ -19,8 +21,11 @@ body,
 
 body {
   min-width: 320px;
-  background-color: var(--color-background, #f5f1e8);
-  color: var(--color-text, #0b1220);
+  background:
+    radial-gradient(circle at 12% 8%, rgba(0, 148, 218, 0.06), transparent 24rem),
+    var(--color-background, #f7fafc);
+  color: var(--color-text, #0c3d5e);
+  line-height: 1.6;
 }
 
 a {
@@ -35,6 +40,33 @@ textarea {
   font: inherit;
 }
 
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(0, 148, 218, 0.35);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(240, 163, 42, 0.28);
+  color: var(--color-primary);
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(12, 60, 93, 0.24);
+  background-clip: padding-box;
+}
+
 .app-container {
   width: 100%;
   max-width: var(--layout-page-max-width);
@@ -46,6 +78,21 @@ textarea {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
+}
+
+.icpc-grid-pattern {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 .app-card-muted {
@@ -83,11 +130,17 @@ textarea {
 
 .app-btn-secondary {
   background: var(--color-secondary);
-  color: var(--color-text);
+  color: var(--color-primary);
   border-radius: var(--radius-md);
   border: none;
   padding: 14px 18px;
   cursor: pointer;
+}
+
+@media (max-width: 767px) {
+  body {
+    background: var(--color-background, #f7fafc);
+  }
 }
 
 .app-btn-outline {

@@ -1,33 +1,24 @@
+import { ArrowLeft, Home } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { getCurrentLanguage } from '../../../utils/localization'
+import { Button } from '../../../components/ui'
 
 export default function NotFoundPage() {
-  const language = getCurrentLanguage()
-  const copy =
-    language === 'ar'
-      ? {
-          message: 'الصفحة التي تبحث عنها غير موجودة.',
-          goToDashboard: 'الذهاب إلى لوحة التحكم',
-        }
-      : language === 'nl'
-      ? {
-          message: 'De pagina die je zoekt bestaat niet.',
-          goToDashboard: 'Ga naar dashboard',
-        }
-      : {
-          message: 'The page you are looking for does not exist.',
-          goToDashboard: 'Go to Dashboard',
-        }
-
   return (
-    <div className="flex min-h-screen items-center justify-center px-6">
-      <div className="app-card max-w-xl p-10 text-center">
-        <h1 className="text-5xl font-bold text-[var(--color-text)]">404</h1>
-        <p className="mt-3 text-lg text-[var(--color-text-muted)]">
-          {copy.message}
+    <div className="flex min-h-[65vh] items-center justify-center">
+      <div className="max-w-xl text-center">
+        <p className="text-7xl font-bold text-[var(--color-primary-soft)]">404</p>
+        <div className="mx-auto -mt-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-secondary)] text-[var(--color-primary)]">
+          <Home size={24} />
+        </div>
+        <h1 className="mt-6 text-3xl font-bold text-[var(--color-primary)]">الصفحة غير موجودة</h1>
+        <p className="mt-3 text-[var(--color-text-muted)]">
+          الرابط الذي طلبته غير متاح ضمن هيكل نظام ICPC الحالي.
         </p>
-        <Link to="/dashboard" className="app-btn-primary mt-6 inline-flex">
-          {copy.goToDashboard}
+        <Link to="/dashboard" className="mt-7 inline-block">
+          <Button>
+            العودة إلى النظرة العامة
+            <ArrowLeft size={18} />
+          </Button>
         </Link>
       </div>
     </div>

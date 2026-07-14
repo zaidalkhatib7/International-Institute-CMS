@@ -1,6 +1,6 @@
 import { getAdminLanguage } from '../services/languageStorage'
 
-const FALLBACK_ORDER = ['en', 'ar', 'nl']
+const FALLBACK_ORDER = ['ar', 'en', 'nl']
 
 export function getCurrentLanguage() {
   return getAdminLanguage()
@@ -11,7 +11,7 @@ export function isArabicLanguage(language = getCurrentLanguage()) {
 }
 
 export function pickText(translations = {}, language = getCurrentLanguage()) {
-  return translations?.[language] || translations?.en || ''
+  return translations?.[language] || translations?.ar || translations?.en || translations?.nl || ''
 }
 
 export function getLocaleForLanguage(language = getCurrentLanguage()) {

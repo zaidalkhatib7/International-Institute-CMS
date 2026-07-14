@@ -12,7 +12,7 @@ export default function DataTableShell({ title, description, actions, columns = 
             <thead>
               <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-muted)]">
                 {columns.map((column) => (
-                  <th key={column.key} className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">{column.label}</th>
+                  <th key={column.key} className="px-6 py-4 text-start text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">{column.label}</th>
                 ))}
               </tr>
             </thead>

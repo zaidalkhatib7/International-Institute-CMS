@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CircleCheckBig, FileQuestion, Plus, Trash2 } from 'lucide-react'
+import { CircleCheckBig, FileQuestion, FileUp, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, Card, CardContent, Input, Select, Textarea } from '../../../components/ui'
 import { fetchAdminSections } from '../../sections/services/sectionsService'
 import {
   createAdminQuiz,
+  fetchQuizPdfImport,
   fetchAdminQuizById,
+  importQuizQuestionsFromPdf,
   updateAdminQuiz,
 } from '../services/quizzesService'
 import { getCurrentLanguage, readLocalizedValue } from '../../../utils/localization'
@@ -264,6 +266,66 @@ export default function QuizBuilderPage() {
     }
   }, [language])
 
+  const aiCopy = useMemo(() => ({
+    en: {
+      title: 'Generate questions from PDF',
+      description: 'Gemini reads the document and adds a reviewable draft. Questions are not saved until you save this bank.',
+      file: 'PDF document',
+      count: 'Number of questions',
+      mode: 'Import behavior',
+      replace: 'Replace current draft',
+      append: 'Add to current questions',
+      action: 'Generate draft',
+      working: 'Reading PDF...',
+      required: 'Choose a PDF document first.',
+      invalidCount: 'Choose between 1 and 1,000 questions.',
+      progress: 'Generated {processed} of {total} questions',
+      page: 'Page {current} of {total}',
+      previous: 'Previous',
+      next: 'Next',
+      success: 'Gemini generated {count} questions. Review every answer before saving.',
+      error: 'Could not generate questions from this PDF.',
+    },
+    ar: {
+      title: 'إنشاء أسئلة من ملف PDF',
+      description: 'يقرأ Gemini المستند ويضيف مسودة قابلة للمراجعة. لن تُحفظ الأسئلة حتى تحفظ بنك الأسئلة.',
+      file: 'مستند PDF',
+      count: 'عدد الأسئلة',
+      mode: 'طريقة الاستيراد',
+      replace: 'استبدال المسودة الحالية',
+      append: 'إضافة إلى الأسئلة الحالية',
+      action: 'إنشاء المسودة',
+      working: 'جارٍ قراءة الملف...',
+      required: 'اختر مستند PDF أولاً.',
+      invalidCount: 'اختر عدداً بين 1 و1000.',
+      progress: 'تم إنشاء {processed} من أصل {total} سؤال',
+      page: 'الصفحة {current} من {total}',
+      previous: 'السابق',
+      next: 'التالي',
+      success: 'أنشأ Gemini عدد {count} من الأسئلة. راجع كل إجابة قبل الحفظ.',
+      error: 'تعذر إنشاء الأسئلة من هذا الملف.',
+    },
+    nl: {
+      title: 'Vragen genereren uit PDF',
+      description: 'Gemini leest het document en voegt een controleerbaar concept toe. Vragen worden pas opgeslagen wanneer u deze bank opslaat.',
+      file: 'PDF-document',
+      count: 'Aantal vragen',
+      mode: 'Importgedrag',
+      replace: 'Huidig concept vervangen',
+      append: 'Aan huidige vragen toevoegen',
+      action: 'Concept genereren',
+      working: 'PDF wordt gelezen...',
+      required: 'Kies eerst een PDF-document.',
+      invalidCount: 'Kies tussen 1 en 1.000 vragen.',
+      progress: '{processed} van {total} vragen gegenereerd',
+      page: 'Pagina {current} van {total}',
+      previous: 'Vorige',
+      next: 'Volgende',
+      success: 'Gemini heeft {count} vragen gegenereerd. Controleer elk antwoord voordat u opslaat.',
+      error: 'Kon geen vragen uit deze PDF genereren.',
+    },
+  })[language] || null, [language])
+
   const [sections, setSections] = useState([])
   const [activeLanguage, setActiveLanguage] = useState('en')
   const [isLoading, setIsLoading] = useState(true)
@@ -271,6 +333,12 @@ export default function QuizBuilderPage() {
   const [error, setError] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
   const [saveError, setSaveError] = useState('')
+  const [pdfFile, setPdfFile] = useState(null)
+  const [importCount, setImportCount] = useState('10')
+  const [importMode, setImportMode] = useState('replace')
+  const [isImporting, setIsImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState(null)
+  const [questionPage, setQuestionPage] = useState(1)
 
   const [formData, setFormData] = useState({
     section_id: '',
@@ -393,6 +461,7 @@ export default function QuizBuilderPage() {
   }
 
   const addQuestion = () => {
+    setQuestionPage(Math.ceil((formData.questions.length + 1) / 25))
     setFormData((prev) => ({
       ...prev,
       questions: [...prev.questions, createEmptyQuestion(prev.questions.length + 1)],
@@ -448,6 +517,98 @@ export default function QuizBuilderPage() {
     return ''
   }
 
+  const handlePdfImport = async () => {
+    setSaveError('')
+    setSaveMessage('')
+
+    if (!pdfFile) {
+      setSaveError(aiCopy.required)
+      return
+    }
+
+    const requestedCount = Number(importCount)
+    if (!Number.isInteger(requestedCount) || requestedCount < 1 || requestedCount > 1000) {
+      setSaveError(aiCopy.invalidCount)
+      return
+    }
+
+    setIsImporting(true)
+    setImportProgress(null)
+    try {
+      const response = await importQuizQuestionsFromPdf(pdfFile, requestedCount)
+      let generated = normalizePayload(response)
+
+      if (generated?.id && generated?.status) {
+        let importStatus = generated
+        setImportProgress(importStatus)
+
+        for (let poll = 0; poll < 3600; poll += 1) {
+          if (importStatus.status === 'completed') {
+            generated = importStatus.result
+            break
+          }
+          if (importStatus.status === 'failed') {
+            throw new Error(importStatus.error_message || aiCopy.error)
+          }
+
+          await new Promise((resolve) => window.setTimeout(resolve, 2000))
+          importStatus = normalizePayload(await fetchQuizPdfImport(importStatus.id))
+          setImportProgress(importStatus)
+        }
+
+        if (!generated?.questions) {
+          throw new Error('The background import did not finish in time. It will continue on the server.')
+        }
+      }
+
+      const importedQuestions = (generated?.questions || []).map((question, questionIndex) => ({
+        question_text: {
+          en: question?.question_text?.en || '',
+          ar: question?.question_text?.ar || '',
+          nl: question?.question_text?.nl || '',
+        },
+        options: (question?.options || []).map((option, optionIndex) => ({
+          option_text: {
+            en: option?.option_text?.en || '',
+            ar: option?.option_text?.ar || '',
+            nl: option?.option_text?.nl || '',
+          },
+          is_correct: Boolean(option?.is_correct),
+          sort_order: optionIndex + 1,
+        })),
+        sort_order: questionIndex + 1,
+      }))
+
+      setFormData((current) => {
+        const questions = importMode === 'append'
+          ? [...current.questions, ...importedQuestions]
+          : importedQuestions
+        const normalizedQuestions = questions.map((question, index) => ({
+          ...question,
+          sort_order: index + 1,
+        }))
+
+        return {
+          ...current,
+          title: importMode === 'replace' && generated?.suggested_title
+            ? generated.suggested_title
+            : current.title,
+          questions: normalizedQuestions,
+          questions_per_attempt: Number(current.questions_per_attempt) > 0
+            ? String(Math.min(Number(current.questions_per_attempt), normalizedQuestions.length))
+            : String(normalizedQuestions.length),
+        }
+      })
+      setSaveMessage(aiCopy.success.replace('{count}', String(importedQuestions.length)))
+      setActiveLanguage('en')
+      setQuestionPage(1)
+    } catch (err) {
+      setSaveError(err?.response?.data?.message || err?.message || aiCopy.error)
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
   const handleSave = async () => {
     const validationError = validateBeforeSave()
     if (validationError) {
@@ -496,6 +657,14 @@ export default function QuizBuilderPage() {
     const defaultTitle = isEditMode ? copy.editQuiz : copy.createQuiz
     return formData.title?.[activeLanguage] || formData.title?.en || defaultTitle
   }, [formData.title, activeLanguage, isEditMode, copy.editQuiz, copy.createQuiz])
+
+  const questionPageSize = 25
+  const questionPageCount = Math.max(1, Math.ceil(formData.questions.length / questionPageSize))
+  const activeQuestionPage = Math.min(questionPage, questionPageCount)
+  const questionPageStart = (activeQuestionPage - 1) * questionPageSize
+  const visibleQuestions = formData.questions
+    .slice(questionPageStart, questionPageStart + questionPageSize)
+    .map((question, offset) => ({ question, questionIndex: questionPageStart + offset }))
 
   return (
     <div className="space-y-8">
@@ -557,6 +726,71 @@ export default function QuizBuilderPage() {
         </Card>
       ) : (
         <div className="space-y-8">
+          <Card className="border-dashed border-[var(--color-accent)]">
+            <CardContent className="p-8">
+              <div className="mb-6 flex items-start gap-4">
+                <div className="rounded-2xl bg-[var(--color-secondary)] p-3 text-[var(--color-primary)]">
+                  <Sparkles size={24} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-[var(--color-text)]">{aiCopy.title}</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">
+                    {aiCopy.description}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid items-end gap-5 xl:grid-cols-[minmax(0,2fr)_180px_240px_auto]">
+                <Input
+                  label={aiCopy.file}
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  onChange={(event) => setPdfFile(event.target.files?.[0] || null)}
+                  inputClassName="file:me-4 file:rounded-lg file:border-0 file:bg-[var(--color-surface-muted)] file:px-3 file:py-1 file:font-semibold"
+                />
+                <Input
+                  label={aiCopy.count}
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={importCount}
+                  onChange={(event) => setImportCount(event.target.value)}
+                />
+                <Select
+                  label={aiCopy.mode}
+                  value={importMode}
+                  onChange={(event) => setImportMode(event.target.value)}
+                >
+                  <option value="replace">{aiCopy.replace}</option>
+                  <option value="append">{aiCopy.append}</option>
+                </Select>
+                <Button onClick={handlePdfImport} disabled={isImporting} className="whitespace-nowrap">
+                  <FileUp size={18} />
+                  {isImporting ? aiCopy.working : aiCopy.action}
+                </Button>
+              </div>
+
+              {isImporting && importProgress ? (
+                <div className="mt-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
+                  <div className="mb-2 flex items-center justify-between gap-4 text-sm font-semibold text-[var(--color-text)]">
+                    <span>
+                      {aiCopy.progress
+                        .replace('{processed}', String(importProgress.processed_questions || 0))
+                        .replace('{total}', String(importProgress.question_count || importCount))}
+                    </span>
+                    <span>{importProgress.progress || 0}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-white">
+                    <div
+                      className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-500"
+                      style={{ width: `${importProgress.progress || 0}%` }}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardContent className="p-8">
               <div className="mb-8 flex items-center gap-3">
@@ -607,7 +841,7 @@ export default function QuizBuilderPage() {
           </Card>
 
           <div className="space-y-6">
-            {formData.questions.map((question, questionIndex) => (
+            {visibleQuestions.map(({ question, questionIndex }) => (
               <Card key={`question-${questionIndex}`}>
                 <CardContent className="p-8">
                   <div className="mb-6 flex items-center justify-between gap-4">
@@ -689,6 +923,30 @@ export default function QuizBuilderPage() {
               </Card>
             ))}
           </div>
+
+          {questionPageCount > 1 ? (
+            <div className="flex flex-wrap items-center justify-center gap-4 rounded-2xl border border-[var(--color-border)] bg-white p-4">
+              <Button
+                variant="outline"
+                onClick={() => setQuestionPage(Math.max(1, activeQuestionPage - 1))}
+                disabled={activeQuestionPage === 1}
+              >
+                {aiCopy.previous}
+              </Button>
+              <span className="min-w-40 text-center text-sm font-semibold text-[var(--color-text)]">
+                {aiCopy.page
+                  .replace('{current}', String(activeQuestionPage))
+                  .replace('{total}', String(questionPageCount))}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => setQuestionPage(Math.min(questionPageCount, activeQuestionPage + 1))}
+                disabled={activeQuestionPage === questionPageCount}
+              >
+                {aiCopy.next}
+              </Button>
+            </div>
+          ) : null}
 
           <div className="flex justify-center">
             <Button variant="secondary" className="!h-14 !rounded-[18px] !px-8" onClick={addQuestion}>

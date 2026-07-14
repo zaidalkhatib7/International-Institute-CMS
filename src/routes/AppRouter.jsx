@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import DashboardLayout from '../layouts/DashboardLayout'
-import DashboardPage from '../features/dashboard/pages/DashboardPage'
+import WorkspaceOverviewPage from '../features/dashboard/pages/WorkspaceOverviewPage'
 import UsersPage from '../features/users/pages/UsersPage'
 import UserWalletActionPage from '../features/users/pages/UserWalletActionPage'
 import ProgramsPage from '../features/programs/pages/ProgramsPage'
@@ -12,8 +12,11 @@ import SectionsPage from '../features/sections/pages/SectionsPage'
 import SectionBuilderPage from '../features/sections/pages/SectionBuilderPage'
 import QuizzesPage from '../features/quizzes/pages/QuizzesPage'
 import QuizBuilderPage from '../features/quizzes/pages/QuizBuilderPage'
+import AiQuizSettingsPage from '../features/quizzes/pages/AiQuizSettingsPage'
 import SettingsPage from '../features/settings/pages/SettingsPage'
-import PlaceholderPage from '../features/shared/pages/PlaceholderPage'
+import ApiModulePage from '../features/platform/pages/ApiModulePage'
+import PublicSiteArchitecturePage from '../features/content/pages/PublicSiteArchitecturePage'
+import NotFoundPage from '../features/shared/pages/NotFoundPage'
 import ProtectedRoute from '../components/layout/ProtectedRoute'
 import LoginPage from '../features/auth/pages/LoginPage'
 
@@ -24,6 +27,24 @@ function AdminRoute({ children }) {
     </ProtectedRoute>
   )
 }
+
+const moduleWorkspacePaths = [
+  '/content/pages',
+  '/content/news',
+  '/content/experts',
+  '/rpl/applications',
+  '/rpl/evidence',
+  '/rpl/assessments',
+  '/rpl/accreditation',
+  '/rpl/appeals',
+  '/standards',
+  '/assessors',
+  '/committees',
+  '/quality',
+  '/finance',
+  '/reports',
+  '/notifications',
+]
 
 export default function AppRouter() {
   return (
@@ -44,7 +65,7 @@ export default function AppRouter() {
           path="/dashboard"
           element={
             <AdminRoute>
-              <DashboardPage />
+              <WorkspaceOverviewPage />
             </AdminRoute>
           }
         />
@@ -149,6 +170,15 @@ export default function AppRouter() {
         />
 
         <Route
+          path="/ai-settings"
+          element={
+            <AdminRoute>
+              <AiQuizSettingsPage />
+            </AdminRoute>
+          }
+        />
+
+        <Route
           path="/settings"
           element={
             <AdminRoute>
@@ -158,15 +188,34 @@ export default function AppRouter() {
         />
 
         <Route
-          path="/support"
+          path="/content/architecture"
           element={
             <AdminRoute>
-              <PlaceholderPage />
+              <PublicSiteArchitecturePage />
             </AdminRoute>
           }
         />
 
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {moduleWorkspacePaths.map((path) => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <AdminRoute>
+                <ApiModulePage />
+              </AdminRoute>
+            }
+          />
+        ))}
+
+        <Route
+          path="*"
+          element={
+            <AdminRoute>
+              <NotFoundPage />
+            </AdminRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   )

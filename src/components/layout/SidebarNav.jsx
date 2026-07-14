@@ -2,34 +2,45 @@ import { NavLink } from 'react-router-dom'
 
 function SidebarItem({ item }) {
   const Icon = item.icon
-  const itemLabel = item.label ?? item.name ?? 'Item'
-  const itemPath = item.path ?? item.href ?? '/'
 
   return (
     <NavLink
-      to={itemPath}
+      to={item.href}
+      style={({ isActive }) =>
+        isActive
+          ? { backgroundColor: '#FFFFFF', color: 'var(--color-primary)' }
+          : undefined
+      }
       className={({ isActive }) =>
-        `flex items-center gap-4 rounded-2xl px-5 py-4 text-base font-medium transition-all ${
+        `group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all ${
           isActive
-            ? 'bg-[rgba(255,255,255,0.10)] text-white'
-            : 'text-[#E6EDF5] hover:bg-[rgba(255,255,255,0.06)] hover:text-white'
+            ? 'shadow-sm'
+            : 'text-[#DDEAF0] hover:bg-white/8 hover:text-white'
         }`
       }
     >
-      <Icon size={22} />
-      <span>{itemLabel}</span>
+      <Icon size={18} strokeWidth={1.9} className="shrink-0" />
+      <span className="min-w-0 flex-1 leading-6">{item.name}</span>
     </NavLink>
   )
 }
 
-export default function SidebarNav({ items = [] }) {
+export default function SidebarNav({ groups = [] }) {
   return (
-    <div className="flex flex-col gap-3">
-      {items.map((item, index) => (
-        <SidebarItem
-          key={item.path ?? item.href ?? item.label ?? item.name ?? index}
-          item={item}
-        />
+    <div className="space-y-5">
+      {groups.map((group, groupIndex) => (
+        <section key={group.label || `group-${groupIndex}`}>
+          {group.label ? (
+            <p className="mb-2 px-3.5 text-[11px] font-semibold tracking-wide text-[#8FB0C2]">
+              {group.label}
+            </p>
+          ) : null}
+          <div className="space-y-1">
+            {group.items.map((item) => (
+              <SidebarItem key={item.href} item={item} />
+            ))}
+          </div>
+        </section>
       ))}
     </div>
   )

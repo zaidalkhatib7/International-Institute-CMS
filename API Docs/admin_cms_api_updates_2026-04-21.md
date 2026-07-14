@@ -1,4 +1,4 @@
-# International Institute - Admin CMS API Updates for 2026-04-21
+# ICPC Admin CMS - Legacy API Compatibility Updates for 2026-04-21
 
 This document is a focused handoff for the **admin CMS developer**.
 

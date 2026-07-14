@@ -2,7 +2,7 @@ import { cn } from '../../utils/cn'
 
 const variants = {
   primary: 'bg-[var(--color-primary)] text-white hover:opacity-95',
-  secondary: 'bg-[var(--color-secondary)] text-[var(--color-text)] hover:opacity-95',
+  secondary: 'bg-[var(--color-secondary)] text-[var(--color-primary)] hover:bg-[var(--color-secondary-hover)]',
   outline:
     'border border-[var(--color-border)] bg-transparent text-[var(--color-text)] hover:bg-white/60',
   ghost: 'bg-transparent text-[var(--color-text)] hover:bg-black/5',
@@ -29,7 +29,7 @@ export default function Button({
     <button
       type={type}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60',
+        'inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60',
         variants[variant],
         sizes[size],
         fullWidth && 'w-full',

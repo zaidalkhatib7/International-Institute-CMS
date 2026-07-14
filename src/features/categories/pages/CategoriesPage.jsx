@@ -21,7 +21,7 @@ import {
 } from '../../../components/ui'
 import { fetchAdminCategories, fetchAdminPrograms } from '../../programs/services/programsService'
 import { readLocalizedValue } from '../../../utils/localization'
-import { getCurrentLanguage, getLocaleForLanguage, pickText } from '../../../utils/localization'
+import { getCurrentLanguage, getLocaleForLanguage } from '../../../utils/localization'
 
 const CATEGORIES_TABLE_GRID =
   'grid-cols-[minmax(260px,2fr)_minmax(200px,1.4fr)_minmax(120px,0.9fr)_minmax(120px,0.9fr)_minmax(150px,1fr)_72px]'

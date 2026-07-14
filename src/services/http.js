@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { apiConfig } from '../config/api'
-import { getAdminToken } from './tokenStorage'
+import { clearAdminToken, getAdminToken } from './tokenStorage'
 import { getAdminLanguage } from './languageStorage'
 
 export const http = axios.create({
@@ -22,3 +22,18 @@ http.interceptors.request.use((config) => {
 
   return config
 })
+
+http.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (Number(error?.response?.status) === 401) {
+      clearAdminToken()
+
+      if (window.location.pathname !== '/login') {
+        window.location.assign('/login')
+      }
+    }
+
+    return Promise.reject(error)
+  }
+)

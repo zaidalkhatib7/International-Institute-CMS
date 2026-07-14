@@ -24,3 +24,19 @@ export async function deleteAdminQuiz(id) {
   const response = await http.delete(`/admin/quizzes/${id}`)
   return response.data
 }
+
+export async function importQuizQuestionsFromPdf(pdf, questionCount) {
+  const formData = new FormData()
+  formData.append('pdf', pdf)
+  formData.append('question_count', String(questionCount))
+
+  const response = await http.post('/admin/quizzes/import-pdf', formData, {
+    timeout: 180000,
+  })
+  return response.data
+}
+
+export async function fetchQuizPdfImport(importId) {
+  const response = await http.get(`/admin/quizzes/imports/${importId}`)
+  return response.data
+}

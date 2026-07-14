@@ -1,7 +1,7 @@
 import { apiConfig } from '../config/api'
 
-const SUPPORTED_LANGUAGES = ['en', 'ar', 'nl']
-const DEFAULT_LANGUAGE = 'en'
+const SUPPORTED_LANGUAGES = ['ar', 'en', 'nl']
+const DEFAULT_LANGUAGE = 'ar'
 
 export function getAdminLanguage() {
   const saved = localStorage.getItem(apiConfig.languageStorageKey)
@@ -12,6 +12,8 @@ export function getAdminLanguage() {
 export function setAdminLanguage(language) {
   const normalized = SUPPORTED_LANGUAGES.includes(language) ? language : DEFAULT_LANGUAGE
   localStorage.setItem(apiConfig.languageStorageKey, normalized)
+  document.documentElement.lang = normalized
+  document.documentElement.dir = normalized === 'ar' ? 'rtl' : 'ltr'
 }
 
 export function getNextAdminLanguage(currentLanguage) {

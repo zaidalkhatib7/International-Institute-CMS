@@ -84,7 +84,7 @@ export default function UserWalletActionPage() {
 
   const action = searchParams.get('action') === 'debit' ? 'debit' : 'credit'
   const userId = Number(searchParams.get('userId'))
-  const userName = searchParams.get('name') || (Number.isFinite(userId) ? `IIS-${userId}` : '-')
+  const userName = searchParams.get('name') || (Number.isFinite(userId) ? `ICPC-${userId}` : '-')
   const isDebit = action === 'debit'
 
   const handleSubmit = async () => {
