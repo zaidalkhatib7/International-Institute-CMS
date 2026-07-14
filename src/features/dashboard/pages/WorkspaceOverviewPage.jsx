@@ -147,9 +147,11 @@ function ApiStatusCard({ item, copy, formatNumber }) {
   return (
     <Card className="h-full">
       <CardContent className="p-5">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-bold text-[var(--color-text)]">{item.label}</p>
-          <Badge variant={item.ok ? 'success' : 'danger'}>{item.ok ? copy.apiConnected : copy.apiFailed}</Badge>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <p className="min-w-0 flex-1 text-sm font-bold leading-6 text-[var(--color-text)]">{item.label}</p>
+          <Badge variant={item.ok ? 'success' : 'danger'} className="shrink-0 whitespace-nowrap">
+            {item.ok ? copy.apiConnected : copy.apiFailed}
+          </Badge>
         </div>
         <p className="mt-4 text-3xl font-bold text-[var(--color-primary)]">
           {item.ok ? formatNumber(count) : '—'}
@@ -293,7 +295,7 @@ export default function WorkspaceOverviewPage() {
           </Badge>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[1.1fr_2fr]">
+        <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(260px,0.9fr)_minmax(0,2.1fr)]">
           <Card>
             <CardContent className="p-6">
               <p className="text-sm font-bold text-[var(--color-text-muted)]">{copy.currentAccount}</p>
@@ -309,7 +311,7 @@ export default function WorkspaceOverviewPage() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid min-w-0 gap-5 sm:grid-cols-2">
             {apiState.summaries.map((item) => (
               <ApiStatusCard key={item.label} item={item} copy={copy} formatNumber={formatNumber} />
             ))}

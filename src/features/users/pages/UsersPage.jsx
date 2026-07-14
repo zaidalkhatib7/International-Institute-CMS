@@ -493,7 +493,7 @@ export default function UsersPage() {
     phone_number: '',
     password: '',
     password_confirmation: '',
-    role: 'user',
+    role: 'student',
   })
   const [pagination, setPagination] = useState({
     current_page: 1,
@@ -680,7 +680,7 @@ export default function UsersPage() {
       phone_number: '',
       password: '',
       password_confirmation: '',
-      role: 'user',
+      role: 'student',
     })
   }
 
@@ -907,7 +907,6 @@ export default function UsersPage() {
                 value={createForm.role}
                 onChange={(e) => setCreateForm((prev) => ({ ...prev, role: e.target.value }))}
               >
-                <option value="user">{formatRoleLabel('user', language)}</option>
                 <option value="student">{formatRoleLabel('student', language)}</option>
                 <option value="trainer">{formatRoleLabel('trainer', language)}</option>
                 <option value="admin">{formatRoleLabel('admin', language)}</option>

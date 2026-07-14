@@ -12,28 +12,8 @@ export async function fetchUsers(params = {}) {
 }
 
 export async function createUser(payload) {
-  try {
-    const response = await http.post('/admin/users', payload)
-    return response.data
-  } catch (error) {
-    const status = Number(error?.response?.status ?? 0)
-
-    // Fallback for backends where admin user creation is not exposed
-    // and registration endpoint is used instead.
-    if (status === 404 || status === 405) {
-      const registerPayload = {
-        name: payload?.name,
-        email: payload?.email,
-        phone_number: payload?.phone_number,
-        password: payload?.password,
-        password_confirmation: payload?.password_confirmation,
-      }
-      const fallbackResponse = await http.post('/register', registerPayload)
-      return fallbackResponse.data
-    }
-
-    throw error
-  }
+  const response = await http.post('/admin/users', payload)
+  return response.data
 }
 
 export async function creditUserWallet(userId, payload) {

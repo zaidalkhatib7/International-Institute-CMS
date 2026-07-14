@@ -77,17 +77,21 @@ function SectionCard({ section, index, copy, formatNumber }) {
   return (
     <Card className="h-full">
       <CardContent className="flex h-full flex-col p-0">
-        <div className="flex items-center gap-4 border-b border-[var(--color-border)] bg-[var(--color-surface-muted)] px-5 py-5 sm:px-6">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-primary)] text-white">
-            <SectionIcon aria-hidden="true" size={22} strokeWidth={1.8} />
-          </div>
-          <div className="min-w-0 flex-1">
+        <div className="border-b border-[var(--color-border)] bg-[var(--color-surface-muted)] px-5 py-5 sm:px-6">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-semibold text-[var(--color-text-muted)]">
               {copy.section} {formatNumber(index + 1)}
             </p>
-            <h3 className="mt-0.5 text-lg font-bold leading-7 text-[var(--color-text)]">{section.title}</h3>
+            <Badge variant="secondary" className="shrink-0">{formatNumber(children.length)}</Badge>
           </div>
-          <Badge variant="secondary" className="shrink-0">{formatNumber(children.length)}</Badge>
+          <div className="mt-3 flex items-start gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-primary)] text-white">
+              <SectionIcon aria-hidden="true" size={22} strokeWidth={1.8} />
+            </div>
+            <h3 className="min-w-0 flex-1 text-lg font-bold leading-7 text-[var(--color-text)] [overflow-wrap:anywhere]">
+              {section.title}
+            </h3>
+          </div>
         </div>
 
         <ul className="flex-1 space-y-3 px-5 py-5 sm:px-6" aria-label={section.title}>

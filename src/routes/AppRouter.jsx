@@ -1,29 +1,41 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import DashboardLayout from '../layouts/DashboardLayout'
-import WorkspaceOverviewPage from '../features/dashboard/pages/WorkspaceOverviewPage'
-import UsersPage from '../features/users/pages/UsersPage'
-import UserWalletActionPage from '../features/users/pages/UserWalletActionPage'
-import ProgramsPage from '../features/programs/pages/ProgramsPage'
-import ProgramBuilderPage from '../features/programs/pages/ProgramBuilderPage'
-import CategoriesPage from '../features/categories/pages/CategoriesPage'
-import LessonsPage from '../features/lessons/pages/LessonsPage'
-import LessonBuilderPage from '../features/lessons/pages/LessonBuilderPage'
-import SectionsPage from '../features/sections/pages/SectionsPage'
-import SectionBuilderPage from '../features/sections/pages/SectionBuilderPage'
-import QuizzesPage from '../features/quizzes/pages/QuizzesPage'
-import QuizBuilderPage from '../features/quizzes/pages/QuizBuilderPage'
-import AiQuizSettingsPage from '../features/quizzes/pages/AiQuizSettingsPage'
-import SettingsPage from '../features/settings/pages/SettingsPage'
-import ApiModulePage from '../features/platform/pages/ApiModulePage'
-import PublicSiteArchitecturePage from '../features/content/pages/PublicSiteArchitecturePage'
-import NotFoundPage from '../features/shared/pages/NotFoundPage'
 import ProtectedRoute from '../components/layout/ProtectedRoute'
-import LoginPage from '../features/auth/pages/LoginPage'
+
+const WorkspaceOverviewPage = lazy(() => import('../features/dashboard/pages/WorkspaceOverviewPage'))
+const UsersPage = lazy(() => import('../features/users/pages/UsersPage'))
+const UserWalletActionPage = lazy(() => import('../features/users/pages/UserWalletActionPage'))
+const ProgramsPage = lazy(() => import('../features/programs/pages/ProgramsPage'))
+const ProgramBuilderPage = lazy(() => import('../features/programs/pages/ProgramBuilderPage'))
+const CategoriesPage = lazy(() => import('../features/categories/pages/CategoriesPage'))
+const LessonsPage = lazy(() => import('../features/lessons/pages/LessonsPage'))
+const LessonBuilderPage = lazy(() => import('../features/lessons/pages/LessonBuilderPage'))
+const SectionsPage = lazy(() => import('../features/sections/pages/SectionsPage'))
+const SectionBuilderPage = lazy(() => import('../features/sections/pages/SectionBuilderPage'))
+const QuizzesPage = lazy(() => import('../features/quizzes/pages/QuizzesPage'))
+const QuizBuilderPage = lazy(() => import('../features/quizzes/pages/QuizBuilderPage'))
+const AiQuizSettingsPage = lazy(() => import('../features/quizzes/pages/AiQuizSettingsPage'))
+const SettingsPage = lazy(() => import('../features/settings/pages/SettingsPage'))
+const ApiModulePage = lazy(() => import('../features/platform/pages/ApiModulePage'))
+const PublicSiteArchitecturePage = lazy(() => import('../features/content/pages/PublicSiteArchitecturePage'))
+const NotFoundPage = lazy(() => import('../features/shared/pages/NotFoundPage'))
+const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'))
+
+function RouteLoadingFallback() {
+  return (
+    <div className="flex min-h-48 items-center justify-center" role="status" aria-label="Loading page">
+      <span className="h-9 w-9 animate-spin rounded-full border-4 border-[var(--color-primary-soft)] border-t-[var(--color-primary)]" />
+    </div>
+  )
+}
 
 function AdminRoute({ children }) {
   return (
     <ProtectedRoute>
-      <DashboardLayout>{children}</DashboardLayout>
+      <DashboardLayout>
+        <Suspense fallback={<RouteLoadingFallback />}>{children}</Suspense>
+      </DashboardLayout>
     </ProtectedRoute>
   )
 }
@@ -50,7 +62,14 @@ export default function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/login"
+          element={
+            <Suspense fallback={<RouteLoadingFallback />}>
+              <LoginPage />
+            </Suspense>
+          }
+        />
 
         <Route
           path="/"
