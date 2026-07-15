@@ -668,8 +668,8 @@ export default function QuizBuilderPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between gap-6">
-        <div>
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0">
           <p className="text-sm text-[var(--color-text-muted)]">
             {copy.breadcrumbAdmin} &nbsp;&gt;&nbsp; {copy.breadcrumbQuizzes} &nbsp;&gt;&nbsp;
             <span className="font-semibold text-[var(--color-accent-dark,#765A1F)]">
@@ -677,23 +677,23 @@ export default function QuizBuilderPage() {
             </span>
           </p>
 
-          <h1 className="mt-4 text-6xl font-bold text-[var(--color-text)]">{titleText}</h1>
-          <p className="mt-3 max-w-3xl text-2xl text-[var(--color-text-muted)]">
+          <h1 className="mt-4 break-words text-3xl font-bold leading-tight text-[var(--color-text)] sm:text-4xl lg:text-5xl">{titleText}</h1>
+          <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--color-text-muted)] sm:text-lg">
             {copy.subtitle}
           </p>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="grid w-full gap-3 sm:grid-cols-2 xl:flex xl:w-auto xl:items-center">
           <Button
             variant="outline"
-            className="!h-16 !rounded-[20px] !px-8 !text-lg"
+            className="w-full !h-12 !rounded-xl !px-5 !text-base xl:w-auto"
             onClick={() => navigate('/quizzes')}
           >
             {copy.backToQuizzes}
           </Button>
 
           <Button
-            className="!h-16 !rounded-[20px] !px-8 !text-lg"
+            className="w-full !h-12 !rounded-xl !px-5 !text-base xl:w-auto"
             onClick={handleSave}
             disabled={isSaving}
           >
@@ -727,7 +727,7 @@ export default function QuizBuilderPage() {
       ) : (
         <div className="space-y-8">
           <Card className="border-dashed border-[var(--color-accent)]">
-            <CardContent className="p-8">
+            <CardContent className="p-5 sm:p-8">
               <div className="mb-6 flex items-start gap-4">
                 <div className="rounded-2xl bg-[var(--color-secondary)] p-3 text-[var(--color-primary)]">
                   <Sparkles size={24} />
@@ -792,7 +792,7 @@ export default function QuizBuilderPage() {
           </Card>
 
           <Card>
-            <CardContent className="p-8">
+            <CardContent className="p-5 sm:p-8">
               <div className="mb-8 flex items-center gap-3">
                 <FileQuestion size={24} className="text-[var(--color-accent-dark,#765A1F)]" />
                 <h2 className="text-3xl font-bold text-[var(--color-text)]">{copy.quizBasics}</h2>
@@ -843,12 +843,12 @@ export default function QuizBuilderPage() {
           <div className="space-y-6">
             {visibleQuestions.map(({ question, questionIndex }) => (
               <Card key={`question-${questionIndex}`}>
-                <CardContent className="p-8">
-                  <div className="mb-6 flex items-center justify-between gap-4">
+                <CardContent className="p-5 sm:p-8">
+                  <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <h3 className="text-2xl font-bold text-[var(--color-text)]">
                       {copy.question} {questionIndex + 1}
                     </h3>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <LanguageTabs
                         activeLanguage={activeLanguage}
                         onChange={setActiveLanguage}

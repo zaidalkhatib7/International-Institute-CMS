@@ -1,7 +1,10 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import DashboardLayout from '../layouts/DashboardLayout'
+import AuthorizedRoute from '../components/layout/AuthorizedRoute'
 import ProtectedRoute from '../components/layout/ProtectedRoute'
+import AuthorizationProvider from '../features/auth/context/AuthorizationProvider'
+import { getRouteAccess } from './routeAccess'
 
 const WorkspaceOverviewPage = lazy(() => import('../features/dashboard/pages/WorkspaceOverviewPage'))
 const UsersPage = lazy(() => import('../features/users/pages/UsersPage'))
@@ -19,6 +22,17 @@ const AiQuizSettingsPage = lazy(() => import('../features/quizzes/pages/AiQuizSe
 const SettingsPage = lazy(() => import('../features/settings/pages/SettingsPage'))
 const ApiModulePage = lazy(() => import('../features/platform/pages/ApiModulePage'))
 const PublicSiteArchitecturePage = lazy(() => import('../features/content/pages/PublicSiteArchitecturePage'))
+const RplApplicationsPage = lazy(() => import('../features/rpl/pages/RplApplicationsPage'))
+const RplCaseWorkspacePage = lazy(() => import('../features/rpl/pages/RplCaseWorkspacePage'))
+const RplEvidencePage = lazy(() => import('../features/rpl/pages/RplEvidencePage'))
+const RplAssessmentsPage = lazy(() => import('../features/rpl/pages/RplAssessmentsPage'))
+const RplGovernancePage = lazy(() => import('../features/rpl/pages/RplGovernancePage'))
+const RplAssessorsPage = lazy(() => import('../features/rpl/pages/RplAssessorsPage'))
+const RplConfigurationPage = lazy(() => import('../features/rpl/pages/RplConfigurationPage'))
+const CertificatesPage = lazy(() => import('../features/certificates/pages/CertificatesPage'))
+const DigitalLibraryPage = lazy(() => import('../features/library/pages/DigitalLibraryPage'))
+const SupportOperationsPage = lazy(() => import('../features/support/pages/SupportOperationsPage'))
+const FinanceOperationsPage = lazy(() => import('../features/finance/pages/FinanceOperationsPage'))
 const NotFoundPage = lazy(() => import('../features/shared/pages/NotFoundPage'))
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'))
 
@@ -31,10 +45,14 @@ function RouteLoadingFallback() {
 }
 
 function AdminRoute({ children }) {
+  const location = useLocation()
+
   return (
     <ProtectedRoute>
       <DashboardLayout>
-        <Suspense fallback={<RouteLoadingFallback />}>{children}</Suspense>
+        <AuthorizedRoute access={getRouteAccess(location.pathname)}>
+          <Suspense fallback={<RouteLoadingFallback />}>{children}</Suspense>
+        </AuthorizedRoute>
       </DashboardLayout>
     </ProtectedRoute>
   )
@@ -44,16 +62,6 @@ const moduleWorkspacePaths = [
   '/content/pages',
   '/content/news',
   '/content/experts',
-  '/rpl/applications',
-  '/rpl/evidence',
-  '/rpl/assessments',
-  '/rpl/accreditation',
-  '/rpl/appeals',
-  '/standards',
-  '/assessors',
-  '/committees',
-  '/quality',
-  '/finance',
   '/reports',
   '/notifications',
 ]
@@ -61,7 +69,8 @@ const moduleWorkspacePaths = [
 export default function AppRouter() {
   return (
     <BrowserRouter>
-      <Routes>
+      <AuthorizationProvider>
+        <Routes>
         <Route
           path="/login"
           element={
@@ -215,6 +224,23 @@ export default function AppRouter() {
           }
         />
 
+        <Route path="/rpl/applications" element={<AdminRoute><RplApplicationsPage /></AdminRoute>} />
+        <Route path="/rpl/applications/:applicationId" element={<AdminRoute><RplCaseWorkspacePage /></AdminRoute>} />
+        <Route path="/rpl/evidence" element={<AdminRoute><RplEvidencePage /></AdminRoute>} />
+        <Route path="/rpl/assessments" element={<AdminRoute><RplAssessmentsPage /></AdminRoute>} />
+        <Route path="/rpl/assessments/:assessmentId" element={<AdminRoute><RplAssessmentsPage /></AdminRoute>} />
+        <Route path="/rpl/accreditation" element={<AdminRoute><RplGovernancePage mode="committee" /></AdminRoute>} />
+        <Route path="/rpl/appeals" element={<AdminRoute><RplGovernancePage mode="appeals" /></AdminRoute>} />
+        <Route path="/rpl/configuration" element={<AdminRoute><RplConfigurationPage /></AdminRoute>} />
+        <Route path="/standards" element={<AdminRoute><RplConfigurationPage /></AdminRoute>} />
+        <Route path="/assessors" element={<AdminRoute><RplAssessorsPage /></AdminRoute>} />
+        <Route path="/committees" element={<AdminRoute><RplGovernancePage mode="committee" /></AdminRoute>} />
+        <Route path="/quality" element={<AdminRoute><RplGovernancePage mode="quality" /></AdminRoute>} />
+        <Route path="/certificates" element={<AdminRoute><CertificatesPage /></AdminRoute>} />
+        <Route path="/library" element={<AdminRoute><DigitalLibraryPage /></AdminRoute>} />
+        <Route path="/support" element={<AdminRoute><SupportOperationsPage /></AdminRoute>} />
+        <Route path="/finance" element={<AdminRoute><FinanceOperationsPage /></AdminRoute>} />
+
         {moduleWorkspacePaths.map((path) => (
           <Route
             key={path}
@@ -235,7 +261,8 @@ export default function AppRouter() {
             </AdminRoute>
           }
         />
-      </Routes>
+        </Routes>
+      </AuthorizationProvider>
     </BrowserRouter>
   )
 }

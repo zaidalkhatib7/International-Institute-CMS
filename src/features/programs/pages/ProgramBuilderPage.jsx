@@ -1697,8 +1697,8 @@ export default function ProgramBuilderPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between gap-6">
-        <div>
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0">
           <p className="text-sm text-[var(--color-text-muted)]">
             {copy.breadcrumbAdmin} &nbsp;›&nbsp; {copy.breadcrumbPrograms} &nbsp;›&nbsp;
             <span className="font-semibold text-[var(--color-accent-dark,#765A1F)]">
@@ -1706,18 +1706,18 @@ export default function ProgramBuilderPage() {
             </span>
           </p>
 
-          <h1 className="mt-4 text-6xl font-bold text-[var(--color-text)]">
+          <h1 className="mt-4 break-words text-3xl font-bold leading-tight text-[var(--color-text)] sm:text-4xl lg:text-5xl">
             {titleText}
           </h1>
-          <p className="mt-3 max-w-3xl text-2xl text-[var(--color-text-muted)]">
+          <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--color-text-muted)] sm:text-lg">
             {copy.pageSubtitle}
           </p>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="grid w-full gap-3 sm:grid-cols-3 xl:flex xl:w-auto xl:items-center">
           <Button
             variant="outline"
-            className="!h-16 !rounded-[20px] !px-8 !text-lg"
+            className="w-full !h-12 !rounded-xl !px-5 !text-base xl:w-auto"
             onClick={() => navigate('/programs')}
           >
             {copy.backToPrograms}
@@ -1725,7 +1725,7 @@ export default function ProgramBuilderPage() {
 
           <Button
             variant="secondary"
-            className="!h-16 !rounded-[20px] !px-8 !text-lg"
+            className="w-full !h-12 !rounded-xl !px-5 !text-base xl:w-auto"
             onClick={() => handleSave()}
             disabled={isSaving}
           >
@@ -1733,7 +1733,7 @@ export default function ProgramBuilderPage() {
           </Button>
 
           <Button
-            className="!h-16 !rounded-[20px] !px-8 !text-lg"
+            className="w-full !h-12 !rounded-xl !px-5 !text-base xl:w-auto"
             onClick={() => handleSave({ publish: true })}
             disabled={isSaving}
           >

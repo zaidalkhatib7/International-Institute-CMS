@@ -4,8 +4,8 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { getNavigationItems } from '../../routes/navigation'
 import { clearAdminToken } from '../../services/tokenStorage'
 import { getAdminLanguage, setAdminLanguage } from '../../services/languageStorage'
-import { fetchCurrentUser, logoutAdmin } from '../../features/auth/services/authService'
-import { unwrapApiData } from '../../services/apiResponse'
+import { logoutAdmin } from '../../features/auth/services/authService'
+import { useAuthorization } from '../../features/auth/context/useAuthorization'
 import LanguageSlider from '../ui/LanguageSlider'
 
 const copyByLanguage = {
@@ -50,12 +50,12 @@ export default function AppTopbar({ onMenuToggle }) {
   const menuRef = useRef(null)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [currentUser, setCurrentUser] = useState(null)
+  const { user: currentUser, canAccess } = useAuthorization()
   const language = getAdminLanguage()
   const isArabic = language === 'ar'
   const copy = copyByLanguage[language] || copyByLanguage.ar
 
-  const navigationItems = useMemo(() => getNavigationItems(), [])
+  const navigationItems = useMemo(() => getNavigationItems(canAccess), [canAccess])
   const activeItem = useMemo(
     () =>
       navigationItems.find(
@@ -77,26 +77,6 @@ export default function AppTopbar({ onMenuToggle }) {
     return () => document.removeEventListener('mousedown', closeMenu)
   }, [])
 
-  useEffect(() => {
-    let isMounted = true
-
-    async function loadCurrentUser() {
-      try {
-        const payload = await fetchCurrentUser()
-        const user = unwrapApiData(payload)?.user || unwrapApiData(payload)
-        if (isMounted) setCurrentUser(user)
-      } catch {
-        if (isMounted) setCurrentUser(null)
-      }
-    }
-
-    loadCurrentUser()
-
-    return () => {
-      isMounted = false
-    }
-  }, [])
-
   const handleSearch = (event) => {
     event.preventDefault()
     const normalizedQuery = query.trim().toLocaleLowerCase()
@@ -105,7 +85,7 @@ export default function AppTopbar({ onMenuToggle }) {
     const matchingItem = navigationItems.find((item) =>
       item.name.toLocaleLowerCase().includes(normalizedQuery)
     )
-    navigate(matchingItem?.href || `/rpl/applications?search=${encodeURIComponent(query.trim())}`)
+    navigate(matchingItem?.href || '/dashboard')
     setQuery('')
   }
 

@@ -22,6 +22,7 @@ import {
   Select,
 } from '../../../components/ui'
 import { getCurrentLanguage } from '../../../utils/localization'
+import { useAuthorization } from '../../auth/context/useAuthorization'
 import { createUser, fetchUsers } from '../services/usersService'
 
 const USERS_TABLE_GRID = 'grid-cols-[minmax(260px,2fr)_minmax(240px,2.2fr)_1fr_1fr_1fr]'
@@ -206,7 +207,8 @@ function UserRow({ user, language, copy, onAddPoints, onDecreasePoints }) {
 
       <div className="text-xl font-semibold text-[var(--color-accent-dark,#765A1F)]">
         <div>{formatWallet(user.wallet)}</div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        {onAddPoints || onDecreasePoints ? <div className="mt-3 flex flex-wrap items-center gap-2">
+          {onAddPoints ? (
           <button
             type="button"
             onClick={() => onAddPoints(user)}
@@ -215,6 +217,8 @@ function UserRow({ user, language, copy, onAddPoints, onDecreasePoints }) {
             <Plus size={13} strokeWidth={2.4} />
             {copy.addPoints}
           </button>
+          ) : null}
+          {onDecreasePoints ? (
           <button
             type="button"
             onClick={() => onDecreasePoints(user)}
@@ -223,7 +227,8 @@ function UserRow({ user, language, copy, onAddPoints, onDecreasePoints }) {
             <Minus size={13} strokeWidth={2.4} />
             {copy.decreasePoints}
           </button>
-        </div>
+          ) : null}
+        </div> : null}
       </div>
     </div>
   )
@@ -258,6 +263,9 @@ function SummaryCard({ label, value, hint, dark = false }) {
 }
 
 export default function UsersPage() {
+  const { hasPermission } = useAuthorization()
+  const canManageUsers = hasPermission('users.manage')
+  const canManageWallet = hasPermission('finance.manage')
   const navigate = useNavigate()
   const location = useLocation()
   const language = getCurrentLanguage()
@@ -865,22 +873,24 @@ export default function UsersPage() {
               {sortDirection === 'asc' ? copy.asc : copy.desc}
             </Button>
 
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setIsCreateOpen((prev) => !prev)
-                setActionError('')
-                setActionMessage('')
-              }}
-            >
-              <Plus size={18} />
-              {copy.addUser}
-            </Button>
+            {canManageUsers ? (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setIsCreateOpen((prev) => !prev)
+                  setActionError('')
+                  setActionMessage('')
+                }}
+              >
+                <Plus size={18} />
+                {copy.addUser}
+              </Button>
+            ) : null}
           </div>
         </CardContent>
       </Card>
 
-      {isCreateOpen ? (
+      {canManageUsers && isCreateOpen ? (
         <Card>
           <CardContent className="p-6">
             <h3 className="text-xl font-semibold text-[var(--color-text)]">{copy.createUserTitle}</h3>
@@ -1047,8 +1057,8 @@ export default function UsersPage() {
               user={user}
               language={language}
               copy={copy}
-              onAddPoints={(targetUser) => openWalletAction(targetUser, 'credit')}
-              onDecreasePoints={(targetUser) => openWalletAction(targetUser, 'debit')}
+              onAddPoints={canManageWallet ? (targetUser) => openWalletAction(targetUser, 'credit') : null}
+              onDecreasePoints={canManageWallet ? (targetUser) => openWalletAction(targetUser, 'debit') : null}
             />
           ))
         )}

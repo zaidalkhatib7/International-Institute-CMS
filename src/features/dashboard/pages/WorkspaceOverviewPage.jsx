@@ -7,7 +7,9 @@ import {
   ClipboardCheck,
   FileQuestion,
   GraduationCap,
+  Headphones,
   LayoutDashboard,
+  LibraryBig,
   Route,
   Scale,
   Settings,
@@ -22,14 +24,13 @@ import { getPlatformArchitecture } from '../../../config/platformArchitecture'
 import { getAdminLanguage } from '../../../services/languageStorage'
 import { getLocaleForLanguage } from '../../../utils/localization'
 import { readApiError, readPagination, unwrapApiData, unwrapCollection } from '../../../services/apiResponse'
-import { fetchCurrentUser } from '../../auth/services/authService'
+import { useAuthorization } from '../../auth/context/useAuthorization'
+import { getRouteAccess } from '../../../routes/routeAccess'
 import {
-  fetchAdminApplications,
-  fetchAdminCpd,
-  fetchAdminExperts,
   fetchLearnerDashboard,
   fetchNotifications,
 } from '../../platform/services/platformApi'
+import { fetchRplApplications, fetchRplAssessments, fetchRplEvidence } from '../../rpl/services/rplService'
 
 const iconMap = {
   applicant: UserRound,
@@ -45,6 +46,9 @@ const iconMap = {
   programs: BookOpen,
   users: Users,
   assessments: FileQuestion,
+  certificates: Award,
+  library: LibraryBig,
+  support: Headphones,
   settings: Settings,
 }
 
@@ -74,7 +78,7 @@ const copyByLanguage = {
     workspaces: 'مساحات العمل',
     modules: 'وحدات',
     optional: 'اختياري',
-    planned: 'مخطط',
+    available: 'متاح',
   },
   en: {
     badge: 'Platform Command Center',
@@ -101,7 +105,7 @@ const copyByLanguage = {
     workspaces: 'Workspaces',
     modules: 'modules',
     optional: 'Optional',
-    planned: 'Planned',
+    available: 'Available',
   },
   nl: {
     badge: 'Platform Commandocentrum',
@@ -128,7 +132,7 @@ const copyByLanguage = {
     workspaces: 'Werkruimtes',
     modules: 'modules',
     optional: 'Optioneel',
-    planned: 'Gepland',
+    available: 'Beschikbaar',
   },
 }
 
@@ -181,7 +185,7 @@ function WorkspaceCard({ workspace, copy, formatNumber }) {
           </div>
         </div>
         <Badge variant={workspace.optional ? 'warning' : 'neutral'} className="shrink-0">
-          {workspace.optional ? copy.optional : copy.planned}
+          {workspace.optional ? copy.optional : copy.available}
         </Badge>
       </CardHeader>
       <CardContent className="pt-0">
@@ -208,6 +212,7 @@ function WorkspaceCard({ workspace, copy, formatNumber }) {
 
 export default function WorkspaceOverviewPage() {
   const navigate = useNavigate()
+  const { user: currentUser, hasPermission, canAccess } = useAuthorization()
   const language = getAdminLanguage()
   const isArabic = language === 'ar'
   const copy = copyByLanguage[language] || copyByLanguage.ar
@@ -225,25 +230,32 @@ export default function WorkspaceOverviewPage() {
 
     async function loadDashboardApis() {
       const labels = {
-        ar: ['التنبيهات', 'طلبات البرامج', 'الخبراء', 'سجل CPD'],
-        en: ['Notifications', 'Program applications', 'Experts', 'CPD records'],
-        nl: ['Meldingen', 'Programma-aanvragen', 'Experts', 'CPD-records'],
-      }[language] || ['Notifications', 'Program applications', 'Experts', 'CPD records']
+        ar: ['التنبيهات', 'طلبات RPL', 'الأدلة المهنية', 'التقييمات'],
+        en: ['Notifications', 'RPL applications', 'Professional evidence', 'Assessments'],
+        nl: ['Meldingen', 'RPL-aanvragen', 'Professioneel bewijs', 'Beoordelingen'],
+      }[language] || ['Notifications', 'RPL applications', 'Professional evidence', 'Assessments']
 
-      const [userResult, dashboardResult, ...summaryResults] = await Promise.all([
-        settleApi(copy.currentAccount, fetchCurrentUser),
+      const summaryRequests = [settleApi(labels[0], () => fetchNotifications({ per_page: 10 }))]
+      if (hasPermission('rpl.applications.view')) {
+        summaryRequests.push(settleApi(labels[1], () => fetchRplApplications({ per_page: 10 })))
+      }
+      if (hasPermission('rpl.evidence.view')) {
+        summaryRequests.push(settleApi(labels[2], () => fetchRplEvidence({ per_page: 10 })))
+      }
+      if (hasPermission('rpl.applications.view')) {
+        summaryRequests.push(settleApi(labels[3], () => fetchRplAssessments({ per_page: 10 })))
+      }
+
+      const [dashboardResult, ...summaryResults] = await Promise.all([
         settleApi('Dashboard', fetchLearnerDashboard),
-        settleApi(labels[0], () => fetchNotifications({ per_page: 10 })),
-        settleApi(labels[1], () => fetchAdminApplications({ per_page: 10 })),
-        settleApi(labels[2], () => fetchAdminExperts({ per_page: 10 })),
-        settleApi(labels[3], () => fetchAdminCpd({ per_page: 10 })),
+        ...summaryRequests,
       ])
 
       if (!isMounted) return
 
       setApiState({
         isLoading: false,
-        currentUser: userResult.ok ? unwrapApiData(userResult.payload)?.user || unwrapApiData(userResult.payload) : null,
+        currentUser,
         learnerDashboard: dashboardResult.ok ? unwrapApiData(dashboardResult.payload) : null,
         summaries: summaryResults,
       })
@@ -254,7 +266,7 @@ export default function WorkspaceOverviewPage() {
     return () => {
       isMounted = false
     }
-  }, [copy.currentAccount, language])
+  }, [currentUser, hasPermission, language])
 
   return (
     <div dir={isArabic ? 'rtl' : 'ltr'} className={`space-y-8 ${isArabic ? 'text-right' : 'text-left'}`}>
@@ -272,13 +284,17 @@ export default function WorkspaceOverviewPage() {
               <p className="mt-4 max-w-2xl text-base leading-8 text-white/75 md:text-lg">{copy.description}</p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Button variant="secondary" onClick={() => navigate('/programs')}>
-                {copy.managePrograms}
-                <ChevronLeft size={18} />
-              </Button>
-              <Button variant="outline" className="!border-white/25 !text-white hover:!bg-white/10" onClick={() => navigate('/users')}>
-                {copy.manageUsers}
-              </Button>
+              {canAccess(getRouteAccess('/programs')) ? (
+                <Button variant="secondary" onClick={() => navigate('/programs')}>
+                  {copy.managePrograms}
+                  <ChevronLeft size={18} />
+                </Button>
+              ) : null}
+              {canAccess(getRouteAccess('/users')) ? (
+                <Button variant="outline" className="!border-white/25 !text-white hover:!bg-white/10" onClick={() => navigate('/users')}>
+                  {copy.manageUsers}
+                </Button>
+              ) : null}
             </div>
           </div>
         </CardContent>
@@ -364,7 +380,7 @@ export default function WorkspaceOverviewPage() {
       <section aria-labelledby="quick-actions-title">
         <h2 id="quick-actions-title" className="mb-4 text-2xl font-bold text-[var(--color-text)]">{copy.quickActions}</h2>
         <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
-          {architecture.dashboardQuickActions.map((action) => {
+          {architecture.dashboardQuickActions.filter((action) => canAccess(getRouteAccess(action.href))).map((action) => {
             const Icon = iconMap[action.icon] || LayoutDashboard
             return (
               <button

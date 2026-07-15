@@ -2,6 +2,7 @@ import { X } from 'lucide-react'
 import { branding, getBrandText } from '../../config/branding'
 import { getSidebarNavigation } from '../../routes/navigation'
 import { getAdminLanguage } from '../../services/languageStorage'
+import { useAuthorization } from '../../features/auth/context/useAuthorization'
 import SidebarNav from './SidebarNav'
 
 const footerCopy = {
@@ -26,7 +27,8 @@ const footerCopy = {
 }
 
 export default function AppSidebar({ isOpen = false, onClose }) {
-  const groups = getSidebarNavigation()
+  const { canAccess } = useAuthorization()
+  const groups = getSidebarNavigation(canAccess)
   const language = getAdminLanguage()
   const isArabic = language === 'ar'
   const brand = getBrandText(language)

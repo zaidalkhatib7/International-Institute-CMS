@@ -1,4 +1,5 @@
 import {
+  Award,
   BadgeCheck,
   BookOpenCheck,
   Bot,
@@ -10,8 +11,10 @@ import {
   FolderOpen,
   Gavel,
   GraduationCap,
+  Headphones,
   Landmark,
   Layers3,
+  LibraryBig,
   LayoutDashboard,
   Newspaper,
   PanelsTopLeft,
@@ -23,6 +26,7 @@ import {
   WalletCards,
 } from 'lucide-react'
 import { getAdminLanguage } from '../services/languageStorage'
+import { getRouteAccess } from './routeAccess'
 
 const groups = [
   {
@@ -55,11 +59,11 @@ const groups = [
         icon: ClipboardList,
       },
       {
-        label: { ar: 'الأدلة المهنية', en: 'Professional evidence', nl: 'Professioneel bewijs' },
+        label: { ar: 'التحقق والأدلة', en: 'Evidence & verification', nl: 'Bewijs & verificatie' },
         href: '/rpl/evidence',
         icon: FolderOpen,
       },
-      { label: { ar: 'التقييم', en: 'Assessment', nl: 'Beoordeling' }, href: '/rpl/assessments', icon: ClipboardCheck },
+      { label: { ar: 'لوحة المقيّم', en: 'Assessor workbench', nl: 'Beoordelaarswerkruimte' }, href: '/rpl/assessments', icon: ClipboardCheck },
       {
         label: { ar: 'قرارات الاعتماد', en: 'Accreditation decisions', nl: 'Accreditatiebesluiten' },
         href: '/rpl/accreditation',
@@ -69,6 +73,11 @@ const groups = [
         label: { ar: 'التظلمات والتجديد', en: 'Appeals & renewal', nl: 'Bezwaar & verlenging' },
         href: '/rpl/appeals',
         icon: Gavel,
+      },
+      {
+        label: { ar: 'إعدادات RPL', en: 'RPL configuration', nl: 'RPL-configuratie' },
+        href: '/rpl/configuration',
+        icon: Settings,
       },
     ],
   },
@@ -98,6 +107,27 @@ const groups = [
     ],
   },
   {
+    label: { ar: 'العمليات والخدمات', en: 'Operations & services', nl: 'Operaties & diensten' },
+    items: [
+      {
+        label: { ar: 'إدارة الشهادات', en: 'Certificate administration', nl: 'Certificaatbeheer' },
+        href: '/certificates',
+        icon: Award,
+      },
+      {
+        label: { ar: 'المكتبة الرقمية', en: 'Digital library', nl: 'Digitale bibliotheek' },
+        href: '/library',
+        icon: LibraryBig,
+      },
+      {
+        label: { ar: 'الدعم والاتصالات', en: 'Support & communications', nl: 'Support en communicatie' },
+        href: '/support',
+        icon: Headphones,
+      },
+      { label: { ar: 'النظام المالي', en: 'Finance', nl: 'Financiën' }, href: '/finance', icon: WalletCards },
+    ],
+  },
+  {
     label: { ar: 'الحوكمة والإدارة', en: 'Governance & administration', nl: 'Governance & beheer' },
     items: [
       {
@@ -116,7 +146,6 @@ const groups = [
         href: '/quality',
         icon: ShieldCheck,
       },
-      { label: { ar: 'النظام المالي', en: 'Finance', nl: 'Financiën' }, href: '/finance', icon: WalletCards },
       {
         label: { ar: 'إعدادات الذكاء الاصطناعي', en: 'AI settings', nl: 'AI-instellingen' },
         href: '/ai-settings',
@@ -140,7 +169,7 @@ function pickLabel(label, language) {
   return label?.[language] || label?.ar || label?.en || ''
 }
 
-export function getSidebarNavigation() {
+export function getSidebarNavigation(canAccess = () => true) {
   const language = getAdminLanguage()
 
   return [
@@ -151,20 +180,24 @@ export function getSidebarNavigation() {
           name: pickLabel({ ar: 'نظرة عامة', en: 'Overview', nl: 'Overzicht' }, language),
           href: '/dashboard',
           icon: LayoutDashboard,
+          access: getRouteAccess('/dashboard'),
         },
       ],
     },
     ...groups.map((group) => ({
       label: pickLabel(group.label, language),
-      items: group.items.map((item) => ({
-        name: pickLabel(item.label, language),
-        href: item.href,
-        icon: item.icon,
-      })),
-    })),
-  ]
+      items: group.items
+        .map((item) => ({
+          name: pickLabel(item.label, language),
+          href: item.href,
+          icon: item.icon,
+          access: getRouteAccess(item.href),
+        }))
+        .filter((item) => canAccess(item.access)),
+    })).filter((group) => group.items.length),
+  ].filter((group) => group.items.every((item) => canAccess(item.access)))
 }
 
-export function getNavigationItems() {
-  return getSidebarNavigation().flatMap((group) => group.items)
+export function getNavigationItems(canAccess) {
+  return getSidebarNavigation(canAccess).flatMap((group) => group.items)
 }
