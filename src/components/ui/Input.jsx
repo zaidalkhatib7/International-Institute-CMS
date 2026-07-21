@@ -20,7 +20,7 @@ const Input = forwardRef(function Input(
           aria-invalid={error ? true : undefined}
           aria-describedby={props['aria-describedby'] || descriptionId}
           className={cn(
-            'w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-white px-4 py-3 text-[var(--color-text)] outline-none transition-all placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)]',
+            'w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-white px-4 py-3 text-[var(--color-text)] outline-none transition-all placeholder:text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[rgba(22,153,214,0.11)]',
             leftIcon && 'ps-11',
             rightIcon && 'pe-11',
             error && 'border-[var(--color-danger)]',

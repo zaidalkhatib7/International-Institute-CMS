@@ -26,6 +26,7 @@ import {
   fetchAdminSections,
 } from '../services/lessonsService'
 import { getCurrentLanguage, readLocalizedValue } from '../../../utils/localization'
+import { readApiError } from '../../../services/apiResponse'
 
 const LESSONS_TABLE_GRID =
   'grid-cols-[minmax(280px,2.2fr)_minmax(220px,1.8fr)_110px_110px_120px_92px]'
@@ -35,15 +36,15 @@ function readLocalized(value) {
 }
 
 function getSectionTitle(section) {
-  return readLocalized(section?.title) || `Section ${section?.id ?? ''}`.trim()
+  return readLocalized(section?.title) || (section?.id ? `#${section.id}` : '—')
 }
 
 function getLessonTitle(lesson) {
-  return readLocalized(lesson?.title) || 'Untitled Lesson'
+  return readLocalized(lesson?.title) || (lesson?.id ? `#${lesson.id}` : '—')
 }
 
 function getLessonTextPreview(lesson) {
-  return readLocalized(lesson?.text_content) || 'No content preview'
+  return readLocalized(lesson?.text_content) || '—'
 }
 
 function compareValues(a, b) {
@@ -64,7 +65,7 @@ function getSortValue(lesson, sectionsById, sortBy) {
   return getLessonTitle(lesson)
 }
 
-function MetricCard({ label, value, variant = 'neutral' }) {
+function MetricCard({ label, value, live, variant = 'neutral' }) {
   return (
     <Card>
       <CardContent className="p-6">
@@ -72,7 +73,7 @@ function MetricCard({ label, value, variant = 'neutral' }) {
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
             {label}
           </p>
-          <Badge variant={variant}>Live</Badge>
+          <Badge variant={variant}>{live}</Badge>
         </div>
         <h3 className="mt-3 text-5xl font-bold text-[var(--color-text)]">{value}</h3>
       </CardContent>
@@ -181,7 +182,7 @@ export default function LessonsPage() {
         rows: 'صفوف',
         page: 'الصفحة',
         prev: 'السابق',
-        next: 'التالي',
+        next: 'التالي', live: 'مباشر', loadFailed: 'تعذر تحميل الدروس.', deleteFailed: 'تعذر حذف الدرس.',
         typeLabels: { text: 'نصي', video: 'فيديو', both: 'مختلط' },
       }
     }
@@ -222,7 +223,7 @@ export default function LessonsPage() {
         rows: 'Rijen',
         page: 'Pagina',
         prev: 'Vorige',
-        next: 'Volgende',
+        next: 'Volgende', live: 'Live', loadFailed: 'De lessen konden niet worden geladen.', deleteFailed: 'De les kon niet worden verwijderd.',
         typeLabels: { text: 'Tekst', video: 'Video', both: 'Hybride' },
       }
     }
@@ -262,7 +263,7 @@ export default function LessonsPage() {
       rows: 'Rows',
       page: 'Page',
       prev: 'Prev',
-      next: 'Next',
+      next: 'Next', live: 'Live', loadFailed: 'Failed to load lessons.', deleteFailed: 'Failed to delete lesson.',
       typeLabels: { text: 'text', video: 'video', both: 'both' },
     }
   }, [language])
@@ -298,7 +299,7 @@ export default function LessonsPage() {
         setLessons(Array.isArray(rawLessons) ? rawLessons : [])
         setSections(Array.isArray(rawSections) ? rawSections : [])
       } catch (err) {
-        const message = err?.response?.data?.message || err?.message || 'Failed to load lessons.'
+        const message = readApiError(err, copy.loadFailed)
         setError(message)
       } finally {
         setIsLoading(false)
@@ -306,7 +307,7 @@ export default function LessonsPage() {
     }
 
     loadData()
-  }, [])
+  }, [copy.loadFailed])
 
   useEffect(() => {
     if (!statusMessage) return undefined
@@ -394,7 +395,7 @@ export default function LessonsPage() {
       setLessons((prev) => prev.filter((item) => item.id !== lesson.id))
       setStatusMessage('Lesson deleted successfully.')
     } catch (err) {
-      const message = err?.response?.data?.message || err?.message || 'Failed to delete lesson.'
+      const message = readApiError(err, copy.deleteFailed)
       setError(message)
     } finally {
       setDeletingLessonId(null)
@@ -427,10 +428,10 @@ export default function LessonsPage() {
       ) : null}
 
       <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label={copy.totalLessons} value={String(metrics.total)} variant="info" />
-        <MetricCard label={copy.textLessons} value={String(metrics.text)} variant="neutral" />
-        <MetricCard label={copy.videoLessons} value={String(metrics.video)} variant="success" />
-        <MetricCard label={copy.hybridLessons} value={String(metrics.both)} variant="secondary" />
+        <MetricCard label={copy.totalLessons} value={String(metrics.total)} live={copy.live} variant="info" />
+        <MetricCard label={copy.textLessons} value={String(metrics.text)} live={copy.live} variant="neutral" />
+        <MetricCard label={copy.videoLessons} value={String(metrics.video)} live={copy.live} variant="success" />
+        <MetricCard label={copy.hybridLessons} value={String(metrics.both)} live={copy.live} variant="secondary" />
       </section>
 
       <Card>

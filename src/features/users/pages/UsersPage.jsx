@@ -178,7 +178,7 @@ function buildUsersCsv(users, language) {
   return lines.map((line) => line.map(escapeCsvValue).join(',')).join('\n')
 }
 
-function UserRow({ user, language, copy, onAddPoints, onDecreasePoints }) {
+function UserRow({ user, language, copy, onOpenWorkspace, onAddPoints, onDecreasePoints }) {
   const roleKey = getRoleKey(user.role)
   const displayRole = formatRoleLabel(roleKey, language)
 
@@ -190,12 +190,13 @@ function UserRow({ user, language, copy, onAddPoints, onDecreasePoints }) {
         </div>
 
         <div>
-          <h4 className="text-xl font-semibold text-[var(--color-text)]">{user.name}</h4>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">ID: ICPC-{user.id}</p>
+          <button type="button" onClick={() => onOpenWorkspace?.(user)} className="text-start text-xl font-semibold text-[var(--color-text)] hover:text-[var(--color-primary)] hover:underline">{user.name}</button>
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">{user.office_registration_id || user.username || `ID: ICPC-${user.id}`}</p>
+          <button type="button" onClick={() => onOpenWorkspace?.(user)} className="mt-2 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] hover:bg-[var(--color-surface-muted)]">{copy.viewEdit}</button>
         </div>
       </div>
 
-      <div className="truncate text-lg text-[var(--color-text-body,#43474D)]">{user.email}</div>
+      <div className="truncate text-lg text-[var(--color-text-body,#43474D)]">{user.email || <span className="text-amber-700">{copy.onsiteNoEmail}</span>}</div>
 
       <div>
         <Badge variant={roleVariant(roleKey)}>{displayRole}</Badge>
@@ -269,10 +270,17 @@ export default function UsersPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const language = getCurrentLanguage()
+  const audience = location.pathname === '/users/website' ? 'website' : location.pathname === '/users/onsite' ? 'onsite' : 'administration'
+  const audienceMeta = {
+    administration: language === 'ar' ? { title: 'الإدارة والأدوار', description: 'إدارة الموظفين والمديرين والمقيّمين والمدربين وصلاحياتهم التشغيلية.', add: true } : language === 'nl' ? { title: 'Beheer en rollen', description: 'Beheer medewerkers, beheerders, beoordelaars, trainers en hun bevoegdheden.', add: true } : { title: 'Administration & roles', description: 'Manage staff, administrators, assessors, trainers, and their operational permissions.', add: true },
+    website: language === 'ar' ? { title: 'عملاء الموقع', description: 'الحسابات التي سجلت ذاتياً عبر الموقع وتدير خدماتها إلكترونياً.', add: false } : language === 'nl' ? { title: 'Websitecliënten', description: 'Zelfservicecliënten die zich online hebben geregistreerd.', add: false } : { title: 'Website clients', description: 'Self-service clients who registered online and manage their own website accounts.', add: false },
+    onsite: language === 'ar' ? { title: 'عملاء المكتب', description: 'العملاء الذين تم تسجيلهم أو خدمتهم داخل مكتب ICPC.', add: true } : language === 'nl' ? { title: 'Kantoorcliënten', description: 'Cliënten die op een ICPC-kantoor zijn geregistreerd of geholpen.', add: true } : { title: 'On-site clients', description: 'Clients registered and assisted at an ICPC office. Staff manage their service journey here.', add: true },
+  }[audience]
   const copy = useMemo(() => {
     if (language === 'ar') {
       return {
         title: 'المستخدمون',
+        userAudience: 'نوع المستخدمين',
         description: 'مراجعة الحسابات المؤسسية وأرصدة المحافظ وتعيينات الأدوار.',
         searchPlaceholder: 'ابحث بالاسم أو البريد الإلكتروني أو الهاتف',
         allRoles: 'كل الأدوار',
@@ -337,12 +345,26 @@ export default function UsersPage() {
         rows: 'صفوف',
         prev: 'السابق',
         next: 'التالي',
+        onsiteNoEmail: 'حساب مسجّل في المكتب · دون بريد إلكتروني',
+        tabAdministration: 'الإدارة والأدوار',
+        tabWebsite: 'عملاء الموقع',
+        tabOnsite: 'عملاء المكتب',
+        registrationChannel: 'قناة التسجيل',
+        onlineSelfService: 'تسجيل ذاتي عبر الموقع (البريد مطلوب)',
+        onsiteAssisted: 'تسجيل بمساعدة المكتب (البريد اختياري)',
+        username: 'اسم المستخدم',
+        generatedRegistrationId: 'ينشئ النظام رقم تسجيل عشوائياً وفريداً بصيغة السنة وثلاثة أرقام، مثل 2026-482.',
+        page: 'الصفحة',
+        loadFailed: 'تعذر تحميل المستخدمين.',
+        exportFailed: 'تعذر تصدير ملف CSV.',
+        viewEdit: 'عرض / تعديل البيانات',
       }
     }
 
     if (language === 'nl') {
       return {
         title: 'Gebruikers',
+        userAudience: 'Gebruikersgroep',
         description: 'Bekijk institutionele accounts, wallet-saldi en roltoewijzingen.',
         searchPlaceholder: 'Zoek op naam, e-mail of telefoon',
         allRoles: 'Alle rollen',
@@ -407,11 +429,25 @@ export default function UsersPage() {
         rows: 'Rijen',
         prev: 'Vorige',
         next: 'Volgende',
+        onsiteNoEmail: 'Op kantoor geregistreerd · geen e-mail',
+        tabAdministration: 'Beheer en rollen',
+        tabWebsite: 'Websitecliënten',
+        tabOnsite: 'Kantoorcliënten',
+        registrationChannel: 'Registratiekanaal',
+        onlineSelfService: 'Online zelfservice (e-mail vereist)',
+        onsiteAssisted: 'Begeleid op kantoor (e-mail optioneel)',
+        username: 'Gebruikersnaam',
+        generatedRegistrationId: 'Het systeem maakt automatisch een willekeurig, uniek registratienummer aan met jaar en drie cijfers, bijvoorbeeld 2026-482.',
+        page: 'Pagina',
+        loadFailed: 'Gebruikers laden mislukt.',
+        exportFailed: 'CSV exporteren mislukt.',
+        viewEdit: 'Gegevens bekijken / bewerken',
       }
     }
 
     return {
       title: 'Users',
+      userAudience: 'User audience',
       description: 'Review institutional accounts, wallet balances, and role assignments.',
       searchPlaceholder: 'Search by name, email, or phone',
       allRoles: 'All Roles',
@@ -476,6 +512,19 @@ export default function UsersPage() {
       rows: 'Rows',
       prev: 'Prev',
       next: 'Next',
+      onsiteNoEmail: 'On-site account · no email',
+      tabAdministration: 'Administration & roles',
+      tabWebsite: 'Website clients',
+      tabOnsite: 'On-site clients',
+      registrationChannel: 'Registration channel',
+      onlineSelfService: 'Online self-service (email required)',
+      onsiteAssisted: 'On-site assisted (email optional)',
+      username: 'Username',
+      generatedRegistrationId: 'The system automatically generates a random, unique registration ID as year plus three digits, for example 2026-482.',
+      page: 'Page',
+      loadFailed: 'Failed to load users.',
+      exportFailed: 'Failed to export CSV.',
+      viewEdit: 'View / edit details',
     }
   }, [language])
 
@@ -502,6 +551,9 @@ export default function UsersPage() {
     password: '',
     password_confirmation: '',
     role: 'student',
+    registration_channel: 'online',
+    username: '',
+    office_registration_id: '',
   })
   const [pagination, setPagination] = useState({
     current_page: 1,
@@ -531,6 +583,7 @@ export default function UsersPage() {
           page: currentPage,
           ...(search ? { search } : {}),
           ...(role !== 'all' ? { role } : {}),
+          audience,
         })
 
         const { items, pageData } = getUsersPage(result)
@@ -545,7 +598,7 @@ export default function UsersPage() {
           per_page: Number(pageData?.per_page ?? rowsPerPage),
         })
       } catch (err) {
-        const message = err?.response?.data?.message || err?.message || 'Failed to load users.'
+        const message = err?.response?.data?.message || err?.message || copy.loadFailed
         setError(message)
       } finally {
         setIsLoading(false)
@@ -553,7 +606,7 @@ export default function UsersPage() {
     }
 
     loadUsers()
-  }, [search, role, currentPage, rowsPerPage, refreshKey])
+  }, [search, role, currentPage, rowsPerPage, refreshKey, audience, copy.loadFailed])
 
   useEffect(() => {
     let cancelled = false
@@ -565,6 +618,7 @@ export default function UsersPage() {
         const query = {
           ...(search ? { search } : {}),
           ...(role !== 'all' ? { role } : {}),
+          audience,
         }
 
         const firstPageResult = await fetchUsers({
@@ -625,7 +679,7 @@ export default function UsersPage() {
     return () => {
       cancelled = true
     }
-  }, [search, role, refreshKey])
+  }, [search, role, refreshKey, audience])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -689,6 +743,9 @@ export default function UsersPage() {
       password: '',
       password_confirmation: '',
       role: 'student',
+      registration_channel: 'online',
+      username: '',
+      office_registration_id: '',
     })
   }
 
@@ -733,6 +790,7 @@ export default function UsersPage() {
     const query = {
       ...(search ? { search } : {}),
       ...(role !== 'all' ? { role } : {}),
+      audience,
     }
 
     const firstPageResult = await fetchUsers({
@@ -807,7 +865,7 @@ export default function UsersPage() {
       document.body.removeChild(link)
       URL.revokeObjectURL(blobUrl)
     } catch (err) {
-      const message = err?.response?.data?.message || err?.message || 'Failed to export CSV.'
+      const message = err?.response?.data?.message || err?.message || copy.exportFailed
       setActionError(message)
     } finally {
       setIsExporting(false)
@@ -817,9 +875,12 @@ export default function UsersPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title={copy.title}
-        description={copy.description}
+        title={audienceMeta.title}
+        description={audienceMeta.description}
       />
+      <nav className="grid gap-3 rounded-2xl border border-[var(--color-border)] bg-white p-3 sm:grid-cols-3" aria-label={copy.userAudience}>
+        {[['administration', '/users', copy.tabAdministration], ['website', '/users/website', copy.tabWebsite], ['onsite', '/users/onsite', copy.tabOnsite]].map(([key, href, label]) => <button key={key} type="button" onClick={() => navigate(href)} className={`rounded-xl px-4 py-3 text-sm font-bold ${audience === key ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-surface-muted)] text-[var(--color-text-muted)] hover:bg-slate-100'}`}>{label}</button>)}
+      </nav>
 
       {error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-600">
@@ -873,11 +934,12 @@ export default function UsersPage() {
               {sortDirection === 'asc' ? copy.asc : copy.desc}
             </Button>
 
-            {canManageUsers ? (
+            {canManageUsers && audienceMeta.add ? (
               <Button
                 variant="secondary"
                 onClick={() => {
                   setIsCreateOpen((prev) => !prev)
+                  setCreateForm((current) => ({ ...current, registration_channel: audience === 'onsite' ? 'onsite' : 'online' }))
                   setActionError('')
                   setActionMessage('')
                 }}
@@ -890,7 +952,7 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
-      {canManageUsers && isCreateOpen ? (
+      {canManageUsers && audienceMeta.add && isCreateOpen ? (
         <Card>
           <CardContent className="p-6">
             <h3 className="text-xl font-semibold text-[var(--color-text)]">{copy.createUserTitle}</h3>
@@ -905,6 +967,14 @@ export default function UsersPage() {
                 value={createForm.email}
                 onChange={(e) => setCreateForm((prev) => ({ ...prev, email: e.target.value }))}
               />
+              <Select label={copy.registrationChannel} value={createForm.registration_channel} disabled={audience === 'onsite'} onChange={(e) => setCreateForm((prev) => ({ ...prev, registration_channel: e.target.value }))}>
+                <option value="online">{copy.onlineSelfService}</option>
+                <option value="onsite">{copy.onsiteAssisted}</option>
+              </Select>
+              {createForm.registration_channel === 'onsite' ? <>
+                <Input label={copy.username} value={createForm.username} onChange={(e) => setCreateForm((prev) => ({ ...prev, username: e.target.value }))} />
+                <p className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-900">{copy.generatedRegistrationId}</p>
+              </> : null}
               <Input
                 label={copy.phoneNumber}
                 value={createForm.phone_number}
@@ -1057,6 +1127,7 @@ export default function UsersPage() {
               user={user}
               language={language}
               copy={copy}
+              onOpenWorkspace={(targetUser) => navigate(`/users/${targetUser.id}`)}
               onAddPoints={canManageWallet ? (targetUser) => openWalletAction(targetUser, 'credit') : null}
               onDecreasePoints={canManageWallet ? (targetUser) => openWalletAction(targetUser, 'debit') : null}
             />
@@ -1099,7 +1170,7 @@ export default function UsersPage() {
             </Button>
 
             <span className="min-w-[90px] text-center text-sm text-[var(--color-text-muted)]">
-              Page <b>{pagination.current_page}</b> / <b>{pagination.last_page}</b>
+              {copy.page} <b>{pagination.current_page}</b> / <b>{pagination.last_page}</b>
             </span>
 
             <Button

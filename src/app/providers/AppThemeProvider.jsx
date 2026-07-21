@@ -15,11 +15,14 @@ export default function AppThemeProvider({ children }) {
       '--color-accent': theme.colors.accent,
       '--color-background': theme.colors.background,
       '--color-surface': theme.colors.surface,
+      '--color-surface-raised': theme.colors.surfaceRaised,
       '--color-surface-muted': theme.colors.surfaceMuted,
+      '--color-surface-subtle': theme.colors.surfaceSubtle,
       '--color-text': theme.colors.text,
       '--color-text-body': theme.colors.textBody,
       '--color-text-muted': theme.colors.textMuted,
       '--color-border': theme.colors.border,
+      '--color-border-strong': theme.colors.borderStrong,
       '--color-success': theme.colors.success,
       '--color-warning': theme.colors.warning,
       '--color-danger': theme.colors.danger,
@@ -31,6 +34,7 @@ export default function AppThemeProvider({ children }) {
       '--radius-xl': theme.radius.xl,
 
       '--shadow-card': theme.shadow.card,
+      '--shadow-card-hover': theme.shadow.cardHover,
       '--shadow-floating': theme.shadow.floating,
 
       '--layout-sidebar-width': theme.layout.sidebarWidth,

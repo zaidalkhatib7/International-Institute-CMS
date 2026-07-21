@@ -29,7 +29,7 @@ describe('permission-aware navigation', () => {
     const authorization = createAuthorization({ role: 'admin' })
     const paths = getNavigationItems(authorization.canAccess).map((item) => item.href)
 
-    expect(paths).toEqual(expect.arrayContaining(['/users', '/finance', '/rpl/configuration', '/ai-settings']))
+    expect(paths).toEqual(expect.arrayContaining(['/users', '/finance', '/rpl/configuration', '/ai-settings', '/competency-gap-library']))
   })
 
   it('does not require unrelated finance and reporting permissions from specialized operators', () => {

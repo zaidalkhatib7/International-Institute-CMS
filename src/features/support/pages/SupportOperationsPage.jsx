@@ -1,132 +1,1815 @@
-import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, BellRing, BookOpenCheck, Clock3, Headphones, Inbox, MessageSquareText, Plus, Search, Send, TicketCheck, UserRoundX } from 'lucide-react'
-import { Badge, Button, Card, CardContent, DataTableShell, Input, PageHeader, Select, Textarea } from '../../../components/ui'
-import { readApiError, readLocalized, readPagination, unwrapApiData, unwrapCollection } from '../../../services/apiResponse'
-import { getAdminLanguage } from '../../../services/languageStorage'
-import { EmptyState, MetricTile, OperationAlert, OperationsLoader, OperationsModal, OperationsTabs, PaginationControls, StatusBadge } from '../../operations/components/OperationsUI'
-import { parseCommaSeparatedIds } from '../../operations/utils'
-import { createAnnouncement, createFaq, createFaqCategory, deleteAnnouncement, deleteFaq, deleteFaqCategory, fetchAnnouncements, fetchFaqCategories, fetchFaqs, fetchSupportDashboard, fetchSupportTicket, fetchSupportTickets, replyToSupportTicket, updateAnnouncement, updateFaq, updateFaqCategory, updateSupportTicket } from '../services/supportService'
+import { useCallback, useEffect, useState } from "react";
+import {
+  AlertTriangle,
+  BellRing,
+  BookOpenCheck,
+  Clock3,
+  Headphones,
+  Inbox,
+  MessageSquareText,
+  Plus,
+  Search,
+  Send,
+  TicketCheck,
+  UserRoundX,
+} from "lucide-react";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  DataTableShell,
+  Input,
+  PageHeader,
+  Select,
+  Textarea,
+} from "../../../components/ui";
+import {
+  readApiError,
+  readLocalized,
+  readPagination,
+  unwrapApiData,
+  unwrapCollection,
+} from "../../../services/apiResponse";
+import { getAdminLanguage } from "../../../services/languageStorage";
+import { formatLocalizedDateTime } from "../../../utils/localization";
+import {
+  EmptyState,
+  MetricTile,
+  OperationAlert,
+  OperationsLoader,
+  OperationsModal,
+  OperationsTabs,
+  PaginationControls,
+  StatusBadge,
+} from "../../operations/components/OperationsUI";
+import { parseCommaSeparatedIds } from "../../operations/utils";
+import {
+  createAnnouncement,
+  createFaq,
+  createFaqCategory,
+  deleteAnnouncement,
+  deleteFaq,
+  deleteFaqCategory,
+  fetchAnnouncements,
+  fetchFaqCategories,
+  fetchFaqs,
+  fetchSupportDashboard,
+  fetchSupportTicket,
+  fetchSupportTickets,
+  replyToSupportTicket,
+  updateAnnouncement,
+  updateFaq,
+  updateFaqCategory,
+  updateSupportTicket,
+} from "../services/supportService";
 
 const copies = {
-  ar: { title: 'الدعم والاتصالات', description: 'مركز عمليات موحّد للتذاكر واتفاقيات مستوى الخدمة والأسئلة الشائعة والإعلانات المؤسسية.', tickets: 'تذاكر الدعم', knowledge: 'قاعدة المعرفة', announcements: 'الإعلانات', newFaq: 'سؤال جديد', newAnnouncement: 'إعلان جديد', search: 'ابحث بالرقم أو الموضوع أو الوصف…', allStatuses: 'كل الحالات', allPriorities: 'كل الأولويات', overdueOnly: 'المتأخرة فقط', apply: 'تطبيق', ticket: 'التذكرة', requester: 'مقدم الطلب', category: 'الفئة', priority: 'الأولوية', sla: 'موعد SLA', status: 'الحالة', actions: 'الإجراءات', open: 'فتح', total: 'إجمالي التذاكر', overdue: 'متأخرة', unassigned: 'غير مسندة', firstResponse: 'تجاوز الرد الأول', empty: 'لا توجد تذاكر مطابقة.', details: 'مساحة عمل التذكرة', assignment: 'التعيين ومسار العمل', assignedTo: 'معرّف الموظف المسؤول', saveWorkflow: 'حفظ التحديث', conversation: 'المحادثة', internal: 'ملاحظة داخلية', reply: 'الرد', replyPlaceholder: 'اكتب رداً واضحاً ومفيداً…', mediaIds: 'معرّفات المرفقات (مفصولة بفواصل)', send: 'إرسال', close: 'إغلاق', saving: 'جارٍ الحفظ…', success: 'تم تحديث عملية الدعم.', faqCategories: 'تصنيفات الأسئلة', addCategory: 'إضافة تصنيف', categoryNameEn: 'اسم التصنيف بالإنجليزية', categoryNameAr: 'اسم التصنيف بالعربية', slug: 'الرابط المختصر', sortOrder: 'ترتيب العرض', active: 'نشط', save: 'حفظ', edit: 'تعديل', delete: 'حذف', questionEn: 'السؤال بالإنجليزية', questionAr: 'السؤال بالعربية', answerEn: 'الإجابة بالإنجليزية', answerAr: 'الإجابة بالعربية', publishStatus: 'حالة النشر', draft: 'مسودة', published: 'منشور', archived: 'مؤرشف', question: 'السؤال', announcementTitleEn: 'عنوان الإعلان بالإنجليزية', announcementTitleAr: 'عنوان الإعلان بالعربية', announcementBodyEn: 'النص بالإنجليزية', announcementBodyAr: 'النص بالعربية', audienceRoles: 'الأدوار المستهدفة (مفصولة بفواصل)', severity: 'الأهمية', startsAt: 'يبدأ في', endsAt: 'ينتهي في', info: 'معلومة', successSeverity: 'نجاح', warning: 'تحذير', critical: 'حرج', titleColumn: 'العنوان', window: 'فترة العرض', required: 'أكمل الحقول المطلوبة.', confirmDelete: 'تأكيد الحذف', deleteHint: 'سيتم حذف السجل نهائياً.', previous: 'السابق', next: 'التالي', low: 'منخفضة', normal: 'عادية', high: 'عالية', urgent: 'عاجلة', in_progress: 'قيد المعالجة', waiting_on_user: 'بانتظار المستخدم', resolved: 'محلولة', closed: 'مغلقة' },
-  en: { title: 'Support & communications', description: 'A unified operations center for tickets, SLA controls, FAQs, and institutional announcements.', tickets: 'Support tickets', knowledge: 'Knowledge base', announcements: 'Announcements', newFaq: 'New FAQ', newAnnouncement: 'New announcement', search: 'Search number, subject, or description…', allStatuses: 'All statuses', allPriorities: 'All priorities', overdueOnly: 'Overdue only', apply: 'Apply', ticket: 'Ticket', requester: 'Requester', category: 'Category', priority: 'Priority', sla: 'SLA due', status: 'Status', actions: 'Actions', open: 'Open', total: 'Total tickets', overdue: 'Overdue', unassigned: 'Unassigned', firstResponse: 'First-response breaches', empty: 'No matching support tickets.', details: 'Ticket workspace', assignment: 'Assignment & workflow', assignedTo: 'Assigned staff user ID', saveWorkflow: 'Save workflow', conversation: 'Conversation', internal: 'Internal note', reply: 'Reply', replyPlaceholder: 'Write a clear and helpful response…', mediaIds: 'Attachment media IDs (comma separated)', send: 'Send', close: 'Close', saving: 'Saving…', success: 'Support operation updated.', faqCategories: 'FAQ categories', addCategory: 'Add category', categoryNameEn: 'Category name in English', categoryNameAr: 'Category name in Arabic', slug: 'Slug', sortOrder: 'Sort order', active: 'Active', save: 'Save', edit: 'Edit', delete: 'Delete', questionEn: 'Question in English', questionAr: 'Question in Arabic', answerEn: 'Answer in English', answerAr: 'Answer in Arabic', publishStatus: 'Publication status', draft: 'Draft', published: 'Published', archived: 'Archived', question: 'Question', announcementTitleEn: 'Announcement title in English', announcementTitleAr: 'Announcement title in Arabic', announcementBodyEn: 'Body in English', announcementBodyAr: 'Body in Arabic', audienceRoles: 'Audience roles (comma separated)', severity: 'Severity', startsAt: 'Starts at', endsAt: 'Ends at', info: 'Information', successSeverity: 'Success', warning: 'Warning', critical: 'Critical', titleColumn: 'Title', window: 'Display window', required: 'Complete all required fields.', confirmDelete: 'Confirm deletion', deleteHint: 'This record will be permanently deleted.', previous: 'Previous', next: 'Next', low: 'Low', normal: 'Normal', high: 'High', urgent: 'Urgent', in_progress: 'In progress', waiting_on_user: 'Waiting on user', resolved: 'Resolved', closed: 'Closed' },
-  nl: { title: 'Support en communicatie', description: 'Eén operationeel centrum voor tickets, SLA-bewaking, FAQ’s en institutionele aankondigingen.', tickets: 'Supporttickets', knowledge: 'Kennisbank', announcements: 'Aankondigingen', newFaq: 'Nieuwe FAQ', newAnnouncement: 'Nieuwe aankondiging', search: 'Zoek nummer, onderwerp of beschrijving…', allStatuses: 'Alle statussen', allPriorities: 'Alle prioriteiten', overdueOnly: 'Alleen te laat', apply: 'Toepassen', ticket: 'Ticket', requester: 'Aanvrager', category: 'Categorie', priority: 'Prioriteit', sla: 'SLA-deadline', status: 'Status', actions: 'Acties', open: 'Openen', total: 'Totaal tickets', overdue: 'Te laat', unassigned: 'Niet toegewezen', firstResponse: 'Overschrijding eerste reactie', empty: 'Geen supporttickets gevonden.', details: 'Ticketwerkruimte', assignment: 'Toewijzing en workflow', assignedTo: 'Gebruikers-ID medewerker', saveWorkflow: 'Workflow opslaan', conversation: 'Gesprek', internal: 'Interne notitie', reply: 'Antwoord', replyPlaceholder: 'Schrijf een duidelijk en behulpzaam antwoord…', mediaIds: 'Media-ID’s bijlagen (kommagescheiden)', send: 'Versturen', close: 'Sluiten', saving: 'Opslaan…', success: 'Supportproces bijgewerkt.', faqCategories: 'FAQ-categorieën', addCategory: 'Categorie toevoegen', categoryNameEn: 'Categorienaam in het Engels', categoryNameAr: 'Categorienaam in het Arabisch', slug: 'Slug', sortOrder: 'Sorteervolgorde', active: 'Actief', save: 'Opslaan', edit: 'Bewerken', delete: 'Verwijderen', questionEn: 'Vraag in het Engels', questionAr: 'Vraag in het Arabisch', answerEn: 'Antwoord in het Engels', answerAr: 'Antwoord in het Arabisch', publishStatus: 'Publicatiestatus', draft: 'Concept', published: 'Gepubliceerd', archived: 'Gearchiveerd', question: 'Vraag', announcementTitleEn: 'Titel in het Engels', announcementTitleAr: 'Titel in het Arabisch', announcementBodyEn: 'Tekst in het Engels', announcementBodyAr: 'Tekst in het Arabisch', audienceRoles: 'Doelgroeprollen (kommagescheiden)', severity: 'Ernst', startsAt: 'Start op', endsAt: 'Eindigt op', info: 'Informatie', successSeverity: 'Succes', warning: 'Waarschuwing', critical: 'Kritiek', titleColumn: 'Titel', window: 'Weergaveperiode', required: 'Vul alle verplichte velden in.', confirmDelete: 'Verwijderen bevestigen', deleteHint: 'Dit record wordt definitief verwijderd.', previous: 'Vorige', next: 'Volgende', low: 'Laag', normal: 'Normaal', high: 'Hoog', urgent: 'Urgent', in_progress: 'In behandeling', waiting_on_user: 'Wacht op gebruiker', resolved: 'Opgelost', closed: 'Gesloten' },
-}
+  ar: {
+    title: "الدعم والاتصالات",
+    description:
+      "مركز عمليات موحّد للتذاكر واتفاقيات مستوى الخدمة والأسئلة الشائعة والإعلانات المؤسسية.",
+    tickets: "تذاكر الدعم",
+    knowledge: "قاعدة المعرفة",
+    announcements: "الإعلانات",
+    newFaq: "سؤال جديد",
+    newAnnouncement: "إعلان جديد",
+    search: "ابحث بالرقم أو الموضوع أو الوصف…",
+    allStatuses: "كل الحالات",
+    allPriorities: "كل الأولويات",
+    overdueOnly: "المتأخرة فقط",
+    apply: "تطبيق",
+    ticket: "التذكرة",
+    requester: "مقدم الطلب",
+    category: "الفئة",
+    priority: "الأولوية",
+    sla: "موعد SLA",
+    status: "الحالة",
+    actions: "الإجراءات",
+    open: "فتح",
+    total: "إجمالي التذاكر",
+    overdue: "متأخرة",
+    unassigned: "غير مسندة",
+    firstResponse: "تجاوز الرد الأول",
+    empty: "لا توجد تذاكر مطابقة.",
+    details: "مساحة عمل التذكرة",
+    assignment: "التعيين ومسار العمل",
+    assignedTo: "معرّف الموظف المسؤول",
+    saveWorkflow: "حفظ التحديث",
+    conversation: "المحادثة",
+    internal: "ملاحظة داخلية",
+    reply: "الرد",
+    replyPlaceholder: "اكتب رداً واضحاً ومفيداً…",
+    mediaIds: "معرّفات المرفقات (مفصولة بفواصل)",
+    send: "إرسال",
+    close: "إغلاق",
+    saving: "جارٍ الحفظ…",
+    success: "تم تحديث عملية الدعم.",
+    faqCategories: "تصنيفات الأسئلة",
+    addCategory: "إضافة تصنيف",
+    categoryNameEn: "اسم التصنيف بالإنجليزية",
+    categoryNameAr: "اسم التصنيف بالعربية",
+    slug: "الرابط المختصر",
+    sortOrder: "ترتيب العرض",
+    active: "نشط",
+    save: "حفظ",
+    edit: "تعديل",
+    delete: "حذف",
+    questionEn: "السؤال بالإنجليزية",
+    questionAr: "السؤال بالعربية",
+    answerEn: "الإجابة بالإنجليزية",
+    answerAr: "الإجابة بالعربية",
+    publishStatus: "حالة النشر",
+    draft: "مسودة",
+    published: "منشور",
+    archived: "مؤرشف",
+    question: "السؤال",
+    announcementTitleEn: "عنوان الإعلان بالإنجليزية",
+    announcementTitleAr: "عنوان الإعلان بالعربية",
+    announcementBodyEn: "النص بالإنجليزية",
+    announcementBodyAr: "النص بالعربية",
+    audienceRoles: "الأدوار المستهدفة (مفصولة بفواصل)",
+    severity: "الأهمية",
+    startsAt: "يبدأ في",
+    endsAt: "ينتهي في",
+    info: "معلومة",
+    successSeverity: "نجاح",
+    warning: "تحذير",
+    critical: "حرج",
+    titleColumn: "العنوان",
+    window: "فترة العرض",
+    required: "أكمل الحقول المطلوبة.",
+    confirmDelete: "تأكيد الحذف",
+    deleteHint: "سيتم حذف السجل نهائياً.",
+    previous: "السابق",
+    next: "التالي",
+    low: "منخفضة",
+    normal: "عادية",
+    high: "عالية",
+    urgent: "عاجلة",
+    in_progress: "قيد المعالجة",
+    waiting_on_user: "بانتظار المستخدم",
+    resolved: "محلولة",
+    closed: "مغلقة",
+  },
+  en: {
+    title: "Support & communications",
+    description:
+      "A unified operations center for tickets, SLA controls, FAQs, and institutional announcements.",
+    tickets: "Support tickets",
+    knowledge: "Knowledge base",
+    announcements: "Announcements",
+    newFaq: "New FAQ",
+    newAnnouncement: "New announcement",
+    search: "Search number, subject, or description…",
+    allStatuses: "All statuses",
+    allPriorities: "All priorities",
+    overdueOnly: "Overdue only",
+    apply: "Apply",
+    ticket: "Ticket",
+    requester: "Requester",
+    category: "Category",
+    priority: "Priority",
+    sla: "SLA due",
+    status: "Status",
+    actions: "Actions",
+    open: "Open",
+    total: "Total tickets",
+    overdue: "Overdue",
+    unassigned: "Unassigned",
+    firstResponse: "First-response breaches",
+    empty: "No matching support tickets.",
+    details: "Ticket workspace",
+    assignment: "Assignment & workflow",
+    assignedTo: "Assigned staff user ID",
+    saveWorkflow: "Save workflow",
+    conversation: "Conversation",
+    internal: "Internal note",
+    reply: "Reply",
+    replyPlaceholder: "Write a clear and helpful response…",
+    mediaIds: "Attachment media IDs (comma separated)",
+    send: "Send",
+    close: "Close",
+    saving: "Saving…",
+    success: "Support operation updated.",
+    faqCategories: "FAQ categories",
+    addCategory: "Add category",
+    categoryNameEn: "Category name in English",
+    categoryNameAr: "Category name in Arabic",
+    slug: "Slug",
+    sortOrder: "Sort order",
+    active: "Active",
+    save: "Save",
+    edit: "Edit",
+    delete: "Delete",
+    questionEn: "Question in English",
+    questionAr: "Question in Arabic",
+    answerEn: "Answer in English",
+    answerAr: "Answer in Arabic",
+    publishStatus: "Publication status",
+    draft: "Draft",
+    published: "Published",
+    archived: "Archived",
+    question: "Question",
+    announcementTitleEn: "Announcement title in English",
+    announcementTitleAr: "Announcement title in Arabic",
+    announcementBodyEn: "Body in English",
+    announcementBodyAr: "Body in Arabic",
+    audienceRoles: "Audience roles (comma separated)",
+    severity: "Severity",
+    startsAt: "Starts at",
+    endsAt: "Ends at",
+    info: "Information",
+    successSeverity: "Success",
+    warning: "Warning",
+    critical: "Critical",
+    titleColumn: "Title",
+    window: "Display window",
+    required: "Complete all required fields.",
+    confirmDelete: "Confirm deletion",
+    deleteHint: "This record will be permanently deleted.",
+    previous: "Previous",
+    next: "Next",
+    low: "Low",
+    normal: "Normal",
+    high: "High",
+    urgent: "Urgent",
+    in_progress: "In progress",
+    waiting_on_user: "Waiting on user",
+    resolved: "Resolved",
+    closed: "Closed",
+  },
+  nl: {
+    title: "Support en communicatie",
+    description:
+      "Eén operationeel centrum voor tickets, SLA-bewaking, FAQ’s en institutionele aankondigingen.",
+    tickets: "Supporttickets",
+    knowledge: "Kennisbank",
+    announcements: "Aankondigingen",
+    newFaq: "Nieuwe FAQ",
+    newAnnouncement: "Nieuwe aankondiging",
+    search: "Zoek nummer, onderwerp of beschrijving…",
+    allStatuses: "Alle statussen",
+    allPriorities: "Alle prioriteiten",
+    overdueOnly: "Alleen te laat",
+    apply: "Toepassen",
+    ticket: "Ticket",
+    requester: "Aanvrager",
+    category: "Categorie",
+    priority: "Prioriteit",
+    sla: "SLA-deadline",
+    status: "Status",
+    actions: "Acties",
+    open: "Openen",
+    total: "Totaal tickets",
+    overdue: "Te laat",
+    unassigned: "Niet toegewezen",
+    firstResponse: "Overschrijding eerste reactie",
+    empty: "Geen supporttickets gevonden.",
+    details: "Ticketwerkruimte",
+    assignment: "Toewijzing en workflow",
+    assignedTo: "Gebruikers-ID medewerker",
+    saveWorkflow: "Workflow opslaan",
+    conversation: "Gesprek",
+    internal: "Interne notitie",
+    reply: "Antwoord",
+    replyPlaceholder: "Schrijf een duidelijk en behulpzaam antwoord…",
+    mediaIds: "Media-ID’s bijlagen (kommagescheiden)",
+    send: "Versturen",
+    close: "Sluiten",
+    saving: "Opslaan…",
+    success: "Supportproces bijgewerkt.",
+    faqCategories: "FAQ-categorieën",
+    addCategory: "Categorie toevoegen",
+    categoryNameEn: "Categorienaam in het Engels",
+    categoryNameAr: "Categorienaam in het Arabisch",
+    slug: "Slug",
+    sortOrder: "Sorteervolgorde",
+    active: "Actief",
+    save: "Opslaan",
+    edit: "Bewerken",
+    delete: "Verwijderen",
+    questionEn: "Vraag in het Engels",
+    questionAr: "Vraag in het Arabisch",
+    answerEn: "Antwoord in het Engels",
+    answerAr: "Antwoord in het Arabisch",
+    publishStatus: "Publicatiestatus",
+    draft: "Concept",
+    published: "Gepubliceerd",
+    archived: "Gearchiveerd",
+    question: "Vraag",
+    announcementTitleEn: "Titel in het Engels",
+    announcementTitleAr: "Titel in het Arabisch",
+    announcementBodyEn: "Tekst in het Engels",
+    announcementBodyAr: "Tekst in het Arabisch",
+    audienceRoles: "Doelgroeprollen (kommagescheiden)",
+    severity: "Ernst",
+    startsAt: "Start op",
+    endsAt: "Eindigt op",
+    info: "Informatie",
+    successSeverity: "Succes",
+    warning: "Waarschuwing",
+    critical: "Kritiek",
+    titleColumn: "Titel",
+    window: "Weergaveperiode",
+    required: "Vul alle verplichte velden in.",
+    confirmDelete: "Verwijderen bevestigen",
+    deleteHint: "Dit record wordt definitief verwijderd.",
+    previous: "Vorige",
+    next: "Volgende",
+    low: "Laag",
+    normal: "Normaal",
+    high: "Hoog",
+    urgent: "Urgent",
+    in_progress: "In behandeling",
+    waiting_on_user: "Wacht op gebruiker",
+    resolved: "Opgelost",
+    closed: "Gesloten",
+  },
+};
 
-const emptyFaq = { id: null, faq_category_id: '', slug: '', question_en: '', question_ar: '', answer_en: '', answer_ar: '', status: 'draft', sort_order: 0 }
-const emptyFaqCategory = { id: null, slug: '', name_en: '', name_ar: '', sort_order: 0, is_active: true }
-const emptyAnnouncement = { id: null, title_en: '', title_ar: '', body_en: '', body_ar: '', audience_roles: '', severity: 'info', status: 'draft', starts_at: '', ends_at: '' }
+Object.assign(copies.ar, {
+  categoryNameNl: "اسم التصنيف بالهولندية",
+  questionNl: "السؤال بالهولندية",
+  answerNl: "الإجابة بالهولندية",
+  announcementTitleNl: "عنوان الإعلان بالهولندية",
+  announcementBodyNl: "النص بالهولندية",
+  system: "النظام",
+  general: "عام",
+  account: "الحساب",
+  learning: "التعلّم",
+  finance: "المالية",
+  rpl: "الاعتراف بالخبرات RPL",
+  certificate: "الشهادات",
+  technical: "تقني",
+});
+Object.assign(copies.en, {
+  categoryNameNl: "Category name in Dutch",
+  questionNl: "Question in Dutch",
+  answerNl: "Answer in Dutch",
+  announcementTitleNl: "Announcement title in Dutch",
+  announcementBodyNl: "Body in Dutch",
+  system: "System",
+  general: "General",
+  account: "Account",
+  learning: "Learning",
+  finance: "Finance",
+  rpl: "RPL",
+  certificate: "Certificates",
+  technical: "Technical",
+});
+Object.assign(copies.nl, {
+  categoryNameNl: "Categorienaam in het Nederlands",
+  questionNl: "Vraag in het Nederlands",
+  answerNl: "Antwoord in het Nederlands",
+  announcementTitleNl: "Titel in het Nederlands",
+  announcementBodyNl: "Tekst in het Nederlands",
+  system: "Systeem",
+  general: "Algemeen",
+  account: "Account",
+  learning: "Leren",
+  finance: "Financiën",
+  rpl: "EVC (RPL)",
+  certificate: "Certificaten",
+  technical: "Technisch",
+});
+
+const emptyFaq = {
+  id: null,
+  faq_category_id: "",
+  slug: "",
+  question_en: "",
+  question_ar: "",
+  question_nl: "",
+  answer_en: "",
+  answer_ar: "",
+  answer_nl: "",
+  status: "draft",
+  sort_order: 0,
+};
+const emptyFaqCategory = {
+  id: null,
+  slug: "",
+  name_en: "",
+  name_ar: "",
+  name_nl: "",
+  sort_order: 0,
+  is_active: true,
+};
+const emptyAnnouncement = {
+  id: null,
+  title_en: "",
+  title_ar: "",
+  title_nl: "",
+  body_en: "",
+  body_ar: "",
+  body_nl: "",
+  audience_roles: "",
+  severity: "info",
+  status: "draft",
+  starts_at: "",
+  ends_at: "",
+};
 const statusTransitions = {
-  open: ['in_progress', 'waiting_on_user', 'resolved', 'closed'],
-  in_progress: ['waiting_on_user', 'resolved', 'closed'],
-  waiting_on_user: ['in_progress', 'resolved', 'closed'],
-  resolved: ['in_progress', 'closed'],
-  closed: ['in_progress'],
-}
+  open: ["in_progress", "waiting_on_user", "resolved", "closed"],
+  in_progress: ["waiting_on_user", "resolved", "closed"],
+  waiting_on_user: ["in_progress", "resolved", "closed"],
+  resolved: ["in_progress", "closed"],
+  closed: ["in_progress"],
+};
 
-function toLocalInput(value) { if (!value) return ''; const date = new Date(value); const offset = date.getTimezoneOffset() * 60000; return new Date(date.getTime() - offset).toISOString().slice(0, 16) }
-function mapFaq(item = {}) { return { id: item.id || null, faq_category_id: item.faq_category_id || '', slug: item.slug || '', question_en: item.question?.en || '', question_ar: item.question?.ar || '', answer_en: item.answer?.en || '', answer_ar: item.answer?.ar || '', status: item.status || 'draft', sort_order: item.sort_order || 0 } }
-function mapFaqCategory(item = {}) { return { id: item.id || null, slug: item.slug || '', name_en: item.name?.en || '', name_ar: item.name?.ar || '', sort_order: item.sort_order || 0, is_active: item.is_active !== false } }
-function mapAnnouncement(item = {}) { return { id: item.id || null, title_en: item.title?.en || '', title_ar: item.title?.ar || '', body_en: item.body?.en || '', body_ar: item.body?.ar || '', audience_roles: item.audience?.roles?.join(', ') || '', severity: item.severity || 'info', status: item.status || 'draft', starts_at: toLocalInput(item.starts_at), ends_at: toLocalInput(item.ends_at) } }
+function toLocalInput(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+function mapFaq(item = {}) {
+  return {
+    id: item.id || null,
+    faq_category_id: item.faq_category_id || "",
+    slug: item.slug || "",
+    question_en: item.question?.en || "",
+    question_ar: item.question?.ar || "",
+    question_nl: item.question?.nl || "",
+    answer_en: item.answer?.en || "",
+    answer_ar: item.answer?.ar || "",
+    answer_nl: item.answer?.nl || "",
+    status: item.status || "draft",
+    sort_order: item.sort_order || 0,
+  };
+}
+function mapFaqCategory(item = {}) {
+  return {
+    id: item.id || null,
+    slug: item.slug || "",
+    name_en: item.name?.en || "",
+    name_ar: item.name?.ar || "",
+    name_nl: item.name?.nl || "",
+    sort_order: item.sort_order || 0,
+    is_active: item.is_active !== false,
+  };
+}
+function mapAnnouncement(item = {}) {
+  return {
+    id: item.id || null,
+    title_en: item.title?.en || "",
+    title_ar: item.title?.ar || "",
+    title_nl: item.title?.nl || "",
+    body_en: item.body?.en || "",
+    body_ar: item.body?.ar || "",
+    body_nl: item.body?.nl || "",
+    audience_roles: item.audience?.roles?.join(", ") || "",
+    severity: item.severity || "info",
+    status: item.status || "draft",
+    starts_at: toLocalInput(item.starts_at),
+    ends_at: toLocalInput(item.ends_at),
+  };
+}
 
 export default function SupportOperationsPage() {
-  const language = getAdminLanguage(); const isArabic = language === 'ar'; const copy = copies[language] || copies.en
-  const [tab, setTab] = useState('tickets'); const [dashboard, setDashboard] = useState({}); const [tickets, setTickets] = useState([]); const [ticketPagination, setTicketPagination] = useState(null)
-  const [faqCategories, setFaqCategories] = useState([]); const [faqs, setFaqs] = useState([]); const [announcements, setAnnouncements] = useState([])
-  const [filters, setFilters] = useState({ q: '', status: '', priority: '', overdue: false }); const [appliedFilters, setAppliedFilters] = useState(filters)
-  const [isLoading, setIsLoading] = useState(true); const [isSubmitting, setIsSubmitting] = useState(false); const [error, setError] = useState(''); const [success, setSuccess] = useState(''); const [modal, setModal] = useState(null); const [selected, setSelected] = useState(null)
-  const [workflow, setWorkflow] = useState({ status: 'open', priority: 'normal', assigned_to: '', category: 'general' }); const [reply, setReply] = useState({ body: '', is_internal: false, media_ids: '' })
-  const [faqForm, setFaqForm] = useState(emptyFaq); const [faqCategoryForm, setFaqCategoryForm] = useState(emptyFaqCategory); const [announcementForm, setAnnouncementForm] = useState(emptyAnnouncement)
+  const language = getAdminLanguage();
+  const isArabic = language === "ar";
+  const copy = copies[language] || copies.en;
+  const [tab, setTab] = useState("tickets");
+  const [dashboard, setDashboard] = useState({});
+  const [tickets, setTickets] = useState([]);
+  const [ticketPagination, setTicketPagination] = useState(null);
+  const [faqCategories, setFaqCategories] = useState([]);
+  const [faqs, setFaqs] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [filters, setFilters] = useState({
+    q: "",
+    status: "",
+    priority: "",
+    overdue: false,
+  });
+  const [appliedFilters, setAppliedFilters] = useState(filters);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [modal, setModal] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [workflow, setWorkflow] = useState({
+    status: "open",
+    priority: "normal",
+    assigned_to: "",
+    category: "general",
+  });
+  const [reply, setReply] = useState({
+    body: "",
+    is_internal: false,
+    media_ids: "",
+  });
+  const [faqForm, setFaqForm] = useState(emptyFaq);
+  const [faqCategoryForm, setFaqCategoryForm] = useState(emptyFaqCategory);
+  const [announcementForm, setAnnouncementForm] = useState(emptyAnnouncement);
 
-  const loadData = useCallback(async (page = 1) => {
-    setIsLoading(true); setError('')
-    try {
-      const [dashboardPayload, ticketPayload, categoryPayload, faqPayload, announcementPayload] = await Promise.all([fetchSupportDashboard(), fetchSupportTickets({ ...appliedFilters, overdue: appliedFilters.overdue ? 1 : undefined, page, per_page: 20 }), fetchFaqCategories(), fetchFaqs({ per_page: 100 }), fetchAnnouncements({ per_page: 100 })])
-      setDashboard(unwrapApiData(dashboardPayload) || {}); setTickets(unwrapCollection(ticketPayload)); setTicketPagination(readPagination(ticketPayload)); setFaqCategories(unwrapCollection(categoryPayload)); setFaqs(unwrapCollection(faqPayload)); setAnnouncements(unwrapCollection(announcementPayload))
-    } catch (requestError) { setError(readApiError(requestError)) } finally { setIsLoading(false) }
-  }, [appliedFilters])
-  useEffect(() => { loadData(1) }, [loadData])
+  const loadData = useCallback(
+    async (page = 1) => {
+      setIsLoading(true);
+      setError("");
+      try {
+        const [
+          dashboardPayload,
+          ticketPayload,
+          categoryPayload,
+          faqPayload,
+          announcementPayload,
+        ] = await Promise.all([
+          fetchSupportDashboard(),
+          fetchSupportTickets({
+            ...appliedFilters,
+            overdue: appliedFilters.overdue ? 1 : undefined,
+            page,
+            per_page: 20,
+          }),
+          fetchFaqCategories(),
+          fetchFaqs({ per_page: 100 }),
+          fetchAnnouncements({ per_page: 100 }),
+        ]);
+        setDashboard(unwrapApiData(dashboardPayload) || {});
+        setTickets(unwrapCollection(ticketPayload));
+        setTicketPagination(readPagination(ticketPayload));
+        setFaqCategories(unwrapCollection(categoryPayload));
+        setFaqs(unwrapCollection(faqPayload));
+        setAnnouncements(unwrapCollection(announcementPayload));
+      } catch (requestError) {
+        setError(readApiError(requestError));
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [appliedFilters],
+  );
+  useEffect(() => {
+    loadData(1);
+  }, [loadData]);
 
   async function openTicket(ticket) {
-    setModal('ticket'); setSelected(ticket); setError('')
-    try { const payload = await fetchSupportTicket(ticket.id); const detail = unwrapApiData(payload); setSelected(detail); setWorkflow({ status: detail.status, priority: detail.priority, assigned_to: detail.assigned_to || '', category: detail.category }); setReply({ body: '', is_internal: false, media_ids: '' }) } catch (requestError) { setError(readApiError(requestError)) }
+    setModal("ticket");
+    setSelected(ticket);
+    setError("");
+    try {
+      const payload = await fetchSupportTicket(ticket.id);
+      const detail = unwrapApiData(payload);
+      setSelected(detail);
+      setWorkflow({
+        status: detail.status,
+        priority: detail.priority,
+        assigned_to: detail.assigned_to || "",
+        category: detail.category,
+      });
+      setReply({ body: "", is_internal: false, media_ids: "" });
+    } catch (requestError) {
+      setError(readApiError(requestError));
+    }
   }
   async function saveWorkflow() {
-    setIsSubmitting(true); setError('')
+    setIsSubmitting(true);
+    setError("");
     try {
-      const payload = { category: workflow.category, assigned_to: workflow.assigned_to ? Number(workflow.assigned_to) : null }
-      if (workflow.status !== selected.status) payload.status = workflow.status
-      if (workflow.priority !== selected.priority) payload.priority = workflow.priority
-      await updateSupportTicket(selected.id, payload); setSuccess(copy.success); await openTicket(selected); await loadData(ticketPagination?.currentPage || 1)
-    } catch (requestError) { setError(readApiError(requestError)) } finally { setIsSubmitting(false) }
+      const payload = {
+        category: workflow.category,
+        assigned_to: workflow.assigned_to ? Number(workflow.assigned_to) : null,
+      };
+      if (workflow.status !== selected.status) payload.status = workflow.status;
+      if (workflow.priority !== selected.priority)
+        payload.priority = workflow.priority;
+      await updateSupportTicket(selected.id, payload);
+      setSuccess(copy.success);
+      await openTicket(selected);
+      await loadData(ticketPagination?.currentPage || 1);
+    } catch (requestError) {
+      setError(readApiError(requestError));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
   async function sendReply(event) {
-    event.preventDefault(); if (!reply.body.trim() && !reply.media_ids.trim()) { setError(copy.required); return }
-    setIsSubmitting(true); setError('')
-    try { await replyToSupportTicket(selected.id, { body: reply.body || null, is_internal: reply.is_internal, media_ids: parseCommaSeparatedIds(reply.media_ids) }); setReply({ body: '', is_internal: false, media_ids: '' }); setSuccess(copy.success); await openTicket(selected); await loadData(ticketPagination?.currentPage || 1) } catch (requestError) { setError(readApiError(requestError)) } finally { setIsSubmitting(false) }
+    event.preventDefault();
+    if (!reply.body.trim() && !reply.media_ids.trim()) {
+      setError(copy.required);
+      return;
+    }
+    setIsSubmitting(true);
+    setError("");
+    try {
+      await replyToSupportTicket(selected.id, {
+        body: reply.body || null,
+        is_internal: reply.is_internal,
+        media_ids: parseCommaSeparatedIds(reply.media_ids),
+      });
+      setReply({ body: "", is_internal: false, media_ids: "" });
+      setSuccess(copy.success);
+      await openTicket(selected);
+      await loadData(ticketPagination?.currentPage || 1);
+    } catch (requestError) {
+      setError(readApiError(requestError));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
   async function saveFaqCategory(event) {
-    event.preventDefault(); if (!faqCategoryForm.slug || !faqCategoryForm.name_en) { setError(copy.required); return }
-    setIsSubmitting(true); try { const payload = { slug: faqCategoryForm.slug, name: { en: faqCategoryForm.name_en, ar: faqCategoryForm.name_ar }, sort_order: Number(faqCategoryForm.sort_order), is_active: faqCategoryForm.is_active }; if (faqCategoryForm.id) await updateFaqCategory(faqCategoryForm.id, payload); else await createFaqCategory(payload); setModal(null); setSuccess(copy.success); await loadData(1) } catch (requestError) { setError(readApiError(requestError)) } finally { setIsSubmitting(false) }
+    event.preventDefault();
+    if (!faqCategoryForm.slug || !faqCategoryForm.name_en) {
+      setError(copy.required);
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        slug: faqCategoryForm.slug,
+        name: {
+          en: faqCategoryForm.name_en,
+          ar: faqCategoryForm.name_ar,
+          nl: faqCategoryForm.name_nl,
+        },
+        sort_order: Number(faqCategoryForm.sort_order),
+        is_active: faqCategoryForm.is_active,
+      };
+      if (faqCategoryForm.id)
+        await updateFaqCategory(faqCategoryForm.id, payload);
+      else await createFaqCategory(payload);
+      setModal(null);
+      setSuccess(copy.success);
+      await loadData(1);
+    } catch (requestError) {
+      setError(readApiError(requestError, undefined, language));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
   async function saveFaq(event) {
-    event.preventDefault(); if (!faqForm.slug || !faqForm.question_en || !faqForm.answer_en) { setError(copy.required); return }
-    setIsSubmitting(true); try { const payload = { faq_category_id: faqForm.faq_category_id ? Number(faqForm.faq_category_id) : null, slug: faqForm.slug, question: { en: faqForm.question_en, ar: faqForm.question_ar }, answer: { en: faqForm.answer_en, ar: faqForm.answer_ar }, status: faqForm.status, sort_order: Number(faqForm.sort_order) }; if (faqForm.id) await updateFaq(faqForm.id, payload); else await createFaq(payload); setModal(null); setSuccess(copy.success); await loadData(1) } catch (requestError) { setError(readApiError(requestError)) } finally { setIsSubmitting(false) }
+    event.preventDefault();
+    if (!faqForm.slug || !faqForm.question_en || !faqForm.answer_en) {
+      setError(copy.required);
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        faq_category_id: faqForm.faq_category_id
+          ? Number(faqForm.faq_category_id)
+          : null,
+        slug: faqForm.slug,
+        question: {
+          en: faqForm.question_en,
+          ar: faqForm.question_ar,
+          nl: faqForm.question_nl,
+        },
+        answer: {
+          en: faqForm.answer_en,
+          ar: faqForm.answer_ar,
+          nl: faqForm.answer_nl,
+        },
+        status: faqForm.status,
+        sort_order: Number(faqForm.sort_order),
+      };
+      if (faqForm.id) await updateFaq(faqForm.id, payload);
+      else await createFaq(payload);
+      setModal(null);
+      setSuccess(copy.success);
+      await loadData(1);
+    } catch (requestError) {
+      setError(readApiError(requestError, undefined, language));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
   async function saveAnnouncement(event) {
-    event.preventDefault(); if (!announcementForm.title_en || !announcementForm.body_en) { setError(copy.required); return }
-    setIsSubmitting(true); try { const payload = { title: { en: announcementForm.title_en, ar: announcementForm.title_ar }, body: { en: announcementForm.body_en, ar: announcementForm.body_ar }, audience: { roles: announcementForm.audience_roles.split(',').map((item) => item.trim()).filter(Boolean) }, severity: announcementForm.severity, status: announcementForm.status, starts_at: announcementForm.starts_at || null, ends_at: announcementForm.ends_at || null }; if (announcementForm.id) await updateAnnouncement(announcementForm.id, payload); else await createAnnouncement(payload); setModal(null); setSuccess(copy.success); await loadData(1) } catch (requestError) { setError(readApiError(requestError)) } finally { setIsSubmitting(false) }
+    event.preventDefault();
+    if (!announcementForm.title_en || !announcementForm.body_en) {
+      setError(copy.required);
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        title: {
+          en: announcementForm.title_en,
+          ar: announcementForm.title_ar,
+          nl: announcementForm.title_nl,
+        },
+        body: {
+          en: announcementForm.body_en,
+          ar: announcementForm.body_ar,
+          nl: announcementForm.body_nl,
+        },
+        audience: {
+          roles: announcementForm.audience_roles
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean),
+        },
+        severity: announcementForm.severity,
+        status: announcementForm.status,
+        starts_at: announcementForm.starts_at || null,
+        ends_at: announcementForm.ends_at || null,
+      };
+      if (announcementForm.id)
+        await updateAnnouncement(announcementForm.id, payload);
+      else await createAnnouncement(payload);
+      setModal(null);
+      setSuccess(copy.success);
+      await loadData(1);
+    } catch (requestError) {
+      setError(readApiError(requestError, undefined, language));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
   async function confirmDelete() {
-    setIsSubmitting(true); try { if (modal === 'delete-faq') await deleteFaq(selected.id); else if (modal === 'delete-faq-category') await deleteFaqCategory(selected.id); else await deleteAnnouncement(selected.id); setModal(null); setSelected(null); setSuccess(copy.success); await loadData(1) } catch (requestError) { setError(readApiError(requestError)) } finally { setIsSubmitting(false) }
+    setIsSubmitting(true);
+    try {
+      if (modal === "delete-faq") await deleteFaq(selected.id);
+      else if (modal === "delete-faq-category")
+        await deleteFaqCategory(selected.id);
+      else await deleteAnnouncement(selected.id);
+      setModal(null);
+      setSelected(null);
+      setSuccess(copy.success);
+      await loadData(1);
+    } catch (requestError) {
+      setError(readApiError(requestError));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
-  const statusLabels = { open: copy.open, in_progress: copy.in_progress, waiting_on_user: copy.waiting_on_user, resolved: copy.resolved, closed: copy.closed }
-  const priorityLabels = { low: copy.low, normal: copy.normal, high: copy.high, urgent: copy.urgent }
-  const workflowStatusOptions = selected?.status ? [selected.status, ...(statusTransitions[selected.status] || [])] : ['open']
+  const statusLabels = {
+    open: copy.open,
+    in_progress: copy.in_progress,
+    waiting_on_user: copy.waiting_on_user,
+    resolved: copy.resolved,
+    closed: copy.closed,
+  };
+  const priorityLabels = {
+    low: copy.low,
+    normal: copy.normal,
+    high: copy.high,
+    urgent: copy.urgent,
+  };
+  const workflowStatusOptions = selected?.status
+    ? [selected.status, ...(statusTransitions[selected.status] || [])]
+    : ["open"];
   const ticketColumns = [
-    { key: 'ticket', label: copy.ticket, render: (row) => <div><p className="font-bold text-[var(--color-primary)]">{row.number}</p><p className="mt-1 max-w-64 truncate text-xs text-[var(--color-text-muted)]">{row.subject}</p></div> },
-    { key: 'requester', label: copy.requester, render: (row) => <div><p className="font-semibold">{row.requester?.name || '—'}</p><p className="text-xs text-[var(--color-text-muted)]">{row.requester?.email || '—'}</p></div> },
-    { key: 'category', label: copy.category },
-    { key: 'priority', label: copy.priority, render: (row) => <Badge variant={row.priority === 'urgent' ? 'danger' : row.priority === 'high' ? 'warning' : 'neutral'}>{priorityLabels[row.priority] || row.priority}</Badge> },
-    { key: 'sla', label: copy.sla, render: (row) => row.sla_due_at ? <span className={new Date(row.sla_due_at) < new Date() && !['resolved', 'closed'].includes(row.status) ? 'font-semibold text-[var(--color-danger)]' : ''}>{new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(row.sla_due_at))}</span> : '—' },
-    { key: 'status', label: copy.status, render: (row) => <StatusBadge value={row.status} labels={statusLabels} /> },
-    { key: 'actions', label: copy.actions, render: (row) => <Button size="sm" variant="outline" onClick={() => openTicket(row)}><MessageSquareText size={15} />{copy.open}</Button> },
-  ]
+    {
+      key: "ticket",
+      label: copy.ticket,
+      render: (row) => (
+        <div>
+          <p className="font-bold text-[var(--color-primary)]">{row.number}</p>
+          <p className="mt-1 max-w-64 truncate text-xs text-[var(--color-text-muted)]">
+            {row.subject}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "requester",
+      label: copy.requester,
+      render: (row) => (
+        <div>
+          <p className="font-semibold">{row.requester?.name || "—"}</p>
+          <p className="text-xs text-[var(--color-text-muted)]">
+            {row.requester?.email || "—"}
+          </p>
+        </div>
+      ),
+    },
+    { key: "category", label: copy.category },
+    {
+      key: "priority",
+      label: copy.priority,
+      render: (row) => (
+        <Badge
+          variant={
+            row.priority === "urgent"
+              ? "danger"
+              : row.priority === "high"
+                ? "warning"
+                : "neutral"
+          }
+        >
+          {priorityLabels[row.priority] || row.priority}
+        </Badge>
+      ),
+    },
+    {
+      key: "sla",
+      label: copy.sla,
+      render: (row) =>
+        row.sla_due_at ? (
+          <span
+            className={
+              new Date(row.sla_due_at) < new Date() &&
+              !["resolved", "closed"].includes(row.status)
+                ? "font-semibold text-[var(--color-danger)]"
+                : ""
+            }
+          >
+            {formatLocalizedDateTime(row.sla_due_at, language)}
+          </span>
+        ) : (
+          "—"
+        ),
+    },
+    {
+      key: "status",
+      label: copy.status,
+      render: (row) => <StatusBadge value={row.status} labels={statusLabels} />,
+    },
+    {
+      key: "actions",
+      label: copy.actions,
+      render: (row) => (
+        <Button size="sm" variant="outline" onClick={() => openTicket(row)}>
+          <MessageSquareText size={15} />
+          {copy.open}
+        </Button>
+      ),
+    },
+  ];
   const faqColumns = [
-    { key: 'question', label: copy.question, render: (row) => <div><p className="font-bold">{readLocalized(row.question, language)}</p><p className="mt-1 text-xs text-[var(--color-text-muted)]">{row.slug}</p></div> },
-    { key: 'category', label: copy.category, render: (row) => readLocalized(row.category?.name, language) || '—' },
-    { key: 'status', label: copy.status, render: (row) => <StatusBadge value={row.status} labels={{ draft: copy.draft, published: copy.published, archived: copy.archived }} /> },
-    { key: 'actions', label: copy.actions, render: (row) => <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => { setFaqForm(mapFaq(row)); setModal('faq') }}>{copy.edit}</Button><Button size="sm" variant="danger" onClick={() => { setSelected(row); setModal('delete-faq') }}>{copy.delete}</Button></div> },
-  ]
+    {
+      key: "question",
+      label: copy.question,
+      render: (row) => (
+        <div>
+          <p className="font-bold">{readLocalized(row.question, language)}</p>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            {row.slug}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "category",
+      label: copy.category,
+      render: (row) => readLocalized(row.category?.name, language) || "—",
+    },
+    {
+      key: "status",
+      label: copy.status,
+      render: (row) => (
+        <StatusBadge
+          value={row.status}
+          labels={{
+            draft: copy.draft,
+            published: copy.published,
+            archived: copy.archived,
+          }}
+        />
+      ),
+    },
+    {
+      key: "actions",
+      label: copy.actions,
+      render: (row) => (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setFaqForm(mapFaq(row));
+              setModal("faq");
+            }}
+          >
+            {copy.edit}
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={() => {
+              setSelected(row);
+              setModal("delete-faq");
+            }}
+          >
+            {copy.delete}
+          </Button>
+        </div>
+      ),
+    },
+  ];
   const announcementColumns = [
-    { key: 'title', label: copy.titleColumn, render: (row) => <div><p className="font-bold">{readLocalized(row.title, language)}</p><p className="mt-1 text-xs text-[var(--color-text-muted)]">{readLocalized(row.body, language)?.slice(0, 100)}</p></div> },
-    { key: 'severity', label: copy.severity, render: (row) => <Badge variant={row.severity === 'critical' ? 'danger' : row.severity === 'warning' ? 'warning' : row.severity === 'success' ? 'success' : 'info'}>{copy[row.severity === 'success' ? 'successSeverity' : row.severity] || row.severity}</Badge> },
-    { key: 'window', label: copy.window, render: (row) => `${row.starts_at ? new Intl.DateTimeFormat(language).format(new Date(row.starts_at)) : '—'} — ${row.ends_at ? new Intl.DateTimeFormat(language).format(new Date(row.ends_at)) : '—'}` },
-    { key: 'status', label: copy.status, render: (row) => <StatusBadge value={row.status} labels={{ draft: copy.draft, published: copy.published, archived: copy.archived }} /> },
-    { key: 'actions', label: copy.actions, render: (row) => <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => { setAnnouncementForm(mapAnnouncement(row)); setModal('announcement') }}>{copy.edit}</Button><Button size="sm" variant="danger" onClick={() => { setSelected(row); setModal('delete-announcement') }}>{copy.delete}</Button></div> },
-  ]
+    {
+      key: "title",
+      label: copy.titleColumn,
+      render: (row) => (
+        <div>
+          <p className="font-bold">{readLocalized(row.title, language)}</p>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            {readLocalized(row.body, language)?.slice(0, 100)}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "severity",
+      label: copy.severity,
+      render: (row) => (
+        <Badge
+          variant={
+            row.severity === "critical"
+              ? "danger"
+              : row.severity === "warning"
+                ? "warning"
+                : row.severity === "success"
+                  ? "success"
+                  : "info"
+          }
+        >
+          {copy[
+            row.severity === "success" ? "successSeverity" : row.severity
+          ] || row.severity}
+        </Badge>
+      ),
+    },
+    {
+      key: "window",
+      label: copy.window,
+      render: (row) =>
+        `${row.starts_at ? formatLocalizedDateTime(row.starts_at, language) : "—"} — ${row.ends_at ? formatLocalizedDateTime(row.ends_at, language) : "—"}`,
+    },
+    {
+      key: "status",
+      label: copy.status,
+      render: (row) => (
+        <StatusBadge
+          value={row.status}
+          labels={{
+            draft: copy.draft,
+            published: copy.published,
+            archived: copy.archived,
+          }}
+        />
+      ),
+    },
+    {
+      key: "actions",
+      label: copy.actions,
+      render: (row) => (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setAnnouncementForm(mapAnnouncement(row));
+              setModal("announcement");
+            }}
+          >
+            {copy.edit}
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={() => {
+              setSelected(row);
+              setModal("delete-announcement");
+            }}
+          >
+            {copy.delete}
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <section dir={isArabic ? 'rtl' : 'ltr'} className={`space-y-7 ${isArabic ? 'text-right' : 'text-left'}`}>
-      <PageHeader title={copy.title} description={copy.description} actions={tab === 'knowledge' ? <Button onClick={() => { setFaqForm(emptyFaq); setModal('faq') }}><Plus size={18} />{copy.newFaq}</Button> : tab === 'announcements' ? <Button onClick={() => { setAnnouncementForm(emptyAnnouncement); setModal('announcement') }}><Plus size={18} />{copy.newAnnouncement}</Button> : null} />
-      <OperationAlert message={error} onDismiss={() => setError('')} /><OperationAlert tone="success" message={success} onDismiss={() => setSuccess('')} />
-      <OperationsTabs value={tab} onChange={setTab} items={[{ value: 'tickets', label: copy.tickets, icon: Headphones, count: ticketPagination?.total }, { value: 'knowledge', label: copy.knowledge, icon: BookOpenCheck, count: faqs.length }, { value: 'announcements', label: copy.announcements, icon: BellRing, count: announcements.length }]} />
-      {isLoading ? <OperationsLoader /> : tab === 'tickets' ? <>
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4"><MetricTile icon={Inbox} label={copy.total} value={dashboard.total ?? ticketPagination?.total} /><MetricTile icon={AlertTriangle} label={copy.overdue} value={dashboard.overdue ?? 0} variant="danger" /><MetricTile icon={UserRoundX} label={copy.unassigned} value={dashboard.unassigned ?? 0} variant="warning" /><MetricTile icon={Clock3} label={copy.firstResponse} value={dashboard.first_response_sla_breaches ?? 0} variant="warning" /></div>
-        <Card><CardContent className="pt-6"><form className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_180px_180px_auto_auto]" onSubmit={(event) => { event.preventDefault(); setAppliedFilters(filters) }}><Input placeholder={copy.search} leftIcon={<Search size={17} />} value={filters.q} onChange={(event) => setFilters((current) => ({ ...current, q: event.target.value }))} /><Select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="">{copy.allStatuses}</option>{['open', 'in_progress', 'waiting_on_user', 'resolved', 'closed'].map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</Select><Select value={filters.priority} onChange={(event) => setFilters((current) => ({ ...current, priority: event.target.value }))}><option value="">{copy.allPriorities}</option>{['low', 'normal', 'high', 'urgent'].map((priority) => <option key={priority} value={priority}>{priorityLabels[priority]}</option>)}</Select><label className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-4 text-sm font-semibold"><input type="checkbox" checked={filters.overdue} onChange={(event) => setFilters((current) => ({ ...current, overdue: event.target.checked }))} />{copy.overdueOnly}</label><Button type="submit">{copy.apply}</Button></form></CardContent></Card>
-        {tickets.length ? <><DataTableShell title={copy.tickets} columns={ticketColumns} rows={tickets} /><PaginationControls pagination={ticketPagination} onPageChange={loadData} previousLabel={copy.previous} nextLabel={copy.next} /></> : <Card><EmptyState icon={TicketCheck} title={copy.empty} /></Card>}
-      </> : tab === 'knowledge' ? <div className="space-y-6"><Card><CardContent className="pt-6"><div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-xl font-bold">{copy.faqCategories}</h2><Button size="sm" onClick={() => { setFaqCategoryForm(emptyFaqCategory); setModal('faq-category') }}><Plus size={16} />{copy.addCategory}</Button></div><div className="flex flex-wrap gap-3">{faqCategories.map((category) => <button key={category.id} type="button" onClick={() => { setFaqCategoryForm(mapFaqCategory(category)); setModal('faq-category') }} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-start"><span className="font-semibold">{readLocalized(category.name, language)}</span><span className="ms-2 text-xs text-[var(--color-text-muted)]">{category.faqs_count || 0}</span></button>)}</div></CardContent></Card>{faqs.length ? <DataTableShell title={copy.knowledge} columns={faqColumns} rows={faqs} /> : <Card><EmptyState icon={BookOpenCheck} title={copy.empty} /></Card>}</div> : announcements.length ? <DataTableShell title={copy.announcements} columns={announcementColumns} rows={announcements} /> : <Card><EmptyState icon={BellRing} title={copy.empty} /></Card>}
+    <section
+      dir={isArabic ? "rtl" : "ltr"}
+      className={`space-y-7 ${isArabic ? "text-right" : "text-left"}`}
+    >
+      <PageHeader
+        title={copy.title}
+        description={copy.description}
+        actions={
+          tab === "knowledge" ? (
+            <Button
+              onClick={() => {
+                setFaqForm(emptyFaq);
+                setModal("faq");
+              }}
+            >
+              <Plus size={18} />
+              {copy.newFaq}
+            </Button>
+          ) : tab === "announcements" ? (
+            <Button
+              onClick={() => {
+                setAnnouncementForm(emptyAnnouncement);
+                setModal("announcement");
+              }}
+            >
+              <Plus size={18} />
+              {copy.newAnnouncement}
+            </Button>
+          ) : null
+        }
+      />
+      <OperationAlert message={error} onDismiss={() => setError("")} />
+      <OperationAlert
+        tone="success"
+        message={success}
+        onDismiss={() => setSuccess("")}
+      />
+      <OperationsTabs
+        value={tab}
+        onChange={setTab}
+        items={[
+          {
+            value: "tickets",
+            label: copy.tickets,
+            icon: Headphones,
+            count: ticketPagination?.total,
+          },
+          {
+            value: "knowledge",
+            label: copy.knowledge,
+            icon: BookOpenCheck,
+            count: faqs.length,
+          },
+          {
+            value: "announcements",
+            label: copy.announcements,
+            icon: BellRing,
+            count: announcements.length,
+          },
+        ]}
+      />
+      {isLoading ? (
+        <OperationsLoader />
+      ) : tab === "tickets" ? (
+        <>
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricTile
+              icon={Inbox}
+              label={copy.total}
+              value={dashboard.total ?? ticketPagination?.total}
+            />
+            <MetricTile
+              icon={AlertTriangle}
+              label={copy.overdue}
+              value={dashboard.overdue ?? 0}
+              variant="danger"
+            />
+            <MetricTile
+              icon={UserRoundX}
+              label={copy.unassigned}
+              value={dashboard.unassigned ?? 0}
+              variant="warning"
+            />
+            <MetricTile
+              icon={Clock3}
+              label={copy.firstResponse}
+              value={dashboard.first_response_sla_breaches ?? 0}
+              variant="warning"
+            />
+          </div>
+          <Card>
+            <CardContent className="pt-6">
+              <form
+                className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_180px_180px_auto_auto]"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setAppliedFilters(filters);
+                }}
+              >
+                <Input
+                  placeholder={copy.search}
+                  leftIcon={<Search size={17} />}
+                  value={filters.q}
+                  onChange={(event) =>
+                    setFilters((current) => ({
+                      ...current,
+                      q: event.target.value,
+                    }))
+                  }
+                />
+                <Select
+                  value={filters.status}
+                  onChange={(event) =>
+                    setFilters((current) => ({
+                      ...current,
+                      status: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="">{copy.allStatuses}</option>
+                  {[
+                    "open",
+                    "in_progress",
+                    "waiting_on_user",
+                    "resolved",
+                    "closed",
+                  ].map((status) => (
+                    <option key={status} value={status}>
+                      {statusLabels[status]}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  value={filters.priority}
+                  onChange={(event) =>
+                    setFilters((current) => ({
+                      ...current,
+                      priority: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="">{copy.allPriorities}</option>
+                  {["low", "normal", "high", "urgent"].map((priority) => (
+                    <option key={priority} value={priority}>
+                      {priorityLabels[priority]}
+                    </option>
+                  ))}
+                </Select>
+                <label className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-4 text-sm font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={filters.overdue}
+                    onChange={(event) =>
+                      setFilters((current) => ({
+                        ...current,
+                        overdue: event.target.checked,
+                      }))
+                    }
+                  />
+                  {copy.overdueOnly}
+                </label>
+                <Button type="submit">{copy.apply}</Button>
+              </form>
+            </CardContent>
+          </Card>
+          {tickets.length ? (
+            <>
+              <DataTableShell
+                title={copy.tickets}
+                columns={ticketColumns}
+                rows={tickets}
+              />
+              <PaginationControls
+                pagination={ticketPagination}
+                onPageChange={loadData}
+                previousLabel={copy.previous}
+                nextLabel={copy.next}
+              />
+            </>
+          ) : (
+            <Card>
+              <EmptyState icon={TicketCheck} title={copy.empty} />
+            </Card>
+          )}
+        </>
+      ) : tab === "knowledge" ? (
+        <div className="space-y-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="text-xl font-bold">{copy.faqCategories}</h2>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setFaqCategoryForm(emptyFaqCategory);
+                    setModal("faq-category");
+                  }}
+                >
+                  <Plus size={16} />
+                  {copy.addCategory}
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {faqCategories.map((category) => (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => {
+                      setFaqCategoryForm(mapFaqCategory(category));
+                      setModal("faq-category");
+                    }}
+                    className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-start"
+                  >
+                    <span className="font-semibold">
+                      {readLocalized(category.name, language)}
+                    </span>
+                    <span className="ms-2 text-xs text-[var(--color-text-muted)]">
+                      {category.faqs_count || 0}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          {faqs.length ? (
+            <DataTableShell
+              title={copy.knowledge}
+              columns={faqColumns}
+              rows={faqs}
+            />
+          ) : (
+            <Card>
+              <EmptyState icon={BookOpenCheck} title={copy.empty} />
+            </Card>
+          )}
+        </div>
+      ) : announcements.length ? (
+        <DataTableShell
+          title={copy.announcements}
+          columns={announcementColumns}
+          rows={announcements}
+        />
+      ) : (
+        <Card>
+          <EmptyState icon={BellRing} title={copy.empty} />
+        </Card>
+      )}
 
-      <OperationsModal open={modal === 'ticket'} title={`${copy.details}: ${selected?.number || ''}`} size="xl" onClose={() => setModal(null)}><div className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]"><aside className="space-y-4"><h3 className="font-bold">{copy.assignment}</h3><Select label={copy.status} value={workflow.status} onChange={(event) => setWorkflow((current) => ({ ...current, status: event.target.value }))}>{workflowStatusOptions.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</Select><Select label={copy.priority} value={workflow.priority} onChange={(event) => setWorkflow((current) => ({ ...current, priority: event.target.value }))}>{['low', 'normal', 'high', 'urgent'].map((priority) => <option key={priority} value={priority}>{priorityLabels[priority]}</option>)}</Select><Input label={copy.assignedTo} type="number" min="1" value={workflow.assigned_to} onChange={(event) => setWorkflow((current) => ({ ...current, assigned_to: event.target.value }))} /><Select label={copy.category} value={workflow.category} onChange={(event) => setWorkflow((current) => ({ ...current, category: event.target.value }))}>{['general', 'account', 'learning', 'finance', 'rpl', 'certificate', 'technical'].map((category) => <option key={category} value={category}>{category}</option>)}</Select><Button fullWidth disabled={isSubmitting} onClick={saveWorkflow}>{copy.saveWorkflow}</Button></aside><div className="min-w-0"><h3 className="font-bold">{copy.conversation}</h3><div className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-2xl bg-[var(--color-surface-muted)] p-4">{selected?.messages?.map((message) => <article key={message.id} className="rounded-xl bg-white p-4"><div className="flex items-center justify-between gap-3"><p className="text-sm font-bold">{message.sender?.name || 'System'}</p>{message.is_internal ? <Badge variant="warning">{copy.internal}</Badge> : null}</div><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{message.body}</p>{message.attachments?.length ? <p className="mt-2 text-xs text-[var(--color-text-muted)]">{message.attachments.map((item) => item.media?.original_name).filter(Boolean).join(', ')}</p> : null}</article>)}{selected && !selected.messages?.length ? <EmptyState title={copy.empty} /> : null}</div><form className="mt-4 space-y-4" onSubmit={sendReply}><Textarea label={copy.reply} placeholder={copy.replyPlaceholder} value={reply.body} onChange={(event) => setReply((current) => ({ ...current, body: event.target.value }))} /><Input label={copy.mediaIds} value={reply.media_ids} onChange={(event) => setReply((current) => ({ ...current, media_ids: event.target.value }))} /><div className="flex flex-wrap items-center justify-between gap-3"><label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={reply.is_internal} onChange={(event) => setReply((current) => ({ ...current, is_internal: event.target.checked }))} />{copy.internal}</label><Button type="submit" disabled={isSubmitting}><Send size={16} />{copy.send}</Button></div></form></div></div></OperationsModal>
+      <OperationsModal
+        open={modal === "ticket"}
+        title={`${copy.details}: ${selected?.number || ""}`}
+        size="xl"
+        onClose={() => setModal(null)}
+      >
+        <div className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
+          <aside className="space-y-4">
+            <h3 className="font-bold">{copy.assignment}</h3>
+            <Select
+              label={copy.status}
+              value={workflow.status}
+              onChange={(event) =>
+                setWorkflow((current) => ({
+                  ...current,
+                  status: event.target.value,
+                }))
+              }
+            >
+              {workflowStatusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {statusLabels[status]}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label={copy.priority}
+              value={workflow.priority}
+              onChange={(event) =>
+                setWorkflow((current) => ({
+                  ...current,
+                  priority: event.target.value,
+                }))
+              }
+            >
+              {["low", "normal", "high", "urgent"].map((priority) => (
+                <option key={priority} value={priority}>
+                  {priorityLabels[priority]}
+                </option>
+              ))}
+            </Select>
+            <Input
+              label={copy.assignedTo}
+              type="number"
+              min="1"
+              value={workflow.assigned_to}
+              onChange={(event) =>
+                setWorkflow((current) => ({
+                  ...current,
+                  assigned_to: event.target.value,
+                }))
+              }
+            />
+            <Select
+              label={copy.category}
+              value={workflow.category}
+              onChange={(event) =>
+                setWorkflow((current) => ({
+                  ...current,
+                  category: event.target.value,
+                }))
+              }
+            >
+              {[
+                "general",
+                "account",
+                "learning",
+                "finance",
+                "rpl",
+                "certificate",
+                "technical",
+              ].map((category) => (
+                <option key={category} value={category}>
+                  {copy[category] || category}
+                </option>
+              ))}
+            </Select>
+            <Button fullWidth disabled={isSubmitting} onClick={saveWorkflow}>
+              {copy.saveWorkflow}
+            </Button>
+          </aside>
+          <div className="min-w-0">
+            <h3 className="font-bold">{copy.conversation}</h3>
+            <div className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-2xl bg-[var(--color-surface-muted)] p-4">
+              {selected?.messages?.map((message) => (
+                <article key={message.id} className="rounded-xl bg-white p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-bold">
+                      {message.sender?.name || copy.system}
+                    </p>
+                    {message.is_internal ? (
+                      <Badge variant="warning">{copy.internal}</Badge>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6">
+                    {message.body}
+                  </p>
+                  {message.attachments?.length ? (
+                    <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+                      {message.attachments
+                        .map((item) => item.media?.original_name)
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
+                  ) : null}
+                </article>
+              ))}
+              {selected && !selected.messages?.length ? (
+                <EmptyState title={copy.empty} />
+              ) : null}
+            </div>
+            <form className="mt-4 space-y-4" onSubmit={sendReply}>
+              <Textarea
+                label={copy.reply}
+                placeholder={copy.replyPlaceholder}
+                value={reply.body}
+                onChange={(event) =>
+                  setReply((current) => ({
+                    ...current,
+                    body: event.target.value,
+                  }))
+                }
+              />
+              <Input
+                label={copy.mediaIds}
+                value={reply.media_ids}
+                onChange={(event) =>
+                  setReply((current) => ({
+                    ...current,
+                    media_ids: event.target.value,
+                  }))
+                }
+              />
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <label className="flex items-center gap-2 text-sm font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={reply.is_internal}
+                    onChange={(event) =>
+                      setReply((current) => ({
+                        ...current,
+                        is_internal: event.target.checked,
+                      }))
+                    }
+                  />
+                  {copy.internal}
+                </label>
+                <Button type="submit" disabled={isSubmitting}>
+                  <Send size={16} />
+                  {copy.send}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </OperationsModal>
 
-      <OperationsModal open={modal === 'faq-category'} title={copy.faqCategories} onClose={() => setModal(null)} footer={<><Button variant="outline" onClick={() => setModal(null)}>{copy.close}</Button>{faqCategoryForm.id ? <Button variant="danger" onClick={() => { setSelected({ id: faqCategoryForm.id }); setModal('delete-faq-category') }}>{copy.delete}</Button> : null}<Button type="submit" form="faq-category-form" disabled={isSubmitting}>{copy.save}</Button></>}><form id="faq-category-form" className="grid gap-5 md:grid-cols-2" onSubmit={saveFaqCategory}><Input label={copy.slug} required value={faqCategoryForm.slug} onChange={(event) => setFaqCategoryForm((current) => ({ ...current, slug: event.target.value }))} /><Input label={copy.sortOrder} type="number" min="0" value={faqCategoryForm.sort_order} onChange={(event) => setFaqCategoryForm((current) => ({ ...current, sort_order: event.target.value }))} /><Input label={copy.categoryNameEn} required value={faqCategoryForm.name_en} onChange={(event) => setFaqCategoryForm((current) => ({ ...current, name_en: event.target.value }))} /><Input label={copy.categoryNameAr} dir="rtl" value={faqCategoryForm.name_ar} onChange={(event) => setFaqCategoryForm((current) => ({ ...current, name_ar: event.target.value }))} /><label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={faqCategoryForm.is_active} onChange={(event) => setFaqCategoryForm((current) => ({ ...current, is_active: event.target.checked }))} />{copy.active}</label></form></OperationsModal>
+      <OperationsModal
+        open={modal === "faq-category"}
+        title={copy.faqCategories}
+        onClose={() => setModal(null)}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setModal(null)}>
+              {copy.close}
+            </Button>
+            {faqCategoryForm.id ? (
+              <Button
+                variant="danger"
+                onClick={() => {
+                  setSelected({ id: faqCategoryForm.id });
+                  setModal("delete-faq-category");
+                }}
+              >
+                {copy.delete}
+              </Button>
+            ) : null}
+            <Button
+              type="submit"
+              form="faq-category-form"
+              disabled={isSubmitting}
+            >
+              {copy.save}
+            </Button>
+          </>
+        }
+      >
+        <form
+          id="faq-category-form"
+          className="grid gap-5 md:grid-cols-2"
+          onSubmit={saveFaqCategory}
+        >
+          <Input
+            label={copy.slug}
+            required
+            value={faqCategoryForm.slug}
+            onChange={(event) =>
+              setFaqCategoryForm((current) => ({
+                ...current,
+                slug: event.target.value,
+              }))
+            }
+          />
+          <Input
+            label={copy.sortOrder}
+            type="number"
+            min="0"
+            value={faqCategoryForm.sort_order}
+            onChange={(event) =>
+              setFaqCategoryForm((current) => ({
+                ...current,
+                sort_order: event.target.value,
+              }))
+            }
+          />
+          <Input
+            label={copy.categoryNameEn}
+            required
+            value={faqCategoryForm.name_en}
+            onChange={(event) =>
+              setFaqCategoryForm((current) => ({
+                ...current,
+                name_en: event.target.value,
+              }))
+            }
+          />
+          <Input
+            label={copy.categoryNameAr}
+            dir="rtl"
+            value={faqCategoryForm.name_ar}
+            onChange={(event) =>
+              setFaqCategoryForm((current) => ({
+                ...current,
+                name_ar: event.target.value,
+              }))
+            }
+          />
+          <Input
+            label={copy.categoryNameNl}
+            value={faqCategoryForm.name_nl}
+            onChange={(event) =>
+              setFaqCategoryForm((current) => ({
+                ...current,
+                name_nl: event.target.value,
+              }))
+            }
+          />
+          <label className="flex items-center gap-2 text-sm font-semibold">
+            <input
+              type="checkbox"
+              checked={faqCategoryForm.is_active}
+              onChange={(event) =>
+                setFaqCategoryForm((current) => ({
+                  ...current,
+                  is_active: event.target.checked,
+                }))
+              }
+            />
+            {copy.active}
+          </label>
+        </form>
+      </OperationsModal>
 
-      <OperationsModal open={modal === 'faq'} title={faqForm.id ? copy.edit : copy.newFaq} size="xl" onClose={() => setModal(null)} footer={<><Button variant="outline" onClick={() => setModal(null)}>{copy.close}</Button><Button type="submit" form="faq-form" disabled={isSubmitting}>{copy.save}</Button></>}><form id="faq-form" className="grid gap-5 md:grid-cols-2" onSubmit={saveFaq}><Input label={copy.slug} required value={faqForm.slug} onChange={(event) => setFaqForm((current) => ({ ...current, slug: event.target.value }))} /><Select label={copy.category} value={faqForm.faq_category_id} onChange={(event) => setFaqForm((current) => ({ ...current, faq_category_id: event.target.value }))}><option value="">—</option>{faqCategories.map((category) => <option key={category.id} value={category.id}>{readLocalized(category.name, language)}</option>)}</Select><Input label={copy.questionEn} required value={faqForm.question_en} onChange={(event) => setFaqForm((current) => ({ ...current, question_en: event.target.value }))} /><Input label={copy.questionAr} dir="rtl" value={faqForm.question_ar} onChange={(event) => setFaqForm((current) => ({ ...current, question_ar: event.target.value }))} /><Textarea label={copy.answerEn} required value={faqForm.answer_en} onChange={(event) => setFaqForm((current) => ({ ...current, answer_en: event.target.value }))} /><Textarea label={copy.answerAr} dir="rtl" value={faqForm.answer_ar} onChange={(event) => setFaqForm((current) => ({ ...current, answer_ar: event.target.value }))} /><Select label={copy.publishStatus} value={faqForm.status} onChange={(event) => setFaqForm((current) => ({ ...current, status: event.target.value }))}><option value="draft">{copy.draft}</option><option value="published">{copy.published}</option><option value="archived">{copy.archived}</option></Select><Input label={copy.sortOrder} type="number" min="0" value={faqForm.sort_order} onChange={(event) => setFaqForm((current) => ({ ...current, sort_order: event.target.value }))} /></form></OperationsModal>
+      <OperationsModal
+        open={modal === "faq"}
+        title={faqForm.id ? copy.edit : copy.newFaq}
+        size="xl"
+        onClose={() => setModal(null)}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setModal(null)}>
+              {copy.close}
+            </Button>
+            <Button type="submit" form="faq-form" disabled={isSubmitting}>
+              {copy.save}
+            </Button>
+          </>
+        }
+      >
+        <form
+          id="faq-form"
+          className="grid gap-5 md:grid-cols-2"
+          onSubmit={saveFaq}
+        >
+          <Input
+            label={copy.slug}
+            required
+            value={faqForm.slug}
+            onChange={(event) =>
+              setFaqForm((current) => ({
+                ...current,
+                slug: event.target.value,
+              }))
+            }
+          />
+          <Select
+            label={copy.category}
+            value={faqForm.faq_category_id}
+            onChange={(event) =>
+              setFaqForm((current) => ({
+                ...current,
+                faq_category_id: event.target.value,
+              }))
+            }
+          >
+            <option value="">—</option>
+            {faqCategories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {readLocalized(category.name, language)}
+              </option>
+            ))}
+          </Select>
+          <Input
+            label={copy.questionEn}
+            required
+            value={faqForm.question_en}
+            onChange={(event) =>
+              setFaqForm((current) => ({
+                ...current,
+                question_en: event.target.value,
+              }))
+            }
+          />
+          <Input
+            label={copy.questionAr}
+            dir="rtl"
+            value={faqForm.question_ar}
+            onChange={(event) =>
+              setFaqForm((current) => ({
+                ...current,
+                question_ar: event.target.value,
+              }))
+            }
+          />
+          <Input
+            label={copy.questionNl}
+            value={faqForm.question_nl}
+            onChange={(event) =>
+              setFaqForm((current) => ({
+                ...current,
+                question_nl: event.target.value,
+              }))
+            }
+          />
+          <Textarea
+            label={copy.answerEn}
+            required
+            value={faqForm.answer_en}
+            onChange={(event) =>
+              setFaqForm((current) => ({
+                ...current,
+                answer_en: event.target.value,
+              }))
+            }
+          />
+          <Textarea
+            label={copy.answerAr}
+            dir="rtl"
+            value={faqForm.answer_ar}
+            onChange={(event) =>
+              setFaqForm((current) => ({
+                ...current,
+                answer_ar: event.target.value,
+              }))
+            }
+          />
+          <Textarea
+            label={copy.answerNl}
+            value={faqForm.answer_nl}
+            onChange={(event) =>
+              setFaqForm((current) => ({
+                ...current,
+                answer_nl: event.target.value,
+              }))
+            }
+          />
+          <Select
+            label={copy.publishStatus}
+            value={faqForm.status}
+            onChange={(event) =>
+              setFaqForm((current) => ({
+                ...current,
+                status: event.target.value,
+              }))
+            }
+          >
+            <option value="draft">{copy.draft}</option>
+            <option value="published">{copy.published}</option>
+            <option value="archived">{copy.archived}</option>
+          </Select>
+          <Input
+            label={copy.sortOrder}
+            type="number"
+            min="0"
+            value={faqForm.sort_order}
+            onChange={(event) =>
+              setFaqForm((current) => ({
+                ...current,
+                sort_order: event.target.value,
+              }))
+            }
+          />
+        </form>
+      </OperationsModal>
 
-      <OperationsModal open={modal === 'announcement'} title={announcementForm.id ? copy.edit : copy.newAnnouncement} size="xl" onClose={() => setModal(null)} footer={<><Button variant="outline" onClick={() => setModal(null)}>{copy.close}</Button><Button type="submit" form="announcement-form" disabled={isSubmitting}>{copy.save}</Button></>}><form id="announcement-form" className="grid gap-5 md:grid-cols-2" onSubmit={saveAnnouncement}><Input label={copy.announcementTitleEn} required value={announcementForm.title_en} onChange={(event) => setAnnouncementForm((current) => ({ ...current, title_en: event.target.value }))} /><Input label={copy.announcementTitleAr} dir="rtl" value={announcementForm.title_ar} onChange={(event) => setAnnouncementForm((current) => ({ ...current, title_ar: event.target.value }))} /><Textarea label={copy.announcementBodyEn} required value={announcementForm.body_en} onChange={(event) => setAnnouncementForm((current) => ({ ...current, body_en: event.target.value }))} /><Textarea label={copy.announcementBodyAr} dir="rtl" value={announcementForm.body_ar} onChange={(event) => setAnnouncementForm((current) => ({ ...current, body_ar: event.target.value }))} /><Input label={copy.audienceRoles} value={announcementForm.audience_roles} onChange={(event) => setAnnouncementForm((current) => ({ ...current, audience_roles: event.target.value }))} /><Select label={copy.severity} value={announcementForm.severity} onChange={(event) => setAnnouncementForm((current) => ({ ...current, severity: event.target.value }))}><option value="info">{copy.info}</option><option value="success">{copy.successSeverity}</option><option value="warning">{copy.warning}</option><option value="critical">{copy.critical}</option></Select><Select label={copy.publishStatus} value={announcementForm.status} onChange={(event) => setAnnouncementForm((current) => ({ ...current, status: event.target.value }))}><option value="draft">{copy.draft}</option><option value="published">{copy.published}</option><option value="archived">{copy.archived}</option></Select><div /><Input label={copy.startsAt} type="datetime-local" value={announcementForm.starts_at} onChange={(event) => setAnnouncementForm((current) => ({ ...current, starts_at: event.target.value }))} /><Input label={copy.endsAt} type="datetime-local" value={announcementForm.ends_at} onChange={(event) => setAnnouncementForm((current) => ({ ...current, ends_at: event.target.value }))} /></form></OperationsModal>
+      <OperationsModal
+        open={modal === "announcement"}
+        title={announcementForm.id ? copy.edit : copy.newAnnouncement}
+        size="xl"
+        onClose={() => setModal(null)}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setModal(null)}>
+              {copy.close}
+            </Button>
+            <Button
+              type="submit"
+              form="announcement-form"
+              disabled={isSubmitting}
+            >
+              {copy.save}
+            </Button>
+          </>
+        }
+      >
+        <form
+          id="announcement-form"
+          className="grid gap-5 md:grid-cols-2"
+          onSubmit={saveAnnouncement}
+        >
+          <Input
+            label={copy.announcementTitleEn}
+            required
+            value={announcementForm.title_en}
+            onChange={(event) =>
+              setAnnouncementForm((current) => ({
+                ...current,
+                title_en: event.target.value,
+              }))
+            }
+          />
+          <Input
+            label={copy.announcementTitleAr}
+            dir="rtl"
+            value={announcementForm.title_ar}
+            onChange={(event) =>
+              setAnnouncementForm((current) => ({
+                ...current,
+                title_ar: event.target.value,
+              }))
+            }
+          />
+          <Input
+            label={copy.announcementTitleNl}
+            value={announcementForm.title_nl}
+            onChange={(event) =>
+              setAnnouncementForm((current) => ({
+                ...current,
+                title_nl: event.target.value,
+              }))
+            }
+          />
+          <Textarea
+            label={copy.announcementBodyEn}
+            required
+            value={announcementForm.body_en}
+            onChange={(event) =>
+              setAnnouncementForm((current) => ({
+                ...current,
+                body_en: event.target.value,
+              }))
+            }
+          />
+          <Textarea
+            label={copy.announcementBodyAr}
+            dir="rtl"
+            value={announcementForm.body_ar}
+            onChange={(event) =>
+              setAnnouncementForm((current) => ({
+                ...current,
+                body_ar: event.target.value,
+              }))
+            }
+          />
+          <Textarea
+            label={copy.announcementBodyNl}
+            value={announcementForm.body_nl}
+            onChange={(event) =>
+              setAnnouncementForm((current) => ({
+                ...current,
+                body_nl: event.target.value,
+              }))
+            }
+          />
+          <Input
+            label={copy.audienceRoles}
+            value={announcementForm.audience_roles}
+            onChange={(event) =>
+              setAnnouncementForm((current) => ({
+                ...current,
+                audience_roles: event.target.value,
+              }))
+            }
+          />
+          <Select
+            label={copy.severity}
+            value={announcementForm.severity}
+            onChange={(event) =>
+              setAnnouncementForm((current) => ({
+                ...current,
+                severity: event.target.value,
+              }))
+            }
+          >
+            <option value="info">{copy.info}</option>
+            <option value="success">{copy.successSeverity}</option>
+            <option value="warning">{copy.warning}</option>
+            <option value="critical">{copy.critical}</option>
+          </Select>
+          <Select
+            label={copy.publishStatus}
+            value={announcementForm.status}
+            onChange={(event) =>
+              setAnnouncementForm((current) => ({
+                ...current,
+                status: event.target.value,
+              }))
+            }
+          >
+            <option value="draft">{copy.draft}</option>
+            <option value="published">{copy.published}</option>
+            <option value="archived">{copy.archived}</option>
+          </Select>
+          <div />
+          <Input
+            label={copy.startsAt}
+            type="datetime-local"
+            value={announcementForm.starts_at}
+            onChange={(event) =>
+              setAnnouncementForm((current) => ({
+                ...current,
+                starts_at: event.target.value,
+              }))
+            }
+          />
+          <Input
+            label={copy.endsAt}
+            type="datetime-local"
+            value={announcementForm.ends_at}
+            onChange={(event) =>
+              setAnnouncementForm((current) => ({
+                ...current,
+                ends_at: event.target.value,
+              }))
+            }
+          />
+        </form>
+      </OperationsModal>
 
-      <OperationsModal open={['delete-faq', 'delete-faq-category', 'delete-announcement'].includes(modal)} title={copy.confirmDelete} onClose={() => setModal(null)} footer={<><Button variant="outline" onClick={() => setModal(null)}>{copy.close}</Button><Button variant="danger" disabled={isSubmitting} onClick={confirmDelete}>{copy.delete}</Button></>}><p className="text-[var(--color-text-muted)]">{copy.deleteHint}</p></OperationsModal>
+      <OperationsModal
+        open={[
+          "delete-faq",
+          "delete-faq-category",
+          "delete-announcement",
+        ].includes(modal)}
+        title={copy.confirmDelete}
+        onClose={() => setModal(null)}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setModal(null)}>
+              {copy.close}
+            </Button>
+            <Button
+              variant="danger"
+              disabled={isSubmitting}
+              onClick={confirmDelete}
+            >
+              {copy.delete}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[var(--color-text-muted)]">{copy.deleteHint}</p>
+      </OperationsModal>
     </section>
-  )
+  );
 }

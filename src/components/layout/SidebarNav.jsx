@@ -12,15 +12,18 @@ function SidebarItem({ item }) {
           : undefined
       }
       className={({ isActive }) =>
-        `group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all ${
+        `group relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
           isActive
-            ? 'shadow-sm'
-            : 'text-[#DDEAF0] hover:bg-white/8 hover:text-white'
+            ? 'shadow-[0_8px_18px_rgba(3,28,44,0.18)]'
+            : 'text-[#DDEAF0] hover:translate-x-0.5 hover:bg-white/8 hover:text-white'
         }`
       }
     >
-      <Icon size={18} strokeWidth={1.9} className="shrink-0" />
-      <span className="min-w-0 flex-1 leading-6">{item.name}</span>
+      {({ isActive }) => <>
+        {isActive ? <span aria-hidden="true" className="absolute inset-y-2 w-1 rounded-full bg-[var(--color-secondary)] start-1" /> : null}
+        <Icon size={18} strokeWidth={1.9} className="shrink-0" />
+        <span className="min-w-0 flex-1 leading-6">{item.name}</span>
+      </>}
     </NavLink>
   )
 }

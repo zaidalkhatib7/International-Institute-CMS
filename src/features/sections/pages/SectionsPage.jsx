@@ -23,6 +23,7 @@ import {
 import { fetchAdminPrograms } from '../../programs/services/programsService'
 import { deleteAdminSection, fetchAdminSections } from '../services/sectionsService'
 import { getCurrentLanguage, readLocalizedValue } from '../../../utils/localization'
+import { readApiError } from '../../../services/apiResponse'
 
 const SECTIONS_TABLE_GRID =
   'grid-cols-[minmax(280px,2.2fr)_minmax(220px,1.8fr)_100px_100px_150px_92px]'
@@ -32,11 +33,11 @@ function readLocalized(value) {
 }
 
 function getSectionTitle(section) {
-  return readLocalized(section?.title) || 'Untitled Section'
+  return readLocalized(section?.title) || (section?.id ? `#${section.id}` : '—')
 }
 
 function getSectionDescription(section) {
-  return readLocalized(section?.description) || 'No description'
+  return readLocalized(section?.description) || '—'
 }
 
 function getProgramTitle(program) {
@@ -58,7 +59,7 @@ function getSortValue(section, programsById, sortBy) {
   return getSectionTitle(section)
 }
 
-function MetricCard({ label, value, variant = 'neutral' }) {
+function MetricCard({ label, value, live, variant = 'neutral' }) {
   return (
     <Card>
       <CardContent className="p-6">
@@ -66,7 +67,7 @@ function MetricCard({ label, value, variant = 'neutral' }) {
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
             {label}
           </p>
-          <Badge variant={variant}>Live</Badge>
+          <Badge variant={variant}>{live}</Badge>
         </div>
         <h3 className="mt-3 text-5xl font-bold text-[var(--color-text)]">{value}</h3>
       </CardContent>
@@ -172,7 +173,7 @@ export default function SectionsPage() {
         totalLoaded: 'الإجمالي المحمل',
         page: 'الصفحة',
         prev: 'السابق',
-        next: 'التالي',
+        next: 'التالي', live: 'مباشر', loadFailed: 'تعذر تحميل الأقسام.', deleteFailed: 'تعذر حذف القسم.',
       }
     }
     if (language === 'nl') {
@@ -210,7 +211,7 @@ export default function SectionsPage() {
         totalLoaded: 'Totaal geladen',
         page: 'Pagina',
         prev: 'Vorige',
-        next: 'Volgende',
+        next: 'Volgende', live: 'Live', loadFailed: 'De secties konden niet worden geladen.', deleteFailed: 'De sectie kon niet worden verwijderd.',
       }
     }
     return {
@@ -247,7 +248,7 @@ export default function SectionsPage() {
       totalLoaded: 'Total loaded',
       page: 'Page',
       prev: 'Prev',
-      next: 'Next',
+      next: 'Next', live: 'Live', loadFailed: 'Failed to load sections.', deleteFailed: 'Failed to delete section.',
     }
   }, [language])
 
@@ -280,7 +281,7 @@ export default function SectionsPage() {
         setSections(Array.isArray(rawSections) ? rawSections : [])
         setPrograms(Array.isArray(rawPrograms) ? rawPrograms : [])
       } catch (err) {
-        const message = err?.response?.data?.message || err?.message || 'Failed to load sections.'
+        const message = readApiError(err, copy.loadFailed)
         setError(message)
       } finally {
         setIsLoading(false)
@@ -288,7 +289,7 @@ export default function SectionsPage() {
     }
 
     loadData()
-  }, [])
+  }, [copy.loadFailed])
 
   useEffect(() => {
     if (!statusMessage) return undefined
@@ -373,7 +374,7 @@ export default function SectionsPage() {
       setSections((prev) => prev.filter((item) => item.id !== section.id))
       setStatusMessage('Section deleted successfully.')
     } catch (err) {
-      const message = err?.response?.data?.message || err?.message || 'Failed to delete section.'
+      const message = readApiError(err, copy.deleteFailed)
       setError(message)
     } finally {
       setDeletingSectionId(null)
@@ -406,10 +407,10 @@ export default function SectionsPage() {
       ) : null}
 
       <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label={copy.totalSections} value={String(metrics.total)} variant="info" />
-        <MetricCard label={copy.populated} value={String(metrics.populated)} variant="success" />
-        <MetricCard label={copy.empty} value={String(metrics.empty)} variant="warning" />
-        <MetricCard label={copy.totalLessons} value={String(metrics.totalLessons)} variant="secondary" />
+        <MetricCard label={copy.totalSections} value={String(metrics.total)} live={copy.live} variant="info" />
+        <MetricCard label={copy.populated} value={String(metrics.populated)} live={copy.live} variant="success" />
+        <MetricCard label={copy.empty} value={String(metrics.empty)} live={copy.live} variant="warning" />
+        <MetricCard label={copy.totalLessons} value={String(metrics.totalLessons)} live={copy.live} variant="secondary" />
       </section>
 
       <Card>

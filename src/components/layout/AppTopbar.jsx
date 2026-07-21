@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Bell, ChevronDown, LogOut, Menu, Search, Settings } from 'lucide-react'
+import { Bell, ChevronDown, LogOut, Menu, Search, Settings, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { getNavigationItems } from '../../routes/navigation'
 import { clearAdminToken } from '../../services/tokenStorage'
@@ -18,7 +18,9 @@ const copyByLanguage = {
     settings: 'إعدادات النظام',
     logout: 'تسجيل الخروج',
     openMenu: 'فتح القائمة',
+    closeSearch: 'إغلاق البحث',
     overview: 'نظرة عامة',
+    interfaceLanguage: 'لغة الواجهة',
   },
   en: {
     area: 'Professional Accreditation CMS',
@@ -29,7 +31,9 @@ const copyByLanguage = {
     settings: 'System settings',
     logout: 'Sign out',
     openMenu: 'Open menu',
+    closeSearch: 'Close search',
     overview: 'Overview',
+    interfaceLanguage: 'Interface language',
   },
   nl: {
     area: 'CMS voor professionele accreditatie',
@@ -40,7 +44,9 @@ const copyByLanguage = {
     settings: 'Systeeminstellingen',
     logout: 'Uitloggen',
     openMenu: 'Menu openen',
+    closeSearch: 'Zoeken sluiten',
     overview: 'Overzicht',
+    interfaceLanguage: 'Interfacetaal',
   },
 }
 
@@ -49,6 +55,7 @@ export default function AppTopbar({ onMenuToggle }) {
   const location = useLocation()
   const menuRef = useRef(null)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
   const { user: currentUser, canAccess } = useAuthorization()
   const language = getAdminLanguage()
@@ -77,8 +84,7 @@ export default function AppTopbar({ onMenuToggle }) {
     return () => document.removeEventListener('mousedown', closeMenu)
   }, [])
 
-  const handleSearch = (event) => {
-    event.preventDefault()
+  const submitSearch = () => {
     const normalizedQuery = query.trim().toLocaleLowerCase()
     if (!normalizedQuery) return
 
@@ -87,6 +93,12 @@ export default function AppTopbar({ onMenuToggle }) {
     )
     navigate(matchingItem?.href || '/dashboard')
     setQuery('')
+    setIsMobileSearchOpen(false)
+  }
+
+  const handleSearch = (event) => {
+    event.preventDefault()
+    submitSearch()
   }
 
   const handleLanguageChange = (nextLanguage) => {
@@ -134,6 +146,11 @@ export default function AppTopbar({ onMenuToggle }) {
         </p>
       </div>
 
+      <div className="min-w-0 flex-1 md:hidden">
+        <p className="truncate text-xs font-medium text-[var(--color-text-muted)]">{copy.area}</p>
+        <p className="truncate text-sm font-bold text-[var(--color-primary)]">{activeItem?.name || copy.overview}</p>
+      </div>
+
       <form onSubmit={handleSearch} className="mx-auto hidden w-full max-w-xl md:block">
         <div className="relative">
           <Search
@@ -155,11 +172,20 @@ export default function AppTopbar({ onMenuToggle }) {
       </form>
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <button
+          type="button"
+          onClick={() => setIsMobileSearchOpen(true)}
+          className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-primary)] md:hidden"
+          aria-label={copy.search}
+        >
+          <Search size={19} />
+        </button>
+
         <LanguageSlider
           value={language}
           onChange={handleLanguageChange}
           compact
-          ariaLabel={copy.area}
+          ariaLabel={copy.interfaceLanguage}
           className="hidden sm:grid"
         />
 
@@ -168,6 +194,7 @@ export default function AppTopbar({ onMenuToggle }) {
           onClick={() => navigate('/notifications')}
           className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-primary)]"
           title={copy.notifications}
+          aria-label={copy.notifications}
         >
           <Bell size={19} />
         </button>
@@ -178,6 +205,7 @@ export default function AppTopbar({ onMenuToggle }) {
             onClick={() => setIsProfileOpen((value) => !value)}
             className="flex items-center gap-2 rounded-xl p-1.5 hover:bg-[var(--color-surface-muted)]"
             aria-expanded={isProfileOpen}
+            aria-label={displayName}
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary)] text-xs font-bold text-white">
               {initials || 'IC'}
@@ -219,6 +247,14 @@ export default function AppTopbar({ onMenuToggle }) {
           ) : null}
         </div>
       </div>
+
+      {isMobileSearchOpen ? (
+        <form onSubmit={handleSearch} className="absolute inset-x-3 top-3 z-50 flex h-14 items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white p-1.5 shadow-[var(--shadow-floating)] md:hidden">
+          <Search size={18} className="ms-3 shrink-0 text-[var(--color-text-muted)]" />
+          <input autoFocus type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={copy.search} className="min-w-0 flex-1 bg-transparent px-1 text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]" />
+          <button type="button" onClick={() => setIsMobileSearchOpen(false)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]" aria-label={copy.closeSearch}><X size={18} /></button>
+        </form>
+      ) : null}
     </header>
   )
 }

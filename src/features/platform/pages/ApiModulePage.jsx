@@ -24,6 +24,7 @@ import {
   fetchAuditLogs,
   fetchNotifications,
 } from '../services/platformApi'
+import { formatLocalizedDateTime, formatLocalizedNumber } from '../../../utils/localization'
 
 const moduleConfig = {
   '/content/pages': {
@@ -95,6 +96,27 @@ const fallbackConfig = {
   icon: Activity,
   description: 'مساحة API عامة.',
   endpoints: [],
+}
+
+const endpointLabels = {
+  en: {
+    '/content/pages': ['Pages', 'Menus'],
+    '/content/news': ['CMS pages'],
+    '/content/experts': ['Experts', 'Expertise categories', 'Consultations'],
+    '/finance': ['Enrollments'],
+    '/ai-settings': ['Audit log'],
+    '/reports': ['Programme applications', 'Experts', 'CPD records', 'Audit log'],
+    '/notifications': ['Notifications'],
+  },
+  nl: {
+    '/content/pages': ['Pagina’s', 'Menu’s'],
+    '/content/news': ['CMS-pagina’s'],
+    '/content/experts': ['Experts', 'Expertisecategorieën', 'Consultaties'],
+    '/finance': ['Inschrijvingen'],
+    '/ai-settings': ['Auditlog'],
+    '/reports': ['Programma-aanvragen', 'Experts', 'CPD-records', 'Auditlog'],
+    '/notifications': ['Meldingen'],
+  },
 }
 
 const pageCopy = {
@@ -356,7 +378,11 @@ export default function ApiModulePage() {
   const normalizedPath = normalizePath(pathname)
   const config = moduleConfig[normalizedPath] || fallbackConfig
   const localizedConfig = { ...config, ...(moduleText[language]?.[normalizedPath] || {}) }
-  const copy = pageCopy[language] || pageCopy.ar
+  const endpoints = useMemo(() => config.endpoints.map((endpoint, index) => ({
+    ...endpoint,
+    label: endpointLabels[language]?.[normalizedPath]?.[index] || endpoint.label,
+  })), [config, language, normalizedPath])
+  const copy = pageCopy[language] || pageCopy.en
   const isArabic = language === 'ar'
   const Icon = config.icon
   const [state, setState] = useState({ isLoading: true, sources: [] })
@@ -366,7 +392,7 @@ export default function ApiModulePage() {
 
     async function loadData() {
       setState({ isLoading: true, sources: [] })
-      const sources = await Promise.all(config.endpoints.map(loadEndpoint))
+      const sources = await Promise.all(endpoints.map(loadEndpoint))
       if (isMounted) setState({ isLoading: false, sources })
     }
 
@@ -375,7 +401,7 @@ export default function ApiModulePage() {
     return () => {
       isMounted = false
     }
-  }, [config])
+  }, [endpoints])
 
   const combinedRows = useMemo(
     () =>
@@ -407,7 +433,7 @@ export default function ApiModulePage() {
     {
       key: 'created_at',
       label: copy.updatedAt,
-      render: (row) => row.updated_at || row.created_at || '—',
+      render: (row) => formatLocalizedDateTime(row.updated_at || row.created_at, language),
     },
   ]
 
@@ -429,14 +455,14 @@ export default function ApiModulePage() {
           <Badge variant="secondary" className="w-fit px-4 py-2">
             {state.isLoading
               ? copy.loading
-              : copy.apiRatio(state.sources.filter((source) => source.ok).length, config.endpoints.length)}
+              : copy.apiRatio(formatLocalizedNumber(state.sources.filter((source) => source.ok).length, language), formatLocalizedNumber(endpoints.length, language))}
           </Badge>
         </div>
       </div>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {state.isLoading
-          ? config.endpoints.map((endpoint) => (
+          ? endpoints.map((endpoint) => (
               <Card key={endpoint.label}>
                 <CardContent className="p-5">
                   <p className="text-sm font-bold text-[var(--color-text)]">{endpoint.label}</p>
@@ -452,7 +478,7 @@ export default function ApiModulePage() {
                     <Badge variant={source.ok ? 'success' : 'danger'}>{source.ok ? copy.connected : copy.error}</Badge>
                   </div>
                   <p className="mt-4 text-3xl font-bold text-[var(--color-primary)]">
-                    {source.ok ? new Intl.NumberFormat('ar').format(source.pagination?.total || source.rows.length) : '—'}
+                    {source.ok ? formatLocalizedNumber(source.pagination?.total || source.rows.length, language) : '—'}
                   </p>
                   <p className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">
                     {source.ok ? copy.recordsFromApi : source.error}

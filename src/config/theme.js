@@ -9,11 +9,14 @@ export const theme = {
     accent: '#1699D6',
     background: '#F7FAFC',
     surface: '#FFFFFF',
+    surfaceRaised: '#FFFFFF',
     surfaceMuted: '#F2FAFE',
+    surfaceSubtle: '#F8FBFD',
     text: '#0C3D5E',
     textBody: '#43606F',
     textMuted: '#7A93A3',
     border: '#E3EBF1',
+    borderStrong: '#CBDCE7',
     success: '#1E9E5A',
     warning: '#C97B12',
     danger: '#C94343',
@@ -28,8 +31,9 @@ export const theme = {
   },
 
   shadow: {
-    card: '0 10px 30px rgba(12, 61, 94, 0.07)',
-    floating: '0 20px 48px rgba(12, 61, 94, 0.18)',
+    card: '0 8px 24px rgba(12, 61, 94, 0.06)',
+    cardHover: '0 18px 36px rgba(12, 61, 94, 0.12)',
+    floating: '0 24px 56px rgba(12, 61, 94, 0.18)',
   },
 
   layout: {

@@ -69,7 +69,6 @@ export async function uploadRplEvidence(applicationId, payload, onUploadProgress
   })
 
   return read(await http.post(`/admin/rpl/applications/${applicationId}/evidence`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 5 * 60 * 1000,
     onUploadProgress,
   }))
@@ -108,6 +107,102 @@ export async function fetchRplAssessments(params = {}) {
 
 export async function fetchRplAssessment(id) {
   return read(await http.get(`/admin/rpl/assessments/${id}`))
+}
+
+export async function generateRplAiAdvisory(id, payload = {}) {
+  return read(await http.post(`/admin/rpl/assessments/${id}/ai-advisories`, payload, {
+    // Gemini may need longer than the normal CMS request budget for a full
+    // rubric-and-evidence advisory. Keep this exception scoped to AI work.
+    timeout: 5 * 60 * 1000,
+  }))
+}
+
+export async function acknowledgeRplAiAdvisory(id) {
+  return read(await http.post(`/admin/rpl/ai-advisories/${id}/acknowledge`))
+}
+
+// ===== Downloads (PDF/CSV exports) =====
+
+function saveDownload(response, fallbackName) {
+  const disposition = response.headers?.['content-disposition'] || ''
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)/i.exec(disposition)
+  const name = match ? decodeURIComponent(match[1]) : fallbackName
+  const url = URL.createObjectURL(response.data)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = name
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(url)
+}
+
+export async function exportRplAiAdvisory(id, format = 'pdf') {
+  const response = await http.get(`/admin/rpl/ai-advisories/${id}/export`, {
+    params: { format },
+    responseType: 'blob',
+  })
+  saveDownload(response, `gemini-advisory-${id}.${format}`)
+}
+
+export async function exportDynamicAssessment(id, format = 'pdf') {
+  const response = await http.get(`/admin/rpl/dynamic-assessments/${id}/export`, {
+    params: { format },
+    responseType: 'blob',
+  })
+  saveDownload(response, `dynamic-assessment-${id}.${format}`)
+}
+
+// ===== Governed dynamic assessment (25–50 Gemini-drafted questions) =====
+
+const AI_TIMEOUT = { timeout: 5 * 60 * 1000 }
+
+export async function fetchDynamicAssessments(params = {}) {
+  return read(await http.get('/admin/rpl/dynamic-assessments', { params }))
+}
+
+export async function createDynamicAssessment(assessmentId) {
+  return read(await http.post(`/admin/rpl/dynamic-assessments/from-assessment/${assessmentId}`))
+}
+
+export async function fetchDynamicAssessment(id) {
+  return read(await http.get(`/admin/rpl/dynamic-assessments/${id}`))
+}
+
+export async function generateDynamicAssessmentDraft(id) {
+  return read(await http.post(`/admin/rpl/dynamic-assessments/${id}/generate`, {}, AI_TIMEOUT))
+}
+
+export async function updateDynamicAssessmentItem(itemId, payload) {
+  return read(await http.put(`/admin/rpl/dynamic-assessments/items/${itemId}`, payload))
+}
+
+export async function addDynamicAssessmentItem(id, payload) {
+  return read(await http.post(`/admin/rpl/dynamic-assessments/${id}/items`, payload))
+}
+
+export async function rejectDynamicAssessmentItem(itemId, payload = {}) {
+  return read(await http.post(`/admin/rpl/dynamic-assessments/items/${itemId}/reject`, payload))
+}
+
+export async function regenerateDynamicAssessmentItem(itemId) {
+  return read(await http.post(`/admin/rpl/dynamic-assessments/items/${itemId}/regenerate`, {}, AI_TIMEOUT))
+}
+
+export async function approveDynamicAssessmentItem(itemId) {
+  return read(await http.post(`/admin/rpl/dynamic-assessments/items/${itemId}/approve`))
+}
+
+export async function approveAllDynamicAssessmentItems(id) {
+  return read(await http.post(`/admin/rpl/dynamic-assessments/${id}/approve-all`))
+}
+
+export async function sendDynamicAssessment(id) {
+  return read(await http.post(`/admin/rpl/dynamic-assessments/${id}/send`))
+}
+
+export async function finalEvaluateDynamicAssessment(id) {
+  return read(await http.post(`/admin/rpl/dynamic-assessments/${id}/final-evaluation`, {}, AI_TIMEOUT))
 }
 
 export async function saveRplAssessmentFindings(id, payload) {
@@ -162,6 +257,10 @@ export async function startRplAssessment(id) {
   return read(await http.post(`/admin/rpl/assignments/${id}/start`))
 }
 
+export async function startAdminRplAssessment(applicationId) {
+  return read(await http.post(`/admin/rpl/applications/${applicationId}/admin-assessment`))
+}
+
 export async function fetchRplCommitteeCases(params = {}) {
   return read(await http.get('/admin/rpl/committee/cases', { params }))
 }
@@ -212,6 +311,10 @@ export async function deleteRplConfiguration(resource, id) {
 
 export async function fetchRplSettings() {
   return read(await http.get('/admin/rpl/settings'))
+}
+
+export async function fetchRplSourceOfTruth() {
+  return read(await http.get('/admin/rpl/source-of-truth'))
 }
 
 export async function updateRplSettings(payload) {

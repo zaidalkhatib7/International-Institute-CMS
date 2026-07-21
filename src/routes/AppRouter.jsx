@@ -3,14 +3,18 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import DashboardLayout from '../layouts/DashboardLayout'
 import AuthorizedRoute from '../components/layout/AuthorizedRoute'
 import ProtectedRoute from '../components/layout/ProtectedRoute'
+import RouteErrorBoundary from '../components/layout/RouteErrorBoundary'
 import AuthorizationProvider from '../features/auth/context/AuthorizationProvider'
 import { getRouteAccess } from './routeAccess'
+import { getAdminLanguage } from '../services/languageStorage'
 
 const WorkspaceOverviewPage = lazy(() => import('../features/dashboard/pages/WorkspaceOverviewPage'))
 const UsersPage = lazy(() => import('../features/users/pages/UsersPage'))
+const UserWorkspacePage = lazy(() => import('../features/users/pages/UserWorkspacePage'))
 const UserWalletActionPage = lazy(() => import('../features/users/pages/UserWalletActionPage'))
 const ProgramsPage = lazy(() => import('../features/programs/pages/ProgramsPage'))
 const ProgramBuilderPage = lazy(() => import('../features/programs/pages/ProgramBuilderPage'))
+const CompetencyGapLibraryPage = lazy(() => import('../features/competency/pages/CompetencyGapLibraryPage'))
 const CategoriesPage = lazy(() => import('../features/categories/pages/CategoriesPage'))
 const LessonsPage = lazy(() => import('../features/lessons/pages/LessonsPage'))
 const LessonBuilderPage = lazy(() => import('../features/lessons/pages/LessonBuilderPage'))
@@ -29,6 +33,7 @@ const RplAssessmentsPage = lazy(() => import('../features/rpl/pages/RplAssessmen
 const RplGovernancePage = lazy(() => import('../features/rpl/pages/RplGovernancePage'))
 const RplAssessorsPage = lazy(() => import('../features/rpl/pages/RplAssessorsPage'))
 const RplConfigurationPage = lazy(() => import('../features/rpl/pages/RplConfigurationPage'))
+const RplSourceOfTruthPage = lazy(() => import('../features/rpl/pages/RplSourceOfTruthPage'))
 const CertificatesPage = lazy(() => import('../features/certificates/pages/CertificatesPage'))
 const DigitalLibraryPage = lazy(() => import('../features/library/pages/DigitalLibraryPage'))
 const SupportOperationsPage = lazy(() => import('../features/support/pages/SupportOperationsPage'))
@@ -37,8 +42,10 @@ const NotFoundPage = lazy(() => import('../features/shared/pages/NotFoundPage'))
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'))
 
 function RouteLoadingFallback() {
+  const language = getAdminLanguage()
+  const label = { ar: 'جارٍ تحميل الصفحة', en: 'Loading page', nl: 'Pagina wordt geladen' }[language]
   return (
-    <div className="flex min-h-48 items-center justify-center" role="status" aria-label="Loading page">
+    <div className="flex min-h-48 items-center justify-center" role="status" aria-label={label}>
       <span className="h-9 w-9 animate-spin rounded-full border-4 border-[var(--color-primary-soft)] border-t-[var(--color-primary)]" />
     </div>
   )
@@ -51,7 +58,10 @@ function AdminRoute({ children }) {
     <ProtectedRoute>
       <DashboardLayout>
         <AuthorizedRoute access={getRouteAccess(location.pathname)}>
-          <Suspense fallback={<RouteLoadingFallback />}>{children}</Suspense>
+          {/* Keyed by path so a crash on one page never poisons the next route. */}
+          <RouteErrorBoundary key={location.pathname}>
+            <Suspense fallback={<RouteLoadingFallback />}>{children}</Suspense>
+          </RouteErrorBoundary>
         </AuthorizedRoute>
       </DashboardLayout>
     </ProtectedRoute>
@@ -207,6 +217,18 @@ export default function AppRouter() {
         />
 
         <Route
+          path="/competency-gap-library"
+          element={
+            <AdminRoute>
+              <CompetencyGapLibraryPage />
+            </AdminRoute>
+          }
+        />
+        <Route path="/users/website" element={<AdminRoute><UsersPage /></AdminRoute>} />
+        <Route path="/users/onsite" element={<AdminRoute><UsersPage /></AdminRoute>} />
+        <Route path="/users/:userId" element={<AdminRoute><UserWorkspacePage /></AdminRoute>} />
+
+        <Route
           path="/settings"
           element={
             <AdminRoute>
@@ -232,6 +254,7 @@ export default function AppRouter() {
         <Route path="/rpl/accreditation" element={<AdminRoute><RplGovernancePage mode="committee" /></AdminRoute>} />
         <Route path="/rpl/appeals" element={<AdminRoute><RplGovernancePage mode="appeals" /></AdminRoute>} />
         <Route path="/rpl/configuration" element={<AdminRoute><RplConfigurationPage /></AdminRoute>} />
+        <Route path="/rpl/source-of-truth" element={<AdminRoute><RplSourceOfTruthPage /></AdminRoute>} />
         <Route path="/standards" element={<AdminRoute><RplConfigurationPage /></AdminRoute>} />
         <Route path="/assessors" element={<AdminRoute><RplAssessorsPage /></AdminRoute>} />
         <Route path="/committees" element={<AdminRoute><RplGovernancePage mode="committee" /></AdminRoute>} />

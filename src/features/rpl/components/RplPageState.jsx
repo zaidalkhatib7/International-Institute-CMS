@@ -1,5 +1,5 @@
 import { AlertTriangle, LoaderCircle, RefreshCw } from 'lucide-react'
-import { Button, Card, CardContent } from '../../../components/ui'
+import { Button, Card, CardContent, Skeleton } from '../../../components/ui'
 
 const copy = {
   ar: { loading: 'جارٍ تحميل بيانات RPL...', retry: 'إعادة المحاولة' },
@@ -12,9 +12,15 @@ export default function RplPageState({ loading, error, onRetry, language = 'en',
   if (loading) {
     return (
       <Card>
-        <CardContent className="flex min-h-52 items-center justify-center gap-3 p-8 text-[var(--color-text-muted)]" role="status">
-          <LoaderCircle className="animate-spin" size={24} />
-          <span>{text.loading}</span>
+        <CardContent className="p-6" role="status" aria-live="polite">
+          <span className="sr-only">{text.loading}</span>
+          <div className="mb-6 flex items-center gap-3 text-sm font-medium text-[var(--color-text-muted)]"><LoaderCircle className="animate-spin" size={18} />{text.loading}</div>
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-1/3" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
         </CardContent>
       </Card>
     )
@@ -22,7 +28,7 @@ export default function RplPageState({ loading, error, onRetry, language = 'en',
 
   if (error) {
     return (
-      <Card className="border-red-200">
+      <Card className="border-red-200 bg-red-50/30">
         <CardContent className="flex min-h-44 flex-col items-center justify-center gap-4 p-8 text-center">
           <AlertTriangle className="text-red-500" size={30} />
           <p className="max-w-xl text-sm leading-6 text-red-700">{error}</p>

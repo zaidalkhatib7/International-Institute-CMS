@@ -340,7 +340,6 @@ export default function EvidenceUploadCenter({ applicationId, evidence: sourceEv
   const uploadCategories = useMemo(() => categories.filter((entry) => entry.code !== 'electronic_link' && entry.accepts_files !== false), [categories])
   const selectedCategoryRecord = useMemo(() => uploadCategories.find((entry) => entry.code === selectedCategory) || uploadCategories[0], [selectedCategory, uploadCategories])
   const linkCategory = useMemo(() => categories.find((entry) => entry.code === 'electronic_link' && entry.accepts_urls !== false), [categories])
-  const completenessPercentage = Number(completeness?.percentage ?? completeness ?? 0) || 0
   const hasReady = queue.some((item) => item.validation.valid && ['pending', 'error'].includes(item.state))
 
   function applyCompleteness(next) {
@@ -463,7 +462,7 @@ export default function EvidenceUploadCenter({ applicationId, evidence: sourceEv
           <h2 id="evidence-upload-title" className="text-2xl font-bold text-[var(--color-text)]">{text.title}</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{text.subtitle}</p>
         </div>
-        <CompletenessMeter value={completenessPercentage} language={language} />
+        <CompletenessMeter value={completeness} categories={uploadCategories} language={language} />
       </div>
 
       {notice.text ? <div role="alert" className={`rounded-2xl border px-4 py-3 text-sm ${notice.type === 'success' ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>{notice.text}</div> : null}

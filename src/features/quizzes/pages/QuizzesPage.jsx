@@ -27,6 +27,7 @@ import {
   fetchAdminQuizzes,
 } from '../services/quizzesService'
 import { getCurrentLanguage, readLocalizedValue } from '../../../utils/localization'
+import { readApiError } from '../../../services/apiResponse'
 
 const QUIZZES_TABLE_GRID =
   'grid-cols-[minmax(280px,2.2fr)_minmax(220px,1.8fr)_120px_130px_130px_92px]'
@@ -36,11 +37,11 @@ function readLocalized(value) {
 }
 
 function getQuizTitle(quiz) {
-  return readLocalized(quiz?.title) || 'Untitled Quiz'
+  return readLocalized(quiz?.title) || (quiz?.id ? `#${quiz.id}` : '—')
 }
 
 function getSectionTitle(section) {
-  return readLocalized(section?.title) || `Section ${section?.id ?? ''}`.trim()
+  return readLocalized(section?.title) || (section?.id ? `#${section.id}` : '—')
 }
 
 function getQuizSectionId(quiz) {
@@ -62,7 +63,7 @@ function getSortValue(quiz, sectionsById, sortBy) {
   return getQuizTitle(quiz)
 }
 
-function MetricCard({ label, value, variant = 'neutral' }) {
+function MetricCard({ label, value, live, variant = 'neutral' }) {
   return (
     <Card>
       <CardContent className="p-6">
@@ -70,7 +71,7 @@ function MetricCard({ label, value, variant = 'neutral' }) {
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
             {label}
           </p>
-          <Badge variant={variant}>Live</Badge>
+          <Badge variant={variant}>{live}</Badge>
         </div>
         <h3 className="mt-3 text-5xl font-bold text-[var(--color-text)]">{value}</h3>
       </CardContent>
@@ -93,7 +94,7 @@ function QuizRow({ quiz, sectionName, onEdit, onDelete, isDeleting, labels }) {
         </div>
         <div>
           <h4 className="text-xl font-semibold text-[var(--color-text)]">{title}</h4>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">Bank ID: {quiz.id}</p>
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">{labels.bankId}: <bdi>{quiz.id}</bdi></p>
         </div>
       </div>
 
@@ -172,7 +173,7 @@ export default function QuizzesPage() {
         totalLoaded: 'الإجمالي المحمل',
         page: 'الصفحة',
         prev: 'السابق',
-        next: 'التالي',
+        next: 'التالي', live: 'مباشر', bankId: 'معرّف البنك', loadFailed: 'تعذر تحميل بنوك الأسئلة.', deleteFailed: 'تعذر حذف بنك الأسئلة.',
       }
     }
     if (language === 'nl') {
@@ -210,7 +211,7 @@ export default function QuizzesPage() {
         totalLoaded: 'Totaal geladen',
         page: 'Pagina',
         prev: 'Vorige',
-        next: 'Volgende',
+        next: 'Volgende', live: 'Live', bankId: 'Bank-ID', loadFailed: 'De vragenbanken konden niet worden geladen.', deleteFailed: 'De vragenbank kon niet worden verwijderd.',
       }
     }
     return {
@@ -247,7 +248,7 @@ export default function QuizzesPage() {
       totalLoaded: 'Total loaded',
       page: 'Page',
       prev: 'Prev',
-      next: 'Next',
+      next: 'Next', live: 'Live', bankId: 'Bank ID', loadFailed: 'Failed to load question banks.', deleteFailed: 'Failed to delete question bank.',
     }
   }, [language])
 
@@ -310,7 +311,7 @@ export default function QuizzesPage() {
         setQuizzes(quizzesWithQuestionCounts)
       } catch (err) {
         const message =
-          err?.response?.data?.message || err?.message || 'Failed to load question banks.'
+          readApiError(err, copy.loadFailed)
         setError(message)
       } finally {
         setIsLoading(false)
@@ -318,7 +319,7 @@ export default function QuizzesPage() {
     }
 
     loadData()
-  }, [])
+  }, [copy.loadFailed])
 
   useEffect(() => {
     if (!statusMessage) return undefined
@@ -406,7 +407,7 @@ export default function QuizzesPage() {
       setStatusMessage('Question bank deleted successfully.')
     } catch (err) {
       const message =
-        err?.response?.data?.message || err?.message || 'Failed to delete question bank.'
+        readApiError(err, copy.deleteFailed)
       setError(message)
     } finally {
       setDeletingQuizId(null)
@@ -439,10 +440,10 @@ export default function QuizzesPage() {
       ) : null}
 
       <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label={copy.totalQuizzes} value={String(metrics.total)} variant="info" />
-        <MetricCard label={copy.standardThreshold} value={String(metrics.standard)} variant="success" />
-        <MetricCard label={copy.lowThreshold} value={String(metrics.lowThreshold)} variant="warning" />
-        <MetricCard label={copy.avgPass} value={String(metrics.avgPassPercentage)} variant="secondary" />
+        <MetricCard label={copy.totalQuizzes} value={String(metrics.total)} live={copy.live} variant="info" />
+        <MetricCard label={copy.standardThreshold} value={String(metrics.standard)} live={copy.live} variant="success" />
+        <MetricCard label={copy.lowThreshold} value={String(metrics.lowThreshold)} live={copy.live} variant="warning" />
+        <MetricCard label={copy.avgPass} value={String(metrics.avgPassPercentage)} live={copy.live} variant="secondary" />
       </section>
 
       <Card>

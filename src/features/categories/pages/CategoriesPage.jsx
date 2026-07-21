@@ -22,6 +22,7 @@ import {
 import { fetchAdminCategories, fetchAdminPrograms } from '../../programs/services/programsService'
 import { readLocalizedValue } from '../../../utils/localization'
 import { getCurrentLanguage, getLocaleForLanguage } from '../../../utils/localization'
+import { readApiError } from '../../../services/apiResponse'
 
 const CATEGORIES_TABLE_GRID =
   'grid-cols-[minmax(260px,2fr)_minmax(200px,1.4fr)_minmax(120px,0.9fr)_minmax(120px,0.9fr)_minmax(150px,1fr)_72px]'
@@ -31,7 +32,7 @@ function readLocalized(value) {
 }
 
 function titleFromSlug(slug) {
-  if (!slug) return 'Untitled Category'
+  if (!slug) return '—'
   return String(slug)
     .split('-')
     .filter(Boolean)
@@ -49,7 +50,7 @@ function getCategoryName(category) {
 function getCategoryDescription(category) {
   const localized = readLocalized(category?.description)
   if (localized) return localized
-  return 'No description provided.'
+  return '—'
 }
 
 function formatDate(value, language) {
@@ -173,6 +174,7 @@ export default function CategoriesPage() {
         prev: 'السابق',
         next: 'التالي',
         programsUnit: 'برنامج',
+        live: 'مباشر', rows: 'صفوف', page: 'الصفحة', loadFailed: 'تعذر تحميل التصنيفات.',
       }
     }
 
@@ -211,6 +213,7 @@ export default function CategoriesPage() {
         prev: 'Vorige',
         next: 'Volgende',
         programsUnit: 'programma(s)',
+        live: 'Live', rows: 'rijen', page: 'Pagina', loadFailed: 'De categorieën konden niet worden geladen.',
       }
     }
 
@@ -248,6 +251,7 @@ export default function CategoriesPage() {
       prev: 'Prev',
       next: 'Next',
       programsUnit: 'program(s)',
+      live: 'Live', rows: 'rows', page: 'Page', loadFailed: 'Failed to load categories.',
     }
   }, [language])
 
@@ -282,7 +286,7 @@ export default function CategoriesPage() {
         setPrograms(Array.isArray(rawPrograms) ? rawPrograms : [])
       } catch (err) {
         const message =
-          err?.response?.data?.message || err?.message || 'Failed to load categories.'
+          readApiError(err, copy.loadFailed)
         setError(message)
       } finally {
         setIsLoading(false)
@@ -290,7 +294,7 @@ export default function CategoriesPage() {
     }
 
     loadData()
-  }, [])
+  }, [copy.loadFailed])
 
   const categoriesWithCounts = useMemo(() => {
     const counts = new Map()
@@ -406,28 +410,28 @@ export default function CategoriesPage() {
           icon={<Grid3X3 size={22} />}
           title={copy.totalCategories}
           value={String(metrics.total)}
-          badge="Live"
+          badge={copy.live}
           badgeVariant="info"
         />
         <MetricCard
           icon={<CheckCircle2 size={22} />}
           title={copy.activeCategories}
           value={String(metrics.active)}
-          badge="Live"
+          badge={copy.live}
           badgeVariant="success"
         />
         <MetricCard
           icon={<BookOpenText size={22} />}
           title={copy.mappedPrograms}
           value={String(metrics.mappedPrograms)}
-          badge="Live"
+          badge={copy.live}
           badgeVariant="secondary"
         />
         <MetricCard
           icon={<ArrowUpAZ size={22} />}
           title={copy.inactiveCategories}
           value={String(metrics.inactive)}
-          badge="Live"
+          badge={copy.live}
           badgeVariant="danger"
         />
       </section>
@@ -457,10 +461,10 @@ export default function CategoriesPage() {
             </Select>
 
             <Select value={String(rowsPerPage)} onChange={(e) => setRowsPerPage(Number(e.target.value))}>
-              <option value="5">5 rows</option>
-              <option value="10">10 rows</option>
-              <option value="20">20 rows</option>
-              <option value="50">50 rows</option>
+              <option value="5">5 {copy.rows}</option>
+              <option value="10">10 {copy.rows}</option>
+              <option value="20">20 {copy.rows}</option>
+              <option value="50">50 {copy.rows}</option>
             </Select>
 
             <Button
@@ -516,7 +520,7 @@ export default function CategoriesPage() {
             </Button>
 
             <span className="min-w-[88px] text-center text-sm text-[var(--color-text-muted)]">
-              Page <b>{safeCurrentPage}</b> / <b>{totalPages}</b>
+              {copy.page} <b>{safeCurrentPage}</b> / <b>{totalPages}</b>
             </span>
 
             <Button

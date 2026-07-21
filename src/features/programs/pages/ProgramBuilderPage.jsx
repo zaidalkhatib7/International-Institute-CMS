@@ -47,6 +47,34 @@ function titleFromSlug(slug) {
     .join(' ')
 }
 
+// The standard catalogue categories are admission routes, not decorative
+// labels. Keep this mapping in the CMS so the submitted payload is explicit;
+// the Laravel API independently enforces the same mapping.
+const CATEGORY_PROGRAM_TYPE_BY_SLUG = {
+  'short-courses': 'short_course',
+  'professional-diplomas': 'professional_diploma',
+  'executive-programs': 'executive_program',
+  'professional-masters': 'professional_master',
+  'professional-doctorate': 'professional_doctorate',
+  'training-kits': 'training_kit',
+  'trainer-programs': 'trainer_program',
+  'organization-programs': 'organization_program',
+  'ministry-programs': 'ministry_program',
+  'free-programs': 'free_program',
+}
+
+function programTypeForCategory(category) {
+  return CATEGORY_PROGRAM_TYPE_BY_SLUG[category?.slug] || ''
+}
+
+function admissionRuleForCategory(category, copy) {
+  return {
+    'professional-diplomas': copy.diplomaAdmissionRule,
+    'professional-masters': copy.masterAdmissionRule,
+    'professional-doctorate': copy.doctorateAdmissionRule,
+  }[category?.slug] || copy.generalCatalogueRule
+}
+
 function normalizeProgramPayload(payload) {
   return payload?.data?.data || payload?.data || payload
 }
@@ -121,6 +149,10 @@ function mapProgramToFormData(program) {
         : '',
     is_featured: Boolean(program?.is_featured),
     is_active: Boolean(program?.is_active),
+    program_type:
+      program?.program_type ||
+      programTypeForCategory(program?.category) ||
+      '',
     category_name:
       program?.category?.name?.en ||
       program?.category?.name?.ar ||
@@ -201,6 +233,7 @@ function buildProgramPayload(formData) {
       ? { final_quiz_duration_minutes: finalQuizDurationMinutes }
       : {}),
     is_featured: Boolean(formData.is_featured),
+    ...(formData.program_type ? { program_type: formData.program_type } : {}),
   }
 }
 
@@ -441,6 +474,11 @@ function BasicInfoContent({
   copy,
   language,
 }) {
+  const selectedCategory = categories.find(
+    (category) => String(category.id) === String(formData.category_id)
+  )
+  const admissionRule = admissionRuleForCategory(selectedCategory, copy)
+
   return (
     <div className="space-y-8">
       <SectionCard icon={<FolderOpen size={24} />} title={copy.programIdentity}>
@@ -462,6 +500,7 @@ function BasicInfoContent({
 
               updateField('category_id', selectedId)
               updateField('category_name', categoryName)
+              updateField('program_type', programTypeForCategory(selectedCategory))
             }}
           >
             <option value="">{copy.selectCategory}</option>
@@ -479,6 +518,11 @@ function BasicInfoContent({
               )
             })}
           </Select>
+
+          <div className="rounded-2xl border border-[#BDE4FF] bg-[#F0F9FF] px-4 py-3 text-sm leading-6 text-[var(--color-text)]" role="status">
+            <span className="font-semibold">{copy.admissionRoute}: </span>
+            {admissionRule}
+          </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-4">
@@ -1063,6 +1107,11 @@ export default function ProgramBuilderPage() {
         programIdentity: 'هوية البرنامج',
         category: 'التصنيف',
         selectCategory: 'اختر تصنيفًا',
+        admissionRoute: 'مسار القبول',
+        diplomaAdmissionRule: 'الدبلوم المهني: متاح فقط بعد التحقق من إجازة جامعية أو ليسانس أو بكالوريوس.',
+        masterAdmissionRule: 'الماجستير المهني: متاح فقط بعد التحقق من إجازة جامعية ودبلوم أكاديمي.',
+        doctorateAdmissionRule: 'الدكتوراه المهنية: متاحة فقط بعد التحقق من إجازة جامعية ودبلوم أكاديمي وماجستير أكاديمي.',
+        generalCatalogueRule: 'يحدد التصنيف نوع البرنامج وجمهوره تلقائيًا. لا يمكن تغيير مسار القبول يدويًا.',
         categoryFallbackPrefix: 'تصنيف',
         programTitleRequired: 'عنوان البرنامج *',
         programTitlePlaceholder: 'مثال: ماجستير الدراسات الفقهية المتقدمة',
@@ -1200,6 +1249,11 @@ export default function ProgramBuilderPage() {
         programIdentity: 'Programma-identiteit',
         category: 'Categorie',
         selectCategory: 'Selecteer categorie',
+        admissionRoute: 'Toelatingsroute',
+        diplomaAdmissionRule: 'Professioneel diploma: alleen beschikbaar na verificatie van een bachelor/licentie/gelijkwaardig diploma.',
+        masterAdmissionRule: 'Professionele master: alleen beschikbaar na verificatie van een bachelor/licentie en een academisch diploma.',
+        doctorateAdmissionRule: 'Professioneel doctoraat: alleen beschikbaar na verificatie van een bachelor/licentie, academisch diploma en academische master.',
+        generalCatalogueRule: 'De categorie bepaalt automatisch het programmatype en de doelgroep. De toelatingsroute kan niet handmatig worden gewijzigd.',
         categoryFallbackPrefix: 'Categorie',
         programTitleRequired: 'Programmatitel *',
         programTitlePlaceholder: 'bijv. Master of Advanced Fiqh Studies',
@@ -1336,6 +1390,11 @@ export default function ProgramBuilderPage() {
       programIdentity: 'Program Identity',
       category: 'Category',
       selectCategory: 'Select category',
+      admissionRoute: 'Admission route',
+      diplomaAdmissionRule: 'Professional Diploma: available only after a bachelor, licence, or equivalent degree has been verified.',
+      masterAdmissionRule: 'Professional Master\'s: available only after a bachelor/licence and academic diploma have been verified.',
+      doctorateAdmissionRule: 'Professional Doctorate: available only after a bachelor/licence, academic diploma, and academic master have been verified.',
+      generalCatalogueRule: 'The category automatically determines the program type and audience. The admission route cannot be changed manually.',
       categoryFallbackPrefix: 'Category',
       programTitleRequired: 'Program Title *',
       programTitlePlaceholder: 'e.g. Master of Advanced Fiqh Studies',
@@ -1478,6 +1537,7 @@ export default function ProgramBuilderPage() {
     final_quiz_duration_minutes: '',
     is_featured: false,
     is_active: false,
+    program_type: '',
   })
 
   useEffect(() => {

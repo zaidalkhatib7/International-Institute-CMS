@@ -79,11 +79,21 @@ const groups = [
         href: '/rpl/configuration',
         icon: Settings,
       },
+      {
+        label: { ar: 'مرجع RPL المعتمد', en: 'RPL source of truth', nl: 'RPL-bron van waarheid' },
+        href: '/rpl/source-of-truth',
+        icon: BookOpenCheck,
+      },
     ],
   },
   {
     label: { ar: 'التعلم والمعايير', en: 'Learning & standards', nl: 'Leren & standaarden' },
     items: [
+      {
+        label: { ar: 'مكتبة سد فجوات الكفاءات', en: 'Competency gap library', nl: 'Bibliotheek competentiekloven' },
+        href: '/competency-gap-library',
+        icon: LibraryBig,
+      },
       {
         label: { ar: 'معايير الكفاءة', en: 'Competency standards', nl: 'Competentiestandaarden' },
         href: '/standards',
@@ -136,6 +146,16 @@ const groups = [
         icon: Users,
       },
       {
+        label: { ar: 'عملاء الموقع', en: 'Website clients', nl: 'Websitecliënten' },
+        href: '/users/website',
+        icon: Users,
+      },
+      {
+        label: { ar: 'عملاء المكتب', en: 'On-site clients', nl: 'Kantoorcliënten' },
+        href: '/users/onsite',
+        icon: Users,
+      },
+      {
         label: { ar: 'المقيّمون والمدربون', en: 'Assessors & trainers', nl: 'Beoordelaars & trainers' },
         href: '/assessors',
         icon: UserCheck,
@@ -166,7 +186,7 @@ const groups = [
 ]
 
 function pickLabel(label, language) {
-  return label?.[language] || label?.ar || label?.en || ''
+  return label?.[language] || label?.en || label?.ar || label?.nl || ''
 }
 
 export function getSidebarNavigation(canAccess = () => true) {

@@ -21,7 +21,7 @@ function normalizePayload(payload) {
 }
 
 function getSectionTitle(section) {
-  return readLocalized(section?.title) || `Section ${section?.id ?? ''}`.trim()
+  return readLocalized(section?.title) || (section?.id ? `#${section.id}` : '—')
 }
 
 function getQuizSectionId(quiz) {

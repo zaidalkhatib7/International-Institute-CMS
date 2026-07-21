@@ -1,3 +1,5 @@
+import { formatLocalizedNumber } from '../../../utils/localization'
+
 export const MAX_EVIDENCE_FILE_SIZE = 50 * 1024 * 1024
 
 export const EVIDENCE_ACCEPT = [
@@ -234,5 +236,5 @@ export function bytesToSize(bytes = 0, language = 'en') {
     size /= 1024
     index += 1
   }
-  return `${new Intl.NumberFormat(language === 'ar' ? 'ar' : language === 'nl' ? 'nl-NL' : 'en', { maximumFractionDigits: 1 }).format(size)} ${units[index]}`
+  return `${formatLocalizedNumber(size, language, { maximumFractionDigits: 1 })} ${units[index]}`
 }

@@ -17,6 +17,7 @@ import {
 import RplPageState from '../components/RplPageState'
 import RplStatusBadge from '../components/RplStatusBadge'
 import { useModalDialog } from '../../../hooks/useModalDialog'
+import { formatLocalizedDate, formatLocalizedNumber } from '../../../utils/localization'
 
 const copyByLanguage = {
   ar: {
@@ -26,6 +27,7 @@ const copyByLanguage = {
     search: 'بحث بالملف أو المتقدم...', all: 'جميع الحالات', refresh: 'تحديث', total: 'إجمالي الملفات', pending: 'بانتظار الإجراء', overdue: 'متأخرة', decided: 'مكتملة',
     reference: 'الملف', applicant: 'المتقدم', recommendation: 'التوصية', status: 'الحالة', received: 'تاريخ الاستلام', actions: 'الإجراء', reviewCase: 'مراجعة الملف', empty: 'لا توجد ملفات مطابقة.',
     decision: 'القرار', committeeSelect: 'لجنة الاعتماد', actionSelect: 'إجراء اللجنة', outcome: 'نتيجة القرار', level: 'المستوى النهائي', rationale: 'الأسباب والتعليل', notes: 'ملاحظات المراجعة', approve: 'اعتماد', return: 'إعادة للاستكمال', reject: 'رفض', submit: 'حفظ القرار', close: 'إغلاق', viewCase: 'فتح ملف RPL',
+    optionLabels: { submitted: 'تم الإرسال', under_review: 'قيد المراجعة', committee_review: 'مراجعة اللجنة', approved: 'معتمد', returned: 'معاد للاستكمال', rejected: 'مرفوض', upheld: 'تأييد القرار', modified: 'تعديل القرار', remanded: 'إعادة للمراجعة' },
   },
   en: {
     committee: { title: 'Accreditation Committee', description: 'Review assessor reports and issue the final documented decision.', queue: 'Cases awaiting committee', action: 'Issue decision', saved: 'Committee decision recorded.' },
@@ -34,6 +36,7 @@ const copyByLanguage = {
     search: 'Search case or applicant...', all: 'All statuses', refresh: 'Refresh', total: 'Total cases', pending: 'Pending action', overdue: 'Overdue', decided: 'Completed',
     reference: 'Case', applicant: 'Applicant', recommendation: 'Recommendation', status: 'Status', received: 'Received', actions: 'Action', reviewCase: 'Review case', empty: 'No cases match the filters.',
     decision: 'Decision', committeeSelect: 'Accreditation committee', actionSelect: 'Committee action', outcome: 'Decision outcome', level: 'Final level', rationale: 'Rationale and reasons', notes: 'Review notes', approve: 'Approve', return: 'Return for completion', reject: 'Reject', submit: 'Save decision', close: 'Close', viewCase: 'Open RPL case',
+    optionLabels: { submitted: 'Submitted', under_review: 'Under review', committee_review: 'Committee review', approved: 'Approved', returned: 'Returned for completion', rejected: 'Rejected', upheld: 'Decision upheld', modified: 'Decision modified', remanded: 'Remanded for review' },
   },
   nl: {
     committee: { title: 'Accreditatiecommissie', description: 'Beoordeel rapporten en neem het definitieve, gemotiveerde besluit.', queue: 'Dossiers voor commissie', action: 'Besluit nemen', saved: 'Commissiebesluit vastgelegd.' },
@@ -42,6 +45,7 @@ const copyByLanguage = {
     search: 'Zoek dossier of aanvrager...', all: 'Alle statussen', refresh: 'Vernieuwen', total: 'Totaal dossiers', pending: 'In afwachting', overdue: 'Te laat', decided: 'Voltooid',
     reference: 'Dossier', applicant: 'Aanvrager', recommendation: 'Aanbeveling', status: 'Status', received: 'Ontvangen', actions: 'Actie', reviewCase: 'Dossier beoordelen', empty: 'Geen dossiers komen overeen.',
     decision: 'Besluit', committeeSelect: 'Accreditatiecommissie', actionSelect: 'Commissieactie', outcome: 'Uitkomst besluit', level: 'Definitief niveau', rationale: 'Motivering', notes: 'Reviewnotities', approve: 'Goedkeuren', return: 'Terug voor aanvulling', reject: 'Afwijzen', submit: 'Besluit opslaan', close: 'Sluiten', viewCase: 'RPL-dossier openen',
+    optionLabels: { submitted: 'Ingediend', under_review: 'In beoordeling', committee_review: 'Commissiebeoordeling', approved: 'Goedgekeurd', returned: 'Teruggestuurd voor aanvulling', rejected: 'Afgewezen', upheld: 'Besluit bevestigd', modified: 'Besluit gewijzigd', remanded: 'Terugverwezen voor beoordeling' },
   },
 }
 
@@ -144,7 +148,7 @@ export default function RplGovernancePage({ mode = 'committee' }) {
     { key: 'applicant', label: copy.applicant, render: (row) => { const applicant = applicantOf(row); return <div><span className="font-semibold">{applicant.name || row.applicant_name || '—'}</span><p className="mt-1 text-xs text-[var(--color-text-muted)]">{applicant.email || '—'}</p></div> } },
     { key: 'recommendation', label: copy.recommendation, render: (row) => localize(row.assessor_report?.recommendation || row.recommendation || row.reason, language) || String(row.recommendation || '—').replaceAll('_', ' ') },
     { key: 'status', label: copy.status, render: (row) => <RplStatusBadge status={row.status || applicationOf(row).status} language={language} /> },
-    { key: 'received', label: copy.received, render: (row) => (row.submitted_at || row.created_at) ? new Date(row.submitted_at || row.created_at).toLocaleDateString(language === 'ar' ? 'ar' : language) : '—' },
+    { key: 'received', label: copy.received, render: (row) => formatLocalizedDate(row.submitted_at || row.created_at, language) },
     { key: 'action', label: copy.actions, render: (row) => <Button size="sm" variant="outline" onClick={() => { setSelected(row); setForm({ decision: mode === 'quality' ? 'approved' : 'upheld', committee_id: '', action_id: '', outcome_id: '', decided_level_id: '', rationale: '', notes: '' }); setAction({ busy: false, error: '', success: '' }) }}><Eye size={16} />{copy.reviewCase}</Button> },
   ]
 
@@ -159,9 +163,9 @@ export default function RplGovernancePage({ mode = 'committee' }) {
   return (
     <section dir={isArabic ? 'rtl' : 'ltr'} className="space-y-7">
       <PageHeader title={page.title} description={page.description} actions={<Button variant="outline" onClick={load}><RefreshCw size={17} />{copy.refresh}</Button>} />
-      <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4"><StatCard title={copy.total} value={metrics.total} icon={icons} /><StatCard title={copy.pending} value={metrics.pending} icon={<RefreshCw size={21} />} /><StatCard title={copy.overdue} value={metrics.overdue} icon={<Scale size={21} />} /><StatCard title={copy.decided} value={metrics.decided} icon={<BadgeCheck size={21} />} /></div>
+      <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4"><StatCard title={copy.total} value={formatLocalizedNumber(metrics.total, language)} icon={icons} /><StatCard title={copy.pending} value={formatLocalizedNumber(metrics.pending, language)} icon={<RefreshCw size={21} />} /><StatCard title={copy.overdue} value={formatLocalizedNumber(metrics.overdue, language)} icon={<Scale size={21} />} /><StatCard title={copy.decided} value={formatLocalizedNumber(metrics.decided, language)} icon={<BadgeCheck size={21} />} /></div>
       {action.error || action.success ? <div role="alert" className={`rounded-2xl border px-4 py-3 text-sm ${action.error ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700'}`}>{action.error || action.success}</div> : null}
-      <Card><CardContent className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_280px]"><Input leftIcon={<Search size={18} />} placeholder={copy.search} value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} /><Select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="">{copy.all}</option>{statusOptions.map((status) => <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>)}</Select></CardContent></Card>
+      <Card><CardContent className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_280px]"><Input leftIcon={<Search size={18} />} placeholder={copy.search} value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} /><Select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="">{copy.all}</option>{statusOptions.map((status) => <option key={status} value={status}>{copy.optionLabels[status] || status.replaceAll('_', ' ')}</option>)}</Select></CardContent></Card>
       <RplPageState loading={state.loading} error={state.error} onRetry={load} language={language}><DataTableShell title={page.queue} description={page.description} columns={columns} rows={state.rows} emptyText={copy.empty} /></RplPageState>
       {selected ? (
         <div className="fixed inset-0 z-[75] flex items-end justify-center bg-[#031C2C]/60 p-0 backdrop-blur-sm sm:items-center sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null) }}>
@@ -169,7 +173,7 @@ export default function RplGovernancePage({ mode = 'committee' }) {
           <Card className="w-full rounded-b-none sm:rounded-[var(--radius-lg)]">
             <CardHeader className="border-b border-[var(--color-border)]"><div className="flex items-center justify-between gap-3"><div><CardTitle>{page.action}</CardTitle><p className="mt-1 text-sm text-[var(--color-text-muted)]">{applicationOf(selected).case_reference || `RPL-${applicationOf(selected).id}`}</p></div><Button size="sm" variant="ghost" onClick={() => setSelected(null)}>{copy.close}</Button></div></CardHeader>
             <CardContent className="space-y-4 pt-6">
-              {mode !== 'committee' ? <Select label={copy.decision} value={form.decision} onChange={(event) => setForm((current) => ({ ...current, decision: event.target.value }))}>{options.map((option) => <option key={option} value={option}>{option.replaceAll('_', ' ')}</option>)}</Select> : null}
+              {mode !== 'committee' ? <Select label={copy.decision} value={form.decision} onChange={(event) => setForm((current) => ({ ...current, decision: event.target.value }))}>{options.map((option) => <option key={option} value={option}>{copy.optionLabels[option] || option.replaceAll('_', ' ')}</option>)}</Select> : null}
               {mode === 'committee' ? <Select label={copy.committeeSelect} value={form.committee_id} onChange={(event) => setForm((current) => ({ ...current, committee_id: event.target.value }))}><option value="">—</option>{state.committees.map((committee) => <option key={committee.id} value={committee.id}>{localize(committee.name, language)}</option>)}</Select> : null}
               {mode === 'committee' || (mode === 'appeals' && form.decision === 'modified') ? <Select label={copy.actionSelect} value={form.action_id} onChange={(event) => setForm((current) => ({ ...current, action_id: event.target.value }))}><option value="">—</option>{state.actions.map((item) => <option key={item.id} value={item.id}>{localize(item.name, language)}</option>)}</Select> : null}
               {mode === 'committee' || (mode === 'appeals' && form.decision === 'modified') ? <Select label={copy.level} value={form.decided_level_id} onChange={(event) => setForm((current) => ({ ...current, decided_level_id: event.target.value }))}><option value="">—</option>{state.levels.map((level) => <option key={level.id} value={level.id}>{localize(level.name, language)}</option>)}</Select> : null}

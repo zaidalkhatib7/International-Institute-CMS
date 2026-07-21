@@ -5,6 +5,7 @@ import { readApiError, unwrapCollection } from '../../../services/apiResponse'
 import { getAdminLanguage } from '../../../services/languageStorage'
 import { fetchRplAssessors, fetchRplAssignments } from '../services/rplService'
 import RplPageState from '../components/RplPageState'
+import { formatLocalizedList, formatLocalizedNumber } from '../../../utils/localization'
 
 const copyByLanguage = {
   ar: {
@@ -57,18 +58,18 @@ export default function RplAssessorsPage() {
 
   const columns = [
     { key: 'assessor', label: copy.assessor, render: (row) => <div className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] font-bold text-white">{(row.user?.name || row.name || 'A').slice(0, 1).toUpperCase()}</span><div><span className="font-bold">{row.user?.name || row.name || '—'}</span><p className="mt-1 text-xs text-[var(--color-text-muted)]">{row.user?.email || row.email || '—'}</p></div></div> },
-    { key: 'expertise', label: copy.expertise, render: (row) => (row.expertise || row.expertise_categories || []).map((item) => item.name?.[language] || item.name || item.title).filter(Boolean).join(', ') || row.professional_field || '—' },
-    { key: 'languages', label: copy.languages, render: (row) => (row.languages || []).map((item) => item.name?.[language] || item.name || item).join(', ') || '—' },
+    { key: 'expertise', label: copy.expertise, render: (row) => formatLocalizedList((row.expertise || row.expertise_categories || []).map((item) => item.name?.[language] || item.name || item.title).filter(Boolean), language) || row.professional_field || '—' },
+    { key: 'languages', label: copy.languages, render: (row) => formatLocalizedList((row.languages || []).map((item) => item.name?.[language] || item.name || item).filter(Boolean), language) || '—' },
     { key: 'verification', label: copy.verification, render: (row) => <Badge variant={['verified', 'approved'].includes(row.verification_status) ? 'success' : 'warning'}>{['verified', 'approved'].includes(row.verification_status) ? copy.verified : copy.pending}</Badge> },
     { key: 'availability', label: copy.availability, render: (row) => <Badge variant={row.availability_status === 'available' ? 'success' : 'neutral'}>{row.availability_status === 'available' ? copy.available : copy.unavailable}</Badge> },
-    { key: 'workload', label: copy.workload, render: (row) => <span className="font-semibold">{row.active_rpl_assignments_count ?? row.active_assignments_count ?? 0} {copy.activeCases}</span> },
+    { key: 'workload', label: copy.workload, render: (row) => <span className="font-semibold">{formatLocalizedNumber(row.active_rpl_assignments_count ?? row.active_assignments_count ?? 0, language)} {copy.activeCases}</span> },
   ]
 
   return (
     <section dir={isArabic ? 'rtl' : 'ltr'} className="space-y-7">
       <PageHeader title={copy.title} description={copy.description} />
       <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900"><AlertTriangle size={20} className="mt-0.5 shrink-0" /><p>{copy.warning}</p></div>
-      <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4"><StatCard title={copy.total} value={summary.total} icon={<UsersRound size={21} />} /><StatCard title={copy.available} value={summary.available} icon={<UserRoundCheck size={21} />} /><StatCard title={copy.assigned} value={summary.assigned} icon={<BriefcaseBusiness size={21} />} /><StatCard title={copy.conflicts} value={summary.conflicts} icon={<ShieldCheck size={21} />} /></div>
+      <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4"><StatCard title={copy.total} value={formatLocalizedNumber(summary.total, language)} icon={<UsersRound size={21} />} /><StatCard title={copy.available} value={formatLocalizedNumber(summary.available, language)} icon={<UserRoundCheck size={21} />} /><StatCard title={copy.assigned} value={formatLocalizedNumber(summary.assigned, language)} icon={<BriefcaseBusiness size={21} />} /><StatCard title={copy.conflicts} value={formatLocalizedNumber(summary.conflicts, language)} icon={<ShieldCheck size={21} />} /></div>
       <Card><CardContent className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_280px]"><Input leftIcon={<Search size={18} />} placeholder={copy.search} value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} /><Select value={filters.availability} onChange={(event) => setFilters((current) => ({ ...current, availability: event.target.value }))}><option value="">{copy.allAvailability}</option><option value="available">{copy.availableOnly}</option><option value="unavailable">{copy.unavailable}</option></Select></CardContent></Card>
       <RplPageState loading={state.loading} error={state.error} onRetry={load} language={language}><DataTableShell title={copy.title} description={copy.description} columns={columns} rows={state.rows} emptyText={copy.empty} /></RplPageState>
     </section>

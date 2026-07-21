@@ -30,6 +30,7 @@ import {
   toggleAdminProgramActive,
 } from '../services/programsService'
 import { getCurrentLanguage, readLocalizedValue } from '../../../utils/localization'
+import { readApiError } from '../../../services/apiResponse'
 
 const PROGRAMS_TABLE_GRID =
   'grid-cols-[minmax(280px,2.2fr)_minmax(120px,1fr)_minmax(110px,0.9fr)_minmax(130px,0.95fr)_minmax(120px,0.95fr)_minmax(120px,0.95fr)_72px]'
@@ -58,7 +59,7 @@ function getCategoryLabel(category) {
 }
 
 function getProgramTitle(program) {
-  return readLocalized(program?.title) || 'Untitled Program'
+  return readLocalized(program?.title) || program?.slug || '—'
 }
 
 function getProgramShortDescription(program) {
@@ -192,7 +193,7 @@ function ProgramRow({
       <div className="truncate text-lg text-[var(--color-text-body,#43474D)]">{duration}</div>
 
       <div className="text-lg font-semibold text-[var(--color-text)]">
-        {program.price_points ?? 0} II Points
+        {program.price_points ?? 0} {labels.points}
       </div>
 
       <ToggleCell
@@ -281,6 +282,7 @@ export default function ProgramsPage() {
         rows: 'صفوف',
         prev: 'السابق',
         next: 'التالي',
+        live: 'مباشر', page: 'الصفحة', points: 'نقاط II', loadFailed: 'تعذر تحميل البرامج.', publicationFailed: 'تعذر تحديث حالة النشر.', visibilityFailed: 'تعذر تحديث الظهور.',
       }
     }
     if (language === 'nl') {
@@ -324,6 +326,7 @@ export default function ProgramsPage() {
         rows: 'Rijen',
         prev: 'Vorige',
         next: 'Volgende',
+        live: 'Live', page: 'Pagina', points: 'II-punten', loadFailed: 'De programma’s konden niet worden geladen.', publicationFailed: 'De publicatiestatus kon niet worden bijgewerkt.', visibilityFailed: 'De zichtbaarheid kon niet worden bijgewerkt.',
       }
     }
     return {
@@ -366,6 +369,7 @@ export default function ProgramsPage() {
       rows: 'Rows',
       prev: 'Prev',
       next: 'Next',
+      live: 'Live', page: 'Page', points: 'II Points', loadFailed: 'Failed to load programs.', publicationFailed: 'Failed to update publication status.', visibilityFailed: 'Failed to update visibility.',
     }
   }, [language])
 
@@ -429,14 +433,14 @@ export default function ProgramsPage() {
 
       setAllPrograms(enrichedPrograms)
     } catch (err) {
-      const message = err?.response?.data?.message || err?.message || 'Failed to load programs.'
+      const message = readApiError(err, copy.loadFailed)
       setError(message)
     } finally {
       if (!silent) {
         setIsLoading(false)
       }
     }
-  }, [])
+  }, [copy.loadFailed])
 
   useEffect(() => {
     loadPrograms()
@@ -535,7 +539,7 @@ export default function ProgramsPage() {
       setStatusMessage('Program active status updated successfully.')
     } catch (err) {
       const message =
-        err?.response?.data?.message || err?.message || 'Failed to update publication status.'
+        readApiError(err, copy.publicationFailed)
       setError(message)
     } finally {
       setTogglingState({
@@ -562,7 +566,7 @@ export default function ProgramsPage() {
       await loadPrograms({ silent: true })
       setStatusMessage('Program visibility updated successfully.')
     } catch (err) {
-      const message = err?.response?.data?.message || err?.message || 'Failed to update visibility.'
+      const message = readApiError(err, copy.visibilityFailed)
       setError(message)
     } finally {
       setTogglingState({
@@ -617,28 +621,28 @@ export default function ProgramsPage() {
           icon={<BookOpenText size={22} />}
           title={copy.totalPrograms}
           value={String(metrics.total)}
-          badge="Live"
+          badge={copy.live}
           badgeVariant="info"
         />
         <MetricCard
           icon={<CheckCircle2 size={22} />}
           title={copy.activePrograms}
           value={String(metrics.active)}
-          badge="Live"
+          badge={copy.live}
           badgeVariant="success"
         />
         <MetricCard
           icon={<Star size={22} />}
           title={copy.featuredPrograms}
           value={String(metrics.featured)}
-          badge="Live"
+          badge={copy.live}
           badgeVariant="secondary"
         />
         <MetricCard
           icon={<PauseCircle size={22} />}
           title={copy.inactivePrograms}
           value={String(metrics.inactive)}
-          badge="Live"
+          badge={copy.live}
           badgeVariant="danger"
         />
       </section>
@@ -763,7 +767,7 @@ export default function ProgramsPage() {
             </Button>
 
             <span className="min-w-[88px] text-center text-sm text-[var(--color-text-muted)]">
-              Page <b>{safeCurrentPage}</b> / <b>{totalPages}</b>
+              {copy.page} <b>{safeCurrentPage}</b> / <b>{totalPages}</b>
             </span>
 
             <Button
