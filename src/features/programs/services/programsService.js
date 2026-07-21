@@ -137,3 +137,46 @@ export async function fetchAdminCategories() {
   const response = await http.get('/admin/categories')
   return response.data
 }
+
+// --- One-time AI package authoring (admin-triggered only) ---
+
+export async function fetchAiPackageStatus(programId) {
+  const response = await http.get(`/admin/programs/${programId}/ai-package`)
+  return response.data
+}
+
+export async function generateAiPackage(programId, locale) {
+  const response = await http.post(`/admin/programs/${programId}/ai-package`, { locale })
+  return response.data
+}
+
+export async function regenerateAiPackageComponent(programId, component, refId) {
+  const response = await http.post(`/admin/programs/${programId}/ai-package/regenerate`, {
+    component,
+    ref_id: refId,
+  })
+  return response.data
+}
+
+export async function resolveAiPackageSource(programId, artifactId, citation) {
+  const response = await http.post(`/admin/programs/${programId}/ai-package/resolve-source`, {
+    artifact_id: artifactId,
+    citation,
+  })
+  return response.data
+}
+
+export async function rejectAiPackage(programId) {
+  const response = await http.delete(`/admin/programs/${programId}/ai-package`)
+  return response.data
+}
+
+export async function publishTrainingPackage(programId) {
+  const response = await http.post(`/admin/programs/${programId}/publish-package`)
+  return response.data
+}
+
+export async function openNewPackageVersion(programId, version) {
+  const response = await http.post(`/admin/programs/${programId}/new-version`, { version })
+  return response.data
+}

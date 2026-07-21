@@ -27,6 +27,7 @@ import {
   updateAdminProgram,
 } from '../services/programsService'
 import { getCurrentLanguage, readLocalizedValue } from '../../../utils/localization'
+import AiPackagePanel from '../components/AiPackagePanel'
 
 function readLocalized(value, preferredLanguage = 'en') {
   return readLocalizedValue(value, preferredLanguage)
@@ -86,6 +87,8 @@ function hasAnyLocalizedValue(value) {
 
 function mapProgramToFormData(program) {
   return {
+    competency_gap_group_id: program?.competency_gap_group_id || null,
+    official_code: program?.official_code || '',
     category_id: program?.category_id
       ? String(program.category_id)
       : program?.category?.id
@@ -1196,6 +1199,7 @@ export default function ProgramBuilderPage() {
           { key: 'pricing', label: 'التسعير' },
           { key: 'media', label: 'الوسائط' },
           { key: 'publish', label: 'النشر' },
+          { key: 'ai-package', label: 'حقيبة AI' },
         ],
       }
     }
@@ -1338,6 +1342,7 @@ export default function ProgramBuilderPage() {
           { key: 'pricing', label: 'Prijzen' },
           { key: 'media', label: 'Media' },
           { key: 'publish', label: 'Publiceren' },
+          { key: 'ai-package', label: 'AI-pakket' },
         ],
       }
     }
@@ -1479,6 +1484,7 @@ export default function ProgramBuilderPage() {
         { key: 'pricing', label: 'Pricing' },
         { key: 'media', label: 'Media' },
         { key: 'publish', label: 'Publish' },
+        { key: 'ai-package', label: 'AI Package' },
       ],
     }
   }, [language])
@@ -1739,6 +1745,13 @@ export default function ProgramBuilderPage() {
         return <MediaContent formData={formData} updateField={updateField} copy={copy} />
       case 'publish':
         return <PublishContent formData={formData} updateField={updateField} copy={copy} />
+      case 'ai-package':
+        return (
+          <AiPackagePanel
+            programId={programId}
+            isGoverned={Boolean(formData.competency_gap_group_id || formData.official_code)}
+          />
+        )
       default:
         return (
           <BasicInfoContent
