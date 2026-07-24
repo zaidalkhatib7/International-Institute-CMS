@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bot, CheckCircle2, ExternalLink, Loader2, RefreshCw, ShieldAlert, Sparkles, Trash2, UploadCloud } from 'lucide-react'
+import { Bot, CheckCircle2, Download, ExternalLink, Loader2, RefreshCw, ShieldAlert, Sparkles, Trash2, UploadCloud } from 'lucide-react'
 import { Badge, Button, Card, CardContent, Select } from '../../../components/ui'
 import {
+  downloadPackagePdf,
   fetchAiPackageStatus,
   generateAiPackage,
   openNewPackageVersion,
@@ -169,7 +170,7 @@ function refId(componentRef) {
   return Number.isFinite(value) ? value : null
 }
 
-export default function AiPackagePanel({ programId, isGoverned }) {
+export default function AiPackagePanel({ programId, isGoverned, officialCode = '' }) {
   const navigate = useNavigate()
   const language = getCurrentLanguage()
   const copy = COPY[language] || COPY.en
@@ -295,6 +296,18 @@ export default function AiPackagePanel({ programId, isGoverned }) {
           ) : null}
 
           <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() =>
+                withBusy(() =>
+                  downloadPackagePdf(programId, `${officialCode || `program-${programId}`}-package.pdf`),
+                )
+              }
+            >
+              <Download className="h-4 w-4" aria-hidden="true" />
+              {language === 'ar' ? 'تنزيل الحقيبة PDF' : language === 'nl' ? 'Pakket als PDF' : 'Download package PDF'}
+            </Button>
             {!isPublished ? (
               <>
                 <Select

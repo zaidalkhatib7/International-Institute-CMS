@@ -1750,6 +1750,7 @@ export default function ProgramBuilderPage() {
           <AiPackagePanel
             programId={programId}
             isGoverned={Boolean(formData.competency_gap_group_id || formData.official_code)}
+            officialCode={formData.official_code || ''}
           />
         )
       default:

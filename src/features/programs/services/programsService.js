@@ -171,6 +171,18 @@ export async function rejectAiPackage(programId) {
   return response.data
 }
 
+export async function downloadPackagePdf(programId, filename = 'package.pdf') {
+  const response = await http.get(`/admin/programs/${programId}/package-pdf`, { responseType: 'blob' })
+  const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+}
+
 export async function publishTrainingPackage(programId) {
   const response = await http.post(`/admin/programs/${programId}/publish-package`)
   return response.data
