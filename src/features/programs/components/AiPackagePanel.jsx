@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Bot, CheckCircle2, Loader2, RefreshCw, ShieldAlert, Sparkles, Trash2, UploadCloud } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Bot, CheckCircle2, ExternalLink, Loader2, RefreshCw, ShieldAlert, Sparkles, Trash2, UploadCloud } from 'lucide-react'
 import { Badge, Button, Card, CardContent, Select } from '../../../components/ui'
 import {
   fetchAiPackageStatus,
@@ -139,12 +140,37 @@ const REGENERATABLE = {
   question_batch: 'question_bank',
 }
 
+const TYPE_LABELS = {
+  ar: { outline: 'مخطط الحقيبة', module: 'وحدة تدريبية', lesson: 'درس', activities: 'أنشطة تطبيقية', question_batch: 'بنك أسئلة' },
+  en: { outline: 'Package outline', module: 'Module', lesson: 'Lesson', activities: 'Activities', question_batch: 'Question bank' },
+  nl: { outline: 'Pakketoverzicht', module: 'Module', lesson: 'Les', activities: 'Opdrachten', question_batch: 'Vragenbank' },
+}
+
+const STEP_LABELS = {
+  ar: { outline: 'المخطط', modules: 'الوحدات', lessons: 'الدروس', activities: 'الأنشطة', question_bank: 'بنك الأسئلة', validate: 'الفحص البنيوي' },
+  en: { outline: 'Outline', modules: 'Modules', lessons: 'Lessons', activities: 'Activities', question_bank: 'Question bank', validate: 'Validation' },
+  nl: { outline: 'Overzicht', modules: 'Modules', lessons: 'Lessen', activities: 'Opdrachten', question_bank: 'Vragenbank', validate: 'Validatie' },
+}
+
+const TREE_COPY = {
+  ar: { title: 'محتوى الحقيبة المولّدة — راجعه درسًا درسًا', hint: 'افتح أي درس من شاشة الأقسام والدروس المعتادة للمراجعة والتحرير؛ ما تعدّله يبقى محفوظًا، وإعادة التوليد الجزئي متاحة أدناه.', questions: 'سؤالًا', progressTitle: 'تقدم التوليد المباشر' },
+  en: { title: 'Generated package content — review lesson by lesson', hint: 'Open any lesson in the usual Sections & Lessons screens to review/edit; edits persist, and per-component regeneration is available below.', questions: 'questions', progressTitle: 'Live generation progress' },
+  nl: { title: 'Gegenereerde pakketinhoud — les voor les beoordelen', hint: 'Open elke les in de gebruikelijke schermen om te beoordelen/bewerken.', questions: 'vragen', progressTitle: 'Live generatievoortgang' },
+}
+
+function locText(value, language) {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  return value[language] || value.ar || value.en || value.nl || ''
+}
+
 function refId(componentRef) {
   const value = Number(String(componentRef || '').split(':')[1])
   return Number.isFinite(value) ? value : null
 }
 
 export default function AiPackagePanel({ programId, isGoverned }) {
+  const navigate = useNavigate()
   const language = getCurrentLanguage()
   const copy = COPY[language] || COPY.en
   const [status, setStatus] = useState(null)
@@ -333,6 +359,35 @@ export default function AiPackagePanel({ programId, isGoverned }) {
             )}
           </div>
 
+          {isRunning && status?.progress ? (
+            <div className="rounded-lg border border-[var(--color-border)] p-4 text-sm">
+              <p className="mb-2 font-semibold text-[var(--color-text)]">
+                {(TREE_COPY[language] || TREE_COPY.en).progressTitle}
+              </p>
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {Object.entries(STEP_LABELS[language] || STEP_LABELS.en).map(([key, label]) => {
+                  const done = (status.progress.completed_steps || []).includes(key)
+                  const active = status.progress.current_step === key
+                  return (
+                    <Badge key={key} variant={done ? 'success' : active ? 'secondary' : 'neutral'}>
+                      {done ? '✓ ' : active ? '⏳ ' : ''}{label}
+                    </Badge>
+                  )
+                })}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="neutral">{copy.sections}: {status.progress.sections_done}</Badge>
+                <Badge variant="neutral">
+                  {copy.lessons}: {status.progress.lessons_done}{status.progress.lessons_total ? ` / ${status.progress.lessons_total}` : ''}
+                </Badge>
+                <Badge variant="neutral">{copy.activities}: {status.progress.assignments_done}</Badge>
+                <Badge variant="neutral">
+                  {copy.questions}: {status.progress.questions_done}{status.progress.questions_total ? ` / ${status.progress.questions_total}` : ''}
+                </Badge>
+              </div>
+            </div>
+          ) : null}
+
           {run?.validation_results ? (
             <div className="rounded-lg border border-[var(--color-border)] p-4 text-sm">
               <p className="mb-2 font-semibold text-[var(--color-text)]">{copy.validation}</p>
@@ -365,7 +420,11 @@ export default function AiPackagePanel({ programId, isGoverned }) {
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm"
               >
                 <span>
-                  {copy.sourceReview}: <strong>{flag.citation}</strong>
+                  <strong>{flag.citation}</strong>
+                  <span className="mt-0.5 block text-xs text-amber-700">
+                    {(TYPE_LABELS[language] || TYPE_LABELS.en)[artifact.component_type] || artifact.component_type}
+                    {artifact.ref_title ? ' — '+locText(artifact.ref_title, language) : ''} · {copy.sourceReview}
+                  </span>
                 </span>
                 <Button
                   size="sm"
@@ -383,6 +442,59 @@ export default function AiPackagePanel({ programId, isGoverned }) {
         </Card>
       ) : null}
 
+      {(status?.content_tree || []).length > 0 ? (
+        <Card>
+          <CardContent className="space-y-3 p-6">
+            <h4 className="text-sm font-semibold text-[var(--color-text)]">
+              {(TREE_COPY[language] || TREE_COPY.en).title}
+            </h4>
+            <p className="text-xs text-[var(--color-text-muted)]">{(TREE_COPY[language] || TREE_COPY.en).hint}</p>
+            {status.content_tree.map((section, index) => (
+              <div key={section.section_id} className="rounded-lg border border-[var(--color-border)] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/sections/edit?id=${section.section_id}`)}
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--color-primary)] hover:underline"
+                  >
+                    {index + 1}. {locText(section.title, language)}
+                    <ExternalLink size={13} aria-hidden="true" />
+                  </button>
+                  {section.quiz_id ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/quizzes/edit?id=${section.quiz_id}`)}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-surface-muted)] px-3 py-1 text-xs font-semibold text-[var(--color-primary)] hover:bg-[var(--color-secondary)]"
+                    >
+                      {section.question_count} {(TREE_COPY[language] || TREE_COPY.en).questions}
+                      <ExternalLink size={11} aria-hidden="true" />
+                    </button>
+                  ) : (
+                    <Badge variant="neutral">
+                      {section.question_count} {(TREE_COPY[language] || TREE_COPY.en).questions}
+                    </Badge>
+                  )}
+                </div>
+                <ul className="mt-2 space-y-1 text-sm">
+                  {section.lessons.map((lesson, li) => (
+                    <li key={lesson.id}>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/lessons/edit?id=${lesson.id}`)}
+                        className="inline-flex items-center gap-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:underline"
+                      >
+                        {index + 1}.{li + 1} {locText(lesson.title, language)}
+                        <ExternalLink size={12} aria-hidden="true" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
       {artifacts.length > 0 ? (
         <Card>
           <CardContent className="space-y-2 p-6">
@@ -391,9 +503,11 @@ export default function AiPackagePanel({ programId, isGoverned }) {
               {artifacts.map((artifact) => (
                 <div key={artifact.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="neutral">{artifact.component_type}</Badge>
-                    <span className="text-[var(--color-text-muted)]">{artifact.component_ref}</span>
-                    <span className="text-xs text-[var(--color-text-muted)]">#{artifact.sequence}</span>
+                    <Badge variant="neutral">{(TYPE_LABELS[language] || TYPE_LABELS.en)[artifact.component_type] || artifact.component_type}</Badge>
+                    <span className="font-medium text-[var(--color-text)]">
+                      {artifact.ref_title ? locText(artifact.ref_title, language) : artifact.component_type === 'outline' ? '—' : artifact.component_ref}
+                    </span>
+                    {artifact.sequence > 1 ? <span className="text-xs text-[var(--color-text-muted)]">v{artifact.sequence}</span> : null}
                     {artifact.superseded_by ? <Badge variant="secondary">{copy.superseded}</Badge> : null}
                   </div>
                   {!isPublished &&

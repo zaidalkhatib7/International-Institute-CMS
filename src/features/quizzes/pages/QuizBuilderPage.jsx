@@ -1,16 +1,43 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CircleCheckBig, FileQuestion, FileUp, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Button, Card, CardContent, Input, Select, Textarea } from '../../../components/ui'
+import { Badge, Button, Card, CardContent, Input, Select, Textarea } from '../../../components/ui'
 import { fetchAdminSections } from '../../sections/services/sectionsService'
 import {
+  approveQuestion,
   createAdminQuiz,
   fetchQuizPdfImport,
   fetchAdminQuizById,
   importQuizQuestionsFromPdf,
+  rejectQuestion,
   updateAdminQuiz,
+  updateQuestionReview,
 } from '../services/quizzesService'
+
+// B1 canonical taxonomy — independent dimensions, mirrored from the backend enums.
+const TAXONOMY = {
+  format: ['MCQ_SINGLE', 'MCQ_MULTIPLE', 'SHORT_ANSWER', 'CONSTRUCTED_RESPONSE', 'PRACTICAL_TASK'],
+  context: ['DIRECT', 'SCENARIO_BASED', 'CASE_BASED', 'DATA_BASED', 'DOCUMENT_BASED'],
+  cognitive_demand: ['REMEMBER', 'UNDERSTAND', 'APPLY', 'ANALYZE', 'EVALUATE', 'CREATE'],
+  difficulty: ['foundational', 'intermediate', 'advanced'],
+}
+
+const TAXONOMY_LABELS = {
+  format: 'الصيغة',
+  context: 'السياق',
+  cognitive_demand: 'الطلب المعرفي',
+  difficulty: 'الصعوبة',
+}
+
+const REVIEW_STATUS_META = {
+  ai_draft: { label: 'مسودة AI', variant: 'warning' },
+  pending_review: { label: 'بانتظار المراجعة', variant: 'warning' },
+  approved: { label: 'معتمد', variant: 'success' },
+  rejected: { label: 'مرفوض', variant: 'danger' },
+  superseded: { label: 'استُبدل', variant: 'neutral' },
+}
 import { getCurrentLanguage, readLocalizedValue } from '../../../utils/localization'
+import { readApiError } from '../../../services/apiResponse'
 
 function readLocalized(value) {
   return readLocalizedValue(value)
@@ -68,6 +95,15 @@ function mapQuizToFormData(quiz) {
             nl: question?.question_text?.nl || '',
           },
           sort_order: question?.sort_order ?? questionIndex + 1,
+          // Read-only AI-authoring review metadata (preserved server-side on save).
+          difficulty: question?.difficulty || null,
+          format: question?.format || null,
+          context: question?.context || null,
+          cognitive_demand: question?.cognitive_demand || null,
+          review_status: question?.review_status || null,
+          question_type: question?.question_type || null,
+          answer_rationale: question?.answer_rationale || null,
+          authoring_meta: question?.authoring_meta || null,
           options:
             Array.isArray(question?.options) && question.options.length
               ? question.options.map((option, optionIndex) => ({
@@ -166,7 +202,7 @@ export default function QuizBuilderPage() {
         quizBasics: 'أساسيات الاختبار',
         section: 'القسم',
         selectSection: 'اختر قسمًا',
-        passPercentage: 'نسبة النجاح',
+        passPercentage: 'عدد الأسئلة في المحاولة',
         quizTitle: 'عنوان الاختبار',
         quizTitlePlaceholder: 'مثال: اختبار أساسيات القيادة',
         question: 'السؤال',
@@ -331,6 +367,8 @@ export default function QuizBuilderPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
+  const [reviewBusyId, setReviewBusyId] = useState(null)
+  const [reviewError, setReviewError] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
   const [saveError, setSaveError] = useState('')
   const [pdfFile, setPdfFile] = useState(null)
@@ -401,6 +439,36 @@ export default function QuizBuilderPage() {
         [language]: value,
       },
     }))
+  }
+
+  const patchQuestionInState = (questionIndex, patch) => {
+    setFormData((prev) => {
+      const nextQuestions = [...prev.questions]
+      nextQuestions[questionIndex] = { ...nextQuestions[questionIndex], ...patch }
+      return { ...prev, questions: nextQuestions }
+    })
+  }
+
+  const runReviewAction = async (questionIndex, action) => {
+    const target = formData.questions[questionIndex]
+    if (!target?.id) return
+    setReviewBusyId(target.id)
+    setReviewError('')
+    try {
+      const response = await action(target)
+      const fresh = response?.data || {}
+      patchQuestionInState(questionIndex, {
+        format: fresh.format ?? target.format,
+        context: fresh.context ?? target.context,
+        cognitive_demand: fresh.cognitive_demand ?? target.cognitive_demand,
+        difficulty: fresh.difficulty ?? target.difficulty,
+        review_status: fresh.review_status ?? target.review_status,
+      })
+    } catch (actionError) {
+      setReviewError(readApiError(actionError))
+    } finally {
+      setReviewBusyId(null)
+    }
   }
 
   const updateQuestionLocalizedField = (questionIndex, language, value) => {
@@ -865,6 +933,106 @@ export default function QuizBuilderPage() {
                   </div>
 
                   <div className="space-y-6">
+                    {question.review_status || question.question_type || question.difficulty || question.answer_rationale ? (
+                      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {question.review_status ? (
+                              <Badge variant={REVIEW_STATUS_META[question.review_status]?.variant || 'neutral'}>
+                                {REVIEW_STATUS_META[question.review_status]?.label || question.review_status}
+                              </Badge>
+                            ) : (
+                              <Badge variant="neutral">سؤال يدوي (خارج دورة AI)</Badge>
+                            )}
+                            {question.question_type ? (
+                              <Badge variant="info">
+                                {{ mcq: 'اختيار من متعدد', scenario: 'سيناريو', analytical: 'تحليلي', case_study: 'حالة دراسية', short_answer: 'إجابة قصيرة', practical_task: 'مهمة عملية' }[question.question_type] || question.question_type}
+                              </Badge>
+                            ) : null}
+                          </div>
+                          {question.review_status && question.id ? (
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={reviewBusyId === question.id}
+                                onClick={() =>
+                                  runReviewAction(questionIndex, (target) =>
+                                    updateQuestionReview(target.id, {
+                                      format: target.format,
+                                      context: target.context,
+                                      cognitive_demand: target.cognitive_demand,
+                                      difficulty: target.difficulty,
+                                    }),
+                                  )
+                                }
+                              >
+                                حفظ التصنيف
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                disabled={reviewBusyId === question.id || question.review_status === 'approved'}
+                                onClick={() => runReviewAction(questionIndex, (target) => approveQuestion(target.id))}
+                              >
+                                <CircleCheckBig size={15} /> اعتماد
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={reviewBusyId === question.id || question.review_status === 'rejected'}
+                                onClick={() => runReviewAction(questionIndex, (target) => rejectQuestion(target.id))}
+                              >
+                                رفض
+                              </Button>
+                            </div>
+                          ) : null}
+                        </div>
+                        {reviewBusyId === question.id && reviewError ? (
+                          <p className="mt-2 text-sm text-red-600">{reviewError}</p>
+                        ) : null}
+                        {question.review_status ? (
+                          <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            {Object.keys(TAXONOMY).map((dimension) => (
+                              <Select
+                                key={dimension}
+                                label={TAXONOMY_LABELS[dimension]}
+                                value={question[dimension] || ''}
+                                onChange={(e) => patchQuestionInState(questionIndex, { [dimension]: e.target.value || null })}
+                              >
+                                <option value="">— غير مصنف —</option>
+                                {TAXONOMY[dimension].map((value) => (
+                                  <option key={value} value={value}>{value}</option>
+                                ))}
+                              </Select>
+                            ))}
+                          </div>
+                        ) : null}
+                        {question.review_status && question.authoring_meta?.suggested_taxonomy && !question.format ? (
+                          <p className="mt-2 text-xs text-amber-700">
+                            اقتراح آلي (يتطلب تأكيدك): {question.authoring_meta.suggested_taxonomy.format} / {question.authoring_meta.suggested_taxonomy.context} / {question.authoring_meta.suggested_taxonomy.cognitive_demand} — اختر القيم ثم «حفظ التصنيف».
+                          </p>
+                        ) : null}
+                        {question.answer_rationale ? (
+                          <p className="mt-3 text-sm leading-6 text-[var(--color-text)]">
+                            <span className="font-semibold">تبرير الإجابة: </span>
+                            {question.answer_rationale?.[activeLanguage] || readLocalized(question.answer_rationale)}
+                          </p>
+                        ) : null}
+                        {question.authoring_meta?.expected_answer_characteristics ? (
+                          <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+                            <span className="font-semibold">مواصفات الإجابة المتوقعة: </span>
+                            {question.authoring_meta.expected_answer_characteristics}
+                          </p>
+                        ) : null}
+                        {question.authoring_meta?.rubric_draft ? (
+                          <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+                            <span className="font-semibold">مسودة معيار التصحيح: </span>
+                            {question.authoring_meta.rubric_draft}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <Textarea
                       rows={3}
                       label={`${copy.questionText} (${activeLanguage.toUpperCase()})`}

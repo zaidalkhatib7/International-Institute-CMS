@@ -40,3 +40,20 @@ export async function fetchQuizPdfImport(importId) {
   const response = await http.get(`/admin/quizzes/imports/${importId}`)
   return response.data
 }
+
+// --- B1 per-question review lifecycle (AI_DRAFT != APPROVED) ---
+
+export async function updateQuestionReview(questionId, payload) {
+  const response = await http.put(`/admin/quiz-questions/${questionId}/review`, payload)
+  return response.data
+}
+
+export async function approveQuestion(questionId) {
+  const response = await http.post(`/admin/quiz-questions/${questionId}/approve`)
+  return response.data
+}
+
+export async function rejectQuestion(questionId, reason = '') {
+  const response = await http.post(`/admin/quiz-questions/${questionId}/reject`, { reason })
+  return response.data
+}

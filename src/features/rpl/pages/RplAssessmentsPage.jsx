@@ -984,6 +984,18 @@ export default function RplAssessmentsPage() {
         language={language}
       >
         <>
+          <SectionAnchorNav
+            sections={[
+              ...(isAdministrator && assessment.rpl_assessor_assignment_id == null
+                ? [{ id: 'sec-gemini', label: geminiCopy.title }]
+                : []),
+              { id: 'sec-criteria', label: copy.criteria },
+              { id: 'sec-evidence', label: copy.evidence },
+              { id: 'sec-gap', label: copy.gap },
+              { id: 'sec-interview', label: copy.interview },
+              { id: 'sec-report', label: copy.report },
+            ]}
+          />
           <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
             <ShieldAlert className="mt-0.5 shrink-0" size={20} />
             <p>
@@ -1001,7 +1013,7 @@ export default function RplAssessmentsPage() {
             </div>
           ) : null}
           {isAdministrator && assessment.rpl_assessor_assignment_id == null ? (
-            <Card>
+            <Card id="sec-gemini" className="scroll-mt-24">
               <CardHeader className="border-b border-[var(--color-border)]">
                 <div className="flex items-center gap-2">
                   <Sparkles size={18} className="text-amber-600" />
@@ -1187,7 +1199,7 @@ export default function RplAssessmentsPage() {
               language={language}
             />
           ) : null}
-          <Card>
+          <Card id="sec-criteria" className="scroll-mt-24">
             <CardHeader className="border-b border-[var(--color-border)]">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <CardTitle>{copy.criteria}</CardTitle>
@@ -1351,7 +1363,7 @@ export default function RplAssessmentsPage() {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card id="sec-evidence" className="scroll-mt-24">
             <CardHeader className="border-b border-[var(--color-border)]">
               <CardTitle>{copy.evidence}</CardTitle>
             </CardHeader>
@@ -1384,7 +1396,7 @@ export default function RplAssessmentsPage() {
               )}
             </CardContent>
           </Card>
-          <Card>
+          <Card id="sec-gap" className="scroll-mt-24">
             <CardHeader className="border-b border-[var(--color-border)]">
               <div className="flex items-center justify-between gap-3">
                 <CardTitle>{copy.gap}</CardTitle>
@@ -1583,7 +1595,7 @@ export default function RplAssessmentsPage() {
             </CardContent>
           </Card>
           <div className="grid gap-6 xl:grid-cols-2">
-            <Card>
+            <Card id="sec-interview" className="scroll-mt-24">
               <CardHeader className="border-b border-[var(--color-border)]">
                 <CardTitle>{copy.interview}</CardTitle>
               </CardHeader>
@@ -1644,7 +1656,7 @@ export default function RplAssessmentsPage() {
                 </Button>
               </CardContent>
             </Card>
-            <Card>
+            <Card id="sec-report" className="scroll-mt-24">
               <CardHeader className="border-b border-[var(--color-border)]">
                 <CardTitle>{copy.report}</CardTitle>
               </CardHeader>
