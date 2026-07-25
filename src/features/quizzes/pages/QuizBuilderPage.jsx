@@ -1022,7 +1022,7 @@ export default function QuizBuilderPage() {
                         {question.review_status ? (
                           <div className="mt-3">
                             <Textarea
-                              label={`تبرير الإجابة (${activeLanguage.toUpperCase()}) — مطلوب للاعتماد`}
+                              label={`تبرير الإجابة (${activeLanguage.toUpperCase()}) — اختياري`}
                               rows={3}
                               value={question.answer_rationale?.[activeLanguage] || ''}
                               onChange={(e) =>
@@ -1032,9 +1032,10 @@ export default function QuizBuilderPage() {
                               }
                               placeholder="لماذا الإجابة الصحيحة صحيحة، ولماذا البدائل أضعف مهنيًا — بلا مبالغة في الاستنتاج."
                             />
+                            {/* سياسة التبرير الاختياري: تنبيه معلوماتي فقط — لا يمنع الاعتماد. */}
                             {!String(question.answer_rationale?.[activeLanguage] || '').trim() ? (
-                              <p className="mt-1 text-xs text-amber-700">
-                                لا يمكن اعتماد السؤال بتبرير فارغ. اكتب التبرير ثم اضغط «حفظ التصنيف» قبل «اعتماد».
+                              <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                                التبرير اختياري ولا يمنع الاعتماد. كتابته تدعم التأليف والمراجعة الأكاديمية والتغذية الراجعة للمتعلم.
                               </p>
                             ) : null}
                           </div>

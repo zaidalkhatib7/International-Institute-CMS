@@ -154,9 +154,9 @@ const STEP_LABELS = {
 }
 
 const TREE_COPY = {
-  ar: { title: 'محتوى الحقيبة المولّدة — راجعه درسًا درسًا', hint: 'افتح أي درس من شاشة الأقسام والدروس المعتادة للمراجعة والتحرير؛ ما تعدّله يبقى محفوظًا، وإعادة التوليد الجزئي متاحة أدناه.', questions: 'سؤالًا', progressTitle: 'تقدم التوليد المباشر' },
-  en: { title: 'Generated package content — review lesson by lesson', hint: 'Open any lesson in the usual Sections & Lessons screens to review/edit; edits persist, and per-component regeneration is available below.', questions: 'questions', progressTitle: 'Live generation progress' },
-  nl: { title: 'Gegenereerde pakketinhoud — les voor les beoordelen', hint: 'Open elke les in de gebruikelijke schermen om te beoordelen/bewerken.', questions: 'vragen', progressTitle: 'Live generatievoortgang' },
+  ar: { title: 'محتوى الحقيبة المولّدة — راجعه درسًا درسًا', hint: 'افتح أي درس من شاشة الأقسام والدروس المعتادة للمراجعة والتحرير؛ ما تعدّله يبقى محفوظًا، وإعادة التوليد الجزئي متاحة أدناه.', questions: 'سؤالًا', progressTitle: 'تقدم التوليد المباشر', rationale: 'تغطية تبرير الإجابة (مؤشر جودة معلوماتي — التبرير اختياري ولا يمنع الاعتماد أو النشر)' },
+  en: { title: 'Generated package content — review lesson by lesson', hint: 'Open any lesson in the usual Sections & Lessons screens to review/edit; edits persist, and per-component regeneration is available below.', questions: 'questions', progressTitle: 'Live generation progress', rationale: 'Answer-rationale coverage (informational quality metric — rationale is optional and never blocks approval or publication)' },
+  nl: { title: 'Gegenereerde pakketinhoud — les voor les beoordelen', hint: 'Open elke les in de gebruikelijke schermen om te beoordelen/bewerken.', questions: 'vragen', progressTitle: 'Live generatievoortgang', rationale: 'Dekking van antwoordmotivering (informatief — optioneel, blokkeert nooit)' },
 }
 
 function locText(value, language) {
@@ -462,6 +462,12 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
               {(TREE_COPY[language] || TREE_COPY.en).title}
             </h4>
             <p className="text-xs text-[var(--color-text-muted)]">{(TREE_COPY[language] || TREE_COPY.en).hint}</p>
+            {status?.rationale_coverage?.questions ? (
+              <p className="text-xs text-[var(--color-text-muted)]">
+                {(TREE_COPY[language] || TREE_COPY.en).rationale}:{' '}
+                {status.rationale_coverage.with_rationale}/{status.rationale_coverage.questions} ({status.rationale_coverage.coverage_percent}%)
+              </p>
+            ) : null}
             {status.content_tree.map((section, index) => (
               <div key={section.section_id} className="rounded-lg border border-[var(--color-border)] p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
