@@ -468,7 +468,8 @@ export default function QuizBuilderPage() {
       })
     } catch (actionError) {
       // The error must outlive the busy flag, otherwise a refused approval
-      // (e.g. a governed question with no rationale text) fails silently.
+      // (incomplete taxonomy, a non-MCQ format, or a broken option set) fails
+      // silently. A missing rationale is never a refusal reason — it is optional.
       setReviewError(readApiError(actionError))
       setReviewErrorId(target.id)
     } finally {

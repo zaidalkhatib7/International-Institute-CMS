@@ -569,7 +569,17 @@ export default function DynamicAssessmentPanel({ assessmentId, language }) {
                   {isIssued ? (
                     <p className="mt-3 rounded-xl bg-[var(--color-surface-muted)] p-3 text-sm leading-6">
                       <strong>{copy.answer}:</strong>{" "}
-                      {item.response?.answer ? String(item.response.answer) : copy.noAnswer}
+                      {/* MCQ-ONLY STANDARD: a governed answer is the chosen option id;
+                          only pre-standard items carry free text. */}
+                      {item.response?.selected_option_id
+                        ? `${item.response.selected_option_id}${
+                            (item.options || []).find((o) => o.id === item.response.selected_option_id)
+                              ? ` — ${(item.options || []).find((o) => o.id === item.response.selected_option_id).text}`
+                              : ""
+                          }`
+                        : item.response?.answer
+                          ? String(item.response.answer)
+                          : copy.noAnswer}
                     </p>
                   ) : (
                     <div className="mt-3 flex flex-wrap gap-2">
