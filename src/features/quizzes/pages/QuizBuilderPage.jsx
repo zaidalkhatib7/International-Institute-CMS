@@ -369,6 +369,7 @@ export default function QuizBuilderPage() {
   const [error, setError] = useState('')
   const [reviewBusyId, setReviewBusyId] = useState(null)
   const [reviewError, setReviewError] = useState('')
+  const [reviewErrorId, setReviewErrorId] = useState(null)
   const [saveMessage, setSaveMessage] = useState('')
   const [saveError, setSaveError] = useState('')
   const [pdfFile, setPdfFile] = useState(null)
@@ -454,6 +455,7 @@ export default function QuizBuilderPage() {
     if (!target?.id) return
     setReviewBusyId(target.id)
     setReviewError('')
+    setReviewErrorId(null)
     try {
       const response = await action(target)
       const fresh = response?.data || {}
@@ -465,7 +467,10 @@ export default function QuizBuilderPage() {
         review_status: fresh.review_status ?? target.review_status,
       })
     } catch (actionError) {
+      // The error must outlive the busy flag, otherwise a refused approval
+      // (e.g. a governed question with no rationale text) fails silently.
       setReviewError(readApiError(actionError))
+      setReviewErrorId(target.id)
     } finally {
       setReviewBusyId(null)
     }
@@ -963,6 +968,7 @@ export default function QuizBuilderPage() {
                                       context: target.context,
                                       cognitive_demand: target.cognitive_demand,
                                       difficulty: target.difficulty,
+                                      ...(target.answer_rationale ? { answer_rationale: target.answer_rationale } : {}),
                                     }),
                                   )
                                 }
@@ -988,8 +994,8 @@ export default function QuizBuilderPage() {
                             </div>
                           ) : null}
                         </div>
-                        {reviewBusyId === question.id && reviewError ? (
-                          <p className="mt-2 text-sm text-red-600">{reviewError}</p>
+                        {reviewErrorId === question.id && reviewError ? (
+                          <p className="mt-2 rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">{reviewError}</p>
                         ) : null}
                         {question.review_status ? (
                           <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -1013,7 +1019,26 @@ export default function QuizBuilderPage() {
                             اقتراح آلي (يتطلب تأكيدك): {question.authoring_meta.suggested_taxonomy.format} / {question.authoring_meta.suggested_taxonomy.context} / {question.authoring_meta.suggested_taxonomy.cognitive_demand} — اختر القيم ثم «حفظ التصنيف».
                           </p>
                         ) : null}
-                        {question.answer_rationale ? (
+                        {question.review_status ? (
+                          <div className="mt-3">
+                            <Textarea
+                              label={`تبرير الإجابة (${activeLanguage.toUpperCase()}) — مطلوب للاعتماد`}
+                              rows={3}
+                              value={question.answer_rationale?.[activeLanguage] || ''}
+                              onChange={(e) =>
+                                patchQuestionInState(questionIndex, {
+                                  answer_rationale: { ...(question.answer_rationale || {}), [activeLanguage]: e.target.value },
+                                })
+                              }
+                              placeholder="لماذا الإجابة الصحيحة صحيحة، ولماذا البدائل أضعف مهنيًا — بلا مبالغة في الاستنتاج."
+                            />
+                            {!String(question.answer_rationale?.[activeLanguage] || '').trim() ? (
+                              <p className="mt-1 text-xs text-amber-700">
+                                لا يمكن اعتماد السؤال بتبرير فارغ. اكتب التبرير ثم اضغط «حفظ التصنيف» قبل «اعتماد».
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : question.answer_rationale ? (
                           <p className="mt-3 text-sm leading-6 text-[var(--color-text)]">
                             <span className="font-semibold">تبرير الإجابة: </span>
                             {question.answer_rationale?.[activeLanguage] || readLocalized(question.answer_rationale)}
