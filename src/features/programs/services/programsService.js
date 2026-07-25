@@ -158,10 +158,14 @@ export async function regenerateAiPackageComponent(programId, component, refId) 
   return response.data
 }
 
-export async function resolveAiPackageSource(programId, artifactId, citation) {
+// The verdict and its written basis are mandatory server-side: a source is
+// never approved by omission, so both are explicit arguments here.
+export async function resolveAiPackageSource(programId, artifactId, citation, verificationStatus, reviewNotes) {
   const response = await http.post(`/admin/programs/${programId}/ai-package/resolve-source`, {
     artifact_id: artifactId,
     citation,
+    verification_status: verificationStatus,
+    review_notes: reviewNotes,
   })
   return response.data
 }

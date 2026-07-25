@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bot, CheckCircle2, Download, ExternalLink, Loader2, RefreshCw, ShieldAlert, Sparkles, Trash2, UploadCloud } from 'lucide-react'
-import { Badge, Button, Card, CardContent, Select } from '../../../components/ui'
+import { Badge, Button, Card, CardContent, Select, Textarea } from '../../../components/ui'
 import {
   downloadPackagePdf,
   fetchAiPackageStatus,
@@ -40,7 +40,14 @@ const COPY = {
     regenerate: 'إعادة توليد',
     superseded: 'استُبدل',
     sourceReview: 'مرجع يتطلب مراجعة بشرية',
-    markReviewed: 'تمت مراجعته',
+    sourceVerdict: 'حكم المصدر (قرار بشري صريح)',
+    sourceVerdictPlaceholder: '— اختر الحكم —',
+    verdictApproved: 'موثَّق ومعتمد (VERIFIED_APPROVED)',
+    verdictRejected: 'مرفوض (REJECTED) — يمنع النشر',
+    verdictSuperseded: 'مُستبدَل بمرجع أدق (SUPERSEDED)',
+    sourceNotes: 'أساس الحكم (إلزامي)',
+    sourceNotesHint: 'ما الذي تحققتَ منه بالضبط: العنوان، الجهة، السنة، المعرّف — أو ما تعذّر التحقق منه.',
+    recordVerdict: 'تسجيل الحكم',
     reject: 'رفض المسودة بالكامل',
     rejectConfirm: 'سيُحذف المحتوى الذي أنشأه الذكاء الاصطناعي لهذه المسودة (يبقى السجل التدقيقي). متابعة؟',
     publish: 'نشر الحقيبة (إصدار مجمّد)',
@@ -79,7 +86,14 @@ const COPY = {
     regenerate: 'Regenerate',
     superseded: 'Superseded',
     sourceReview: 'Reference requires human review',
-    markReviewed: 'Mark reviewed',
+    sourceVerdict: 'Source verdict (explicit human decision)',
+    sourceVerdictPlaceholder: '— choose a verdict —',
+    verdictApproved: 'Verified and approved (VERIFIED_APPROVED)',
+    verdictRejected: 'Rejected (REJECTED) — blocks publication',
+    verdictSuperseded: 'Replaced by a precise reference (SUPERSEDED)',
+    sourceNotes: 'Basis of the verdict (required)',
+    sourceNotesHint: 'Exactly what you verified: title, issuer, year, identifier — or what could not be verified.',
+    recordVerdict: 'Record verdict',
     reject: 'Reject entire draft',
     rejectConfirm: 'AI-generated content for this draft will be removed (audit history is kept). Continue?',
     publish: 'Publish package (frozen version)',
@@ -118,7 +132,14 @@ const COPY = {
     regenerate: 'Opnieuw genereren',
     superseded: 'Vervangen',
     sourceReview: 'Bron vereist menselijke review',
-    markReviewed: 'Als gereviewd markeren',
+    sourceVerdict: 'Bronoordeel (expliciet menselijk besluit)',
+    sourceVerdictPlaceholder: '— kies een oordeel —',
+    verdictApproved: 'Geverifieerd en goedgekeurd (VERIFIED_APPROVED)',
+    verdictRejected: 'Afgewezen (REJECTED) — blokkeert publicatie',
+    verdictSuperseded: 'Vervangen door een preciezere bron (SUPERSEDED)',
+    sourceNotes: 'Onderbouwing van het oordeel (verplicht)',
+    sourceNotesHint: 'Wat u precies heeft geverifieerd: titel, uitgever, jaar, identificatie — of wat niet verifieerbaar was.',
+    recordVerdict: 'Oordeel vastleggen',
     reject: 'Volledig concept afwijzen',
     rejectConfirm: 'AI-inhoud van dit concept wordt verwijderd (auditgeschiedenis blijft). Doorgaan?',
     publish: 'Pakket publiceren (bevroren versie)',
@@ -179,7 +200,14 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [locale, setLocale] = useState(language)
+  // Per-citation verdict draft: nothing is sent until the reviewer picks a
+  // verdict AND writes its basis (fail-closed source governance).
+  const [sourceVerdicts, setSourceVerdicts] = useState({})
   const pollRef = useRef(null)
+
+  const patchSourceVerdict = useCallback((key, patch) => {
+    setSourceVerdicts((prev) => ({ ...prev, [key]: { verification_status: '', review_notes: '', ...(prev[key] || {}), ...patch } }))
+  }, [])
 
   const load = useCallback(async () => {
     if (!programId) return
@@ -427,30 +455,56 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
             <h4 className="flex items-center gap-2 text-sm font-semibold text-amber-700">
               <ShieldAlert className="h-4 w-4" aria-hidden="true" /> SOURCE_REVIEW_REQUIRED
             </h4>
-            {unresolvedFlags.map(({ artifact, flag }) => (
-              <div
-                key={`${artifact.id}-${flag.citation}`}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm"
-              >
-                <span>
-                  <strong>{flag.citation}</strong>
-                  <span className="mt-0.5 block text-xs text-amber-700">
-                    {(TYPE_LABELS[language] || TYPE_LABELS.en)[artifact.component_type] || artifact.component_type}
-                    {artifact.ref_title ? ' — '+locText(artifact.ref_title, language) : ''} · {copy.sourceReview}
-                  </span>
-                </span>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={busy}
-                  onClick={() =>
-                    withBusy(() => resolveAiPackageSource(programId, artifact.id, flag.citation))
-                  }
+            {unresolvedFlags.map(({ artifact, flag }) => {
+              const key = `${artifact.id}::${flag.citation}`
+              const draft = sourceVerdicts[key] || { verification_status: '', review_notes: '' }
+              const ready = draft.verification_status && draft.review_notes.trim().length >= 10
+              return (
+                <div
+                  key={key}
+                  className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm"
                 >
-                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> {copy.markReviewed}
-                </Button>
-              </div>
-            ))}
+                  <span className="block">
+                    <strong>{flag.citation}</strong>
+                    <span className="mt-0.5 block text-xs text-amber-700">
+                      {(TYPE_LABELS[language] || TYPE_LABELS.en)[artifact.component_type] || artifact.component_type}
+                      {artifact.ref_title ? ' — '+locText(artifact.ref_title, language) : ''} · {copy.sourceReview}
+                    </span>
+                  </span>
+                  {/* FAIL-CLOSED: no verdict is recorded without an explicit choice
+                      and a written basis. There is no one-click approval. */}
+                  <Select
+                    label={copy.sourceVerdict}
+                    value={draft.verification_status}
+                    onChange={(e) => patchSourceVerdict(key, { verification_status: e.target.value })}
+                  >
+                    <option value="">{copy.sourceVerdictPlaceholder}</option>
+                    <option value="VERIFIED_APPROVED">{copy.verdictApproved}</option>
+                    <option value="REJECTED">{copy.verdictRejected}</option>
+                    <option value="SUPERSEDED">{copy.verdictSuperseded}</option>
+                  </Select>
+                  <Textarea
+                    label={copy.sourceNotes}
+                    rows={2}
+                    value={draft.review_notes}
+                    onChange={(e) => patchSourceVerdict(key, { review_notes: e.target.value })}
+                    placeholder={copy.sourceNotesHint}
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={busy || !ready}
+                    onClick={() =>
+                      withBusy(() =>
+                        resolveAiPackageSource(programId, artifact.id, flag.citation, draft.verification_status, draft.review_notes),
+                      )
+                    }
+                  >
+                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> {copy.recordVerdict}
+                  </Button>
+                </div>
+              )
+            })}
           </CardContent>
         </Card>
       ) : null}
