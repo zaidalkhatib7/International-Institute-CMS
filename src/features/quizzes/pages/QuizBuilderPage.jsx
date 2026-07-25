@@ -217,7 +217,7 @@ export default function QuizBuilderPage() {
         englishTitleRequired: 'عنوان الاختبار (EN) مطلوب.',
         passRequired: 'نسبة النجاح مطلوبة.',
         atLeastOneQuestion: 'يجب إضافة سؤال واحد على الأقل.',
-        atLeastTwoOptions: 'يجب إضافة خيارين على الأقل.',
+        atLeastTwoOptions: 'المعيار سؤال اختيار من متعدد بإجابة واحدة صحيحة: ثلاثة خيارات على الأقل.',
         exactlyOneCorrect: 'يجب تحديد إجابة صحيحة واحدة فقط.',
         englishTextRequired: 'النص الإنجليزي مطلوب.',
         updated: 'تم تحديث الاختبار بنجاح.',
@@ -255,7 +255,7 @@ export default function QuizBuilderPage() {
         englishTitleRequired: 'Engelse quiztitel is verplicht.',
         passRequired: 'Vragen per poging is verplicht.',
         atLeastOneQuestion: 'Minimaal een vraag is verplicht.',
-        atLeastTwoOptions: 'Minimaal twee opties zijn verplicht.',
+        atLeastTwoOptions: 'De standaard is meerkeuze met een juist antwoord: minimaal drie opties.',
         exactlyOneCorrect: 'Precies een correcte optie is verplicht.',
         englishTextRequired: 'Engelse tekst is verplicht.',
         updated: 'Vraagbank succesvol bijgewerkt.',
@@ -292,7 +292,7 @@ export default function QuizBuilderPage() {
       englishTitleRequired: 'English quiz title is required.',
       passRequired: 'Questions per attempt is required.',
       atLeastOneQuestion: 'At least one question is required.',
-      atLeastTwoOptions: 'At least two options are required.',
+      atLeastTwoOptions: 'The standard is single-best-answer multiple choice: at least three options.',
       exactlyOneCorrect: 'Exactly one correct option is required.',
       englishTextRequired: 'English text is required.',
       updated: 'Question bank updated successfully.',
@@ -575,7 +575,7 @@ export default function QuizBuilderPage() {
       if (!question?.question_text?.en?.trim()) {
         return `${copy.question} ${q + 1}: ${copy.englishTextRequired}`
       }
-      if (!Array.isArray(question.options) || question.options.length < 2) {
+      if (!Array.isArray(question.options) || question.options.length < 3) {
         return `${copy.question} ${q + 1}: ${copy.atLeastTwoOptions}`
       }
       const correctCount = question.options.filter((option) => option.is_correct).length
