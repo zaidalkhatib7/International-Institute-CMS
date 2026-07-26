@@ -48,6 +48,14 @@ const COPY = {
     sourceNotes: 'أساس الحكم (إلزامي)',
     sourceNotesHint: 'ما الذي تحققتَ منه بالضبط: العنوان، الجهة، السنة، المعرّف — أو ما تعذّر التحقق منه.',
     recordVerdict: 'تسجيل الحكم',
+    recordedTitle: 'أحكام مصادر مسجَّلة — قابلة لإعادة المراجعة',
+    recordedHint: 'حتى 25 يوليو 2026 كان الخادم يعتمد المصدر تلقائيًا عند غياب حكم صريح؛ لذلك قد لا يعكس حكم مسجَّل هنا قرارًا بشريًا فعليًا. إعادة التقييم لا تحذف السجل السابق، بل تضيف قرارًا جديدًا إلى الأثر التدقيقي.',
+    previouslyRecorded: 'حكم سابق مسجَّل',
+    recordedBy: 'سجّله',
+    previousNotes: 'أساس الحكم السابق',
+    noPreviousNotes: '— لم يُسجَّل أي أساس —',
+    reReview: 'إعادة تقييم الحكم',
+    supersededWarning: 'تنبيه: SUPERSEDED يرفع منع النشر تمامًا مثل الاعتماد. لا تسجّله إلا بعد تعديل المحتوى فعلًا إلى المرجع الأحدث.',
     reject: 'رفض المسودة بالكامل',
     rejectConfirm: 'سيُحذف المحتوى الذي أنشأه الذكاء الاصطناعي لهذه المسودة (يبقى السجل التدقيقي). متابعة؟',
     publish: 'نشر الحقيبة (إصدار مجمّد)',
@@ -94,6 +102,14 @@ const COPY = {
     sourceNotes: 'Basis of the verdict (required)',
     sourceNotesHint: 'Exactly what you verified: title, issuer, year, identifier — or what could not be verified.',
     recordVerdict: 'Record verdict',
+    recordedTitle: 'Recorded source verdicts — eligible for re-review',
+    recordedHint: 'Until 25 Jul 2026 the server approved a source automatically when no explicit verdict was sent, so a verdict recorded here may not reflect an actual human decision. Re-reviewing never deletes the earlier record; it appends a new decision to the audit trail.',
+    previouslyRecorded: 'Previously recorded',
+    recordedBy: 'Recorded by',
+    previousNotes: 'Previous basis',
+    noPreviousNotes: '— no basis was recorded —',
+    reReview: 'Re-review verdict',
+    supersededWarning: 'Warning: SUPERSEDED lifts the publication block exactly as approval does. Do not record it until the content actually cites the newer reference.',
     reject: 'Reject entire draft',
     rejectConfirm: 'AI-generated content for this draft will be removed (audit history is kept). Continue?',
     publish: 'Publish package (frozen version)',
@@ -140,6 +156,14 @@ const COPY = {
     sourceNotes: 'Onderbouwing van het oordeel (verplicht)',
     sourceNotesHint: 'Wat u precies heeft geverifieerd: titel, uitgever, jaar, identificatie — of wat niet verifieerbaar was.',
     recordVerdict: 'Oordeel vastleggen',
+    recordedTitle: 'Vastgelegde bronoordelen — herbeoordeling mogelijk',
+    recordedHint: 'Tot 25 juli 2026 keurde de server een bron automatisch goed als er geen expliciet oordeel werd meegestuurd. Herbeoordelen verwijdert het eerdere record niet; het voegt een nieuw besluit toe aan het auditspoor.',
+    previouslyRecorded: 'Eerder vastgelegd',
+    recordedBy: 'Vastgelegd door',
+    previousNotes: 'Eerdere onderbouwing',
+    noPreviousNotes: '— geen onderbouwing vastgelegd —',
+    reReview: 'Oordeel herbeoordelen',
+    supersededWarning: 'Let op: SUPERSEDED heft de publicatieblokkade op, net als goedkeuring. Leg het pas vast nadat de inhoud daadwerkelijk de nieuwere bron citeert.',
     reject: 'Volledig concept afwijzen',
     rejectConfirm: 'AI-inhoud van dit concept wordt verwijderd (auditgeschiedenis blijft). Doorgaan?',
     publish: 'Pakket publiceren (bevroren versie)',
@@ -172,6 +196,13 @@ const STEP_LABELS = {
   ar: { outline: 'المخطط', modules: 'الوحدات', lessons: 'الدروس', activities: 'الأنشطة', question_bank: 'بنك الأسئلة', validate: 'الفحص البنيوي' },
   en: { outline: 'Outline', modules: 'Modules', lessons: 'Lessons', activities: 'Activities', question_bank: 'Question bank', validate: 'Validation' },
   nl: { outline: 'Overzicht', modules: 'Modules', lessons: 'Lessen', activities: 'Opdrachten', question_bank: 'Vragenbank', validate: 'Validatie' },
+}
+
+const VERDICT_VARIANT = {
+  VERIFIED_APPROVED: 'success',
+  REJECTED: 'danger',
+  SUPERSEDED: 'warning',
+  SOURCE_REVIEW_REQUIRED: 'warning',
 }
 
 const TREE_COPY = {
@@ -261,15 +292,78 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
   )
 
   const artifacts = useMemo(() => run?.artifacts || [], [run])
-  const unresolvedFlags = useMemo(
+  // Every flag is listed, open or already decided. A verdict recorded before the
+  // fail-closed fix may not reflect a real human decision, and a flag the screen
+  // hides is a flag no reviewer can correct.
+  const allFlags = useMemo(
     () =>
       artifacts.flatMap((artifact) =>
-        (artifact.source_flags || [])
-          .filter((flag) => !flag.resolved)
-          .map((flag) => ({ artifact, flag })),
+        (artifact.source_flags || []).map((flag) => ({ artifact, flag })),
       ),
     [artifacts],
   )
+  const unresolvedFlags = useMemo(() => allFlags.filter(({ flag }) => !flag.resolved), [allFlags])
+  const recordedFlags = useMemo(() => allFlags.filter(({ flag }) => flag.resolved), [allFlags])
+  // Which recorded verdicts the reviewer has opened for re-review.
+  const [reopened, setReopened] = useState({})
+
+  const flagOrigin = (artifact) =>
+    `${(TYPE_LABELS[language] || TYPE_LABELS.en)[artifact.component_type] || artifact.component_type}${
+      artifact.ref_title ? ' — ' + locText(artifact.ref_title, language) : ''
+    }`
+
+  // FAIL-CLOSED: a verdict is recorded only with an explicit choice and a written
+  // basis of at least 10 characters — the same rule the server enforces. Used for
+  // a first review and for a re-review alike; both post to the one audited endpoint.
+  const renderVerdictForm = (artifact, flag) => {
+    const key = `${artifact.id}::${flag.citation}`
+    const draft = sourceVerdicts[key] || { verification_status: '', review_notes: '' }
+    const ready = draft.verification_status && draft.review_notes.trim().length >= 10
+    return (
+      <>
+        <Select
+          label={copy.sourceVerdict}
+          value={draft.verification_status}
+          onChange={(e) => patchSourceVerdict(key, { verification_status: e.target.value })}
+        >
+          <option value="">{copy.sourceVerdictPlaceholder}</option>
+          <option value="VERIFIED_APPROVED">{copy.verdictApproved}</option>
+          <option value="REJECTED">{copy.verdictRejected}</option>
+          <option value="SUPERSEDED">{copy.verdictSuperseded}</option>
+        </Select>
+        {draft.verification_status === 'SUPERSEDED' ? (
+          <p className="text-xs font-semibold text-amber-700">{copy.supersededWarning}</p>
+        ) : null}
+        <Textarea
+          label={copy.sourceNotes}
+          rows={2}
+          value={draft.review_notes}
+          onChange={(e) => patchSourceVerdict(key, { review_notes: e.target.value })}
+          placeholder={copy.sourceNotesHint}
+        />
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={busy || !ready}
+          onClick={() =>
+            withBusy(async () => {
+              await resolveAiPackageSource(
+                programId,
+                artifact.id,
+                flag.citation,
+                draft.verification_status,
+                draft.review_notes,
+              )
+              setReopened((prev) => ({ ...prev, [key]: false }))
+              setSourceVerdicts((prev) => ({ ...prev, [key]: { verification_status: '', review_notes: '' } }))
+            })
+          }
+        >
+          <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> {copy.recordVerdict}
+        </Button>
+      </>
+    )
+  }
 
   if (!programId) {
     return (
@@ -455,53 +549,75 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
             <h4 className="flex items-center gap-2 text-sm font-semibold text-amber-700">
               <ShieldAlert className="h-4 w-4" aria-hidden="true" /> SOURCE_REVIEW_REQUIRED
             </h4>
-            {unresolvedFlags.map(({ artifact, flag }) => {
-              const key = `${artifact.id}::${flag.citation}`
-              const draft = sourceVerdicts[key] || { verification_status: '', review_notes: '' }
-              const ready = draft.verification_status && draft.review_notes.trim().length >= 10
-              return (
-                <div
-                  key={key}
-                  className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm"
-                >
-                  <span className="block">
-                    <strong>{flag.citation}</strong>
-                    <span className="mt-0.5 block text-xs text-amber-700">
-                      {(TYPE_LABELS[language] || TYPE_LABELS.en)[artifact.component_type] || artifact.component_type}
-                      {artifact.ref_title ? ' — '+locText(artifact.ref_title, language) : ''} · {copy.sourceReview}
-                    </span>
+            {unresolvedFlags.map(({ artifact, flag }) => (
+              <div
+                key={`${artifact.id}::${flag.citation}`}
+                className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm"
+              >
+                <span className="block">
+                  <strong>{flag.citation}</strong>
+                  <span className="mt-0.5 block text-xs text-amber-700">
+                    {flagOrigin(artifact)} · {copy.sourceReview}
                   </span>
-                  {/* FAIL-CLOSED: no verdict is recorded without an explicit choice
-                      and a written basis. There is no one-click approval. */}
-                  <Select
-                    label={copy.sourceVerdict}
-                    value={draft.verification_status}
-                    onChange={(e) => patchSourceVerdict(key, { verification_status: e.target.value })}
-                  >
-                    <option value="">{copy.sourceVerdictPlaceholder}</option>
-                    <option value="VERIFIED_APPROVED">{copy.verdictApproved}</option>
-                    <option value="REJECTED">{copy.verdictRejected}</option>
-                    <option value="SUPERSEDED">{copy.verdictSuperseded}</option>
-                  </Select>
-                  <Textarea
-                    label={copy.sourceNotes}
-                    rows={2}
-                    value={draft.review_notes}
-                    onChange={(e) => patchSourceVerdict(key, { review_notes: e.target.value })}
-                    placeholder={copy.sourceNotesHint}
-                  />
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={busy || !ready}
-                    onClick={() =>
-                      withBusy(() =>
-                        resolveAiPackageSource(programId, artifact.id, flag.citation, draft.verification_status, draft.review_notes),
-                      )
-                    }
-                  >
-                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> {copy.recordVerdict}
-                  </Button>
+                </span>
+                {renderVerdictForm(artifact, flag)}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Verdicts already on record. They are shown — not hidden — because a
+          verdict stored before the fail-closed fix may never have been a human
+          decision, and a hidden record is one no reviewer can correct. The old
+          record is never edited here: re-reviewing appends a new audited decision. */}
+      {recordedFlags.length > 0 ? (
+        <Card>
+          <CardContent className="space-y-3 p-6">
+            <h4 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text)]">
+              <ShieldAlert className="h-4 w-4 text-[var(--color-text-muted)]" aria-hidden="true" />
+              {copy.recordedTitle}
+            </h4>
+            <p className="text-xs text-[var(--color-text-muted)]">{copy.recordedHint}</p>
+            {recordedFlags.map(({ artifact, flag }) => {
+              const key = `${artifact.id}::${flag.citation}`
+              const isOpen = Boolean(reopened[key])
+              return (
+                <div key={key} className="space-y-2 rounded-lg border border-[var(--color-border)] p-3 text-sm">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <span className="block">
+                      <strong>{flag.citation}</strong>
+                      <span className="mt-0.5 block text-xs text-[var(--color-text-muted)]">
+                        {flagOrigin(artifact)}
+                      </span>
+                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge variant={VERDICT_VARIANT[flag.verification_status] || 'neutral'}>
+                        {flag.verification_status || '—'}
+                      </Badge>
+                      <span className="text-[11px] text-[var(--color-text-muted)]">{copy.previouslyRecorded}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    {copy.recordedBy}: {flag.reviewed_by_name || (flag.reviewed_by ? `#${flag.reviewed_by}` : '—')}
+                    {flag.reviewed_at ? ` · ${new Date(flag.reviewed_at).toLocaleString()}` : ''}
+                  </p>
+                  <p className="rounded bg-[var(--color-surface-muted)] p-2 text-xs leading-5">
+                    <span className="font-semibold">{copy.previousNotes}: </span>
+                    {flag.review_notes || copy.noPreviousNotes}
+                  </p>
+                  {isOpen ? (
+                    renderVerdictForm(artifact, flag)
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => setReopened((prev) => ({ ...prev, [key]: true }))}
+                    >
+                      <RefreshCw className="h-4 w-4" aria-hidden="true" /> {copy.reReview}
+                    </Button>
+                  )}
                 </div>
               )
             })}
