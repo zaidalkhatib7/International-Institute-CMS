@@ -35,6 +35,7 @@ const COPY = {
     reproposeLabel: 'اقتراح جديد',
     proposing: 'جارٍ الاقتراح…',
     locale: 'لغة المسودة',
+    draftedBy: 'صاغها النموذج',
     nothingWritten: 'مسودة فقط — لم يُكتب أي شيء في البرنامج بعد.',
     competencies: 'ربط الكفايات (من القاموس المعتمد فقط)',
     competenciesHint:
@@ -71,6 +72,7 @@ const COPY = {
     reproposeLabel: 'Propose again',
     proposing: 'Proposing…',
     locale: 'Draft language',
+    draftedBy: 'Drafted by',
     nothingWritten: 'Draft only — nothing has been written to the programme yet.',
     competencies: 'Competency mappings (approved dictionary only)',
     competenciesHint:
@@ -109,6 +111,7 @@ const COPY = {
     reproposeLabel: 'Opnieuw voorstellen',
     proposing: 'Bezig met voorstellen…',
     locale: 'Concepttaal',
+    draftedBy: 'Opgesteld door',
     nothingWritten: 'Alleen een concept — er is nog niets naar het programma geschreven.',
     competencies: 'Competentiekoppelingen (alleen goedgekeurde woordenlijst)',
     competenciesHint:
@@ -295,7 +298,15 @@ export default function SeedPackPanel({ programId, onApproved }) {
 
         {draft ? (
           <>
-            <Badge variant="warning">{copy.nothingWritten}</Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="warning">{copy.nothingWritten}</Badge>
+              {/* which model wrote this, so the reviewer knows what they are judging */}
+              {draft.model ? (
+                <Badge variant="neutral">
+                  {copy.draftedBy}: {draft.model}
+                </Badge>
+              ) : null}
+            </div>
 
             <section className="space-y-3">
               <div>

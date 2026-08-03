@@ -199,6 +199,15 @@ export async function resolveAiPackageSource(programId, artifactId, citation, ve
   return response.data
 }
 
+// The two-key gate: someone holding rpl.settings.manage records that package
+// vN.N may be authored, and only then may someone holding programs.manage start
+// the run. The endpoint has existed since the auth-window work; the CMS never
+// exposed it, so the refusal was a wall with no door.
+export async function authorizeGeneration(programId, note) {
+  const response = await http.post(`/admin/programs/${programId}/authorize-generation`, { note })
+  return response.data
+}
+
 export async function rejectAiPackage(programId) {
   const response = await http.delete(`/admin/programs/${programId}/ai-package`)
   return response.data

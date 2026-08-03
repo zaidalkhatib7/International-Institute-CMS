@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bot, CheckCircle2, Download, ExternalLink, Loader2, RefreshCw, ShieldAlert, Sparkles, Trash2, UploadCloud } from 'lucide-react'
+import { Bot, CheckCircle2, Download, ExternalLink, KeyRound, Loader2, RefreshCw, ShieldAlert, Sparkles, Trash2, UploadCloud } from 'lucide-react'
 import { Badge, Button, Card, CardContent, Select, Textarea } from '../../../components/ui'
 import {
+  authorizeGeneration,
   downloadPackagePdf,
   fetchAiPackageStatus,
   generateAiPackage,
@@ -63,6 +64,22 @@ const COPY = {
     newVersionPrompt: 'رقم الإصدار الجديد (مثال 2.0):',
     publishedNote: 'هذا الإصدار منشور ومجمّد — التوصيات تعيد استخدامه ولا يُعاد توليده أبدًا. لأي تعديل افتح إصدارًا جديدًا.',
     failed: 'فشل التوليد — يمكن الاستئناف من نقطة التوقف بإعادة المحاولة.',
+    govTitle: 'بوابات التوليد',
+    govReady: 'جاهزية الحوكمة: مستوفاة',
+    govNotReady: 'جاهزية الحوكمة: غير مستوفاة — اعتمد حزمة الانطلاق أولًا',
+    govCounts: 'ربط كفايات معتمد: {c} · مخرجات تعلّم فعّالة: {o}',
+    govAuthorized: 'تصريح التوليد: مُسجَّل',
+    govNotAuthorized: 'تصريح التوليد: غير مُسجَّل',
+    govTwoKey: 'مفتاحان: جهة الحوكمة (rpl.settings.manage) تسجّل التصريح لهذا الإصدار، ثم تبدأ صلاحية إدارة البرامج التوليد. التصريح لإصدار واحد ويُستهلك بعد استخدامه.',
+    govNote: 'أساس التصريح',
+    govNotePlaceholder: 'من صرّح بذلك ولماذا هذا الإصدار جاهز للتأليف.',
+    govNoteHint: 'يُحفظ مع اسمك في السجل التدقيقي. هذه البوابة موجودة لأن التوليد بدأ مرتين على برامج غير محكومة.',
+    govAuthorize: 'تسجيل تصريح التوليد',
+    govAuthorizing: 'جارٍ التسجيل…',
+    govConfirm: 'سيُسجَّل تصريح لهذا الإصدار باسمك. متابعة؟',
+    govBy: 'سجّله',
+    govExpires: 'ينتهي',
+    govConsumed: 'استُهلك',
     statuses: {
       not_generated: 'لم يولَّد بعد',
       ai_generating: 'قيد التوليد',
@@ -117,6 +134,22 @@ const COPY = {
     newVersionPrompt: 'New version number (e.g. 2.0):',
     publishedNote: 'This version is published and frozen — recommendations reuse it and it is never regenerated. Open a new version to change anything.',
     failed: 'Generation failed — retrying resumes from the checkpoint.',
+    govTitle: 'Generation gates',
+    govReady: 'Governance readiness: satisfied',
+    govNotReady: 'Governance readiness: not satisfied — approve a seed pack first',
+    govCounts: 'Approved competency mappings: {c} · Active learning outcomes: {o}',
+    govAuthorized: 'Generation authorization: recorded',
+    govNotAuthorized: 'Generation authorization: not recorded',
+    govTwoKey: 'Two keys: the governance tier (rpl.settings.manage) records that this version may be authored, then programme management starts the run. An authorization covers one version and is consumed when used.',
+    govNote: 'Basis for the authorization',
+    govNotePlaceholder: 'Who authorised this, and why this version is ready to be authored.',
+    govNoteHint: 'Stored with your name in the audit trail. This gate exists because generation was twice started on ungoverned programmes.',
+    govAuthorize: 'Record generation authorization',
+    govAuthorizing: 'Recording…',
+    govConfirm: 'An authorization for this version will be recorded against your name. Continue?',
+    govBy: 'Recorded by',
+    govExpires: 'Expires',
+    govConsumed: 'Consumed',
     statuses: {
       not_generated: 'Not generated yet',
       ai_generating: 'Generating',
@@ -171,6 +204,22 @@ const COPY = {
     newVersionPrompt: 'Nieuw versienummer (bijv. 2.0):',
     publishedNote: 'Deze versie is gepubliceerd en bevroren — aanbevelingen hergebruiken haar; er wordt nooit opnieuw gegenereerd.',
     failed: 'Generatie mislukt — opnieuw proberen hervat vanaf het checkpoint.',
+    govTitle: 'Generatiepoorten',
+    govReady: 'Governance-gereedheid: voldaan',
+    govNotReady: 'Governance-gereedheid: niet voldaan — keur eerst een startpakket goed',
+    govCounts: 'Goedgekeurde competentiekoppelingen: {c} · Actieve leeruitkomsten: {o}',
+    govAuthorized: 'Generatietoestemming: vastgelegd',
+    govNotAuthorized: 'Generatietoestemming: niet vastgelegd',
+    govTwoKey: 'Twee sleutels: de governance-laag (rpl.settings.manage) legt vast dat deze versie geschreven mag worden, daarna start programmabeheer de run. Een toestemming geldt voor één versie en wordt bij gebruik verbruikt.',
+    govNote: 'Onderbouwing van de toestemming',
+    govNotePlaceholder: 'Wie dit heeft toegestaan en waarom deze versie gereed is.',
+    govNoteHint: 'Wordt met uw naam in het auditspoor bewaard. Deze poort bestaat omdat generatie twee keer op ongereguleerde programmas is gestart.',
+    govAuthorize: 'Generatietoestemming vastleggen',
+    govAuthorizing: 'Bezig met vastleggen…',
+    govConfirm: 'Er wordt een toestemming voor deze versie op uw naam vastgelegd. Doorgaan?',
+    govBy: 'Vastgelegd door',
+    govExpires: 'Verloopt',
+    govConsumed: 'Verbruikt',
     statuses: {
       not_generated: 'Nog niet gegenereerd',
       ai_generating: 'Bezig met genereren',
@@ -234,6 +283,9 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
   // Per-citation verdict draft: nothing is sent until the reviewer picks a
   // verdict AND writes its basis (fail-closed source governance).
   const [sourceVerdicts, setSourceVerdicts] = useState({})
+  // Written basis for a generation authorization. Kept out of the request until
+  // the reviewer has actually typed one: see the note in the block that uses it.
+  const [authorizationNote, setAuthorizationNote] = useState('')
   const pollRef = useRef(null)
 
   const patchSourceVerdict = useCallback((key, patch) => {
@@ -381,6 +433,7 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
   }
 
   const isPublished = Boolean(status?.package_published_at)
+  const governance = status?.governance
   const aiStatus = status?.ai_authoring_status || 'not_generated'
   const canGenerate = !isPublished && !isRunning && aiStatus !== 'ai_draft'
 
@@ -415,6 +468,94 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
           ) : null}
           {isPublished ? (
             <p className="text-sm text-[var(--color-text-muted)]">{copy.publishedNote}</p>
+          ) : null}
+
+          {/*
+            WHICH GATE IS CLOSED, AND THE DOOR THROUGH IT.
+
+            Generation passes R2 (governance readiness) and then the authorization
+            window. The endpoint for the second one has existed since the
+            auth-window work but the CMS never exposed it, so a refusal arrived as
+            untranslated server text naming an HTTP route the reader cannot call.
+
+            Showing the state does not weaken the gate. Recording an authorization
+            is still a deliberate act, still needs rpl.settings.manage, and is still
+            written to the audit trail against the person who does it.
+          */}
+          {!isPublished && governance ? (
+            <div className="space-y-3 rounded-[var(--radius-md)] border border-[var(--color-border)] p-4">
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text)]">
+                <KeyRound className="h-4 w-4" aria-hidden="true" /> {copy.govTitle}
+              </h4>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={governance.ready ? 'success' : 'warning'}>
+                  {governance.ready ? copy.govReady : copy.govNotReady}
+                </Badge>
+                <Badge variant={governance.authorized ? 'success' : 'warning'}>
+                  {governance.authorized ? copy.govAuthorized : copy.govNotAuthorized}
+                </Badge>
+              </div>
+
+              <p className="text-xs text-[var(--color-text-muted)]">
+                {copy.govCounts
+                  .replace('{c}', governance.approved_competency_mappings ?? 0)
+                  .replace('{o}', governance.active_learning_outcomes ?? 0)}
+              </p>
+
+              {governance.active_authorization ? (
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  {copy.govBy}: {governance.active_authorization.authorized_by || '—'}
+                  {governance.active_authorization.note
+                    ? ` — ${governance.active_authorization.note}`
+                    : ''}
+                </p>
+              ) : null}
+
+              {/*
+                Offered only once the programme is genuinely ready. The server
+                refuses an authorization before readiness anyway; showing the form
+                earlier would invite an attempt that can only fail.
+              */}
+              {governance.ready && !governance.authorized ? (
+                <>
+                  <p className="text-xs text-[var(--color-text-muted)]">{copy.govTwoKey}</p>
+                  <Textarea
+                    label={copy.govNote}
+                    rows={2}
+                    value={authorizationNote}
+                    placeholder={copy.govNotePlaceholder}
+                    hint={copy.govNoteHint}
+                    onChange={(event) => setAuthorizationNote(event.target.value)}
+                  />
+                  {/*
+                    The server accepts a null note. This screen does not: an
+                    authorization with no recorded reason is indistinguishable, six
+                    months later, from the two premature runs this gate was built to
+                    stop. Ten characters is the same floor the source-verdict form uses.
+                  */}
+                  <Button
+                    disabled={busy || authorizationNote.trim().length < 10}
+                    onClick={() => {
+                      if (!window.confirm(copy.govConfirm)) return
+                      withBusy(
+                        () => authorizeGeneration(programId, authorizationNote.trim()),
+                      ).then(() => setAuthorizationNote(''))
+                    }}
+                  >
+                    {busy ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> {copy.govAuthorizing}
+                      </>
+                    ) : (
+                      <>
+                        <KeyRound className="h-4 w-4" aria-hidden="true" /> {copy.govAuthorize}
+                      </>
+                    )}
+                  </Button>
+                </>
+              ) : null}
+            </div>
           ) : null}
 
           <div className="flex flex-wrap items-center gap-3">
