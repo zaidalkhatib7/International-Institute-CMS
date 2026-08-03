@@ -64,12 +64,56 @@ const genericErrors = {
   },
 }
 
+/**
+ * Every distinct validation message the server sent, as one readable block.
+ *
+ * Laravel returns `errors` as {field: [messages]}. Flattened and de-duplicated,
+ * because the top-level `message` is only the first one plus "(and 2 more
+ * errors)" — and the ones it drops are usually the actionable ones.
+ */
+function readValidationDetail(error) {
+  const errors = error?.response?.data?.errors
+  if (! errors || typeof errors !== 'object') return ''
+
+  const seen = new Set()
+  for (const value of Object.values(errors)) {
+    for (const line of [].concat(value)) {
+      if (typeof line === 'string' && line.trim() !== '') seen.add(line.trim())
+    }
+  }
+
+  return [...seen].join('\n')
+}
+
 export function readApiError(error, fallback, language = getAdminLanguage()) {
   const copy = genericErrors[language] || genericErrors.en
   if (error?.code === 'ECONNABORTED' || /timeout/i.test(error?.message || '')) return copy.timeout
   if (!error?.response || /network error/i.test(error?.message || '')) return copy.network
   const status = Number(error?.response?.status)
   if ([502, 503, 504].includes(status)) return copy.unavailable
+
+  /*
+   * A 422 CARRIES THE REASON. SHOW IT, WHATEVER LANGUAGE IT IS IN.
+   *
+   * Clicking "generate AI package" on a programme with no approved competencies
+   * produced "check the data and requirements, then try again" — while the server
+   * had actually replied:
+   *
+   *   PROGRAMME_AUTHORING_NOT_GOVERNANCE_READY: NO APPROVED GOVERNED INPUT ->
+   *   NO GENERATE ... zero approved professional competency mappings ...
+   *   zero active governed learning outcomes.
+   *
+   * Three precise, actionable sentences, discarded for a vague one, because the
+   * server writes governance errors in English and the operator was reading
+   * Arabic. For validation specifically that is the wrong trade: a precise
+   * message in the other language beats a fluent message that says nothing. The
+   * generic line is kept as a heading so the sentence still opens in the reader's
+   * own language.
+   */
+  if (status === 422) {
+    const detail = readValidationDetail(error)
+    if (detail !== '') return copy.invalid + '\n\n' + detail
+  }
 
   const message = error?.response?.data?.message || error?.message
   if (language === 'en') return readLocalized(message, language) || fallback || copy.request
