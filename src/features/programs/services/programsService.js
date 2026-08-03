@@ -159,10 +159,13 @@ export async function proposeSeedPack(programId, locale) {
   return response.data
 }
 
-export async function approveSeedPack(programId, competencies, learningOutcomes) {
+export async function approveSeedPack(programId, competencies, learningOutcomes, academicIdentity) {
   const response = await http.post(`/admin/programs/${programId}/seed-pack/approve`, {
     competencies,
     learning_outcomes: learningOutcomes,
+    // The six academic fields. An omitted one leaves whatever the programme
+    // already has — approving a seed pack never blanks metadata someone typed.
+    academic_identity: academicIdentity || {},
   })
   return response.data
 }

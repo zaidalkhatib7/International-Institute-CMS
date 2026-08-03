@@ -62,6 +62,15 @@ const COPY = {
     approveConfirm:
       'سيُكتب هذا في البرنامج ويُسجَّل باسمك كمعتمِد. تأكدت من أن كل ربط ومخرج صحيح؟',
     emptyDraft: 'لم يقترح النموذج شيئًا قابلًا للاستخدام. أعد المحاولة أو أضِف الصفوف يدويًا.',
+    identity: 'الهوية الأكاديمية المحكومة',
+    identityHint: 'الأربعة الأولى يصوغها Gemini من الدورة. المؤشرات والمخرجات مشتقّة من الكفايات ومخرجات التعلّم المعتمدة — لا يخترعها النموذج.',
+    knowledge: 'المعرفة',
+    skills: 'المهارات',
+    professional_behaviours: 'السلوكيات المهنية',
+    abilities: 'القدرات',
+    performance_indicators: 'مؤشرات الأداء',
+    identityOutcomes: 'المخرجات',
+    derived: 'مشتقّ',
     saveFirst: 'احفظ البرنامج أولًا ثم عد إلى هنا.',
   },
   en: {
@@ -101,6 +110,15 @@ const COPY = {
     approveConfirm:
       'This will be written to the programme and recorded with you as the approver. Is every mapping and outcome correct?',
     emptyDraft: 'The model proposed nothing usable. Try again, or add the rows yourself.',
+    identity: 'Governed academic identity',
+    identityHint: 'Gemini writes the first four from the course. Indicators and outcomes are derived from the approved competencies and learning outcomes — the model does not invent them.',
+    knowledge: 'Knowledge',
+    skills: 'Skills',
+    professional_behaviours: 'Professional behaviours',
+    abilities: 'Abilities',
+    performance_indicators: 'Performance indicators',
+    identityOutcomes: 'Outcomes',
+    derived: 'derived',
     saveFirst: 'Save the programme first, then come back here.',
   },
   nl: {
@@ -139,6 +157,15 @@ const COPY = {
     approveConfirm:
       'Dit wordt naar het programma geschreven en op uw naam vastgelegd. Klopt elke koppeling en uitkomst?',
     emptyDraft: 'Het model stelde niets bruikbaars voor. Probeer opnieuw of voeg de rijen zelf toe.',
+    identity: 'Gereguleerde academische identiteit',
+    identityHint: 'Gemini schrijft de eerste vier. Indicatoren en uitkomsten worden afgeleid uit de goedgekeurde competenties en leeruitkomsten — het model verzint ze niet.',
+    knowledge: 'Kennis',
+    skills: 'Vaardigheden',
+    professional_behaviours: 'Professioneel gedrag',
+    abilities: 'Vermogens',
+    performance_indicators: 'Prestatie-indicatoren',
+    identityOutcomes: 'Uitkomsten',
+    derived: 'afgeleid',
     saveFirst: 'Sla het programma eerst op en kom dan terug.',
   },
 }
@@ -158,6 +185,10 @@ export default function SeedPackPanel({ programId, onApproved }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+
+  // 'outcomes' here is the academic-identity field, distinct from the
+  // learning-outcome section heading that already owns copy.outcomes.
+  const identityLabel = (field) => (field === 'outcomes' ? copy.identityOutcomes : copy[field])
 
   const dictionary = useMemo(() => draft?.dictionary || [], [draft])
   const levels = useMemo(() => draft?.proficiency_levels || [], [draft])
@@ -230,7 +261,9 @@ export default function SeedPackPanel({ programId, onApproved }) {
     setError('')
     setNotice('')
     try {
-      const response = await approveSeedPack(programId, draft.competencies, draft.learning_outcomes)
+      const response = await approveSeedPack(
+        programId, draft.competencies, draft.learning_outcomes, draft.academic_identity,
+      )
       setNotice(response?.message || '')
       setDraft(null)
       if (onApproved) await onApproved()
@@ -405,6 +438,45 @@ export default function SeedPackPanel({ programId, onApproved }) {
               <Button variant="outline" onClick={addCompetency} disabled={dictionary.length === 0}>
                 <Plus className="h-4 w-4" aria-hidden="true" /> {copy.addCompetency}
               </Button>
+            </section>
+
+            {/*
+              The six fields the library screen shows and nothing filled in. Four
+              are the model's prose; the last two are computed from governed data
+              and labelled so, because a reviewer editing them should know they are
+              overriding a derivation rather than writing free text.
+            */}
+            <section className="space-y-3">
+              <div>
+                <h4 className="text-sm font-semibold text-[var(--color-text)]">{copy.identity}</h4>
+                <p className="text-xs text-[var(--color-text-muted)]">{copy.identityHint}</p>
+              </div>
+
+              {['knowledge', 'skills', 'professional_behaviours', 'abilities',
+                'performance_indicators', 'outcomes'].map((field) => (
+                <Textarea
+                  key={field}
+                  label={
+                    ['performance_indicators', 'outcomes'].includes(field)
+                      ? `${identityLabel(field)} (${copy.derived})`
+                      : identityLabel(field)
+                  }
+                  rows={['performance_indicators', 'outcomes'].includes(field) ? 4 : 3}
+                  value={locText(draft.academic_identity?.[field], locale)}
+                  onChange={(event) =>
+                    setDraft((prev) => ({
+                      ...prev,
+                      academic_identity: {
+                        ...(prev.academic_identity || {}),
+                        [field]: {
+                          ...(prev.academic_identity?.[field] || {}),
+                          [locale]: event.target.value,
+                        },
+                      },
+                    }))
+                  }
+                />
+              ))}
             </section>
 
             <section className="space-y-3">
