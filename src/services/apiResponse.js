@@ -78,14 +78,28 @@ export function readApiError(error, fallback, language = getAdminLanguage()) {
     if (localizedMessage) return localizedMessage
   }
   if (language === 'ar' && typeof message === 'string' && /[\u0600-\u06ff]/.test(message)) return message
-  if (fallback) return fallback
 
+  /*
+   * A KNOWN STATUS BEATS THE CALLER'S GENERIC FALLBACK.
+   *
+   * `if (fallback) return fallback` used to sit above this block, and since
+   * practically every caller passes one, none of these were ever reachable for
+   * ar or nl. A deliberate 403 \u2014 "only the owning administrator may access this
+   * evaluation" \u2014 surfaced as whatever generic sentence the page happened to
+   * supply, in this case "could not load assessment data", which reads like a
+   * network fault and sends the reader looking in the wrong place.
+   *
+   * The page fallback is the right answer only when the status says nothing
+   * useful, so it now comes after these rather than instead of them.
+   */
   if (status === 401) return copy.unauthorized
   if (status === 403) return copy.forbidden
   if (status === 404) return copy.notFound
   if (status === 409) return copy.conflict
   if (status === 422) return copy.invalid
   if (status >= 500) return copy.server
+
+  if (fallback) return fallback
   return copy.request
 }
 
