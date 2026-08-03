@@ -138,6 +138,35 @@ export async function fetchAdminCategories() {
   return response.data
 }
 
+// --- Seed pack: Gemini drafts the governed input, a person approves it ---
+//
+// Two calls, deliberately separate. propose() writes nothing — the draft lives in
+// this browser until someone approves it. approve() is the accountable act, and
+// it is what turns a draft into the standard the course is assessed against.
+
+// The 15s default belongs to CRUD calls, where a slow response means something is
+// wrong. This one waits on a model: a real proposal measured ~34s against
+// gemini-3.1-pro, and the request holds the connection for the whole generation.
+// At the default it timed out every time and read as a server fault.
+const SEED_PACK_PROPOSE_TIMEOUT_MS = 180000
+
+export async function proposeSeedPack(programId, locale) {
+  const response = await http.post(
+    `/admin/programs/${programId}/seed-pack/propose`,
+    { locale },
+    { timeout: SEED_PACK_PROPOSE_TIMEOUT_MS },
+  )
+  return response.data
+}
+
+export async function approveSeedPack(programId, competencies, learningOutcomes) {
+  const response = await http.post(`/admin/programs/${programId}/seed-pack/approve`, {
+    competencies,
+    learning_outcomes: learningOutcomes,
+  })
+  return response.data
+}
+
 // --- One-time AI package authoring (admin-triggered only) ---
 
 export async function fetchAiPackageStatus(programId) {

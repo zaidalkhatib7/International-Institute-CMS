@@ -28,6 +28,7 @@ import {
 } from '../services/programsService'
 import { getCurrentLanguage, readLocalizedValue } from '../../../utils/localization'
 import AiPackagePanel from '../components/AiPackagePanel'
+import SeedPackPanel from '../components/SeedPackPanel'
 
 function readLocalized(value, preferredLanguage = 'en') {
   return readLocalizedValue(value, preferredLanguage)
@@ -1747,11 +1748,19 @@ export default function ProgramBuilderPage() {
         return <PublishContent formData={formData} updateField={updateField} copy={copy} />
       case 'ai-package':
         return (
-          <AiPackagePanel
-            programId={programId}
-            isGoverned={Boolean(formData.competency_gap_group_id || formData.official_code)}
-            officialCode={formData.official_code || ''}
-          />
+          <div className="space-y-6">
+            {/*
+              The seed pack comes first because it is the prerequisite: without
+              approved competency mappings and active outcomes the generator
+              refuses, and this is the screen that supplies them.
+            */}
+            <SeedPackPanel programId={programId} />
+            <AiPackagePanel
+              programId={programId}
+              isGoverned={Boolean(formData.competency_gap_group_id || formData.official_code)}
+              officialCode={formData.official_code || ''}
+            />
+          </div>
         )
       default:
         return (
