@@ -237,3 +237,38 @@ export async function openNewPackageVersion(programId, version) {
   const response = await http.post(`/admin/programs/${programId}/new-version`, { version })
   return response.data
 }
+
+/*
+ * THE LAST TWO PUBLICATION GATES.
+ *
+ * publish-package refuses without an APPROVED learning-time allocation and an
+ * APPROVED assessment blueprint. These four endpoints have existed since B2/B3
+ * and had no caller in this app, so the gates could never be satisfied from the
+ * CMS and no governed package was ever publishable.
+ *
+ * Propose and approve are deliberately separate calls on the server. They stay
+ * separate here: approval is the accountable act and is recorded against the
+ * person who made it.
+ */
+export async function proposeLearningTime(programId, allocation) {
+  const response = await http.put(`/admin/programs/${programId}/learning-time`, {
+    allocation,
+    proposed_by: 'human',
+  })
+  return response.data
+}
+
+export async function approveLearningTime(programId) {
+  const response = await http.post(`/admin/programs/${programId}/learning-time/approve`)
+  return response.data
+}
+
+export async function proposeAssessmentBlueprint(programId, payload) {
+  const response = await http.put(`/admin/programs/${programId}/assessment-blueprint`, payload)
+  return response.data
+}
+
+export async function approveAssessmentBlueprint(programId) {
+  const response = await http.post(`/admin/programs/${programId}/assessment-blueprint/approve`)
+  return response.data
+}

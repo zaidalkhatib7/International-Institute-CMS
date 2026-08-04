@@ -15,6 +15,7 @@ import {
 } from '../services/programsService'
 import { getCurrentLanguage } from '../../../utils/localization'
 import { readApiError } from '../../../services/apiResponse'
+import PublicationGatesPanel from './PublicationGatesPanel'
 
 const COPY = {
   ar: {
@@ -439,6 +440,21 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
 
   return (
     <div className="space-y-6">
+      {/*
+        The two gates publish-package refuses on. They had write endpoints and
+        no screen, so a drafted package could never clear them — which is why
+        the publish button existed but had never successfully been used.
+        Placed above the run detail because they are what stands between this
+        package and being live.
+      */}
+      {!isPublished && aiStatus === 'ai_draft' ? (
+        <PublicationGatesPanel
+          programId={programId}
+          gates={status?.publication_gates}
+          language={language}
+          onChanged={load}
+        />
+      ) : null}
       <Card>
         <CardContent className="space-y-4 p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
