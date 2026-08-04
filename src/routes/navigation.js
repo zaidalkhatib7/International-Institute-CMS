@@ -106,7 +106,10 @@ const groups = [
       },
       {
         label: { ar: 'المحتوى التعليمي', en: 'Learning content', nl: 'Leerinhoud' },
-        href: '/sections',
+        // Course-first. The flat /sections list still exists, but reaching
+        // content through the course is how anyone actually works on it — and
+        // that list reported every unit as empty because it never counted.
+        href: '/content/course',
         icon: Layers3,
       },
       {

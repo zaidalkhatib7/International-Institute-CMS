@@ -24,6 +24,7 @@ const QuizzesPage = lazy(() => import('../features/quizzes/pages/QuizzesPage'))
 const QuizBuilderPage = lazy(() => import('../features/quizzes/pages/QuizBuilderPage'))
 const AiQuizSettingsPage = lazy(() => import('../features/quizzes/pages/AiQuizSettingsPage'))
 const ProgramQuestionBankPage = lazy(() => import('../features/quizzes/pages/ProgramQuestionBankPage'))
+const ProgramContentPage = lazy(() => import('../features/content/pages/ProgramContentPage'))
 const SettingsPage = lazy(() => import('../features/settings/pages/SettingsPage'))
 const ApiModulePage = lazy(() => import('../features/platform/pages/ApiModulePage'))
 const PublicSiteArchitecturePage = lazy(() => import('../features/content/pages/PublicSiteArchitecturePage'))
@@ -174,6 +175,19 @@ export default function AppRouter() {
           element={
             <AdminRoute>
               <LessonBuilderPage />
+            </AdminRoute>
+          }
+        />
+
+        {/*
+          The course-first content workspace. /sections remains the flat
+          type-oriented list; this is the one you reach content THROUGH.
+        */}
+        <Route
+          path="/content/course"
+          element={
+            <AdminRoute>
+              <ProgramContentPage />
             </AdminRoute>
           }
         />

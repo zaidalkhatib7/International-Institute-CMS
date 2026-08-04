@@ -15,6 +15,7 @@ export const routeAccess = Object.freeze({
   '/sections/edit': permission('learning.manage'),
   '/quizzes': permission('learning.manage'),
   '/quizzes/bank': permission('learning.manage'),
+  '/content/course': permission('learning.manage'),
   '/quizzes/edit': permission('learning.manage'),
   '/ai-settings': permission('learning.manage'),
   '/settings': null,
