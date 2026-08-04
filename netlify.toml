@@ -2,6 +2,20 @@
   command = "npm run build"
   publish = "dist"
 
+# Pin the build runtime.
+#
+# Netlify fixes a default Node version per site when the site is created and
+# keeps it forever. This project runs Vite 8 and React 19, and Vite 8 requires
+# Node >= 20.19 — so a site created on an older default silently stopped
+# building the moment the toolchain outgrew it. A failed build keeps serving the
+# previous bundle, which is indistinguishable from a site that was never
+# connected: main moves, the live JS does not.
+#
+# Unpinned build runtimes are non-deterministic anyway. This makes the version
+# part of the repository rather than a setting nobody can see from here.
+[build.environment]
+  NODE_VERSION = "22"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
