@@ -80,6 +80,24 @@ describe('PublicationReadinessCard', () => {
     expect(screen.getByText(/Content status: draft/)).toBeInTheDocument()
   })
 
+  it('sends content_status to the AI tab, not to a status dropdown that would refuse it', () => {
+    /*
+     * assertPublishableContent throws PACKAGE_PUBLICATION_REQUIRES_QUALITY_GATES
+     * on any ordinary edit moving a governed programme into 'published'. The
+     * gap library offers the option; the API says no. The only real route is
+     * the Publish package button on the AI tab.
+     */
+    const onGoToTab = vi.fn()
+    navigate.mockClear()
+    renderCard({ onGoToTab })
+
+    const row = screen.getByText(/Content status: draft/).closest('div')
+    fireEvent.click(within(row).getByRole('button'))
+
+    expect(onGoToTab).toHaveBeenCalledWith('ai-package')
+    expect(navigate).not.toHaveBeenCalledWith('/competency-gap-library')
+  })
+
   it('does not report the content_status blocker once it is published', () => {
     renderCard({ contentStatus: 'published' })
     expect(screen.queryByText(/Content status:/)).not.toBeInTheDocument()

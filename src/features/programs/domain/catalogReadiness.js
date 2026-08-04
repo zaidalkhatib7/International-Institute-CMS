@@ -102,8 +102,21 @@ export const READINESS_FIX = {
   rpl_pathway_mapping: { route: () => "/competency-gap-library" },
 };
 
-/** content_status lives in the gap library too, and is a separate gate. */
-export const CONTENT_STATUS_FIX_ROUTE = "/competency-gap-library";
+/*
+ * content_status is a separate gate, and it is NOT a dropdown you can set.
+ *
+ * The gap library offers "published" in its status select, but for a governed
+ * package the API refuses it — assertPublishableContent throws
+ * PACKAGE_PUBLICATION_REQUIRES_QUALITY_GATES on any ordinary edit that moves a
+ * CGP programme into 'published'. The only route is
+ * POST /admin/programs/{id}/publish-package, which verifies human question
+ * review, complete taxonomy, learning-outcome coverage and the MCQ standard,
+ * then sets the column itself.
+ *
+ * That button is on the AI package tab. Sending someone to the library select
+ * would send them somewhere that says no.
+ */
+export const CONTENT_STATUS_FIX_TAB = "ai-package";
 
 export function readinessLabel(key, language) {
   return READINESS_LABELS[language]?.[key] || READINESS_LABELS.en[key] || key;

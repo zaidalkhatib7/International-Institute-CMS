@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "../../../components/ui";
 import {
-  CONTENT_STATUS_FIX_ROUTE,
+  CONTENT_STATUS_FIX_TAB,
   READINESS_FIX,
   readinessLabel,
 } from "../domain/catalogReadiness";
@@ -41,7 +41,7 @@ const COPY = {
     notReady: "لا يمكن التفعيل بعد",
     of: "من",
     statusLabel: "حالة المحتوى",
-    statusBlocked: "يجب أن تكون «منشور» قبل التفعيل",
+    statusBlocked: "يُنشر عبر «نشر الحزمة» في تبويب حقيبة AI، لا من قائمة الحالة",
     fix: "إصلاح",
     hint: "التفعيل يتطلب اجتياز كل البنود وحالة محتوى «منشور». البنود الناقصة أولاً.",
     published: "منشور",
@@ -52,7 +52,7 @@ const COPY = {
     notReady: "Cannot be activated yet",
     of: "of",
     statusLabel: "Content status",
-    statusBlocked: 'must be "published" before activation',
+    statusBlocked: "published only via Publish package on the AI tab, not from a status dropdown",
     fix: "Fix",
     hint: 'Activation needs every check passed and a content status of "published". Missing items are listed first.',
     published: "published",
@@ -63,7 +63,7 @@ const COPY = {
     notReady: "Kan nog niet worden geactiveerd",
     of: "van",
     statusLabel: "Contentstatus",
-    statusBlocked: 'moet "published" zijn vóór activering',
+    statusBlocked: "wordt alleen gepubliceerd via Pakket publiceren op het AI-tabblad",
     fix: "Herstellen",
     hint: 'Activering vereist dat alle checks slagen en de contentstatus "published" is. Ontbrekende items staan bovenaan.',
     published: "published",
@@ -130,7 +130,7 @@ export default function PublicationReadinessCard({
             label={`${copy.statusLabel}: ${contentStatus || "—"} — ${copy.statusBlocked}`}
             actionLabel={copy.fix}
             rtl={rtl}
-            onClick={() => navigate(CONTENT_STATUS_FIX_ROUTE)}
+            onClick={() => onGoToTab?.(CONTENT_STATUS_FIX_TAB)}
           />
         ) : null}
 
