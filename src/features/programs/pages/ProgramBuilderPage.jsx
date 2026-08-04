@@ -27,8 +27,10 @@ import {
   updateAdminProgram,
 } from '../services/programsService'
 import { getCurrentLanguage, readLocalizedValue } from '../../../utils/localization'
+import { readApiError } from '../../../services/apiResponse'
 import AiPackagePanel from '../components/AiPackagePanel'
 import SeedPackPanel from '../components/SeedPackPanel'
+import PublicationReadinessCard from '../components/PublicationReadinessCard'
 
 function readLocalized(value, preferredLanguage = 'en') {
   return readLocalizedValue(value, preferredLanguage)
@@ -1521,6 +1523,9 @@ export default function ProgramBuilderPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
   const [saveError, setSaveError] = useState('')
+  // The server's publication verdict, returned on every programme fetch.
+  const [readiness, setReadiness] = useState(null)
+  const [contentStatus, setContentStatus] = useState('')
   const [categories, setCategories] = useState([])
 
   const [formData, setFormData] = useState({
@@ -1561,13 +1566,12 @@ export default function ProgramBuilderPage() {
         const result = await fetchAdminProgramById(programId)
         const program = normalizeProgramPayload(result)
         setFormData(mapProgramToFormData(program))
+        // The server sends the publication verdict on every fetch. Keep it —
+        // mapProgramToFormData is about editable fields and drops it.
+        setReadiness(program?.catalog_readiness || null)
+        setContentStatus(program?.content_status || '')
       } catch (err) {
-        const message =
-          err?.response?.data?.message ||
-          err?.message ||
-          copy.loadProgramError
-
-        setError(message)
+        setError(readApiError(err, copy.loadProgramError))
       } finally {
         setIsLoading(false)
       }
@@ -1671,6 +1675,10 @@ export default function ProgramBuilderPage() {
       }
 
       setFormData(mapProgramToFormData(finalProgram))
+      // Re-read the verdict after saving, so the checklist reflects what was
+      // just fixed instead of the state the page was opened in.
+      if (finalProgram?.catalog_readiness) setReadiness(finalProgram.catalog_readiness)
+      if (finalProgram?.content_status) setContentStatus(finalProgram.content_status)
 
       setSaveMessage(
         publish
@@ -1682,12 +1690,13 @@ export default function ProgramBuilderPage() {
           : copy.createdSuccess
       )
     } catch (err) {
-      const message =
-        err?.response?.data?.message ||
-        err?.message ||
-        copy.saveFailed
-
-      setSaveError(message)
+      /*
+       * readApiError flattens `errors` on a 422. The old code read
+       * `data.message`, which Laravel renders as the FIRST error plus
+       * "(and N more errors)" — so activation failures showed one line and
+       * silently dropped the `missing` list that says what to fix.
+       */
+      setSaveError(readApiError(err, copy.saveFailed))
     } finally {
       setIsSaving(false)
     }
@@ -1856,6 +1865,14 @@ export default function ProgramBuilderPage() {
           <div className="space-y-8">{renderMainContent()}</div>
 
           <div className="space-y-6">
+            {/* Above the preview: what stops this programme going live matters
+                more than what it will look like when it does. */}
+            <PublicationReadinessCard
+              readiness={readiness}
+              contentStatus={contentStatus}
+              language={language}
+              onGoToTab={handleTabChange}
+            />
             <PreviewCard formData={formData} activeLanguage={activeLanguage} copy={copy} />
             {activeTab === 'pricing' || activeTab === 'final-quiz' ? (
               <PricingSnapshotCard formData={formData} copy={copy} />

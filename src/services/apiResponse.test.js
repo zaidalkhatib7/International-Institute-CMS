@@ -35,10 +35,24 @@ describe('localized API error contract', () => {
     )
   })
 
-  it('prefers a feature-specific translated fallback over a foreign backend message', () => {
+  it('prefers the translated meaning of a known status over the caller’s generic fallback', () => {
+    /*
+     * This asserted the opposite until the fallback was deliberately moved
+     * BELOW the status branches — see the comment in readApiError. Practically
+     * every caller passes a fallback, so while it came first none of the
+     * status sentences were ever reachable in ar or nl, and a precise 403 or
+     * 409 surfaced as whatever generic line the page happened to supply.
+     *
+     * A 409 now says what a conflict IS. The caller's fallback still wins when
+     * the status says nothing useful — the case below.
+     */
     expect(readApiError(responseError(409, 'The application is locked.'), 'الطلب مقفل.', 'ar')).toBe(
-      'الطلب مقفل.',
+      'يتعارض هذا الإجراء مع الحالة الحالية للسجل. حدّث الصفحة ثم أعد المحاولة.',
     )
+  })
+
+  it('falls back to the caller’s sentence when the status carries no meaning', () => {
+    expect(readApiError(responseError(418, 'I am a teapot.'), 'الطلب مقفل.', 'ar')).toBe('الطلب مقفل.')
   })
 
   it('localizes network failures independently of backend content', () => {
