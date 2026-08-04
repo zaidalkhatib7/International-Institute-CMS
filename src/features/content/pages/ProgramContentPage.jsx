@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   ChevronDown, ChevronLeft, FileQuestion, FileText, Layers3, Loader2, PencilLine, Save, Zap,
 } from 'lucide-react'
-import { Badge, Button, Card, CardContent, Input, PageHeader, Select, Textarea } from '../../../components/ui'
+import { Badge, Button, Card, CardContent, CoursePicker, Input, PageHeader, Textarea } from '../../../components/ui'
 import { fetchProgramContentTree, updateActivity } from '../services/contentService'
 import { fetchAdminPrograms } from '../../programs/services/programsService'
 import { unwrapApiData, unwrapCollection, readApiError, readLocalized } from '../../../services/apiResponse'
@@ -204,14 +204,7 @@ export default function ProgramContentPage() {
 
       <Card>
         <CardContent className="space-y-4 p-6">
-          <Select label={copy.program} value={programId} onChange={(e) => setProgramId(e.target.value)}>
-            <option value="">{copy.choose}</option>
-            {programs.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.official_code ? `${p.official_code} — ` : ''}{readLocalized(p.title, language)}
-              </option>
-            ))}
-          </Select>
+          <CoursePicker programs={programs} value={programId} onChange={setProgramId} />
 
           {error ? <p className="whitespace-pre-line text-sm text-red-600">{error}</p> : null}
 

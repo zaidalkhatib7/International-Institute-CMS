@@ -214,6 +214,20 @@ export default function AppRouter() {
           path="/quizzes"
           element={
             <AdminRoute>
+              <ProgramQuestionBankPage />
+            </AdminRoute>
+          }
+        />
+
+        {/*
+          The old per-unit list — one row per unit's quiz record, which is the
+          shape this work exists to remove. Kept for the rare job of creating or
+          deleting a quiz record, but it is no longer the door into questions.
+        */}
+        <Route
+          path="/quizzes/units"
+          element={
+            <AdminRoute>
               <QuizzesPage />
             </AdminRoute>
           }

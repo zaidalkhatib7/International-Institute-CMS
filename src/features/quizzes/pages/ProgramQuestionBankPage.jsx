@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Library, Loader2, Search } from 'lucide-react'
-import { Badge, Card, CardContent, Input, PageHeader, Select } from '../../../components/ui'
+import { Badge, Card, CardContent, CoursePicker, Input, PageHeader, Select } from '../../../components/ui'
 import { fetchProgramQuestionBank } from '../services/quizzesService'
 import { fetchAdminPrograms } from '../../programs/services/programsService'
 import { unwrapApiData, unwrapCollection, readApiError, readLocalized } from '../../../services/apiResponse'
@@ -163,42 +163,40 @@ export default function ProgramQuestionBankPage() {
 
       <Card>
         <CardContent className="space-y-4 p-6">
-          <div className="grid gap-3 md:grid-cols-4">
-            <Select label={copy.program} value={programId} onChange={(e) => setProgramId(e.target.value)}>
-              <option value="">{copy.choose}</option>
-              {programs.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.official_code ? `${p.official_code} — ` : ''}{readLocalized(p.title, language)}
-                </option>
-              ))}
-            </Select>
+          <CoursePicker programs={programs} value={programId} onChange={setProgramId} />
 
-            <Input
-              label={copy.search}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              leftIcon={<Search className="h-4 w-4" aria-hidden="true" />}
-              disabled={!bank}
-            />
+          <CoursePicker programs={programs} value={programId} onChange={setProgramId} />
 
-            <Select label={copy.unit} value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)} disabled={!bank}>
-              <option value="">{copy.allUnits}</option>
-              {(bank?.units || []).map((u) => (
-                <option key={u.id} value={u.id}>
-                  {readLocalized(u.title, language)} ({bank?.by_unit?.[u.id] ?? 0})
-                </option>
-              ))}
-            </Select>
+          {/* Filters only matter once a course is chosen — showing them before
+              that is three disabled boxes pretending to be a workspace. */}
+          {bank ? (
+            <div className="grid gap-3 md:grid-cols-3">
+              <Input
+                label={copy.search}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                leftIcon={<Search className="h-4 w-4" aria-hidden="true" />}
+              />
 
-            <Select label={copy.status} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} disabled={!bank}>
-              <option value="">{copy.allStatuses}</option>
-              {statuses.map((s) => (
-                <option key={s} value={s}>
-                  {s} ({bank?.by_review_status?.[s] ?? 0})
-                </option>
-              ))}
-            </Select>
-          </div>
+              <Select label={copy.unit} value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)}>
+                <option value="">{copy.allUnits}</option>
+                {(bank.units || []).map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {readLocalized(u.title, language)} ({bank.by_unit?.[u.id] ?? 0})
+                  </option>
+                ))}
+              </Select>
+
+              <Select label={copy.status} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="">{copy.allStatuses}</option>
+                {statuses.map((s) => (
+                  <option key={s} value={s}>
+                    {s} ({bank.by_review_status?.[s] ?? 0})
+                  </option>
+                ))}
+              </Select>
+            </div>
+          ) : null}
 
           {error ? <p className="whitespace-pre-line text-sm text-red-600">{error}</p> : null}
 
