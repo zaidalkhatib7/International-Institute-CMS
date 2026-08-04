@@ -60,12 +60,22 @@ const copyByLanguage = {
     description:
       "Manage this client without impersonating their account. Every staff action is auditable.",
     back: "Back to users",
+    staffWorkspace: "Staff account",
+    staffDescription:
+      "An institute account. Staff are not assessed by the institute, so the client journey does not apply here.",
+    staffNotice: "This is a staff account, not a client",
+    staffNoticeHint:
+      "Qualification evidence, RPL routing and enrolment belong to the people the institute assesses. An administrator, trainer or assessor cannot be the subject of an RPL case — the server refuses it — so those sections are not shown. Manage permissions from Administration and roles.",
+    staffGoToRoles: "Open administration and roles",
     deleteAccount: "Delete account",
-    deleteHint: "Revokes access and destroys every session token. The record of what this account did is preserved, so the audit trail stays checkable.",
-    deleteConfirm: "Delete this account? Access ends immediately. History is kept.",
+    deleteHint:
+      "Revokes access and destroys every session token. The record of what this account did is preserved, so the audit trail stays checkable.",
+    deleteConfirm:
+      "Delete this account? Access ends immediately. History is kept.",
     deleted: "Account deleted. Access revoked; history preserved.",
     purge: "Erase permanently",
-    purgeHint: "Only possible for an account that never did anything governed. Refused otherwise, and the refusal says what blocks it.",
+    purgeHint:
+      "Only possible for an account that never did anything governed. Refused otherwise, and the refusal says what blocks it.",
     purgeConfirm: "Erase this account permanently? This cannot be undone.",
     purged: "Account erased permanently.",
     dangerZone: "Removing this account",
@@ -152,12 +162,21 @@ const copyByLanguage = {
     description:
       "إدارة العميل دون الدخول إلى حسابه، وتبقى جميع إجراءات الموظف مسجلة وقابلة للتدقيق.",
     back: "العودة إلى المستخدمين",
+    staffWorkspace: "حساب موظف",
+    staffDescription:
+      "حساب تابع للمعهد. الموظفون ليسوا محلّ تقييم من المعهد، ولذلك لا ينطبق عليهم مسار العميل.",
+    staffNotice: "هذا حساب موظف، وليس عميلاً",
+    staffNoticeHint:
+      "أدلة المؤهلات وتوجيه RPL والتسجيل تخصّ من يقيّمهم المعهد. لا يجوز أن يكون المدير أو المدرب أو المقيّم موضوعاً لملف RPL — والخادم يرفض ذلك — لذلك لا تظهر هذه الأقسام هنا. تُدار الصلاحيات من «الإدارة والأدوار».",
+    staffGoToRoles: "فتح الإدارة والأدوار",
     deleteAccount: "حذف الحساب",
-    deleteHint: "يُلغي الوصول ويُبطل كل الجلسات. يبقى سجل ما قام به هذا الحساب محفوظًا ليظل الأثر التدقيقي قابلًا للفحص.",
+    deleteHint:
+      "يُلغي الوصول ويُبطل كل الجلسات. يبقى سجل ما قام به هذا الحساب محفوظًا ليظل الأثر التدقيقي قابلًا للفحص.",
     deleteConfirm: "حذف هذا الحساب؟ ينتهي الوصول فورًا، ويبقى السجل.",
     deleted: "حُذف الحساب. أُلغي الوصول وبقي السجل.",
     purge: "محو نهائي",
-    purgeHint: "ممكن فقط لحساب لم يقم بأي إجراء محكوم. يُرفض غير ذلك مع بيان السبب.",
+    purgeHint:
+      "ممكن فقط لحساب لم يقم بأي إجراء محكوم. يُرفض غير ذلك مع بيان السبب.",
     purgeConfirm: "محو هذا الحساب نهائيًا؟ لا يمكن التراجع.",
     purged: "مُحي الحساب نهائيًا.",
     dangerZone: "إزالة هذا الحساب",
@@ -245,13 +264,24 @@ const copyByLanguage = {
     description:
       "Beheer deze cliënt zonder het account over te nemen. Elke medewerkershandeling is controleerbaar.",
     back: "Terug naar gebruikers",
+    staffWorkspace: "Medewerkersaccount",
+    staffDescription:
+      "Een account van het instituut. Medewerkers worden niet door het instituut beoordeeld, dus het cliënttraject geldt hier niet.",
+    staffNotice: "Dit is een medewerkersaccount, geen cliënt",
+    staffNoticeHint:
+      "Kwalificatiebewijs, RPL-routering en inschrijving horen bij de mensen die het instituut beoordeelt. Een beheerder, trainer of beoordelaar kan niet het onderwerp van een RPL-dossier zijn — de server weigert dat — dus die secties worden niet getoond. Beheer rechten via Beheer en rollen.",
+    staffGoToRoles: "Beheer en rollen openen",
     deleteAccount: "Account verwijderen",
-    deleteHint: "Trekt toegang in en vernietigt elke sessietoken. Wat dit account heeft gedaan blijft bewaard, zodat het auditspoor controleerbaar blijft.",
-    deleteConfirm: "Dit account verwijderen? Toegang stopt direct. Geschiedenis blijft.",
+    deleteHint:
+      "Trekt toegang in en vernietigt elke sessietoken. Wat dit account heeft gedaan blijft bewaard, zodat het auditspoor controleerbaar blijft.",
+    deleteConfirm:
+      "Dit account verwijderen? Toegang stopt direct. Geschiedenis blijft.",
     deleted: "Account verwijderd. Toegang ingetrokken, geschiedenis bewaard.",
     purge: "Definitief wissen",
-    purgeHint: "Alleen mogelijk voor een account dat nooit iets gereguleerds deed.",
-    purgeConfirm: "Dit account definitief wissen? Dit kan niet ongedaan worden gemaakt.",
+    purgeHint:
+      "Alleen mogelijk voor een account dat nooit iets gereguleerds deed.",
+    purgeConfirm:
+      "Dit account definitief wissen? Dit kan niet ongedaan worden gemaakt.",
     purged: "Account definitief gewist.",
     dangerZone: "Dit account verwijderen",
     account: "Accountgegevens",
@@ -610,6 +640,25 @@ export default function UserWorkspacePage() {
   }
 
   const user = state.user;
+  /*
+   * STAFF ARE NOT CLIENTS.
+   *
+   * This page used to render the client journey for whoever it was opened on,
+   * so an administrator was offered qualification evidence, an RPL routing
+   * decision and enrolment — a case in which the assessor is the assessed.
+   *
+   * The same rule is enforced on the server (RPL_SUBJECT_MUST_BE_A_CLIENT);
+   * this only stops the CMS from offering an act the API will refuse. It
+   * mirrors User::STAFF_ROLE_SLUGS, and reads the roles table as well as the
+   * effective role the API computes, because a trainer's `role` column still
+   * says 'user'.
+   */
+  const STAFF_SLUGS = ["admin", "super-admin", "trainer", "assessor"];
+  const subjectIsStaff = Boolean(
+    user &&
+    (STAFF_SLUGS.includes(user.role) ||
+      (user.roles || []).some((role) => STAFF_SLUGS.includes(role.slug))),
+  );
   const professionalEligibility =
     state.eligibility?.professional_qualifications;
   const rplEligibility = state.eligibility?.rpl;
@@ -643,10 +692,26 @@ export default function UserWorkspacePage() {
   return (
     <section dir={language === "ar" ? "rtl" : "ltr"} className="space-y-7">
       <PageHeader
-        title={user ? `${copy.workspace} · ${user.name}` : copy.workspace}
-        description={copy.description}
+        title={
+          user
+            ? `${subjectIsStaff ? copy.staffWorkspace : copy.workspace} · ${user.name}`
+            : copy.workspace
+        }
+        description={subjectIsStaff ? copy.staffDescription : copy.description}
         actions={
-          <Button variant="outline" onClick={() => navigate("/users/onsite")}>
+          <Button
+            variant="outline"
+            onClick={() =>
+              // Back to the list this account actually belongs to.
+              navigate(
+                subjectIsStaff
+                  ? "/users"
+                  : user?.registration_channel === "online"
+                    ? "/users/website"
+                    : "/users/onsite",
+              )
+            }
+          >
             <BackIcon size={17} />
             {copy.back}
           </Button>
@@ -831,346 +896,403 @@ export default function UserWorkspacePage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="border-b border-[var(--color-border)]">
-              <CardTitle>{copy.academicEvidence}</CardTitle>
-              <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                {copy.academicEvidenceHint}
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-5 p-6">
-              {(user.qualifications || []).length ? (
-                <div className="grid gap-3">
-                  {user.qualifications.map((qualification) => (
-                    <div
-                      key={qualification.id}
-                      className="flex flex-col justify-between gap-3 rounded-xl border border-[var(--color-border)] p-4 md:flex-row md:items-center"
+          {subjectIsStaff ? (
+            <Card>
+              <CardHeader className="border-b border-[var(--color-border)]">
+                <CardTitle>{copy.staffNotice}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 p-6">
+                <p className="max-w-3xl text-sm text-[var(--color-text-muted)]">
+                  {copy.staffNoticeHint}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {(user.roles || []).map((role) => (
+                    <span
+                      key={role.id ?? role.slug}
+                      className="rounded-full bg-[var(--color-surface-muted)] px-3 py-1 text-xs font-medium"
                     >
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <strong>{qualification.title}</strong>
-                          <Badge
-                            variant={
-                              qualification.is_verified ? "success" : "warning"
-                            }
-                          >
-                            {qualification.is_verified
-                              ? copy.verified
-                              : copy.unverified}
-                          </Badge>
-                        </div>
-                        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                          {qualificationTypeLabel(
-                            qualification.qualification_type,
-                            language,
-                          )}{" "}
-                          · {qualification.institution}
-                          {qualification.field
-                            ? ` · ${qualification.field}`
-                            : ""}
-                        </p>
-                      </div>
-                      {canManageUsers ? (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setEditingQualificationId(qualification.id);
-                              setQualificationForm(
-                                qualificationFormFrom(qualification),
-                              );
-                            }}
-                          >
-                            <Pencil size={15} />
-                            {copy.editQualification}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            disabled={savingQualification}
-                            onClick={() => removeQualification(qualification)}
-                          >
-                            <Trash2 size={15} />
-                            {copy.deleteQualification}
-                          </Button>
-                        </div>
-                      ) : null}
-                    </div>
+                      {role.name || role.slug}
+                    </span>
                   ))}
                 </div>
-              ) : null}
-              {canManageUsers ? (
-                <div className="grid gap-4 rounded-xl border border-sky-200 bg-sky-50/60 p-5 md:grid-cols-2">
-                  <Select
-                    label={copy.type}
-                    value={qualificationForm.qualification_type}
-                    onChange={(event) =>
-                      setQualificationField(
-                        "qualification_type",
-                        event.target.value,
-                      )
-                    }
+                <Button variant="outline" onClick={() => navigate("/users")}>
+                  {copy.staffGoToRoles}
+                </Button>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {/* Everything from here to the danger zone is the client journey:
+              qualification evidence, the RPL routing decision, professional
+              qualifications and open cases. None of it applies to staff. */}
+          {subjectIsStaff ? null : (
+            <>
+              <Card>
+                <CardHeader className="border-b border-[var(--color-border)]">
+                  <CardTitle>{copy.academicEvidence}</CardTitle>
+                  <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                    {copy.academicEvidenceHint}
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-5 p-6">
+                  {(user.qualifications || []).length ? (
+                    <div className="grid gap-3">
+                      {user.qualifications.map((qualification) => (
+                        <div
+                          key={qualification.id}
+                          className="flex flex-col justify-between gap-3 rounded-xl border border-[var(--color-border)] p-4 md:flex-row md:items-center"
+                        >
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <strong>{qualification.title}</strong>
+                              <Badge
+                                variant={
+                                  qualification.is_verified
+                                    ? "success"
+                                    : "warning"
+                                }
+                              >
+                                {qualification.is_verified
+                                  ? copy.verified
+                                  : copy.unverified}
+                              </Badge>
+                            </div>
+                            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                              {qualificationTypeLabel(
+                                qualification.qualification_type,
+                                language,
+                              )}{" "}
+                              · {qualification.institution}
+                              {qualification.field
+                                ? ` · ${qualification.field}`
+                                : ""}
+                            </p>
+                          </div>
+                          {canManageUsers ? (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingQualificationId(qualification.id);
+                                  setQualificationForm(
+                                    qualificationFormFrom(qualification),
+                                  );
+                                }}
+                              >
+                                <Pencil size={15} />
+                                {copy.editQualification}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="danger"
+                                disabled={savingQualification}
+                                onClick={() =>
+                                  removeQualification(qualification)
+                                }
+                              >
+                                <Trash2 size={15} />
+                                {copy.deleteQualification}
+                              </Button>
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {canManageUsers ? (
+                    <div className="grid gap-4 rounded-xl border border-sky-200 bg-sky-50/60 p-5 md:grid-cols-2">
+                      <Select
+                        label={copy.type}
+                        value={qualificationForm.qualification_type}
+                        onChange={(event) =>
+                          setQualificationField(
+                            "qualification_type",
+                            event.target.value,
+                          )
+                        }
+                      >
+                        {qualificationTypes.map((type) => (
+                          <option key={type} value={type}>
+                            {qualificationTypeLabel(type, language)}
+                          </option>
+                        ))}
+                      </Select>
+                      <Input
+                        label={copy.title}
+                        value={qualificationForm.title}
+                        onChange={(event) =>
+                          setQualificationField("title", event.target.value)
+                        }
+                      />
+                      <Input
+                        label={copy.institution}
+                        value={qualificationForm.institution}
+                        onChange={(event) =>
+                          setQualificationField(
+                            "institution",
+                            event.target.value,
+                          )
+                        }
+                      />
+                      <Input
+                        label={copy.field}
+                        value={qualificationForm.field}
+                        onChange={(event) =>
+                          setQualificationField("field", event.target.value)
+                        }
+                      />
+                      <Input
+                        label={copy.startDate}
+                        type="date"
+                        value={qualificationForm.started_on}
+                        onChange={(event) =>
+                          setQualificationField(
+                            "started_on",
+                            event.target.value,
+                          )
+                        }
+                      />
+                      <Input
+                        label={copy.completionDate}
+                        type="date"
+                        value={qualificationForm.completed_on}
+                        onChange={(event) =>
+                          setQualificationField(
+                            "completed_on",
+                            event.target.value,
+                          )
+                        }
+                      />
+                      <label className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-semibold">
+                        <input
+                          type="checkbox"
+                          checked={qualificationForm.is_verified}
+                          onChange={(event) =>
+                            setQualificationField(
+                              "is_verified",
+                              event.target.checked,
+                            )
+                          }
+                        />
+                        {copy.verified}
+                      </label>
+                      <div className="flex flex-wrap items-end gap-3">
+                        <Button
+                          onClick={saveQualification}
+                          disabled={
+                            savingQualification ||
+                            !qualificationForm.title.trim() ||
+                            !qualificationForm.institution.trim()
+                          }
+                        >
+                          {savingQualification ? (
+                            <LoaderCircle className="animate-spin" size={17} />
+                          ) : (
+                            <GraduationCap size={17} />
+                          )}
+                          {editingQualificationId
+                            ? copy.updateQualification
+                            : copy.addQualification}
+                        </Button>
+                        {editingQualificationId ? (
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setEditingQualificationId(null);
+                              setQualificationForm(emptyQualification());
+                            }}
+                          >
+                            {copy.cancel}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="border-b border-[var(--color-border)]">
+                  <CardTitle>{copy.routing}</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-5 p-6 lg:grid-cols-2">
+                  <div
+                    className={`rounded-2xl border p-5 ${rplIsAvailable ? "border-sky-200 bg-sky-50" : rplIsDegreeBlocked ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}
                   >
-                    {qualificationTypes.map((type) => (
-                      <option key={type} value={type}>
-                        {qualificationTypeLabel(type, language)}
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-bold">
+                          {rplIsAvailable
+                            ? routeTitle
+                            : rplIsDegreeBlocked
+                              ? copy.noRplDegree
+                              : rplIsSecondaryPending
+                                ? copy.pendingSecondary
+                                : copy.noPathway}
+                        </h3>
+                        <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+                          {rplIsAvailable
+                            ? routeHint
+                            : rplIsDegreeBlocked
+                              ? rplEligibility?.has_pending_academic_degree_verification
+                                ? copy.pendingAcademicHint
+                                : copy.noRplDegreeHint
+                              : rplIsSecondaryPending
+                                ? copy.pendingSecondaryHint
+                                : copy.noPathway}
+                        </p>
+                      </div>
+                      {rplIsAvailable ? (
+                        <Badge variant="info">RPL</Badge>
+                      ) : (
+                        <Badge
+                          variant={rplIsDegreeBlocked ? "warning" : "neutral"}
+                        >
+                          {rplIsDegreeBlocked
+                            ? copy.professional
+                            : copy.unverified}
+                        </Badge>
+                      )}
+                    </div>
+                    {rplIsAvailable ? (
+                      <div className="mt-5 space-y-3">
+                        <Select
+                          label={copy.targetLevel}
+                          value={targetLevelId}
+                          onChange={(event) =>
+                            setTargetLevelId(event.target.value)
+                          }
+                        >
+                          <option value="">{copy.selectTargetLevel}</option>
+                          {(routePathway.levels || []).map((level) => (
+                            <option key={level.id} value={level.id}>
+                              {localize(level.name, language)}
+                            </option>
+                          ))}
+                        </Select>
+                        <p className="text-xs leading-5 text-[var(--color-text-muted)]">
+                          {copy.targetLevelHint}
+                        </p>
+                        <Button
+                          onClick={() => startRpl(routePathway.id)}
+                          disabled={busy || !targetLevelId}
+                        >
+                          {busy ? (
+                            <LoaderCircle className="animate-spin" size={17} />
+                          ) : (
+                            <FilePlus2 size={17} />
+                          )}
+                          {copy.startRpl}
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-bold">
+                          {copy.professional}
+                        </h3>
+                        <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+                          {copy.professionalHint}
+                        </p>
+                      </div>
+                      <Badge variant="success">
+                        <CheckCircle2 size={14} />
+                      </Badge>
+                    </div>
+                    <p className="mt-4 text-sm font-medium">
+                      {professionalEligibility?.recommended_program_type
+                        ? `${copy[professionalEligibility.recommended_program_type.replace("professional_", "")] || professionalEligibility.recommended_program_type}`
+                        : copy.noPrograms}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="border-b border-[var(--color-border)]">
+                  <CardTitle>{copy.professional}</CardTitle>
+                  <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                    {copy.professionalHint}
+                  </p>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-end">
+                  <Select
+                    className="flex-1"
+                    label={copy.selectProgram}
+                    value={programId}
+                    onChange={(event) => setProgramId(event.target.value)}
+                    disabled={!eligiblePrograms.length}
+                  >
+                    <option value="">{copy.selectProgram}</option>
+                    {eligiblePrograms.map((program) => (
+                      <option key={program.id} value={program.id}>
+                        {programmeTypeLabel(program.program_type, copy)} ·{" "}
+                        {localize(program.title, language)} ·{" "}
+                        {formatLocalizedNumber(
+                          program.price_points || 0,
+                          language,
+                        )}{" "}
+                        {copy.points}
                       </option>
                     ))}
                   </Select>
-                  <Input
-                    label={copy.title}
-                    value={qualificationForm.title}
-                    onChange={(event) =>
-                      setQualificationField("title", event.target.value)
-                    }
-                  />
-                  <Input
-                    label={copy.institution}
-                    value={qualificationForm.institution}
-                    onChange={(event) =>
-                      setQualificationField("institution", event.target.value)
-                    }
-                  />
-                  <Input
-                    label={copy.field}
-                    value={qualificationForm.field}
-                    onChange={(event) =>
-                      setQualificationField("field", event.target.value)
-                    }
-                  />
-                  <Input
-                    label={copy.startDate}
-                    type="date"
-                    value={qualificationForm.started_on}
-                    onChange={(event) =>
-                      setQualificationField("started_on", event.target.value)
-                    }
-                  />
-                  <Input
-                    label={copy.completionDate}
-                    type="date"
-                    value={qualificationForm.completed_on}
-                    onChange={(event) =>
-                      setQualificationField("completed_on", event.target.value)
-                    }
-                  />
-                  <label className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-semibold">
-                    <input
-                      type="checkbox"
-                      checked={qualificationForm.is_verified}
-                      onChange={(event) =>
-                        setQualificationField(
-                          "is_verified",
-                          event.target.checked,
-                        )
-                      }
-                    />
-                    {copy.verified}
-                  </label>
-                  <div className="flex flex-wrap items-end gap-3">
-                    <Button
-                      onClick={saveQualification}
-                      disabled={
-                        savingQualification ||
-                        !qualificationForm.title.trim() ||
-                        !qualificationForm.institution.trim()
-                      }
-                    >
-                      {savingQualification ? (
-                        <LoaderCircle className="animate-spin" size={17} />
-                      ) : (
-                        <GraduationCap size={17} />
-                      )}
-                      {editingQualificationId
-                        ? copy.updateQualification
-                        : copy.addQualification}
-                    </Button>
-                    {editingQualificationId ? (
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setEditingQualificationId(null);
-                          setQualificationForm(emptyQualification());
-                        }}
+                  <Button onClick={enrollProgram} disabled={!programId || busy}>
+                    {busy ? (
+                      <LoaderCircle className="animate-spin" size={17} />
+                    ) : (
+                      <FilePlus2 size={17} />
+                    )}
+                    {copy.enroll}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="border-b border-[var(--color-border)]">
+                  <CardTitle>{copy.cases}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 p-6">
+                  {(user.rpl_applications || []).length ? (
+                    user.rpl_applications.map((application) => (
+                      <button
+                        key={application.id}
+                        type="button"
+                        onClick={() =>
+                          navigate(
+                            `/rpl/applications/${application.public_id || application.id}`,
+                          )
+                        }
+                        className="flex w-full items-center justify-between rounded-xl border border-[var(--color-border)] p-4 text-start hover:bg-[var(--color-surface-muted)]"
                       >
-                        {copy.cancel}
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="border-b border-[var(--color-border)]">
-              <CardTitle>{copy.routing}</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-5 p-6 lg:grid-cols-2">
-              <div
-                className={`rounded-2xl border p-5 ${rplIsAvailable ? "border-sky-200 bg-sky-50" : rplIsDegreeBlocked ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-bold">
-                      {rplIsAvailable
-                        ? routeTitle
-                        : rplIsDegreeBlocked
-                          ? copy.noRplDegree
-                          : rplIsSecondaryPending
-                            ? copy.pendingSecondary
-                            : copy.noPathway}
-                    </h3>
-                    <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
-                      {rplIsAvailable
-                        ? routeHint
-                        : rplIsDegreeBlocked
-                          ? rplEligibility?.has_pending_academic_degree_verification
-                            ? copy.pendingAcademicHint
-                            : copy.noRplDegreeHint
-                          : rplIsSecondaryPending
-                            ? copy.pendingSecondaryHint
-                            : copy.noPathway}
-                    </p>
-                  </div>
-                  {rplIsAvailable ? (
-                    <Badge variant="info">RPL</Badge>
+                        <span>
+                          <bdi className="font-bold">
+                            {application.case_reference}
+                          </bdi>
+                          <span className="ms-2 text-sm text-[var(--color-text-muted)]">
+                            {localize(application.pathway?.name, language)}
+                          </span>
+                        </span>
+                        <span className="flex items-center gap-2 text-sm">
+                          <FolderOpen size={16} />
+                          <RplStatusBadge
+                            status={application.status}
+                            language={language}
+                          />
+                        </span>
+                      </button>
+                    ))
                   ) : (
-                    <Badge variant={rplIsDegreeBlocked ? "warning" : "neutral"}>
-                      {rplIsDegreeBlocked ? copy.professional : copy.unverified}
-                    </Badge>
+                    <p className="text-sm text-[var(--color-text-muted)]">
+                      {copy.noCases}
+                    </p>
                   )}
-                </div>
-                {rplIsAvailable ? (
-                  <div className="mt-5 space-y-3">
-                    <Select
-                      label={copy.targetLevel}
-                      value={targetLevelId}
-                      onChange={(event) => setTargetLevelId(event.target.value)}
-                    >
-                      <option value="">{copy.selectTargetLevel}</option>
-                      {(routePathway.levels || []).map((level) => (
-                        <option key={level.id} value={level.id}>
-                          {localize(level.name, language)}
-                        </option>
-                      ))}
-                    </Select>
-                    <p className="text-xs leading-5 text-[var(--color-text-muted)]">
-                      {copy.targetLevelHint}
-                    </p>
-                    <Button
-                      onClick={() => startRpl(routePathway.id)}
-                      disabled={busy || !targetLevelId}
-                    >
-                      {busy ? (
-                        <LoaderCircle className="animate-spin" size={17} />
-                      ) : (
-                        <FilePlus2 size={17} />
-                      )}
-                      {copy.startRpl}
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-bold">{copy.professional}</h3>
-                    <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
-                      {copy.professionalHint}
-                    </p>
-                  </div>
-                  <Badge variant="success">
-                    <CheckCircle2 size={14} />
-                  </Badge>
-                </div>
-                <p className="mt-4 text-sm font-medium">
-                  {professionalEligibility?.recommended_program_type
-                    ? `${copy[professionalEligibility.recommended_program_type.replace("professional_", "")] || professionalEligibility.recommended_program_type}`
-                    : copy.noPrograms}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="border-b border-[var(--color-border)]">
-              <CardTitle>{copy.professional}</CardTitle>
-              <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                {copy.professionalHint}
-              </p>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-end">
-              <Select
-                className="flex-1"
-                label={copy.selectProgram}
-                value={programId}
-                onChange={(event) => setProgramId(event.target.value)}
-                disabled={!eligiblePrograms.length}
-              >
-                <option value="">{copy.selectProgram}</option>
-                {eligiblePrograms.map((program) => (
-                  <option key={program.id} value={program.id}>
-                    {programmeTypeLabel(program.program_type, copy)} ·{" "}
-                    {localize(program.title, language)} ·{" "}
-                    {formatLocalizedNumber(program.price_points || 0, language)}{" "}
-                    {copy.points}
-                  </option>
-                ))}
-              </Select>
-              <Button onClick={enrollProgram} disabled={!programId || busy}>
-                {busy ? (
-                  <LoaderCircle className="animate-spin" size={17} />
-                ) : (
-                  <FilePlus2 size={17} />
-                )}
-                {copy.enroll}
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="border-b border-[var(--color-border)]">
-              <CardTitle>{copy.cases}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 p-6">
-              {(user.rpl_applications || []).length ? (
-                user.rpl_applications.map((application) => (
-                  <button
-                    key={application.id}
-                    type="button"
-                    onClick={() =>
-                      navigate(
-                        `/rpl/applications/${application.public_id || application.id}`,
-                      )
-                    }
-                    className="flex w-full items-center justify-between rounded-xl border border-[var(--color-border)] p-4 text-start hover:bg-[var(--color-surface-muted)]"
-                  >
-                    <span>
-                      <bdi className="font-bold">
-                        {application.case_reference}
-                      </bdi>
-                      <span className="ms-2 text-sm text-[var(--color-text-muted)]">
-                        {localize(application.pathway?.name, language)}
-                      </span>
-                    </span>
-                    <span className="flex items-center gap-2 text-sm">
-                      <FolderOpen size={16} />
-                      <RplStatusBadge
-                        status={application.status}
-                        language={language}
-                      />
-                    </span>
-                  </button>
-                ))
-              ) : (
-                <p className="text-sm text-[var(--color-text-muted)]">
-                  {copy.noCases}
-                </p>
-              )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </>
+          )}
 
           {/*
             REMOVING AN ACCOUNT — two different acts, kept visually apart.
