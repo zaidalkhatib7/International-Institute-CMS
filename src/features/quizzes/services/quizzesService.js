@@ -57,3 +57,18 @@ export async function rejectQuestion(questionId, reason = '') {
   const response = await http.post(`/admin/quiz-questions/${questionId}/reject`, { reason })
   return response.data
 }
+
+/**
+ * The whole programme's questions as ONE bank.
+ *
+ * Storage still keeps a quiz per unit — quizzes.course_section_id is unique and
+ * not-null — but nobody reviewing a bank thinks in units, and the exam engine
+ * already selects across the entire programme. This endpoint returns the bank
+ * flat, with the unit as a field on each question, plus counts computed
+ * server-side so the screen cannot disagree with the publication gates about
+ * how many questions are actually approved.
+ */
+export async function fetchProgramQuestionBank(programId) {
+  const response = await http.get(`/admin/programs/${programId}/question-bank`)
+  return response.data
+}

@@ -23,6 +23,7 @@ const SectionBuilderPage = lazy(() => import('../features/sections/pages/Section
 const QuizzesPage = lazy(() => import('../features/quizzes/pages/QuizzesPage'))
 const QuizBuilderPage = lazy(() => import('../features/quizzes/pages/QuizBuilderPage'))
 const AiQuizSettingsPage = lazy(() => import('../features/quizzes/pages/AiQuizSettingsPage'))
+const ProgramQuestionBankPage = lazy(() => import('../features/quizzes/pages/ProgramQuestionBankPage'))
 const SettingsPage = lazy(() => import('../features/settings/pages/SettingsPage'))
 const ApiModulePage = lazy(() => import('../features/platform/pages/ApiModulePage'))
 const PublicSiteArchitecturePage = lazy(() => import('../features/content/pages/PublicSiteArchitecturePage'))
@@ -200,6 +201,19 @@ export default function AppRouter() {
           element={
             <AdminRoute>
               <QuizzesPage />
+            </AdminRoute>
+          }
+        />
+
+        {/*
+          One bank per course. The per-unit editor below still exists for editing
+          a single unit's quiz; this is the review view across the whole lot.
+        */}
+        <Route
+          path="/quizzes/bank"
+          element={
+            <AdminRoute>
+              <ProgramQuestionBankPage />
             </AdminRoute>
           }
         />
