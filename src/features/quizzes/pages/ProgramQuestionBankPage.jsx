@@ -165,8 +165,6 @@ export default function ProgramQuestionBankPage() {
         <CardContent className="space-y-4 p-6">
           <CoursePicker programs={programs} value={programId} onChange={setProgramId} />
 
-          <CoursePicker programs={programs} value={programId} onChange={setProgramId} />
-
           {/* Filters only matter once a course is chosen — showing them before
               that is three disabled boxes pretending to be a workspace. */}
           {bank ? (
