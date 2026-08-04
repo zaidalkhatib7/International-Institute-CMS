@@ -77,8 +77,14 @@ const moduleWorkspacePaths = [
 ]
 
 export default function AppRouter() {
+  /*
+   * basename follows the build's base path, so one source tree serves both from
+   * the site root and from a subdirectory. Vite sets BASE_URL from the build's
+   * base option and it is '/' unless told otherwise, so a root deployment is
+   * unaffected.
+   */
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <AuthorizationProvider>
         <Routes>
         <Route
