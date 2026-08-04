@@ -43,6 +43,8 @@ const COPY = {
     bpTotal: 'إجمالي أسئلة الاختبار',
     bpSum: 'مجموع التغطية',
     bpNoOutcomes: 'لا توجد مخرجات تعلّم فعّالة. أنشئ حزمة الانطلاق أولًا.',
+    available: 'متاح',
+    overAvailable: 'التغطية تتجاوز الأسئلة المعتمدة المتاحة — سيُعتمد المخطط لكنه لن يستطيع بناء اختبار.',
     save: 'حفظ المقترح',
     approve: 'اعتماد',
     approved: 'معتمد',
@@ -65,6 +67,8 @@ const COPY = {
     bpTotal: 'Total exam questions',
     bpSum: 'Coverage sum',
     bpNoOutcomes: 'No active learning outcomes. Approve the seed pack first.',
+    available: 'available',
+    overAvailable: 'Coverage exceeds the approved questions available — the blueprint would approve but could not build an exam.',
     save: 'Save proposal',
     approve: 'Approve',
     approved: 'Approved',
@@ -87,6 +91,8 @@ const COPY = {
     bpTotal: 'Totaal aantal examenvragen',
     bpSum: 'Som van de dekking',
     bpNoOutcomes: 'Geen actieve leeruitkomsten. Keur eerst het startpakket goed.',
+    available: 'beschikbaar',
+    overAvailable: 'De dekking overschrijdt het aantal goedgekeurde vragen — de matrijs wordt goedgekeurd maar kan geen examen samenstellen.',
     save: 'Voorstel opslaan',
     approve: 'Goedkeuren',
     approved: 'Goedgekeurd',
@@ -177,6 +183,15 @@ export default function PublicationGatesPanel({ programId, gates, language, onCh
 
   const coverageSum = outcomes.reduce((sum, o) => sum + num(coverage[o.code]), 0)
   const questionsMatch = coverageSum === num(totalQuestions) && num(totalQuestions) > 0
+  /*
+   * approve() checks only that the counts sum to the total. It never asks
+   * whether the bank can supply them, so an over-subscribed outcome approves
+   * cleanly and fails later when an exam is built. Warned here because that is
+   * the only place it is still cheap to fix.
+   */
+  const overSubscribed = outcomes.filter(
+    (o) => o.available != null && num(coverage[o.code]) > o.available,
+  )
 
   const ltApproved = learningTime?.status === 'approved'
   const bpApproved = blueprint?.status === 'approved'
@@ -316,7 +331,9 @@ export default function PublicationGatesPanel({ programId, gates, language, onCh
                     key={outcome.code}
                     type="number"
                     min="0"
-                    label={`${outcome.code} — ${readLocalized(outcome.title, language)}`}
+                    label={`${outcome.code} — ${readLocalized(outcome.title, language)}${
+                      outcome.available != null ? ` (${outcome.available} ${copy.available})` : ''
+                    }`}
                     value={coverage[outcome.code] ?? ''}
                     disabled={bpApproved}
                     onChange={(e) =>
@@ -335,6 +352,14 @@ export default function PublicationGatesPanel({ programId, gates, language, onCh
                 </Badge>
                 {!questionsMatch ? <span className="text-amber-700">{copy.mustMatch}</span> : null}
               </div>
+
+              {overSubscribed.length > 0 ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  {copy.overAvailable}
+                  {' '}
+                  {overSubscribed.map((o) => `${o.code} (${o.available})`).join(', ')}
+                </p>
+              ) : null}
 
               {!bpApproved ? (
                 <div className="flex flex-wrap gap-2">

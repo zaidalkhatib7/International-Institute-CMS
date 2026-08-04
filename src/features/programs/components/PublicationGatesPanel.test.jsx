@@ -36,8 +36,8 @@ function gatesFixture(overrides = {}) {
     },
     blueprint: overrides.blueprint === undefined ? null : overrides.blueprint,
     outcomes: overrides.outcomes || [
-      { id: 1, code: 'LO-001', title: { en: 'First outcome' } },
-      { id: 2, code: 'LO-002', title: { en: 'Second outcome' } },
+      { id: 1, code: 'LO-001', title: { en: 'First outcome' }, available: 8 },
+      { id: 2, code: 'LO-002', title: { en: 'Second outcome' }, available: 5 },
     ],
     question_review: { total: 50, awaiting_review: 10, approved: 40 },
   }
@@ -116,6 +116,34 @@ describe('PublicationGatesPanel', () => {
 
     expect(payload.total_questions).toBe(30)
     expect(payload.outcome_coverage).toEqual([{ outcome_code: 'LO-001', count: 30 }])
+  })
+
+  it('warns when an outcome is asked for more questions than the bank has approved', () => {
+    /*
+     * approve() checks only that the counts sum to total_questions — never that
+     * the bank can supply them. An over-subscribed outcome therefore approves
+     * cleanly and fails later when an exam is built, which is the worst place
+     * to find out. LO-001 has 8 approved questions; asking for 9 must warn.
+     */
+    const { exam } = renderPanel()
+    fireEvent.change(exam.getByLabelText('Total exam questions'), { target: { value: '9' } })
+    fireEvent.change(exam.getByLabelText(/LO-001/), { target: { value: '9' } })
+
+    expect(exam.getByText(/could not build an exam/)).toBeInTheDocument()
+    expect(exam.getByText(/LO-001 \(8\)/)).toBeInTheDocument()
+  })
+
+  it('shows how many approved questions each outcome actually has', () => {
+    const { exam } = renderPanel()
+    expect(exam.getByLabelText(/LO-001 — First outcome \(8 available\)/)).toBeInTheDocument()
+  })
+
+  it('does not warn while coverage stays within what is available', () => {
+    const { exam } = renderPanel()
+    fireEvent.change(exam.getByLabelText('Total exam questions'), { target: { value: '8' } })
+    fireEvent.change(exam.getByLabelText(/LO-001/), { target: { value: '8' } })
+
+    expect(exam.queryByText(/could not build an exam/)).toBeNull()
   })
 
   it('warns when coverage does not sum to the total', () => {
