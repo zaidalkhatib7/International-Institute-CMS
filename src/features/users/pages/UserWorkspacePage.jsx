@@ -31,10 +31,12 @@ import {
 } from "../../../services/apiResponse";
 import {
   createUserQualification,
+  deleteUser,
   deleteUserQualification,
   enrollUserByStaff,
   fetchUser,
   fetchUserProfessionalEligibility,
+  purgeUser,
   updateUser,
   updateUserQualification,
 } from "../services/usersService";
@@ -58,6 +60,15 @@ const copyByLanguage = {
     description:
       "Manage this client without impersonating their account. Every staff action is auditable.",
     back: "Back to users",
+    deleteAccount: "Delete account",
+    deleteHint: "Revokes access and destroys every session token. The record of what this account did is preserved, so the audit trail stays checkable.",
+    deleteConfirm: "Delete this account? Access ends immediately. History is kept.",
+    deleted: "Account deleted. Access revoked; history preserved.",
+    purge: "Erase permanently",
+    purgeHint: "Only possible for an account that never did anything governed. Refused otherwise, and the refusal says what blocks it.",
+    purgeConfirm: "Erase this account permanently? This cannot be undone.",
+    purged: "Account erased permanently.",
+    dangerZone: "Removing this account",
     account: "Account information",
     edit: "Edit information",
     save: "Save changes",
@@ -141,6 +152,15 @@ const copyByLanguage = {
     description:
       "إدارة العميل دون الدخول إلى حسابه، وتبقى جميع إجراءات الموظف مسجلة وقابلة للتدقيق.",
     back: "العودة إلى المستخدمين",
+    deleteAccount: "حذف الحساب",
+    deleteHint: "يُلغي الوصول ويُبطل كل الجلسات. يبقى سجل ما قام به هذا الحساب محفوظًا ليظل الأثر التدقيقي قابلًا للفحص.",
+    deleteConfirm: "حذف هذا الحساب؟ ينتهي الوصول فورًا، ويبقى السجل.",
+    deleted: "حُذف الحساب. أُلغي الوصول وبقي السجل.",
+    purge: "محو نهائي",
+    purgeHint: "ممكن فقط لحساب لم يقم بأي إجراء محكوم. يُرفض غير ذلك مع بيان السبب.",
+    purgeConfirm: "محو هذا الحساب نهائيًا؟ لا يمكن التراجع.",
+    purged: "مُحي الحساب نهائيًا.",
+    dangerZone: "إزالة هذا الحساب",
     account: "بيانات الحساب",
     edit: "تعديل البيانات",
     save: "حفظ التغييرات",
@@ -225,6 +245,15 @@ const copyByLanguage = {
     description:
       "Beheer deze cliënt zonder het account over te nemen. Elke medewerkershandeling is controleerbaar.",
     back: "Terug naar gebruikers",
+    deleteAccount: "Account verwijderen",
+    deleteHint: "Trekt toegang in en vernietigt elke sessietoken. Wat dit account heeft gedaan blijft bewaard, zodat het auditspoor controleerbaar blijft.",
+    deleteConfirm: "Dit account verwijderen? Toegang stopt direct. Geschiedenis blijft.",
+    deleted: "Account verwijderd. Toegang ingetrokken, geschiedenis bewaard.",
+    purge: "Definitief wissen",
+    purgeHint: "Alleen mogelijk voor een account dat nooit iets gereguleerds deed.",
+    purgeConfirm: "Dit account definitief wissen? Dit kan niet ongedaan worden gemaakt.",
+    purged: "Account definitief gewist.",
+    dangerZone: "Dit account verwijderen",
     account: "Accountgegevens",
     edit: "Gegevens bewerken",
     save: "Wijzigingen opslaan",
@@ -417,6 +446,7 @@ export default function UserWorkspacePage() {
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [profileForm, setProfileForm] = useState(formFromUser(null));
   const [qualificationForm, setQualificationForm] =
     useState(emptyQualification());
@@ -1139,6 +1169,95 @@ export default function UserWorkspacePage() {
                   {copy.noCases}
                 </p>
               )}
+            </CardContent>
+          </Card>
+
+          {/*
+            REMOVING AN ACCOUNT — two different acts, kept visually apart.
+
+            Delete revokes access and keeps the record of what the account did,
+            because the audit trail is append-only and seventy-odd foreign keys
+            point at users: erasing the row would turn "approved by #10" into a
+            dangling reference in an accreditation record.
+
+            Erase is for the account that never did anything — the duplicate
+            registration, the typo. The server refuses it for anyone else and
+            says what stands in the way, so the button is offered rather than
+            hidden: a refusal that explains itself teaches more than a missing
+            control.
+          */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-[var(--color-danger,#b91c1c)]">
+                {copy.dangerZone}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  disabled={removing}
+                  onClick={async () => {
+                    if (!window.confirm(copy.deleteConfirm)) return;
+                    setRemoving(true);
+                    try {
+                      await deleteUser(user.id);
+                      navigate("/users/onsite", { replace: true });
+                    } catch (error) {
+                      setState((prev) => ({
+                        ...prev,
+                        error: readApiError(error),
+                        message: "",
+                      }));
+                      // The banner is at the top of a long page and these
+                      // buttons are at the bottom. A refusal nobody scrolls
+                      // back up to see is the same as no refusal at all.
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    } finally {
+                      setRemoving(false);
+                    }
+                  }}
+                >
+                  <Trash2 size={16} />
+                  {copy.deleteAccount}
+                </Button>
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  {copy.deleteHint}
+                </p>
+              </div>
+
+              <div className="space-y-2 border-t border-[var(--color-border)] pt-4">
+                <Button
+                  variant="ghost"
+                  disabled={removing}
+                  onClick={async () => {
+                    if (!window.confirm(copy.purgeConfirm)) return;
+                    setRemoving(true);
+                    try {
+                      await purgeUser(user.id);
+                      navigate("/users/onsite", { replace: true });
+                    } catch (error) {
+                      // The refusal names the footprint that blocks erasure —
+                      // show it verbatim rather than a generic failure line.
+                      setState((prev) => ({
+                        ...prev,
+                        error: readApiError(error),
+                        message: "",
+                      }));
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    } finally {
+                      setRemoving(false);
+                    }
+                  }}
+                  className="text-[var(--color-danger,#b91c1c)]"
+                >
+                  <Trash2 size={16} />
+                  {copy.purge}
+                </Button>
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  {copy.purgeHint}
+                </p>
+              </div>
             </CardContent>
           </Card>
         </>
