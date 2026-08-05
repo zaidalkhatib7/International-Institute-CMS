@@ -19,11 +19,11 @@ vi.mock('react-router-dom', async () => ({
 }))
 
 const readiness = {
-  percentage: 73,
+  percentage: 79,
   completed_count: 11,
-  total_count: 15,
+  total_count: 14,
   is_ready: false,
-  missing: ['scientific_material', 'question_bank', 'passing_score', 'rpl_pathway_mapping'],
+  missing: ['scientific_material', 'question_bank', 'passing_score'],
   checklist: {
     classification: true,
     title_translations: true,
@@ -39,7 +39,6 @@ const readiness = {
     question_bank: false,
     passing_score: false,
     competency_mapping: true,
-    rpl_pathway_mapping: false,
   },
 }
 
@@ -61,18 +60,13 @@ describe('PublicationReadinessCard', () => {
   it('names every failing check instead of counting them', () => {
     renderCard()
 
-    for (const label of [
-      'Learning material',
-      'Question bank',
-      'Passing score',
-      'RPL pathway mapping',
-    ]) {
+    for (const label of ['Learning material', 'Question bank', 'Passing score']) {
       expect(screen.getByText(label)).toBeInTheDocument()
     }
 
     // And the passing ones are still shown, so the list is a state, not a nag.
     expect(screen.getByText('Classification')).toBeInTheDocument()
-    expect(screen.getByText('11 of 15')).toBeInTheDocument()
+    expect(screen.getByText('11 of 14')).toBeInTheDocument()
   })
 
   it('shows content_status as its own blocker, because it is a separate gate', () => {
@@ -104,15 +98,22 @@ describe('PublicationReadinessCard', () => {
   })
 
   it('routes a check that is fixed on another screen, not on this editor', () => {
+    /*
+     * This used rpl_pathway_mapping until that check was removed — an unlinked
+     * pathway means "all pathways", so it never was a missing decision. The
+     * fixture would have kept inventing a key the server no longer sends, and
+     * the test would have gone on describing something that cannot happen.
+     * Learning material is a real off-editor fix: it lives in the content
+     * workspace.
+     */
     const onGoToTab = vi.fn()
     navigate.mockClear()
     renderCard({ onGoToTab })
 
-    // rpl_pathway_mapping is editable ONLY in the competency-gap library.
-    const row = screen.getByText('RPL pathway mapping').closest('div')
+    const row = screen.getByText('Learning material').closest('div')
     fireEvent.click(within(row).getByRole('button'))
 
-    expect(navigate).toHaveBeenCalledWith('/competency-gap-library')
+    expect(navigate).toHaveBeenCalledWith('/content/course')
     expect(onGoToTab).not.toHaveBeenCalled()
   })
 

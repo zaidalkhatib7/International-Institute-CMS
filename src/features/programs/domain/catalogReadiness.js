@@ -99,6 +99,13 @@ export const READINESS_FIX = {
   question_bank: { route: () => "/quizzes" },
   passing_score: { tab: "final-quiz" },
   competency_mapping: { tab: "ai-package" },
+  /*
+   * NO LONGER SENT. rpl_pathway_mapping stopped being a check on 4 Aug 2026 —
+   * an unlinked pathway means "offered on all pathways", which is the correct
+   * default, not a missing decision. The label and this route are kept only so
+   * that re-enabling the check would not silently render a raw key; nothing
+   * reaches them today.
+   */
   rpl_pathway_mapping: { route: () => "/competency-gap-library" },
 };
 
