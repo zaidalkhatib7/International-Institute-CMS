@@ -1866,15 +1866,21 @@ export default function ProgramBuilderPage() {
             {isSaving ? copy.saving : isEditMode ? copy.saveAndPublish : copy.createAndPublish}
           </Button>
         </div>
-
-        {cannotActivateHere ? (
-          <p className="mt-3 max-w-3xl text-sm text-[var(--color-text-muted)]">
-            {copy.cannotActivate}
-          </p>
-        ) : null}
       </div>
 
       <div className="space-y-4">
+        {/*
+          Belongs here, not beside the buttons. The header is xl:flex-row, so a
+          paragraph placed next to the button grid becomes a third flex item and
+          squeezes both the title and the buttons — which is exactly what it did.
+          This block is full width and already carries save messages.
+        */}
+        {cannotActivateHere ? (
+          <p className="max-w-3xl text-sm text-[var(--color-text-muted)]">
+            {copy.cannotActivate}
+          </p>
+        ) : null}
+
         {saveMessage ? (
           <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-700">
             {saveMessage}
