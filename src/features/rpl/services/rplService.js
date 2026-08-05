@@ -320,3 +320,15 @@ export async function fetchRplSourceOfTruth() {
 export async function updateRplSettings(payload) {
   return read(await http.put('/admin/rpl/settings', payload))
 }
+
+/*
+ * GAP CLOSURE ENGINE (owner specification, 5 Aug 2026).
+ *
+ * Deterministic and read-only: it computes which training packages close the
+ * gaps an assessment recorded. Bound by public_id like every other RPL
+ * application route.
+ */
+export async function fetchGapClosurePlan(applicationPublicId) {
+  const response = await http.get(`/admin/rpl/applications/${applicationPublicId}/gap-closure-plan`)
+  return response.data
+}

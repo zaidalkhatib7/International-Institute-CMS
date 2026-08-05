@@ -53,6 +53,7 @@ import {
   submitRplAssessmentReport,
 } from "../services/rplService";
 import DynamicAssessmentPanel from "../components/DynamicAssessmentPanel";
+import GapClosurePanel from "../components/GapClosurePanel";
 import RplPageState from "../components/RplPageState";
 import RplStatusBadge from "../components/RplStatusBadge";
 import {
@@ -1200,6 +1201,16 @@ export default function RplAssessmentsPage() {
               language={language}
             />
           ) : null}
+          {/*
+            The deterministic counterpart to the Gemini advisory above: which
+            packages close the gaps this assessment recorded, computed from
+            governed competency mappings rather than judged by a model. Placed
+            after the advisory because it depends on the gap analysis existing.
+          */}
+          <GapClosurePanel
+            applicationPublicId={assessment.application?.public_id}
+            language={language}
+          />
           <Card id="sec-criteria" className="scroll-mt-24">
             <CardHeader className="border-b border-[var(--color-border)]">
               <div className="flex flex-wrap items-center justify-between gap-3">
