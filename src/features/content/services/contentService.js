@@ -21,3 +21,22 @@ export async function updateActivity(activityId, payload) {
   const response = await http.put(`/admin/activities/${activityId}`, payload)
   return response.data
 }
+
+/*
+ * Activities had UPDATE and nothing else — the generator made them and the
+ * interface could only edit what it happened to produce. A reviewer who
+ * decided a lesson needed one more, or one fewer, had no way to say so.
+ *
+ * Delete is refused by the server when learners have already submitted
+ * (ACTIVITY_HAS_SUBMISSIONS); deactivate instead. The refusal carries the
+ * count, so it is worth showing verbatim.
+ */
+export async function createActivity(payload) {
+  const response = await http.post('/admin/activities', payload)
+  return response.data
+}
+
+export async function deleteActivity(activityId) {
+  const response = await http.delete(`/admin/activities/${activityId}`)
+  return response.data
+}

@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  ChevronDown, ChevronLeft, FileQuestion, FileText, Layers3, Loader2, PencilLine, Save, Zap,
+  ChevronDown, ChevronLeft, FileQuestion, FileText, Layers3, Loader2, PencilLine, Plus, Save, Trash2, Zap,
 } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CoursePicker, Input, PageHeader, Textarea } from '../../../components/ui'
-import { fetchProgramContentTree, updateActivity } from '../services/contentService'
+import {
+  createActivity,
+  deleteActivity,
+  fetchProgramContentTree,
+  updateActivity,
+} from '../services/contentService'
 import { fetchAdminPrograms } from '../../programs/services/programsService'
 import { unwrapApiData, unwrapCollection, readApiError, readLocalized } from '../../../services/apiResponse'
 import { getCurrentLanguage } from '../../../utils/localization'
@@ -46,6 +51,10 @@ const COPY = {
     save: 'حفظ النشاط', saving: 'جارٍ الحفظ…', saved: 'حُفظ.',
     chars: 'حرفًا', empty: 'فارغ', thin: 'قصير',
     activityNote: 'الأنشطة لم تكن قابلة للعرض أو التحرير قبل الآن — تُولَّد وتُحسب فقط. تحريرها هنا.',
+    addActivity: 'إضافة نشاط',
+    deleteActivity: 'حذف',
+    deleteActivityConfirm: 'حذف هذا النشاط؟ يُرفض الحذف إذا كان المتدربون قد سلّموا فيه.',
+    newActivityTitle: 'نشاط جديد',
   },
   en: {
     title: 'Course content',
@@ -63,6 +72,10 @@ const COPY = {
     save: 'Save activity', saving: 'Saving…', saved: 'Saved.',
     chars: 'characters', empty: 'empty', thin: 'thin',
     activityNote: 'Activities could not be viewed or edited before now — only generated and counted. Edit them here.',
+    addActivity: 'Add activity',
+    deleteActivity: 'Delete',
+    deleteActivityConfirm: 'Delete this activity? Refused if learners have already submitted to it.',
+    newActivityTitle: 'New activity',
   },
   nl: {
     title: 'Cursusinhoud',
@@ -80,6 +93,10 @@ const COPY = {
     save: 'Opdracht opslaan', saving: 'Opslaan…', saved: 'Opgeslagen.',
     chars: 'tekens', empty: 'leeg', thin: 'dun',
     activityNote: 'Opdrachten waren tot nu toe niet te bekijken of te bewerken — alleen gegenereerd en geteld. Bewerk ze hier.',
+    addActivity: 'Opdracht toevoegen',
+    deleteActivity: 'Verwijderen',
+    deleteActivityConfirm: 'Deze opdracht verwijderen? Geweigerd als cursisten al hebben ingeleverd.',
+    newActivityTitle: 'Nieuwe opdracht',
   },
 }
 
@@ -91,7 +108,7 @@ function lengthBadge(chars, copy) {
   return { variant: 'neutral', label: `${chars} ${copy.chars}` }
 }
 
-function ActivityEditor({ activity, copy, language, onSaved }) {
+function ActivityEditor({ activity, copy, language, onSaved, onDeleted }) {
   const [form, setForm] = useState({
     title: activity.title || {},
     instructions: activity.instructions || {},
@@ -122,6 +139,21 @@ function ActivityEditor({ activity, copy, language, onSaved }) {
     }
   }
 
+  const remove = async () => {
+    if (!window.confirm(copy.deleteActivityConfirm)) return
+    setBusy(true)
+    setError('')
+    try {
+      await deleteActivity(activity.id)
+      if (onDeleted) onDeleted()
+    } catch (deleteError) {
+      // ACTIVITY_HAS_SUBMISSIONS carries the count — show it verbatim, because
+      // "deactivate instead" is only actionable if you know how many exist.
+      setError(readApiError(deleteError))
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="space-y-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted,transparent)] p-4">
       <Input
@@ -144,11 +176,14 @@ function ActivityEditor({ activity, copy, language, onSaved }) {
           label={copy.passScore} type="number" min="0" value={form.pass_score}
           onChange={(e) => setForm((f) => ({ ...f, pass_score: e.target.value }))}
         />
-        <div className="flex items-end">
+        <div className="flex items-end gap-2">
           <Button disabled={busy} onClick={save}>
             {busy
               ? <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> {copy.saving}</>
               : <><Save className="h-4 w-4" aria-hidden="true" /> {copy.save}</>}
+          </Button>
+          <Button variant="ghost" disabled={busy} onClick={remove}>
+            <Trash2 className="h-4 w-4" aria-hidden="true" /> {copy.deleteActivity}
           </Button>
         </div>
       </div>
@@ -169,6 +204,7 @@ export default function ProgramContentPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [open, setOpen] = useState({})
+  const [addingTo, setAddingTo] = useState(null)
 
   useEffect(() => {
     fetchAdminPrograms({ per_page: 200 })
@@ -195,6 +231,29 @@ export default function ProgramContentPage() {
   }, [])
 
   useEffect(() => { load(programId) }, [programId, load])
+
+  /*
+   * A new activity is created with a placeholder title and sensible scores, then
+   * edited inline like any other. Asking for a title in a modal first would put
+   * a dialog between the reviewer and a field that is already on the page.
+   */
+  const addActivityTo = async (lessonId) => {
+    setAddingTo(lessonId)
+    setError('')
+    try {
+      await createActivity({
+        lesson_id: lessonId,
+        title: { [language]: copy.newActivityTitle },
+        max_score: 100,
+        pass_score: 60,
+      })
+      await load(programId)
+    } catch (addError) {
+      setError(readApiError(addError))
+    } finally {
+      setAddingTo(null)
+    }
+  }
 
   const totals = useMemo(() => tree?.totals || {}, [tree])
 
@@ -291,22 +350,36 @@ export default function ProgramContentPage() {
                             </div>
                           </div>
 
-                          {lesson.activities.length === 0 ? (
-                            <p className="text-xs text-[var(--color-text-muted)]">{copy.noActivities}</p>
-                          ) : (
-                            <div className="space-y-3">
-                              <p className="text-xs text-[var(--color-text-muted)]">{copy.activityNote}</p>
-                              {lesson.activities.map((activity) => (
-                                <ActivityEditor
-                                  key={activity.id}
-                                  activity={activity}
-                                  copy={copy}
-                                  language={language}
-                                  onSaved={() => load(programId)}
-                                />
-                              ))}
-                            </div>
-                          )}
+                          <div className="space-y-3">
+                            {lesson.activities.length === 0 ? (
+                              <p className="text-xs text-[var(--color-text-muted)]">{copy.noActivities}</p>
+                            ) : (
+                              <>
+                                <p className="text-xs text-[var(--color-text-muted)]">{copy.activityNote}</p>
+                                {lesson.activities.map((activity) => (
+                                  <ActivityEditor
+                                    key={activity.id}
+                                    activity={activity}
+                                    copy={copy}
+                                    language={language}
+                                    onSaved={() => load(programId)}
+                                    onDeleted={() => load(programId)}
+                                  />
+                                ))}
+                              </>
+                            )}
+
+                            {/* Add sits with the lesson, not with the activity list,
+                                so it is reachable when the list is empty — which is
+                                exactly when it is most needed. */}
+                            <Button
+                              variant="outline"
+                              onClick={() => addActivityTo(lesson.id)}
+                              disabled={addingTo === lesson.id}
+                            >
+                              <Plus className="h-4 w-4" aria-hidden="true" /> {copy.addActivity}
+                            </Button>
+                          </div>
                         </div>
                       )
                     })}
