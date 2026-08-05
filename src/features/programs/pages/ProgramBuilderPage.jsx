@@ -1755,22 +1755,36 @@ export default function ProgramBuilderPage() {
         return <MediaContent formData={formData} updateField={updateField} copy={copy} />
       case 'publish':
         return <PublishContent formData={formData} updateField={updateField} copy={copy} />
-      case 'ai-package':
+      case 'ai-package': {
+        /*
+         * ORDER FOLLOWS WHERE THE PROGRAMME ACTUALLY IS.
+         *
+         * The seed pack is a PREREQUISITE — without approved competency
+         * mappings the generator refuses — so it leads while that is still
+         * outstanding. Once it is satisfied the card is a finished step, and
+         * leaving it on top pushed the publication gates below the fold on a
+         * package whose only remaining work was those gates.
+         *
+         * competency_mapping is the honest signal: it passes only when the
+         * seed pack has been approved.
+         */
+        const seedPackDone = Boolean(readiness?.checklist?.competency_mapping)
+        const seedPack = <SeedPackPanel key="seed" programId={programId} />
+        const aiPackage = (
+          <AiPackagePanel
+            key="ai"
+            programId={programId}
+            isGoverned={Boolean(formData.competency_gap_group_id || formData.official_code)}
+            officialCode={formData.official_code || ''}
+          />
+        )
+
         return (
           <div className="space-y-6">
-            {/*
-              The seed pack comes first because it is the prerequisite: without
-              approved competency mappings and active outcomes the generator
-              refuses, and this is the screen that supplies them.
-            */}
-            <SeedPackPanel programId={programId} />
-            <AiPackagePanel
-              programId={programId}
-              isGoverned={Boolean(formData.competency_gap_group_id || formData.official_code)}
-              officialCode={formData.official_code || ''}
-            />
+            {seedPackDone ? [aiPackage, seedPack] : [seedPack, aiPackage]}
           </div>
         )
+      }
       default:
         return (
           <BasicInfoContent
