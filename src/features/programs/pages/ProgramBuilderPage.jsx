@@ -1076,6 +1076,7 @@ export default function ProgramBuilderPage() {
         saving: 'جارٍ الحفظ...',
         saveChanges: 'حفظ التغييرات',
         saveAndPublish: 'حفظ ونشر',
+        cannotActivate: 'لا يمكن تفعيل حقيبة محكومة من هنا: التفعيل يتطلب حالة محتوى «منشور»، ولا يضبطها إلا «نشر الحزمة» في تبويب حقيبة AI.',
         createAndPublish: 'إنشاء ونشر',
         loadingProgramDetails: 'جارٍ تحميل تفاصيل البرنامج...',
         loadProgramError: 'فشل تحميل تفاصيل البرنامج.',
@@ -1217,6 +1218,7 @@ export default function ProgramBuilderPage() {
         saving: 'Opslaan...',
         saveChanges: 'Wijzigingen opslaan',
         saveAndPublish: 'Opslaan en publiceren',
+        cannotActivate: 'Een governed pakket kan hier niet worden geactiveerd: activering vereist contentstatus "published", en alleen Pakket publiceren op het AI-tabblad zet die.',
         createAndPublish: 'Maken en publiceren',
         loadingProgramDetails: 'Programmadata laden...',
         loadProgramError: 'Programmadata laden mislukt.',
@@ -1359,6 +1361,7 @@ export default function ProgramBuilderPage() {
       saving: 'Saving...',
       saveChanges: 'Save Changes',
       saveAndPublish: 'Save & Publish',
+      cannotActivate: 'A governed package cannot be activated here: activation needs content status "published", and only Publish package on the AI tab sets that.',
       createAndPublish: 'Create & Publish',
       loadingProgramDetails: 'Loading program details...',
       loadProgramError: 'Failed to load program details.',
@@ -1702,6 +1705,15 @@ export default function ProgramBuilderPage() {
     }
   }
 
+  /*
+   * Activation of a governed package is not this screen's to give. toggle-active
+   * refuses unless content_status is 'published', and only publish-package can
+   * set that — so for a gap programme that is not yet published, Save & Publish
+   * can only ever return 422.
+   */
+  const cannotActivateHere =
+    Boolean(formData.competency_gap_group_id) && contentStatus !== 'published'
+
   const titleText = useMemo(() => {
     const defaultTitle = isEditMode ? copy.editProgram : copy.createProgram
     return formData.title?.[activeLanguage] || formData.title?.en || defaultTitle
@@ -1838,14 +1850,28 @@ export default function ProgramBuilderPage() {
             {isSaving ? copy.saving : isEditMode ? copy.saveChanges : copy.createProgram}
           </Button>
 
+          {/*
+            A governed CGP package cannot be activated from here at all:
+            toggle-active requires content_status 'published', which only
+            publish-package sets. Offering the button anyway produced a 422 on
+            every click and taught nothing — the fastest way to look broken is
+            to keep answering a reasonable action with a refusal.
+          */}
           <Button
             className="w-full !h-12 !rounded-xl !px-5 !text-base xl:w-auto"
             onClick={() => handleSave({ publish: true })}
-            disabled={isSaving}
+            disabled={isSaving || cannotActivateHere}
+            title={cannotActivateHere ? copy.cannotActivate : undefined}
           >
             {isSaving ? copy.saving : isEditMode ? copy.saveAndPublish : copy.createAndPublish}
           </Button>
         </div>
+
+        {cannotActivateHere ? (
+          <p className="mt-3 max-w-3xl text-sm text-[var(--color-text-muted)]">
+            {copy.cannotActivate}
+          </p>
+        ) : null}
       </div>
 
       <div className="space-y-4">
