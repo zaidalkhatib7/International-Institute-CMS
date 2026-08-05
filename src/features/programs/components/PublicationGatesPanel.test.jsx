@@ -176,6 +176,43 @@ describe('PublicationGatesPanel', () => {
     expect(time.queryByRole('button', { name: /Save proposal/ })).toBeNull()
   })
 
+  it('an approved gate stays correctable, because approval can be wrong', () => {
+    /*
+     * publish-package refuses a blueprint the bank cannot satisfy. An approved
+     * blueprint can therefore be WRONG, and locking the fields left the only
+     * screen that could fix it unable to. The server supports revision — upsert
+     * opens a new blueprint version when the latest is approved.
+     */
+    const { exam } = renderPanel(
+      gatesFixture({
+        blueprint: { status: 'approved', version: 1, total_questions: 20, outcome_coverage: [] },
+      }),
+    )
+
+    expect(exam.getByLabelText('Total exam questions')).toBeDisabled()
+    fireEvent.click(exam.getByRole('button', { name: /Revise after approval/ }))
+
+    expect(exam.getByLabelText('Total exam questions')).not.toBeDisabled()
+    expect(exam.getByRole('button', { name: /Save proposal/ })).toBeInTheDocument()
+  })
+
+  it('says that revising opens a new version rather than editing the approved one', () => {
+    const { exam } = renderPanel(
+      gatesFixture({
+        blueprint: { status: 'approved', version: 1, total_questions: 20, outcome_coverage: [] },
+      }),
+    )
+    expect(exam.getByText(/opens a NEW blueprint version/)).toBeInTheDocument()
+  })
+
+  it('an approved learning-time allocation can be re-proposed too', () => {
+    const { time } = renderPanel(
+      gatesFixture({ learning_time: { status: 'approved', allocation: { instruction: 1200 } } }),
+    )
+    fireEvent.click(time.getByRole('button', { name: /Revise after approval/ }))
+    expect(time.getByLabelText('Instruction')).not.toBeDisabled()
+  })
+
   it('says so when there are no outcomes to build coverage from', () => {
     const { exam } = renderPanel(gatesFixture({ outcomes: [] }))
     expect(exam.getByText(/Approve the seed pack first/)).toBeInTheDocument()

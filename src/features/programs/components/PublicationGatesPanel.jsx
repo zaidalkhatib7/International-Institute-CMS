@@ -52,6 +52,8 @@ const COPY = {
     none: 'غير مُدخل',
     saving: 'جارٍ الحفظ…',
     mustMatch: 'المجموع لا يطابق المطلوب — سيُرفض الاعتماد.',
+    revise: 'تعديل ما بعد الاعتماد',
+    reviseBpHint: 'يفتح التعديل إصدارًا جديدًا من المخطط ويحتاج اعتمادًا جديدًا. الإصدار المعتمد الحالي يبقى في السجل.',
     questions: 'سؤال',
   },
   en: {
@@ -76,6 +78,8 @@ const COPY = {
     none: 'Not entered',
     saving: 'Saving…',
     mustMatch: 'The total does not match — approval will be refused.',
+    revise: 'Revise after approval',
+    reviseBpHint: 'Revising opens a NEW blueprint version and needs approving again. The approved version stays in the record.',
     questions: 'questions',
   },
   nl: {
@@ -100,6 +104,8 @@ const COPY = {
     none: 'Niet ingevuld',
     saving: 'Opslaan…',
     mustMatch: 'Het totaal komt niet overeen — goedkeuring wordt geweigerd.',
+    revise: 'Herzien na goedkeuring',
+    reviseBpHint: 'Herzien opent een NIEUWE versie van de matrijs en moet opnieuw worden goedgekeurd. De goedgekeurde versie blijft bewaard.',
     questions: 'vragen',
   },
 }
@@ -142,6 +148,7 @@ export default function PublicationGatesPanel({ programId, gates, language, onCh
   const [totalQuestions, setTotalQuestions] = useState('')
   const [coverage, setCoverage] = useState({})
   const [busy, setBusy] = useState('')
+  const [revising, setRevising] = useState({ lt: false, bp: false })
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
@@ -184,10 +191,11 @@ export default function PublicationGatesPanel({ programId, gates, language, onCh
   const coverageSum = outcomes.reduce((sum, o) => sum + num(coverage[o.code]), 0)
   const questionsMatch = coverageSum === num(totalQuestions) && num(totalQuestions) > 0
   /*
-   * approve() checks only that the counts sum to the total. It never asks
-   * whether the bank can supply them, so an over-subscribed outcome approves
-   * cleanly and fails later when an exam is built. Warned here because that is
-   * the only place it is still cheap to fix.
+   * approve() checks only that the counts sum to the total. publish-package
+   * DOES check satisfiability and refuses with "the bank holds N" — so an
+   * over-subscribed outcome approves cleanly and is then rejected at the last
+   * step, after the reviewer believes the gate is closed. Warned here because
+   * this is where it is still cheap to fix.
    */
   const overSubscribed = outcomes.filter(
     (o) => o.available != null && num(coverage[o.code]) > o.available,
@@ -195,6 +203,16 @@ export default function PublicationGatesPanel({ programId, gates, language, onCh
 
   const ltApproved = learningTime?.status === 'approved'
   const bpApproved = blueprint?.status === 'approved'
+  /*
+   * An approved gate is locked so it is not edited by accident — but it must
+   * stay CORRECTABLE. An approved blueprint that the bank cannot satisfy is
+   * refused by publish-package, and without this the only screen that could
+   * fix it had disabled its own fields. The server supports revision in both
+   * cases: blueprint upsert opens a NEW VERSION when the latest is approved,
+   * and learning-time upsert re-proposes.
+   */
+  const ltLocked = ltApproved && !revising.lt
+  const bpLocked = bpApproved && !revising.bp
 
   async function run(key, action, successNote) {
     setBusy(key)
@@ -254,7 +272,7 @@ export default function PublicationGatesPanel({ programId, gates, language, onCh
                 min="0"
                 label={labels[category] || category}
                 value={minutes[category] ?? ''}
-                disabled={ltApproved}
+                disabled={ltLocked}
                 onChange={(e) => setMinutes((current) => ({ ...current, [category]: e.target.value }))}
               />
             ))}
@@ -274,7 +292,11 @@ export default function PublicationGatesPanel({ programId, gates, language, onCh
             {!minutesMatch ? <span className="text-amber-700">{copy.mustMatch}</span> : null}
           </div>
 
-          {!ltApproved ? (
+          {ltLocked ? (
+            <Button variant="outline" onClick={() => setRevising((c) => ({ ...c, lt: true }))}>
+              {copy.revise}
+            </Button>
+          ) : (
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
@@ -301,7 +323,7 @@ export default function PublicationGatesPanel({ programId, gates, language, onCh
                 {copy.approve}
               </Button>
             </div>
-          ) : null}
+          )}
         </section>
 
         <section className="space-y-3 border-t border-[var(--color-border)] pt-6" aria-label={copy.bpTitle}>
@@ -320,7 +342,7 @@ export default function PublicationGatesPanel({ programId, gates, language, onCh
                   min="1"
                   label={copy.bpTotal}
                   value={totalQuestions}
-                  disabled={bpApproved}
+                  disabled={bpLocked}
                   onChange={(e) => setTotalQuestions(e.target.value)}
                 />
               </div>
@@ -335,7 +357,7 @@ export default function PublicationGatesPanel({ programId, gates, language, onCh
                       outcome.available != null ? ` (${outcome.available} ${copy.available})` : ''
                     }`}
                     value={coverage[outcome.code] ?? ''}
-                    disabled={bpApproved}
+                    disabled={bpLocked}
                     onChange={(e) =>
                       setCoverage((current) => ({ ...current, [outcome.code]: e.target.value }))
                     }
@@ -361,7 +383,14 @@ export default function PublicationGatesPanel({ programId, gates, language, onCh
                 </p>
               ) : null}
 
-              {!bpApproved ? (
+              {bpLocked ? (
+                <div className="space-y-2">
+                  <Button variant="outline" onClick={() => setRevising((c) => ({ ...c, bp: true }))}>
+                    {copy.revise}
+                  </Button>
+                  <p className="text-xs text-[var(--color-text-muted)]">{copy.reviseBpHint}</p>
+                </div>
+              ) : (
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant="outline"
@@ -395,7 +424,7 @@ export default function PublicationGatesPanel({ programId, gates, language, onCh
                     {copy.approve}
                   </Button>
                 </div>
-              ) : null}
+              )}
             </>
           )}
         </section>
