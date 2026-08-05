@@ -11,6 +11,7 @@ import {
   Select,
 } from "../../../components/ui";
 import {
+  approveAllQuestions,
   approveQuestion,
   fetchProgramQuestionBank,
   rejectQuestion,
@@ -75,6 +76,11 @@ const COPY = {
     rateLimited:
       "بلغتَ حد الكتابة (٣٠ في الدقيقة). انتظر قليلًا ثم تابع — لم يضع أي اعتماد.",
     allReviewed: "كل الأسئلة روجعت.",
+    approveAll: "اعتماد كل الأسئلة",
+    approveAllBasis: "أساس الاعتماد الجماعي (يُسجَّل، اكتب ١٠ أحرف على الأقل):",
+    approveAllConfirm:
+      "سيُعتمد {n} سؤالًا دفعة واحدة، وسيُسجَّل في الأثر التدقيقي أنها لم تُراجَع فرديًا. متابعة؟",
+    approveAllDone: "اعتُمد {a} · تُخطي {s} غير مؤهل.",
   },
   en: {
     title: "Programme question bank",
@@ -109,6 +115,12 @@ const COPY = {
     rateLimited:
       "Write limit reached (30 per minute). Pause briefly and continue — no approval was lost.",
     allReviewed: "Every question has been reviewed.",
+    approveAll: "Approve all questions",
+    approveAllBasis:
+      "Basis for the bulk approval (recorded, at least 10 characters):",
+    approveAllConfirm:
+      "{n} question(s) will be approved in one action. The audit trail will record that they were NOT individually reviewed. Continue?",
+    approveAllDone: "{a} approved · {s} skipped as ineligible.",
   },
   nl: {
     title: "Vragenbank van het programma",
@@ -143,6 +155,12 @@ const COPY = {
     rateLimited:
       "Schrijflimiet bereikt (30 per minuut). Pauzeer even en ga verder — er is niets verloren.",
     allReviewed: "Alle vragen zijn beoordeeld.",
+    approveAll: "Alle vragen goedkeuren",
+    approveAllBasis:
+      "Grondslag voor de bulkgoedkeuring (vastgelegd, minimaal 10 tekens):",
+    approveAllConfirm:
+      "{n} vraag/vragen worden in één actie goedgekeurd. In het auditspoor wordt vastgelegd dat ze NIET individueel zijn beoordeeld. Doorgaan?",
+    approveAllDone: "{a} goedgekeurd · {s} overgeslagen.",
   },
 };
 
@@ -168,6 +186,7 @@ export default function ProgramQuestionBankPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [reviewingId, setReviewingId] = useState(null);
   const [reviewError, setReviewError] = useState("");
+  const [reviewNotice, setReviewNotice] = useState("");
 
   useEffect(() => {
     fetchAdminPrograms({ per_page: 200 })
@@ -267,6 +286,50 @@ export default function ProgramQuestionBankPage() {
     }
   };
 
+  /*
+   * BULK APPROVAL — owner decision, 5 Aug 2026, after being told the cost.
+   *
+   * The confirm states plainly that the audit trail will record these as NOT
+   * individually reviewed, because that is what will be true and the person
+   * clicking is the person accountable for it.
+   *
+   * A basis is required and recorded. The server applies the same eligibility
+   * rules as single approval and reports what it skipped, so this can never be
+   * the softer route to an approved bank.
+   */
+  const approveEverything = async () => {
+    if (
+      !window.confirm(
+        copy.approveAllConfirm.replace("{n}", String(awaiting.length)),
+      )
+    )
+      return;
+
+    const basis = window.prompt(copy.approveAllBasis);
+    if (basis === null) return;
+
+    setReviewingId("all");
+    setReviewError("");
+    try {
+      const result = await approveAllQuestions(programId, basis);
+      const d = result?.data || {};
+      setReviewNotice(
+        copy.approveAllDone
+          .replace("{a}", String(d.approved_count ?? 0))
+          .replace("{s}", String(d.skipped_count ?? 0)),
+      );
+      await load(programId);
+    } catch (bulkError) {
+      setReviewError(
+        bulkError?.response?.status === 429
+          ? copy.rateLimited
+          : readApiError(bulkError),
+      );
+    } finally {
+      setReviewingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader title={copy.title} description={copy.subtitle} />
@@ -322,6 +385,11 @@ export default function ProgramQuestionBankPage() {
           {error ? (
             <p className="whitespace-pre-line text-sm text-red-600">{error}</p>
           ) : null}
+          {reviewNotice ? (
+            <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+              {reviewNotice}
+            </p>
+          ) : null}
           {reviewError ? (
             <p className="whitespace-pre-line rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {reviewError}
@@ -351,6 +419,22 @@ export default function ProgramQuestionBankPage() {
                     onClick={() => setStatusFilter("ai_draft")}
                   >
                     {copy.onlyAwaiting}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={reviewingId !== null}
+                    onClick={approveEverything}
+                  >
+                    {reviewingId === "all" ? (
+                      <Loader2
+                        className="h-4 w-4 animate-spin"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    {copy.approveAll}
                   </Button>
                 </>
               ) : (

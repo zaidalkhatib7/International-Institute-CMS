@@ -72,3 +72,19 @@ export async function fetchProgramQuestionBank(programId) {
   const response = await http.get(`/admin/programs/${programId}/question-bank`)
   return response.data
 }
+
+/*
+ * BULK APPROVAL — owner decision, 5 Aug 2026.
+ *
+ * Server-side because the alternative is one request per question against a
+ * 30/minute write ceiling. Eligibility is not relaxed: the endpoint applies the
+ * same taxonomy/format/options rules as single approval and returns what it
+ * skipped and why.
+ *
+ * `basis` is required and recorded. Every event it writes is marked
+ * bulk_approval, so the trail never claims the questions were judged one by one.
+ */
+export async function approveAllQuestions(programId, basis) {
+  const response = await http.post(`/admin/programs/${programId}/questions/approve-all`, { basis })
+  return response.data
+}

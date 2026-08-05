@@ -7,17 +7,21 @@ import ProgramQuestionBankPage from './ProgramQuestionBankPage'
  * per unit, across a hundred programmes, and until now each approval meant
  * opening the per-unit builder to find the question.
  *
- * There is deliberately no bulk approve — clearing three hundred AI drafts in
- * one click would make the human-review gate ceremonial, and every publication
- * gate downstream assumes it is real. So these tests cover the things that make
- * ONE review fast and honest: the queue is reachable, taxonomy blocks approval
- * BEFORE the click, and the write ceiling reads as a pause rather than a loss.
+ * Bulk approval was added on 5 Aug 2026 by owner decision, after the cost was
+ * put to them: a single operator cannot judge tens of thousands of questions
+ * individually, and the alternative was packages that never publish. It does
+ * not relax eligibility, and every event it writes is marked as NOT
+ * individually reviewed.
+ *
+ * So these tests cover both routes — that one review is fast and honest, and
+ * that the bulk route says what it is.
  */
 
 const mocks = vi.hoisted(() => ({
   fetchProgramQuestionBank: vi.fn(),
   approveQuestion: vi.fn(),
   rejectQuestion: vi.fn(),
+  approveAllQuestions: vi.fn(),
   fetchAdminPrograms: vi.fn(),
 }))
 
@@ -25,6 +29,7 @@ vi.mock('../services/quizzesService', () => ({
   fetchProgramQuestionBank: mocks.fetchProgramQuestionBank,
   approveQuestion: mocks.approveQuestion,
   rejectQuestion: mocks.rejectQuestion,
+  approveAllQuestions: mocks.approveAllQuestions,
 }))
 
 vi.mock('../../programs/services/programsService', () => ({
@@ -87,13 +92,14 @@ beforeEach(() => {
   Object.values(mocks).forEach((m) => m.mockReset())
   mocks.approveQuestion.mockResolvedValue({})
   mocks.rejectQuestion.mockResolvedValue({})
+  mocks.approveAllQuestions.mockResolvedValue({ data: { approved_count: 2, skipped_count: 0 } })
 })
 
 describe('ProgramQuestionBankPage — review in place', () => {
   it('approves a question without leaving the bank', async () => {
     await renderWithCourse(bank([question()]))
 
-    fireEvent.click(await screen.findByRole('button', { name: /Approve|اعتماد/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /^(Approve|اعتماد)$/ }))
 
     await waitFor(() => expect(mocks.approveQuestion).toHaveBeenCalledWith(481))
     // The bank re-reads, so the counts and the badge reflect the decision.
@@ -107,7 +113,7 @@ describe('ProgramQuestionBankPage — review in place', () => {
      */
     await renderWithCourse(bank([question({ cognitive_demand: null, difficulty: null })]))
 
-    const approve = await screen.findByRole('button', { name: /Approve|اعتماد/ })
+    const approve = await screen.findByRole('button', { name: /^(Approve|اعتماد)$/ })
     expect(approve).toBeDisabled()
     expect(screen.getByText(/cognitive_demand, difficulty/)).toBeInTheDocument()
   })
@@ -129,7 +135,7 @@ describe('ProgramQuestionBankPage — review in place', () => {
     mocks.approveQuestion.mockRejectedValue({ response: { status: 429, data: {} } })
     await renderWithCourse(bank([question()]))
 
-    fireEvent.click(await screen.findByRole('button', { name: /Approve|اعتماد/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /^(Approve|اعتماد)$/ }))
 
     expect(await screen.findByText(/30 per minute|٣٠ في الدقيقة/)).toBeInTheDocument()
   })
@@ -144,10 +150,48 @@ describe('ProgramQuestionBankPage — review in place', () => {
     expect(screen.getByRole('button', { name: /Show only what awaits review|اعرض ما ينتظر المراجعة فقط/ })).toBeInTheDocument()
   })
 
+  it('warns that bulk approval is recorded as NOT individually reviewed', async () => {
+    /*
+     * Owner decision, 5 Aug 2026. The control exists because a single operator
+     * cannot review 100-300 questions per unit across a hundred programmes. The
+     * confirm has to say what the trail will say, so the person clicking knows
+     * what they are signing.
+     */
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.spyOn(window, 'prompt').mockReturnValue('Bank-level review before release.')
+
+    await renderWithCourse(bank([question({ id: 1 }), question({ id: 2 })]))
+    fireEvent.click(await screen.findByRole('button', { name: /Approve all questions|اعتماد كل الأسئلة/ }))
+
+    expect(confirm.mock.calls[0][0]).toMatch(/NOT individually reviewed|لم تُراجَع فرديًا/)
+    await waitFor(() => expect(mocks.approveAllQuestions).toHaveBeenCalledWith('240', 'Bank-level review before release.'))
+  })
+
+  it('does not bulk approve when the basis prompt is cancelled', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.spyOn(window, 'prompt').mockReturnValue(null)
+
+    await renderWithCourse(bank([question()]))
+    fireEvent.click(await screen.findByRole('button', { name: /Approve all questions|اعتماد كل الأسئلة/ }))
+
+    expect(mocks.approveAllQuestions).not.toHaveBeenCalled()
+  })
+
+  it('reports what was skipped, so an ineligible question is not assumed approved', async () => {
+    mocks.approveAllQuestions.mockResolvedValue({ data: { approved_count: 8, skipped_count: 2 } })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.spyOn(window, 'prompt').mockReturnValue('Bank-level review before release.')
+
+    await renderWithCourse(bank([question()]))
+    fireEvent.click(await screen.findByRole('button', { name: /Approve all questions|اعتماد كل الأسئلة/ }))
+
+    expect(await screen.findByText(/8 approved · 2 skipped|اعتُمد 8/)).toBeInTheDocument()
+  })
+
   it('says so when nothing is left to review, instead of an empty warning', async () => {
     await renderWithCourse(bank([question({ review_status: 'approved' })]))
 
     expect(await screen.findByText(/Every question has been reviewed|كل الأسئلة روجعت/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Approve|اعتماد/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^(Approve|اعتماد)$/ })).toBeNull()
   })
 })
