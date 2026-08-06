@@ -120,3 +120,13 @@ export async function publishAcademicModule(moduleId) {
 export async function deleteAcademicModule(moduleId) {
   return read(await http.delete(`/academic-rpl/library/modules/${moduleId}`))
 }
+
+/**
+ * Open an academic case for a client from the administrator's workspace.
+ *
+ * Distinct from the applicant's own POST /my/academic-rpl/applications: this
+ * one names the subject, and the server refuses it when that subject is staff.
+ */
+export async function createAcademicApplicationForClient(payload) {
+  return read(await http.post('/academic-rpl/applications', payload))
+}

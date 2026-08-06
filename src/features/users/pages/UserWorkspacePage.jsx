@@ -45,6 +45,10 @@ import {
   fetchRplReferenceData,
 } from "../../rpl/services/rplService";
 import { fetchAdminPrograms } from "../../programs/services/programsService";
+import {
+  createAcademicApplicationForClient,
+  fetchAcademicReferenceData,
+} from "../../academicRpl/services/academicRplService";
 import { localize } from "../../rpl/domain/rpl";
 import { getAdminLanguage } from "../../../services/languageStorage";
 import { useAuthorization } from "../../auth/context/useAuthorization";
@@ -98,7 +102,7 @@ const copyByLanguage = {
     created: "Account created",
     academicEvidence: "Academic-entry evidence",
     academicEvidenceHint:
-      "Record and verify qualifications before routing. A declared bachelor degree or equivalent excludes RPL.",
+      "Record and verify qualifications before routing. A declared bachelor degree or equivalent routes to the Professional Academic RPL; it does not exclude recognition.",
     addQualification: "Add qualification",
     updateQualification: "Update qualification",
     type: "Qualification type",
@@ -122,9 +126,16 @@ const copyByLanguage = {
       "Experience and evidence are assessed. Competency-gap programmes may be required before professional accreditation.",
     rplWithoutHint:
       "Experience and evidence are assessed. Foundation and competency-gap programmes may be required before professional accreditation.",
-    noRplDegree: "RPL is not available for this client",
+    noRplDegree: "This client belongs on the academic RPL pathway",
     noRplDegreeHint:
-      "A bachelor degree or equivalent has been declared. Use Professional Qualifications only.",
+      "A bachelor degree or equivalent has been declared. Open a Professional Academic RPL case below — the degree routes them, it does not exclude them.",
+    academicRpl: "Professional Academic RPL",
+    academicRplHint:
+      "The second RPL pathway, for degree holders: Professional Diploma, Master, Doctorate. Assessed on evidence and competencies, not on the certificate alone.",
+    academicSelectTrack: "Target qualification",
+    academicOpen: "Open an academic case",
+    academicOpened: "Professional Academic RPL case opened.",
+    academicNoTracks: "The academic tracks are not configured yet.",
     pendingAcademic: "Academic degree evidence is awaiting verification",
     pendingAcademicHint:
       "RPL stays unavailable. Verify the degree, then choose an eligible professional qualification.",
@@ -199,7 +210,14 @@ const copyByLanguage = {
     created: "تاريخ إنشاء الحساب",
     academicEvidence: "أدلة المؤهلات ومسار القبول",
     academicEvidenceHint:
-      "سجّل المؤهلات وتحقق منها قبل اختيار الخدمة. وجود بكالوريوس أو ما يعادله يمنع مسار RPL.",
+      "سجّل المؤهلات وتحقق منها قبل اختيار الخدمة. حامل البكالوريوس أو ما يعادله يُوجَّه إلى المسار الأكاديمي المهني.",
+    academicRpl: "المسار الأكاديمي المهني — RPL",
+    academicRplHint:
+      "مسار RPL الثاني، لحاملي المؤهلات الجامعية: دبلوم مهني، ماجستير مهني، دكتوراه مهنية. يُقيَّم بالأدلة والكفاءات، لا بالشهادة وحدها.",
+    academicSelectTrack: "الدرجة المستهدفة",
+    academicOpen: "افتح ملف المسار الأكاديمي",
+    academicOpened: "تم فتح ملف المسار الأكاديمي المهني.",
+    academicNoTracks: "لم تُهيَّأ درجات المسار الأكاديمي بعد.",
     addQualification: "إضافة مؤهل",
     updateQualification: "تحديث المؤهل",
     type: "نوع المؤهل",
@@ -470,9 +488,11 @@ export default function UserWorkspacePage() {
     pathways: [],
     programs: [],
     eligibility: null,
+    academicTracks: [],
   });
   const [programId, setProgramId] = useState("");
   const [targetLevelId, setTargetLevelId] = useState("");
+  const [academicTrackId, setAcademicTrackId] = useState("");
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -491,11 +511,16 @@ export default function UserWorkspacePage() {
         referenceResponse,
         programsResponse,
         eligibilityResponse,
+        academicResponse,
       ] = await Promise.all([
         fetchUser(userId),
         fetchRplReferenceData(),
         fetchAdminPrograms({ per_page: 100 }),
         fetchUserProfessionalEligibility(userId),
+        // The academic pathway is a separate domain with its own reference
+        // data. Fetched alongside rather than folded into the RPL reference
+        // call, because the two vocabularies must not be merged.
+        fetchAcademicReferenceData().catch(() => null),
       ]);
       const user = unwrapApiData(userResponse);
       const reference = unwrapApiData(referenceResponse) || {};
@@ -510,6 +535,7 @@ export default function UserWorkspacePage() {
           (program) => program.is_active !== false,
         ),
         eligibility: unwrapApiData(eligibilityResponse),
+        academicTracks: academicResponse?.data?.tracks || [],
       });
     } catch (error) {
       setState({
@@ -617,6 +643,32 @@ export default function UserWorkspacePage() {
         ...current,
         error: readApiError(error, copy.createCaseFailed),
       }));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /*
+   * Open a case on the SECOND RPL pathway.
+   *
+   * Deliberately its own action rather than a variant of createRplApplication:
+   * the two pathways are separate domains with separate tables, and a shared
+   * create would be the first place they started to merge. The server applies
+   * the same subject rule — staff cannot be the subject of a case.
+   */
+  async function openAcademicCase() {
+    if (!academicTrackId) return;
+    setBusy(true);
+    try {
+      const created = await createAcademicApplicationForClient({
+        user_id: Number(userId),
+        requested_track_id: Number(academicTrackId),
+      });
+      setState((current) => ({ ...current, message: copy.academicOpened }));
+      const publicId = created?.data?.public_id;
+      if (publicId) navigate(`/academic-rpl/applications/${publicId}`);
+    } catch (error) {
+      setState((current) => ({ ...current, error: readApiError(error) }));
     } finally {
       setBusy(false);
     }
@@ -1207,6 +1259,60 @@ export default function UserWorkspacePage() {
                         ? `${copy[professionalEligibility.recommended_program_type.replace("professional_", "")] || professionalEligibility.recommended_program_type}`
                         : copy.noPrograms}
                     </p>
+                  </div>
+
+                  {/*
+                    THE SECOND RPL PATHWAY. Always offered, never as a
+                    consolation for being refused the first: a degree holder is
+                    routed here, not excluded, and the two pathways are an
+                    integrated journey rather than alternatives.
+                  */}
+                  <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-bold">
+                          {copy.academicRpl}
+                        </h3>
+                        <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+                          {copy.academicRplHint}
+                        </p>
+                      </div>
+                      <Badge variant="neutral">RPL</Badge>
+                    </div>
+
+                    {state.academicTracks.length ? (
+                      <div className="mt-4 space-y-3">
+                        <Select
+                          label={copy.academicSelectTrack}
+                          value={academicTrackId}
+                          onChange={(event) =>
+                            setAcademicTrackId(event.target.value)
+                          }
+                        >
+                          <option value="">{copy.academicSelectTrack}</option>
+                          {state.academicTracks.map((track) => (
+                            <option key={track.id} value={track.id}>
+                              {localize(track.name, language)}
+                            </option>
+                          ))}
+                        </Select>
+                        <Button
+                          onClick={openAcademicCase}
+                          disabled={!academicTrackId || busy}
+                        >
+                          {busy ? (
+                            <LoaderCircle className="animate-spin" size={17} />
+                          ) : (
+                            <GraduationCap size={17} />
+                          )}
+                          {copy.academicOpen}
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="mt-4 text-sm text-[var(--color-text-muted)]">
+                        {copy.academicNoTracks}
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
