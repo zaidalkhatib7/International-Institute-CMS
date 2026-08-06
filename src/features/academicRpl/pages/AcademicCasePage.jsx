@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, FileSearch, ListChecks, Loader2, Sparkles, Target } from 'lucide-react'
+import { ArrowLeft, ClipboardCheck, FileSearch, ListChecks, Loader2, Sparkles, Target } from 'lucide-react'
 import {
   Badge, Button, Card, CardContent, CardHeader, CardTitle, Textarea,
 } from '../../../components/ui'
@@ -10,7 +10,7 @@ import { localize } from '../../rpl/domain/rpl'
 import { formatLocalizedDateTime } from '../../../utils/localization'
 import {
   analyseAcademicApplication, fetchAcademicApplication, fetchAcademicGapPlan,
-  recordAcademicRecommendation,
+  fetchAcademicReferenceData, generateAcademicDiagnostic, recordAcademicRecommendation,
 } from '../services/academicRplService'
 import ReadinessPanel from '../components/ReadinessPanel'
 
@@ -48,6 +48,14 @@ const COPY = {
     missing: 'ما ينقص للمراجعة',
     documentsRead: 'ملفًا قُرئ',
     strippedWarning: 'حاول النموذج إصدار درجة رغم المنع، وأُزيلت. راجع المخرجات بعناية.',
+    diagnosticTitle: 'الاختبار التشخيصي (المرحلة 5)',
+    diagnosticSubtitle: 'اختبار مبني على مجالات المتقدم المستخرجة، لا اختبار موحد. كل سؤال يحتاج مراجعة بشرية قبل الإصدار.',
+    diagnosticNeedsAnalysis: 'لا يمكن توليد الاختبار قبل تحليل الأدلة: بدونه لا توجد مجالات، فيصبح الاختبار عامًا.',
+    noDiagnostic: 'لم يُولَّد اختبار بعد.',
+    generateFor: 'ولّد اختبارًا لـ',
+    items: 'سؤالًا',
+    awaitingReview: 'بانتظار المراجعة',
+    review: 'مراجعة',
     recommendTitle: 'تسجيل التوصية (المرحلة 7)',
     recommendSubtitle: 'يحفظ درجات المسارات الثلاثة ويصدر توصية. ليست قرار قبول.',
     rationale: 'مسوّغ التوصية',
@@ -84,6 +92,14 @@ const COPY = {
     missing: 'Missing for review',
     documentsRead: 'documents read',
     strippedWarning: 'The model attempted to emit a score despite the rules; it was stripped. Read the output carefully.',
+    diagnosticTitle: 'Diagnostic assessment (stage 5)',
+    diagnosticSubtitle: 'A paper built from the applicant’s extracted domains, not a standard one. Every question needs a human review before issue.',
+    diagnosticNeedsAnalysis: 'The diagnostic cannot be generated before the evidence analysis: without it there are no domains, and the paper would be generic.',
+    noDiagnostic: 'No diagnostic has been generated yet.',
+    generateFor: 'Generate for',
+    items: 'items',
+    awaitingReview: 'awaiting review',
+    review: 'Review',
     recommendTitle: 'Record the recommendation (stage 7)',
     recommendSubtitle: 'Saves the scores for all three tracks and issues a recommendation. Not an admission decision.',
     rationale: 'Rationale',
@@ -120,6 +136,14 @@ const COPY = {
     missing: 'Ontbreekt voor beoordeling',
     documentsRead: 'documenten gelezen',
     strippedWarning: 'Het model probeerde toch een score te geven; die is verwijderd.',
+    diagnosticTitle: 'Diagnostische toets (fase 5)',
+    diagnosticSubtitle: 'Een toets op basis van de gevonden domeinen. Elke vraag vereist menselijke beoordeling.',
+    diagnosticNeedsAnalysis: 'De toets kan niet worden gegenereerd vóór de bewijsanalyse.',
+    noDiagnostic: 'Nog geen toets gegenereerd.',
+    generateFor: 'Genereren voor',
+    items: 'vragen',
+    awaitingReview: 'te beoordelen',
+    review: 'Beoordelen',
     recommendTitle: 'Aanbeveling vastleggen (fase 7)',
     recommendSubtitle: 'Slaat de scores voor alle drie trajecten op. Geen toelatingsbesluit.',
     rationale: 'Onderbouwing',
@@ -144,7 +168,7 @@ export default function AcademicCasePage() {
   const language = getAdminLanguage()
   const copy = COPY[language] || COPY.en
 
-  const [state, setState] = useState({ loading: true, error: '', application: null })
+  const [state, setState] = useState({ loading: true, error: '', application: null, tracks: [] })
   const [action, setAction] = useState({ busy: false, error: '', success: '' })
   const [rationale, setRationale] = useState('')
   const [gapPlan, setGapPlan] = useState(null)
@@ -152,10 +176,20 @@ export default function AcademicCasePage() {
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: '' }))
     try {
-      const payload = await fetchAcademicApplication(applicationId)
-      setState({ loading: false, error: '', application: payload?.data || null })
+      // Reference data comes along for the real track ids. Deriving them from
+      // list position would break the moment a track is added or reordered.
+      const [payload, reference] = await Promise.all([
+        fetchAcademicApplication(applicationId),
+        fetchAcademicReferenceData(),
+      ])
+      setState({
+        loading: false,
+        error: '',
+        application: payload?.data || null,
+        tracks: reference?.data?.tracks || [],
+      })
     } catch (error) {
-      setState({ loading: false, error: readApiError(error), application: null })
+      setState({ loading: false, error: readApiError(error), application: null, tracks: [] })
     }
   }, [applicationId])
 
@@ -340,6 +374,77 @@ export default function AcademicCasePage() {
         </CardContent>
       </Card>
 
+      {/* STAGE 5 — the personalised paper, built from what stage 4 extracted. */}
+      <Card>
+        <CardHeader className="border-b border-[var(--color-border)]">
+          <CardTitle className="flex items-center gap-2">
+            <ClipboardCheck className="h-5 w-5" aria-hidden="true" /> {copy.diagnosticTitle}
+          </CardTitle>
+          <p className="mt-2 max-w-3xl text-sm text-[var(--color-text-muted)]">{copy.diagnosticSubtitle}</p>
+        </CardHeader>
+        <CardContent className="space-y-4 p-6">
+          {application.diagnostics?.length ? (
+            <ul className="space-y-2">
+              {application.diagnostics.map((diagnostic) => (
+                <li
+                  key={diagnostic.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--color-border)] p-3 text-sm"
+                >
+                  <span className="flex flex-wrap items-center gap-2">
+                    <Badge variant={diagnostic.status === 'issued' ? 'success' : 'warning'}>
+                      {diagnostic.status}
+                    </Badge>
+                    <span>{(diagnostic.items || []).length} {copy.items}</span>
+                    {/* The count that decides whether it can be issued. */}
+                    <span className="text-[var(--color-text-muted)]">
+                      {(diagnostic.items || []).filter((i) => i.governance_status === 'pending').length}{' '}
+                      {copy.awaitingReview}
+                    </span>
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate(`/academic-rpl/diagnostics/${diagnostic.id}`)}
+                  >
+                    {copy.review}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-[var(--color-text-muted)]">{copy.noDiagnostic}</p>
+          )}
+
+          {/* Disabled without an analysis, because the server refuses anyway —
+              and the reason belongs next to the button, not in an error toast. */}
+          <div className="flex flex-wrap items-center gap-3">
+            {state.tracks.map((track) => (
+              <Button
+                key={track.id}
+                size="sm"
+                variant="outline"
+                disabled={action.busy || !analysis}
+                onClick={async () => {
+                  const created = await run(
+                    () => generateAcademicDiagnostic(applicationId, {
+                      track_id: track.id,
+                      response_locale: language,
+                    }),
+                    copy.diagnosticTitle,
+                  )
+                  if (created?.data?.id) navigate(`/academic-rpl/diagnostics/${created.data.id}`)
+                }}
+              >
+                <Sparkles size={16} /> {copy.generateFor} {localize(track.name, language)}
+              </Button>
+            ))}
+          </div>
+          {!analysis ? (
+            <p className="text-xs text-amber-800">{copy.diagnosticNeedsAnalysis}</p>
+          ) : null}
+        </CardContent>
+      </Card>
+
       {/* STAGES 6 & 7 — the computed measurement. */}
       <ReadinessPanel applicationPublicId={applicationId} language={language} />
 
@@ -387,18 +492,21 @@ export default function AcademicCasePage() {
         </CardHeader>
         <CardContent className="space-y-4 p-6">
           <div className="flex flex-wrap gap-2">
-            {['professional_diploma', 'professional_master', 'professional_doctorate'].map((code) => (
+            {state.tracks.map((track) => (
               <Button
-                key={code}
+                key={track.id}
                 size="sm"
                 variant="outline"
                 onClick={async () => {
-                  const result = await run(() => fetchAcademicGapPlan(applicationId, { track: code }), copy.gapTitle)
+                  const result = await run(
+                    () => fetchAcademicGapPlan(applicationId, { track: track.code }),
+                    copy.gapTitle,
+                  )
                   if (result) setGapPlan(result.data)
                 }}
                 disabled={action.busy}
               >
-                {copy.computeGap} · {code.replace('professional_', '')}
+                {copy.computeGap} · {localize(track.name, language)}
               </Button>
             ))}
           </div>

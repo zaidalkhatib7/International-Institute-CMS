@@ -40,6 +40,7 @@ const RplSourceOfTruthPage = lazy(() => import('../features/rpl/pages/RplSourceO
 const AcademicApplicationsPage = lazy(() => import('../features/academicRpl/pages/AcademicApplicationsPage'))
 const AcademicCasePage = lazy(() => import('../features/academicRpl/pages/AcademicCasePage'))
 const AcademicFrameworkPage = lazy(() => import('../features/academicRpl/pages/AcademicFrameworkPage'))
+const AcademicDiagnosticPage = lazy(() => import('../features/academicRpl/pages/AcademicDiagnosticPage'))
 const CertificatesPage = lazy(() => import('../features/certificates/pages/CertificatesPage'))
 const DigitalLibraryPage = lazy(() => import('../features/library/pages/DigitalLibraryPage'))
 const SupportOperationsPage = lazy(() => import('../features/support/pages/SupportOperationsPage'))
@@ -301,6 +302,7 @@ export default function AppRouter() {
         <Route path="/academic-rpl/applications" element={<AdminRoute><AcademicApplicationsPage /></AdminRoute>} />
         <Route path="/academic-rpl/applications/:applicationId" element={<AdminRoute><AcademicCasePage /></AdminRoute>} />
         <Route path="/academic-rpl/framework" element={<AdminRoute><AcademicFrameworkPage /></AdminRoute>} />
+        <Route path="/academic-rpl/diagnostics/:diagnosticId" element={<AdminRoute><AcademicDiagnosticPage /></AdminRoute>} />
         <Route path="/rpl/applications" element={<AdminRoute><RplApplicationsPage /></AdminRoute>} />
         <Route path="/rpl/applications/:applicationId" element={<AdminRoute><RplCaseWorkspacePage /></AdminRoute>} />
         <Route path="/rpl/evidence" element={<AdminRoute><RplEvidencePage /></AdminRoute>} />
