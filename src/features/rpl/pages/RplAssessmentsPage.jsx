@@ -58,6 +58,10 @@ import {
 } from "../components/AdvisoryProvenance";
 import DynamicAssessmentPanel from "../components/DynamicAssessmentPanel";
 import GapClosurePanel from "../components/GapClosurePanel";
+import {
+  applyCriterionDraft,
+  formatDraftMessage,
+} from "../domain/criterionDraft";
 import RplPageState from "../components/RplPageState";
 import RplStatusBadge from "../components/RplStatusBadge";
 import {
@@ -98,6 +102,14 @@ const copyByLanguage = {
     evidenceMapping: "الأدلة المستند إليها",
     saveRubric: "حفظ نتائج التقييم",
     saved: "تم حفظ نتائج التقييم.",
+    fillFromAi: "املأ من مسودة Gemini",
+    fillNoDraft: "لا توجد مسودة Gemini بعد. أنشئ التحليل أولًا.",
+    fillDone: "تم ملء {filled} معيارًا من مسودة Gemini. راجعها وعدّلها ثم احفظ.",
+    fillKept: "تم ملء {filled} معيارًا. تُرك {kept} معيارًا لأنك كتبت فيها بالفعل.",
+    fillNothing: "كل الحقول مملوءة بالفعل. لم يُغيَّر شيء.",
+    aiDrafted: "مسودة Gemini — لم تُعتمد بعد",
+    aiDraftNote:
+      "هذه مسودة آلية معروضة في النموذج فقط ولم تُحفظ. الحفظ هو اعتمادك أنت، ويُسجَّل باسمك في سجل التدقيق.",
     noCriteria: "لم تتم إضافة معايير إلى هذا النموذج بعد.",
     evidence: "أدلة الملف",
     noEvidence: "لا توجد أدلة مرتبطة بالتقييم.",
@@ -175,6 +187,16 @@ const copyByLanguage = {
     evidenceMapping: "Supporting evidence",
     saveRubric: "Save assessment findings",
     saved: "Assessment findings saved.",
+    fillFromAi: "Fill from the Gemini draft",
+    fillNoDraft: "No Gemini draft yet. Generate the analysis first.",
+    fillDone:
+      "Filled {filled} criteria from the Gemini draft. Review, edit, then save.",
+    fillKept:
+      "Filled {filled} criteria. Left {kept} alone because you had already written in them.",
+    fillNothing: "Every field already has content. Nothing was changed.",
+    aiDrafted: "Gemini draft — not yet approved",
+    aiDraftNote:
+      "This is a machine draft shown in the form only; nothing is saved. Saving is your approval, and the audit trail records it under your name.",
     noCriteria: "No criteria have been added to this rubric yet.",
     evidence: "Case evidence",
     noEvidence: "No evidence is mapped to this assessment.",
@@ -253,6 +275,16 @@ const copyByLanguage = {
     evidenceMapping: "Ondersteunend bewijs",
     saveRubric: "Bevindingen opslaan",
     saved: "Bevindingen opgeslagen.",
+    fillFromAi: "Vullen vanuit het Gemini-concept",
+    fillNoDraft: "Nog geen Gemini-concept. Genereer eerst de analyse.",
+    fillDone:
+      "{filled} criteria gevuld vanuit het Gemini-concept. Beoordeel, bewerk en sla op.",
+    fillKept:
+      "{filled} criteria gevuld. {kept} overgeslagen omdat u daar al had geschreven.",
+    fillNothing: "Alle velden zijn al ingevuld. Er is niets gewijzigd.",
+    aiDrafted: "Gemini-concept — nog niet goedgekeurd",
+    aiDraftNote:
+      "Dit is een machineconcept dat alleen in het formulier staat; er is niets opgeslagen. Opslaan is uw goedkeuring en wordt op uw naam vastgelegd.",
     noCriteria: "Er zijn nog geen criteria aan deze rubric toegevoegd.",
     evidence: "Dossierbewijs",
     noEvidence: "Er is geen bewijs gekoppeld.",
@@ -544,6 +576,16 @@ export default function RplAssessmentsPage() {
     requireVerifiedEvidence: true,
   });
   const [criteria, setCriteria] = useState([]);
+  /*
+   * Which criteria the assessor accepted a machine draft into, and from which
+   * advisory. Sent with the save so the audit trail can answer "was this
+   * written by a person or approved from a draft?" — the finding is still
+   * theirs, but an accreditor is entitled to know how it started.
+   */
+  const [aiPrefill, setAiPrefill] = useState({
+    advisoryId: null,
+    criterionIds: [],
+  });
   const [report, setReport] = useState({
     recommendation: "",
     recommended_level_id: "",
@@ -668,6 +710,46 @@ export default function RplAssessmentsPage() {
     }
   }
 
+  /*
+   * Populate the rubric form from the newest Gemini draft. Nothing is saved:
+   * this only puts values in fields the assessor then reviews, edits and
+   * commits themselves. Fields they have already written in are left alone.
+   */
+  function fillFromGeminiDraft() {
+    const advisories =
+      state.assessment?.ai_advisories || state.assessment?.aiAdvisories || [];
+    const latest = advisories[0];
+    const advice = latest?.advisory?.criterion_advice;
+
+    if (!latest || !Array.isArray(advice) || advice.length === 0) {
+      setAction({ busy: false, error: copy.fillNoDraft, success: "" });
+      return;
+    }
+
+    const result = applyCriterionDraft(criteria, advice, state.outcomes);
+    if (result.filled === 0) {
+      setAction({ busy: false, error: "", success: copy.fillNothing });
+      return;
+    }
+
+    setCriteria(result.criteria);
+    setAiPrefill((current) => ({
+      advisoryId: latest.id,
+      // Union: a second pass over remaining criteria must not erase the first.
+      criterionIds: Array.from(
+        new Set([...current.criterionIds, ...result.criterionIds]),
+      ),
+    }));
+    setAction({
+      busy: false,
+      error: "",
+      success: formatDraftMessage(
+        result.kept > 0 ? copy.fillKept : copy.fillDone,
+        { filled: result.filled, kept: result.kept },
+      ),
+    });
+  }
+
   async function saveFindings() {
     const availableEvidence =
       state.assessment?.evidence ||
@@ -702,10 +784,20 @@ export default function RplAssessmentsPage() {
           ...(report.outcome_id
             ? { overall_outcome_id: Number(report.outcome_id) }
             : {}),
+          // Sent even when empty: a save with no ai_prefill key is ambiguous
+          // between "no draft was used" and "an old client didn't report it".
+          ai_prefill: {
+            advisory_id: aiPrefill.advisoryId,
+            criterion_ids: aiPrefill.criterionIds,
+          },
         }),
       copy.saved,
     );
-    if (saved) load();
+    // load() refetches the saved findings, so the draft markers clear with them.
+    if (saved) {
+      setAiPrefill({ advisoryId: null, criterionIds: [] });
+      load();
+    }
   }
 
   async function saveInterview() {
@@ -1271,11 +1363,30 @@ export default function RplAssessmentsPage() {
             <CardHeader className="border-b border-[var(--color-border)]">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <CardTitle>{copy.criteria}</CardTitle>
-                <RplStatusBadge
-                  status={assessment.status}
-                  language={language}
-                />
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Deliberately a button, never automatic on load: the
+                      assessor must choose to accept a machine draft, and that
+                      choice is what the audit trail records. */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={fillFromGeminiDraft}
+                    disabled={action.busy || Boolean(assessment.locked_at)}
+                  >
+                    <Sparkles size={16} />
+                    {copy.fillFromAi}
+                  </Button>
+                  <RplStatusBadge
+                    status={assessment.status}
+                    language={language}
+                  />
+                </div>
               </div>
+              {aiPrefill.criterionIds.length ? (
+                <p className="mt-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">
+                  {copy.aiDraftNote}
+                </p>
+              ) : null}
             </CardHeader>
             <CardContent className="space-y-4 pt-6">
               {criteria.length ? (
@@ -1286,9 +1397,16 @@ export default function RplAssessmentsPage() {
                   >
                     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_120px_180px] lg:items-end">
                       <div>
-                        <p className="text-xs font-semibold uppercase text-[var(--color-text-muted)]">
-                          {copy.criterion}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-xs font-semibold uppercase text-[var(--color-text-muted)]">
+                            {copy.criterion}
+                          </p>
+                          {/* Cleared on save, because once the assessor commits
+                              it the finding is theirs, not a draft. */}
+                          {criterion.ai_drafted?.length ? (
+                            <Badge variant="warning">{copy.aiDrafted}</Badge>
+                          ) : null}
+                        </div>
                         <p className="mt-2 font-bold text-[var(--color-text)]">
                           {localize(
                             criterion.name || criterion.title,
