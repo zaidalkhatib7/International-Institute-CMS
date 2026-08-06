@@ -57,7 +57,18 @@ import {
   formatLocalizedNumber,
 } from "../../../utils/localization";
 
-const copyByLanguage = {
+/*
+ * Exported for the locale-parity test.
+ *
+ * The lookup below is `copyByLanguage[language] || copyByLanguage.en` — a
+ * WHOLE-OBJECT fallback. A key present in `en` but missing from `nl` therefore
+ * has no per-key rescue and renders `undefined`, silently. That is exactly how
+ * the Professional Academic RPL card shipped blank in Dutch: empty heading,
+ * unlabelled select, and a success message that never appeared after a real
+ * governed case had been created. The test asserts all three locales carry the
+ * same keys, because nothing else catches it until somebody switches language.
+ */
+export const copyByLanguage = {
   en: {
     workspace: "Client workspace",
     description:
@@ -149,7 +160,7 @@ const copyByLanguage = {
     selectTargetLevel: "Select Practitioner, Advanced Practitioner, or Expert",
     professional: "Professional Qualifications",
     professionalHint:
-      "This is a separate service from RPL and uses verified academic-entry requirements.",
+      "The taught-programme route to the same three qualifications the Professional Academic RPL pathway assesses toward. Enrolment uses verified academic-entry requirements.",
     selectProgram: "Select an eligible programme",
     enroll: "Enroll and charge wallet",
     noPrograms:
@@ -240,9 +251,9 @@ const copyByLanguage = {
       "يُقيّم ملف الخبرة والأدلة، وقد تُطلب برامج لسد فجوات الكفاءة قبل الاعتماد المهني.",
     rplWithoutHint:
       "يُقيّم ملف الخبرة والأدلة، وقد تُطلب برامج تأسيسية وبرامج لسد فجوات الكفاءة قبل الاعتماد المهني.",
-    noRplDegree: "مسار RPL غير متاح لهذا العميل",
+    noRplDegree: "هذا العميل ينتمي إلى المسار الأكاديمي المهني",
     noRplDegreeHint:
-      "تم تسجيل بكالوريوس أو مؤهل أكاديمي معادل؛ استخدم قسم المؤهلات المهنية فقط.",
+      "تم تسجيل بكالوريوس أو مؤهل أكاديمي معادل. افتح ملف المسار الأكاديمي المهني أدناه — المؤهل يُوجِّه ولا يستبعد من الاعتراف.",
     pendingAcademic: "دليل المؤهل الأكاديمي بانتظار التحقق",
     pendingAcademicHint:
       "يبقى RPL غير متاح. تحقق من المؤهل ثم اختر المؤهل المهني المناسب.",
@@ -258,7 +269,7 @@ const copyByLanguage = {
       "اختر ممارسًا مهنيًا أو ممارسًا مهنيًا متقدمًا أو خبيرًا مهنيًا",
     professional: "المؤهلات المهنية",
     professionalHint:
-      "هذه خدمة مستقلة تماماً عن RPL وتعتمد على مؤهلات أكاديمية موثقة.",
+      "المسار التدريبي المؤدي إلى نفس المؤهلات الثلاثة التي يقيّمها المسار الأكاديمي المهني. التسجيل يعتمد على مؤهلات قبول أكاديمية موثقة.",
     selectProgram: "اختر برنامجاً متاحاً",
     enroll: "تسجيل وخصم من المحفظة",
     noPrograms:
@@ -320,7 +331,7 @@ const copyByLanguage = {
     created: "Account aangemaakt",
     academicEvidence: "Bewijs voor academische toelating",
     academicEvidenceHint:
-      "Registreer en verifieer kwalificaties vóór de routing. Een verklaarde bachelor of gelijkwaardig sluit RPL uit.",
+      "Registreer en verifieer kwalificaties vóór de routing. Een verklaarde bachelor of gelijkwaardig leidt naar het Professioneel Academisch RPL; het sluit erkenning niet uit.",
     addQualification: "Kwalificatie toevoegen",
     updateQualification: "Kwalificatie bijwerken",
     type: "Type kwalificatie",
@@ -344,9 +355,24 @@ const copyByLanguage = {
       "Ervaring en bewijs worden beoordeeld. Competentiegap-programma’s kunnen vóór accreditatie nodig zijn.",
     rplWithoutHint:
       "Ervaring en bewijs worden beoordeeld. Basis- en competentiegap-programma’s kunnen vóór accreditatie nodig zijn.",
-    noRplDegree: "RPL is niet beschikbaar voor deze cliënt",
+    noRplDegree: "Deze cliënt hoort bij het academische RPL-traject",
     noRplDegreeHint:
-      "Er is een bachelor of gelijkwaardig academisch diploma geregistreerd. Gebruik uitsluitend Professional Qualifications.",
+      "Er is een bachelor of gelijkwaardig diploma geregistreerd. Open hieronder een Professioneel Academisch RPL-dossier — het diploma stuurt door, het sluit niet uit.",
+    /*
+     * These six were added to `en` and `ar` on 6 Aug and missed here, which
+     * rendered the whole Professional Academic RPL card blank in Dutch: the
+     * language fallback at `copyByLanguage[language] || copyByLanguage.en` is
+     * whole-object, so a missing key has no per-key rescue and resolves to
+     * undefined. An empty heading, an unlabelled select, an icon-only button —
+     * and a silent success after the case was actually created.
+     */
+    academicRpl: "Professioneel Academisch RPL",
+    academicRplHint:
+      "Het tweede RPL-traject, voor houders van een universitaire kwalificatie: professioneel diploma, professionele master, professioneel doctoraat. Beoordeeld op bewijs en competenties, niet op het diploma alleen.",
+    academicSelectTrack: "Doelkwalificatie",
+    academicOpen: "Academisch dossier openen",
+    academicOpened: "Professioneel Academisch RPL-dossier geopend.",
+    academicNoTracks: "De academische trajecten zijn nog niet geconfigureerd.",
     pendingAcademic: "Bewijs van academische graad wacht op verificatie",
     pendingAcademicHint:
       "RPL blijft niet beschikbaar. Verifieer de graad en kies daarna een passende professionele kwalificatie.",

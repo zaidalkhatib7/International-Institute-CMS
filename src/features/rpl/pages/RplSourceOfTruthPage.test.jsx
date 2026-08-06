@@ -39,8 +39,20 @@ describe('RplSourceOfTruthPage', () => {
     render(<MemoryRouter><RplSourceOfTruthPage /></MemoryRouter>)
 
     expect(await screen.findByRole('heading', { name: 'RPL- en Gemini-bron van waarheid' })).toBeInTheDocument()
-    expect(screen.getByText(/volledig apart academisch traject/)).toBeInTheDocument()
+    /*
+     * This used to assert "volledig apart academisch traject" — a completely
+     * separate academic route. That was the green card, on the page the CMS
+     * calls its source of truth, contradicting the very payload the page
+     * renders (`prior_academic_degree_auto_excludes_from_rpl => false`).
+     *
+     * Now it asserts the opposite, and that the page never says a degree
+     * excludes anyone, so the claim cannot come back.
+     */
+    expect(screen.getByText(/sluit RPL niet uit/)).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/volledig apart academisch traject/)
+    expect(document.body.textContent).not.toMatch(/nemen niet deel aan RPL/)
     expect(screen.getByText(/CGP-ETH-001/)).toBeInTheDocument()
+    // Mojibake guard: Dutch and Arabic must survive the render intact.
     expect(document.body.textContent).not.toMatch(/[ØÙÃÂ]/)
   })
 })
