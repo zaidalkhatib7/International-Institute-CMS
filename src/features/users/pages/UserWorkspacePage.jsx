@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
-  CheckCircle2,
   FilePlus2,
   FolderOpen,
   GraduationCap,
@@ -1240,26 +1239,19 @@ export default function UserWorkspacePage() {
                       </div>
                     ) : null}
                   </div>
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-lg font-bold">
-                          {copy.professional}
-                        </h3>
-                        <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
-                          {copy.professionalHint}
-                        </p>
-                      </div>
-                      <Badge variant="success">
-                        <CheckCircle2 size={14} />
-                      </Badge>
-                    </div>
-                    <p className="mt-4 text-sm font-medium">
-                      {professionalEligibility?.recommended_program_type
-                        ? `${copy[professionalEligibility.recommended_program_type.replace("professional_", "")] || professionalEligibility.recommended_program_type}`
-                        : copy.noPrograms}
-                    </p>
-                  </div>
+                  {/*
+                    The old "Professional Qualifications" card used to sit here,
+                    showing a recommended diploma/master/doctorate as a service
+                    SEPARATE from RPL. Removed on the owner's instruction,
+                    6 Aug 2026: those three targets are now the Professional
+                    Academic RPL pathway below, and presenting them twice — once
+                    as "independent of RPL" and once as the second RPL pathway —
+                    described one thing as two and contradicted itself.
+
+                    Enrolling into a professional-qualification programme still
+                    exists as its own card further down the page; only this
+                    duplicated routing tile is gone.
+                  */}
 
                   {/*
                     THE SECOND RPL PATHWAY. Always offered, never as a
