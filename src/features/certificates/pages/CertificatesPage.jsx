@@ -733,7 +733,9 @@ export default function CertificatesPage() {
                   }
                 >
                   <option value="">{copy.allStatuses}</option>
-                  {["active", "revoked", "superseded", "expired"].map(
+                  {/* No "expired": the status is never persisted — it is derived at read time
+                      by the public verify endpoint, so filtering on it returns nothing. */}
+                  {["active", "revoked", "superseded"].map(
                     (status) => (
                       <option key={status} value={status}>
                         {statuses[status]}

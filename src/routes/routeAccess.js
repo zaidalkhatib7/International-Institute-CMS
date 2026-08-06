@@ -7,6 +7,14 @@ export const routeAccess = Object.freeze({
   '/users/wallet': permission('finance.manage'),
   '/programs': permission('programs.manage'),
   '/competency-gap-library': permission('programs.manage'),
+  // A missing key means canAccess() returns true, so an operator without the
+  // permission reaches the page and meets a raw 403 panel from the API rather
+  // than the Access-denied screen. These five had no rule at all.
+  '/academic-rpl/applications': permission('rpl.applications.view'),
+  '/academic-rpl/framework': permission('rpl.applications.view'),
+  '/academic-rpl/library': permission('rpl.settings.manage'),
+  '/users/website': permission('users.view'),
+  '/users/onsite': permission('users.view'),
   '/programs/edit': permission('programs.manage'),
   '/categories': permission('programs.manage'),
   '/lessons': permission('learning.manage'),
@@ -31,9 +39,7 @@ export const routeAccess = Object.freeze({
   '/rpl/appeals': permission('rpl.appeals.review'),
   '/rpl/configuration': permission('rpl.settings.manage'),
   '/rpl/source-of-truth': permission('rpl.settings.manage'),
-  '/standards': permission('rpl.settings.manage'),
   '/assessors': permission('rpl.assignments.manage'),
-  '/committees': permission('rpl.committee.decide'),
   '/quality': permission('rpl.quality.approve'),
   '/certificates': permission('certificates.view'),
   '/library': permission('library.manage'),

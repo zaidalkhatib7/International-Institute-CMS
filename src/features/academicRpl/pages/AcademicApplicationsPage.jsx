@@ -77,7 +77,10 @@ const COPY = {
   },
 }
 
-const STATUSES = ['draft', 'submitted', 'under_analysis', 'diagnostic_issued', 'recommended', 'closed']
+// Only what the backend actually writes. It previously offered under_analysis,
+// diagnostic_issued, recommended and closed — four filters that always returned
+// nothing — and omitted withdrawn, which it does write.
+const STATUSES = ['draft', 'submitted', 'withdrawn']
 
 export default function AcademicApplicationsPage() {
   const navigate = useNavigate()

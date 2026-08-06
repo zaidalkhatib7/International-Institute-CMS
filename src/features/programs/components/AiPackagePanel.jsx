@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bot, CheckCircle2, Download, ExternalLink, KeyRound, Loader2, RefreshCw, ShieldAlert, Sparkles, Trash2, UploadCloud } from 'lucide-react'
+import { Bot, CheckCircle2, Download, ExternalLink, KeyRound,
+  ShieldOff, Loader2, RefreshCw, ShieldAlert, Sparkles, Trash2, UploadCloud } from 'lucide-react'
 import { Badge, Button, Card, CardContent, Select, Textarea } from '../../../components/ui'
 import {
   authorizeGeneration,
+  revokeGenerationAuthorization,
   downloadPackagePdf,
   fetchAiPackageStatus,
   generateAiPackage,
@@ -76,6 +78,10 @@ const COPY = {
     govNotePlaceholder: 'من صرّح بذلك ولماذا هذا الإصدار جاهز للتأليف.',
     govNoteHint: 'يُحفظ مع اسمك في السجل التدقيقي. هذه البوابة موجودة لأن التوليد بدأ مرتين على برامج غير محكومة.',
     govAuthorize: 'تسجيل تصريح التوليد',
+    govRevoke: 'سحب التصريح',
+    govRevokeReason: 'سحب التصريح',
+    govRevokeePlaceholder: 'لماذا يُسحب التصريح؟ (10 أحرف على الأقل)',
+    govRevokeConfirm: 'سيُسحب تصريح التوليد لهذه النسخة ويُسجَّل باسمك. متابعة؟',
     govAuthorizing: 'جارٍ التسجيل…',
     govConfirm: 'سيُسجَّل تصريح لهذا الإصدار باسمك. متابعة؟',
     govBy: 'سجّله',
@@ -146,6 +152,10 @@ const COPY = {
     govNotePlaceholder: 'Who authorised this, and why this version is ready to be authored.',
     govNoteHint: 'Stored with your name in the audit trail. This gate exists because generation was twice started on ungoverned programmes.',
     govAuthorize: 'Record generation authorization',
+    govRevoke: 'Withdraw the authorization',
+    govRevokeReason: 'Withdraw the authorization',
+    govRevokeePlaceholder: 'Why is the authorization withdrawn? (at least 10 characters)',
+    govRevokeConfirm: 'The generation authorization for this version will be withdrawn and recorded against your name. Continue?',
     govAuthorizing: 'Recording…',
     govConfirm: 'An authorization for this version will be recorded against your name. Continue?',
     govBy: 'Recorded by',
@@ -216,6 +226,10 @@ const COPY = {
     govNotePlaceholder: 'Wie dit heeft toegestaan en waarom deze versie gereed is.',
     govNoteHint: 'Wordt met uw naam in het auditspoor bewaard. Deze poort bestaat omdat generatie twee keer op ongereguleerde programmas is gestart.',
     govAuthorize: 'Generatietoestemming vastleggen',
+    govRevoke: 'Toestemming intrekken',
+    govRevokeReason: 'Toestemming intrekken',
+    govRevokeePlaceholder: 'Waarom wordt de toestemming ingetrokken? (minimaal 10 tekens)',
+    govRevokeConfirm: 'De generatietoestemming voor deze versie wordt ingetrokken en op uw naam vastgelegd. Doorgaan?',
     govAuthorizing: 'Bezig met vastleggen…',
     govConfirm: 'Er wordt een toestemming voor deze versie op uw naam vastgelegd. Doorgaan?',
     govBy: 'Vastgelegd door',
@@ -287,6 +301,7 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
   // Written basis for a generation authorization. Kept out of the request until
   // the reviewer has actually typed one: see the note in the block that uses it.
   const [authorizationNote, setAuthorizationNote] = useState('')
+  const [revokeReason, setRevokeReason] = useState('')
   const pollRef = useRef(null)
 
   const patchSourceVerdict = useCallback((key, patch) => {
@@ -520,12 +535,43 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
               </p>
 
               {governance.active_authorization ? (
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  {copy.govBy}: {governance.active_authorization.authorized_by || '—'}
-                  {governance.active_authorization.note
-                    ? ` — ${governance.active_authorization.note}`
-                    : ''}
-                </p>
+                <>
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    {copy.govBy}: {governance.active_authorization.authorized_by || '—'}
+                    {governance.active_authorization.note
+                      ? ` — ${governance.active_authorization.note}`
+                      : ''}
+                  </p>
+                  {/*
+                    The route's own comment says an authorization that cannot be
+                    withdrawn is not governed — and only the grant was ever
+                    wired. The CMS never sends expires_at either, so a grant does
+                    not lapse; the only way out was to spend it by running the
+                    very generation you wanted to stop.
+                  */}
+                  <div className="space-y-2 rounded-xl border border-[var(--color-border)] p-3">
+                    <Textarea
+                      label={copy.govRevokeReason}
+                      rows={2}
+                      value={revokeReason}
+                      placeholder={copy.govRevokeePlaceholder}
+                      onChange={(event) => setRevokeReason(event.target.value)}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy || revokeReason.trim().length < 10}
+                      onClick={() => {
+                        if (!window.confirm(copy.govRevokeConfirm)) return
+                        withBusy(
+                          () => revokeGenerationAuthorization(programId, revokeReason.trim()),
+                        ).then(() => setRevokeReason(''))
+                      }}
+                    >
+                      <ShieldOff size={16} /> {copy.govRevoke}
+                    </Button>
+                  </div>
+                </>
               ) : null}
 
               {/*

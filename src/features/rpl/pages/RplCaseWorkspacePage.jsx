@@ -50,6 +50,7 @@ import {
 } from '../services/rplService'
 import CompletenessMeter from '../components/CompletenessMeter'
 import EvidenceUploadCenter from '../components/EvidenceUploadCenter'
+import PaymentReconciliationPanel from '../components/PaymentReconciliationPanel'
 import RplPageState from '../components/RplPageState'
 import RplStatusBadge from '../components/RplStatusBadge'
 import { useModalDialog } from '../../../hooks/useModalDialog'
@@ -337,6 +338,10 @@ export default function RplCaseWorkspacePage() {
         </div>
         <div className="space-y-6">
           <CompletenessMeter value={readApplicationCompleteness(application)} categories={state.categories} language={language} />
+          {/* The only control anywhere that can set payment_status='paid'.
+              Credential issuance is gated on it, and before this panel there
+              was no way to release an approved applicant once a fee existed. */}
+          <PaymentReconciliationPanel application={application} language={language} onReconciled={load} />
           <Card>
             <CardHeader className="border-b border-[var(--color-border)]"><div className="flex items-center justify-between gap-3"><CardTitle>{copy.workflow}</CardTitle><RplStatusBadge status={application.status} language={language} /></div></CardHeader>
             <CardContent className="space-y-4 pt-6">

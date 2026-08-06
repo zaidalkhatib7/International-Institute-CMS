@@ -314,9 +314,7 @@ export default function AppRouter() {
         <Route path="/rpl/appeals" element={<AdminRoute><RplGovernancePage mode="appeals" /></AdminRoute>} />
         <Route path="/rpl/configuration" element={<AdminRoute><RplConfigurationPage /></AdminRoute>} />
         <Route path="/rpl/source-of-truth" element={<AdminRoute><RplSourceOfTruthPage /></AdminRoute>} />
-        <Route path="/standards" element={<AdminRoute><RplConfigurationPage /></AdminRoute>} />
         <Route path="/assessors" element={<AdminRoute><RplAssessorsPage /></AdminRoute>} />
-        <Route path="/committees" element={<AdminRoute><RplGovernancePage mode="committee" /></AdminRoute>} />
         <Route path="/quality" element={<AdminRoute><RplGovernancePage mode="quality" /></AdminRoute>} />
         <Route path="/certificates" element={<AdminRoute><CertificatesPage /></AdminRoute>} />
         <Route path="/library" element={<AdminRoute><DigitalLibraryPage /></AdminRoute>} />

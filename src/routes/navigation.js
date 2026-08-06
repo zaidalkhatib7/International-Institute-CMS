@@ -131,11 +131,6 @@ const groups = [
         icon: LibraryBig,
       },
       {
-        label: { ar: 'معايير الكفاءة', en: 'Competency standards', nl: 'Competentiestandaarden' },
-        href: '/standards',
-        icon: BookOpenCheck,
-      },
-      {
         label: { ar: 'البرامج والحقائب', en: 'Programs & packages', nl: "Programma's & pakketten" },
         href: '/programs',
         icon: GraduationCap,
@@ -199,7 +194,7 @@ const groups = [
         href: '/assessors',
         icon: UserCheck,
       },
-      { label: { ar: 'اللجان', en: 'Committees', nl: 'Commissies' }, href: '/committees', icon: Landmark },
+      { label: { ar: 'اللجان', en: 'Committees', nl: 'Commissies' }, href: '/rpl/configuration', icon: Landmark },
       {
         label: { ar: 'الجودة والتدقيق', en: 'Quality & audit', nl: 'Kwaliteit & audit' },
         href: '/quality',

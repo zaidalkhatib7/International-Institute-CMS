@@ -211,6 +211,19 @@ export async function authorizeGeneration(programId, note) {
   return response.data
 }
 
+/**
+ * Withdraw a generation authorization before it is spent.
+ *
+ * The route's own comment says "an authorization that cannot be withdrawn is
+ * not governed" — and the CMS wired only the grant. The only way out was to
+ * spend it, i.e. run the generation you wanted to stop. The CMS also never
+ * sends expires_at, so a grant never lapses on its own.
+ */
+export async function revokeGenerationAuthorization(programId, reason) {
+  const response = await http.post(`/admin/programs/${programId}/revoke-generation-authorization`, { reason })
+  return response.data
+}
+
 export async function rejectAiPackage(programId) {
   const response = await http.delete(`/admin/programs/${programId}/ai-package`)
   return response.data

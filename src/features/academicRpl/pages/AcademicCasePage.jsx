@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ClipboardCheck, FileSearch, ListChecks, Loader2, Sparkles, Target } from 'lucide-react'
+import { ArrowLeft, ClipboardCheck, FileSearch, ListChecks, Loader2, ShieldCheck, Sparkles, Target } from 'lucide-react'
 import {
-  Badge, Button, Card, CardContent, CardHeader, CardTitle, Textarea,
+  Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Textarea,
 } from '../../../components/ui'
 import { readApiError } from '../../../services/apiResponse'
 import { getAdminLanguage } from '../../../services/languageStorage'
 import { localize } from '../../rpl/domain/rpl'
 import { formatLocalizedDateTime } from '../../../utils/localization'
 import {
-  analyseAcademicApplication, fetchAcademicApplication, fetchAcademicGapPlan,
+  analyseAcademicApplication, confirmAcademicEligibility, fetchAcademicApplication, fetchAcademicGapPlan,
   fetchAcademicReferenceData, generateAcademicDiagnostic, recordAcademicRecommendation,
 } from '../services/academicRplService'
 import ReadinessPanel from '../components/ReadinessPanel'
@@ -34,6 +34,17 @@ const COPY = {
     requestedTrack: 'المسار المطلوب',
     route: 'مسوّغ الأهلية',
     bridged: 'قادم من حالة RPL',
+    eligTitle: 'تأكيد الأهلية (المرحلة 2)',
+    eligSubtitle: 'فعل بشري محكوم. هو الموضع الوحيد الذي يُسجَّل فيه إثبات الأهلية، وتُفحص فيه قاعدة عدم الاعتراف مرتين بالتعلّم نفسه.',
+    eligRoute: 'مسوّغ الأهلية',
+    eligSource: 'حالة RPL المصدر (مطلوبة لمسار الممارس الخبير)',
+    eligNote: 'ملاحظة التأكيد',
+    eligNotePlaceholder: 'اذكر ما فُحص وعلى أي أساس تُقبل الأهلية (10 أحرف على الأقل).',
+    eligConfirm: 'أكّد الأهلية',
+    eligConfirmed: 'تم تأكيد الأهلية.',
+    eligAlready: 'الأهلية مؤكَّدة',
+    eligBy: 'أكّدها',
+    eligSelectRoute: 'اختر مسوّغ الأهلية',
     evidence: 'الأدلة المرفوعة',
     noEvidence: 'لم يرفع المتقدم أي أدلة بعد.',
     analysisTitle: 'تحليل الأدلة (المرحلة 4)',
@@ -78,6 +89,17 @@ const COPY = {
     requestedTrack: 'Requested track',
     route: 'Eligibility route',
     bridged: 'Bridged from RPL case',
+    eligTitle: 'Confirm eligibility (stage 2)',
+    eligSubtitle: 'A governed human act. This is the only place eligibility is recorded, and the only place the anti-double-recognition check runs.',
+    eligRoute: 'Eligibility route',
+    eligSource: 'Source RPL case (required for the Expert Practitioner bridge)',
+    eligNote: 'Confirmation note',
+    eligNotePlaceholder: 'State what was checked and on what basis eligibility is accepted (at least 10 characters).',
+    eligConfirm: 'Confirm eligibility',
+    eligConfirmed: 'Eligibility confirmed.',
+    eligAlready: 'Eligibility confirmed',
+    eligBy: 'confirmed by',
+    eligSelectRoute: 'Select an eligibility route',
     evidence: 'Uploaded evidence',
     noEvidence: 'The applicant has not uploaded any evidence yet.',
     analysisTitle: 'Evidence analysis (stage 4)',
@@ -122,6 +144,17 @@ const COPY = {
     requestedTrack: 'Gevraagd traject',
     route: 'Toelatingsroute',
     bridged: 'Overgekomen uit RPL-dossier',
+    eligTitle: 'Toelating bevestigen (fase 2)',
+    eligSubtitle: 'Een beheerde menselijke handeling. De enige plek waar toelating wordt vastgelegd en waar dubbele erkenning wordt gecontroleerd.',
+    eligRoute: 'Toelatingsroute',
+    eligSource: 'Bron-RPL-dossier (vereist voor de Expert Practitioner-brug)',
+    eligNote: 'Bevestigingsnotitie',
+    eligNotePlaceholder: 'Vermeld wat is gecontroleerd en op welke grondslag (minimaal 10 tekens).',
+    eligConfirm: 'Toelating bevestigen',
+    eligConfirmed: 'Toelating bevestigd.',
+    eligAlready: 'Toelating bevestigd',
+    eligBy: 'bevestigd door',
+    eligSelectRoute: 'Kies een toelatingsroute',
     evidence: 'Geüpload bewijs',
     noEvidence: 'De aanvrager heeft nog geen bewijs geüpload.',
     analysisTitle: 'Bewijsanalyse (fase 4)',
@@ -168,10 +201,11 @@ export default function AcademicCasePage() {
   const language = getAdminLanguage()
   const copy = COPY[language] || COPY.en
 
-  const [state, setState] = useState({ loading: true, error: '', application: null, tracks: [] })
+  const [state, setState] = useState({ loading: true, error: '', application: null, tracks: [], routes: [] })
   const [action, setAction] = useState({ busy: false, error: '', success: '' })
   const [rationale, setRationale] = useState('')
   const [gapPlan, setGapPlan] = useState(null)
+  const [elig, setElig] = useState({ route: '', note: '', source: '' })
 
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: '' }))
@@ -187,9 +221,10 @@ export default function AcademicCasePage() {
         error: '',
         application: payload?.data || null,
         tracks: reference?.data?.tracks || [],
+        routes: reference?.data?.eligibility_routes || [],
       })
     } catch (error) {
-      setState({ loading: false, error: readApiError(error), application: null, tracks: [] })
+      setState({ loading: false, error: readApiError(error), application: null, tracks: [], routes: [] })
     }
   }, [applicationId])
 
@@ -268,6 +303,102 @@ export default function AcademicCasePage() {
           {application.source_rpl_application ? (
             <Field label={copy.bridged} value={application.source_rpl_application.case_reference} />
           ) : null}
+        </CardContent>
+      </Card>
+
+      {/*
+        STAGE 2 — the human decision the pathway was missing entirely.
+        confirmAcademicEligibility existed on the server from the start and had
+        no caller, so eligibility_confirmed was never set, the
+        academic_rpl.eligibility_confirmed audit event never fired, and the
+        anti-double-recognition check on the Expert Practitioner bridge never
+        ran. The case page showed the route read-only and nothing could set it.
+      */}
+      <Card>
+        <CardHeader className="border-b border-[var(--color-border)]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" aria-hidden="true" /> {copy.eligTitle}
+            </CardTitle>
+            {application.eligibility_confirmed ? (
+              <Badge variant="success">{copy.eligAlready}</Badge>
+            ) : null}
+          </div>
+          <p className="mt-2 max-w-3xl text-sm text-[var(--color-text-muted)]">{copy.eligSubtitle}</p>
+        </CardHeader>
+        <CardContent className="space-y-3 p-6">
+          {application.eligibility_confirmed ? (
+            <div className="space-y-1 text-sm">
+              <p className="font-semibold">
+                {localize(application.eligibility_route?.name, language) || '—'}
+              </p>
+              {application.eligibility_note ? (
+                <p className="text-[var(--color-text-muted)]">{application.eligibility_note}</p>
+              ) : null}
+              <p className="text-xs text-[var(--color-text-muted)]">
+                {copy.eligBy} #{application.eligibility_confirmed_by} ·{' '}
+                {formatLocalizedDateTime(application.eligibility_confirmed_at, language)}
+              </p>
+            </div>
+          ) : (
+            <>
+              <label className="block text-xs text-[var(--color-text-muted)]">
+                {copy.eligRoute}
+                <Select
+                  value={elig.route}
+                  onChange={(event) => setElig((c) => ({ ...c, route: event.target.value }))}
+                >
+                  <option value="">{copy.eligSelectRoute}</option>
+                  {state.routes.map((route) => (
+                    <option key={route.id} value={route.id}>
+                      {localize(route.name, language)}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+
+              {/* Only the bridge route needs it, and the server returns
+                  ACADEMIC_RPL_SOURCE_CASE_REQUIRED without it. Shown
+                  conditionally so the other two routes are not cluttered. */}
+              {state.routes.find((r) => String(r.id) === String(elig.route))
+                ?.requires_rpl_expert_outcome ? (
+                <label className="block text-xs text-[var(--color-text-muted)]">
+                  {copy.eligSource}
+                  <Input
+                    type="number"
+                    value={elig.source}
+                    onChange={(event) => setElig((c) => ({ ...c, source: event.target.value }))}
+                  />
+                </label>
+              ) : null}
+
+              <Textarea
+                rows={3}
+                value={elig.note}
+                placeholder={copy.eligNotePlaceholder}
+                onChange={(event) => setElig((c) => ({ ...c, note: event.target.value }))}
+              />
+              <Button
+                disabled={action.busy || !elig.route || elig.note.trim().length < 10}
+                onClick={async () => {
+                  const done = await run(
+                    () => confirmAcademicEligibility(applicationId, {
+                      eligibility_route_id: Number(elig.route),
+                      note: elig.note.trim(),
+                      ...(elig.source ? { source_rpl_application_id: Number(elig.source) } : {}),
+                    }),
+                    copy.eligConfirmed,
+                  )
+                  if (done) {
+                    setElig({ route: '', note: '', source: '' })
+                    load()
+                  }
+                }}
+              >
+                <ShieldCheck size={16} /> {copy.eligConfirm}
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
 

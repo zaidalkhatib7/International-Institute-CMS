@@ -332,3 +332,14 @@ export async function fetchGapClosurePlan(applicationPublicId) {
   const response = await http.get(`/admin/rpl/applications/${applicationPublicId}/gap-closure-plan`)
   return response.data
 }
+
+/**
+ * Record a certificate fee received outside the platform.
+ *
+ * The only path that sets payment_status='paid', and credential issuance is
+ * gated on it. Idempotent and row-locked server-side: the same reference is
+ * never counted twice, and one already used on another order is refused 409.
+ */
+export async function reconcileRplPayment(applicationPublicId, payload) {
+  return read(await http.post(`/admin/rpl/applications/${applicationPublicId}/payment-reconciliation`, payload))
+}

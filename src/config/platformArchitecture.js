@@ -1,7 +1,7 @@
 const text = {
   ar: {
     accreditationLevels: ['ممارس مهني', 'ممارس مهني متقدم', 'خبير مهني'],
-    trainingProgramTypes: ['الدورات القصيرة', 'الحقائب التدريبية', 'الدبلومات المهنية', 'برامج المؤسسات والوزارات'],
+    trainingProgramTypes: ['دورات قصيرة', 'حقائب تدريبية', 'دبلومات مهنية', 'ماجستير مهني', 'دكتوراه مهنية', 'برامج تجسير', 'برامج المؤسسات والوزارات', 'حقائب سد الفجوات', 'برامج تنفيذية', 'برامج مخصصة'],
     rplWorkflowStages: [
       ['application', 'بدء الطلب واختيار المسار', 'إنشاء الطلب وتحديد مجال أو مسار الاعتماد المهني المناسب.'],
       ['evidence', 'بناء ملف الأدلة', 'رفع الأدلة المهنية وتصنيفها وربطها بمعايير الكفاءة.'],
@@ -46,7 +46,7 @@ const text = {
   },
   en: {
     accreditationLevels: ['Professional Practitioner', 'Advanced Professional Practitioner', 'Professional Expert'],
-    trainingProgramTypes: ['Short courses', 'Training kits', 'Professional diplomas', 'Institution and ministry programs'],
+    trainingProgramTypes: ['Short courses', 'Training kits', 'Professional diplomas', 'Professional masters', 'Professional doctorates', 'Bridging programmes', 'Institution and ministry programs', 'Competency gap packages', 'Executive programmes', 'Custom programmes'],
     rplWorkflowStages: [
       ['application', 'Application and pathway selection', 'Create the application and choose the relevant accreditation pathway.'],
       ['evidence', 'Evidence portfolio', 'Upload, classify, and map professional evidence to competency standards.'],
@@ -87,7 +87,7 @@ const text = {
   },
   nl: {
     accreditationLevels: ['Professioneel beoefenaar', 'Gevorderd professional', 'Professioneel expert'],
-    trainingProgramTypes: ['Korte cursussen', 'Trainingspakketten', 'Professionele diploma’s', 'Programma’s voor instellingen en ministeries'],
+    trainingProgramTypes: ['Korte cursussen', 'Trainingspakketten', 'Professionele diploma’s', 'Professionele masters', 'Professionele doctoraten', 'Schakelprogramma’s', 'Programma’s voor instellingen en ministeries', 'Competentiekloofpakketten', 'Executive-programma’s', 'Maatwerkprogramma’s'],
     rplWorkflowStages: [
       ['application', 'Aanvraag en trajectkeuze', 'Maak de aanvraag aan en kies het juiste accreditatietraject.'],
       ['evidence', 'Bewijsportfolio', 'Upload, classificeer en koppel professioneel bewijs aan competentiestandaarden.'],
