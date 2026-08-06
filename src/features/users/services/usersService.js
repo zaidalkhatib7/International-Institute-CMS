@@ -94,3 +94,27 @@ export async function purgeUser(id) {
   const response = await http.delete(`/admin/users/${id}/purge`)
   return response.data
 }
+
+/*
+ * ROLE ASSIGNMENT.
+ *
+ * GET /admin/roles and PUT /admin/users/{id}/roles are implemented and audited
+ * as `roles.assigned`, and no CMS file referenced either. Meanwhile
+ * UserController::store accepts only student/trainer/admin, so eight of the
+ * eleven seeded roles — assessor, quality-reviewer, committee-member,
+ * appeal-reviewer, finance-operator, support-agent, content-admin, expert —
+ * could not be granted through any screen. Those are exactly the roles the RPL
+ * governance chain runs on, and the workspace copy told staff to "manage
+ * permissions from Administration and roles", a page that could not do it.
+ */
+
+export async function fetchRoles() {
+  const response = await http.get('/admin/roles')
+  return response.data
+}
+
+/** Replaces the user's roles wholesale — send the complete set of slugs. */
+export async function assignUserRoles(userId, roles) {
+  const response = await http.put(`/admin/users/${userId}/roles`, { roles })
+  return response.data
+}

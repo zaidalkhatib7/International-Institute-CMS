@@ -19,6 +19,7 @@ import { formatLocalizedList, formatLocalizedNumber, pickText } from '../../../u
 import { updateAdminProgram } from '../../programs/services/programsService'
 import { fetchRplSourceOfTruth } from '../../rpl/services/rplService'
 import { fetchCompetencyFramework, fetchCompetencyGapPrograms } from '../services/competencyFrameworkService'
+import CompetencyDictionaryAuthoring from '../components/CompetencyDictionaryAuthoring'
 
 const copyByLanguage = {
   ar: {
@@ -136,7 +137,7 @@ function Readiness({ readiness, copy, language }) {
 
 export default function CompetencyGapLibraryPage() {
   const language = getAdminLanguage(); const copy = copyByLanguage[language] || copyByLanguage.en; const navigate = useNavigate()
-  const [state, setState] = useState({ loading: true, error: '', groups: [], programs: [], pathways: [] })
+  const [state, setState] = useState({ loading: true, error: '', competencies: [], groups: [], programs: [], pathways: [] })
   const [filters, setFilters] = useState({ group: 'all', status: 'all', search: '' })
   const [editor, setEditor] = useState(null); const [form, setForm] = useState(null); const [editLanguage, setEditLanguage] = useState('ar')
   const [saving, setSaving] = useState(false); const [message, setMessage] = useState('')
@@ -145,7 +146,7 @@ export default function CompetencyGapLibraryPage() {
     setState((current) => ({ ...current, loading: true, error: '' }))
     try {
       const [framework, programs, rplSource] = await Promise.all([fetchCompetencyFramework(), fetchCompetencyGapPrograms(), fetchRplSourceOfTruth()])
-      setState({ loading: false, error: '', groups: (framework?.groups || []).filter((group) => group.is_active), programs: (Array.isArray(programs) ? programs : []).filter((program) => program.official_code), pathways: rplSource?.pathways || [] })
+      setState({ loading: false, error: '', competencies: framework?.competencies || [], groups: (framework?.groups || []).filter((group) => group.is_active), programs: (Array.isArray(programs) ? programs : []).filter((program) => program.official_code), pathways: rplSource?.pathways || [] })
     } catch (error) { setState((current) => ({ ...current, loading: false, error: readApiError(error, copy.loadError) })) }
   }, [copy.loadError])
 
@@ -175,6 +176,11 @@ export default function CompetencyGapLibraryPage() {
     {message && !editor ? <div className="rounded-[var(--radius-lg)] border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">{message}</div> : null}
     {state.error ? <div className="rounded-[var(--radius-lg)] border border-red-200 bg-red-50 p-5 text-red-700">{state.error}</div> : null}
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[[copy.groups, stats.groups],[copy.programs, stats.programs],[copy.drafts, stats.drafts],[copy.ready, stats.ready]].map(([label,value]) => <Card key={label}><CardContent className="p-6"><p className="text-sm font-semibold text-[var(--color-text-muted)]">{label}</p><p className="mt-2 text-4xl font-bold text-[var(--color-primary)]">{formatLocalizedNumber(value, language)}</p></CardContent></Card>)}</div>
+    {/* The dictionary a package must declare against. Nothing displayed it and
+        nothing could add to it, so packages shipped declaring nothing — 93 of
+        100 of them — and the gap engine cannot see a package that declares
+        nothing. Placed above the groups because it gates them. */}
+    <CompetencyDictionaryAuthoring competencies={state.competencies} groups={state.groups} language={language} onChanged={load} />
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{state.groups.map((group) => { const count=state.programs.filter((p)=>p.competency_gap_group_id===group.id).length; return <button key={group.id} type="button" onClick={()=>setFilters((f)=>({...f,group:String(group.id)}))} className={`rounded-2xl border p-4 text-start transition ${filters.group===String(group.id)?'border-[var(--color-primary)] bg-[var(--color-primary)] text-white':'border-[var(--color-border)] bg-white hover:border-[var(--color-primary)]'}`}><bdi className="text-xs font-bold tracking-wider">{group.code}</bdi><p className="mt-2 font-semibold">{pickText(group.name,language)}</p><p className={`mt-2 text-xs ${filters.group===String(group.id)?'text-white/75':'text-[var(--color-text-muted)]'}`}>{formatLocalizedNumber(count, language)} {copy.programs}</p></button>})}</div>
     <Card><CardContent className="grid gap-4 p-5 md:grid-cols-[1fr_240px_240px]">
       <Input value={filters.search} onChange={(e)=>setFilters((f)=>({...f,search:e.target.value}))} placeholder={copy.search} leftIcon={<Search size={18} />} />

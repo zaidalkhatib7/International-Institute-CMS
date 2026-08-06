@@ -52,6 +52,7 @@ import { localize } from "../../rpl/domain/rpl";
 import { getAdminLanguage } from "../../../services/languageStorage";
 import { useAuthorization } from "../../auth/context/useAuthorization";
 import RplStatusBadge from "../../rpl/components/RplStatusBadge";
+import RoleAssignmentPanel from "../components/RoleAssignmentPanel";
 import {
   formatLocalizedDate,
   formatLocalizedNumber,
@@ -79,7 +80,7 @@ export const copyByLanguage = {
       "An institute account. Staff are not assessed by the institute, so the client journey does not apply here.",
     staffNotice: "This is a staff account, not a client",
     staffNoticeHint:
-      "Qualification evidence, RPL routing and enrolment belong to the people the institute assesses. An administrator, trainer or assessor cannot be the subject of an RPL case — the server refuses it — so those sections are not shown. Manage permissions from Administration and roles.",
+      "Qualification evidence, RPL routing and enrolment belong to the people the institute assesses. An administrator, trainer or assessor cannot be the subject of an RPL case — the server refuses it — so those sections are not shown. Roles for this account are managed below.",
     staffGoToRoles: "Open administration and roles",
     deleteAccount: "Delete account",
     deleteHint:
@@ -297,7 +298,7 @@ export const copyByLanguage = {
       "Een account van het instituut. Medewerkers worden niet door het instituut beoordeeld, dus het cliënttraject geldt hier niet.",
     staffNotice: "Dit is een medewerkersaccount, geen cliënt",
     staffNoticeHint:
-      "Kwalificatiebewijs, RPL-routering en inschrijving horen bij de mensen die het instituut beoordeelt. Een beheerder, trainer of beoordelaar kan niet het onderwerp van een RPL-dossier zijn — de server weigert dat — dus die secties worden niet getoond. Beheer rechten via Beheer en rollen.",
+      "Kwalificatiebewijs, RPL-routering en inschrijving horen bij de mensen die het instituut beoordeelt. Een beheerder, trainer of beoordelaar kan niet het onderwerp van een RPL-dossier zijn — de server weigert dat — dus die secties worden niet getoond. De rollen van dit account beheert u hieronder.",
     staffGoToRoles: "Beheer en rollen openen",
     deleteAccount: "Account verwijderen",
     deleteHint:
@@ -992,11 +993,20 @@ export default function UserWorkspacePage() {
                     </span>
                   ))}
                 </div>
-                <Button variant="outline" onClick={() => navigate("/users")}>
-                  {copy.staffGoToRoles}
-                </Button>
               </CardContent>
             </Card>
+          ) : null}
+
+          {/*
+            Roles for a staff account. Before this there was no way to grant one
+            anywhere in the product: account creation accepts only student,
+            trainer and admin, so assessor, quality-reviewer, committee-member
+            and five others — the roles the RPL governance chain runs on — were
+            unreachable, while the copy above sent operators to a page that
+            could not do it either.
+          */}
+          {subjectIsStaff ? (
+            <RoleAssignmentPanel user={user} language={language} onSaved={load} />
           ) : null}
 
           {/* Everything from here to the danger zone is the client journey:
