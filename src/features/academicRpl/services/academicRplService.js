@@ -79,3 +79,44 @@ export async function rejectAcademicDiagnosticItem(itemId, payload) {
 export async function issueAcademicDiagnostic(diagnosticId, payload = {}) {
   return read(await http.post(`/academic-rpl/diagnostics/${diagnosticId}/issue`, payload))
 }
+
+/*
+ * مكتبة الفجوات الأكاديمية — the academic gap library.
+ *
+ * What every gap plan is able to recommend from. A module the engine cannot see
+ * is a module no applicant will ever be offered, which is why publication is
+ * gated rather than a simple status flip.
+ */
+
+export async function fetchAcademicLibrary() {
+  return read(await http.get('/academic-rpl/library'))
+}
+
+export async function createAcademicSchool(payload) {
+  return read(await http.post('/academic-rpl/library/schools', payload))
+}
+
+export async function approveAcademicSchool(schoolId, payload) {
+  return read(await http.post(`/academic-rpl/library/schools/${schoolId}/approve`, payload))
+}
+
+export async function createAcademicModule(payload) {
+  return read(await http.post('/academic-rpl/library/modules', payload))
+}
+
+export async function updateAcademicModule(moduleId, payload) {
+  return read(await http.put(`/academic-rpl/library/modules/${moduleId}`, payload))
+}
+
+/** The declaration the engine depends on: what this module actually closes. */
+export async function setAcademicModuleCompetencies(moduleId, competencies) {
+  return read(await http.put(`/academic-rpl/library/modules/${moduleId}/competencies`, { competencies }))
+}
+
+export async function publishAcademicModule(moduleId) {
+  return read(await http.post(`/academic-rpl/library/modules/${moduleId}/publish`))
+}
+
+export async function deleteAcademicModule(moduleId) {
+  return read(await http.delete(`/academic-rpl/library/modules/${moduleId}`))
+}

@@ -113,6 +113,13 @@ const groups = [
         href: '/academic-rpl/framework',
         icon: BookOpenCheck,
       },
+      {
+        // The second gap library — the academic counterpart of مكتبة سد
+        // الفجوات. What every academic gap plan can recommend from.
+        label: { ar: 'مكتبة سد الفجوات الأكاديمية', en: 'Academic gap library', nl: 'Academische hiatenbibliotheek' },
+        href: '/academic-rpl/library',
+        icon: LibraryBig,
+      },
     ],
   },
   {
