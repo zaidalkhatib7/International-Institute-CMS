@@ -87,6 +87,35 @@ const groups = [
     ],
   },
   {
+    /*
+     * A group of its own, not an entry inside RPL accreditation.
+     *
+     * The two pathways share a philosophy but nothing else: separate tables,
+     * separate routes, separate vocabularies. Nesting the academic tracks under
+     * RPL would suggest a practitioner level and a professional doctorate are
+     * points on one scale, and they are not.
+     */
+    label: {
+      ar: 'المسار الأكاديمي المهني',
+      en: 'Professional Academic RPL',
+      nl: 'Professioneel Academisch RPL',
+    },
+    items: [
+      {
+        label: { ar: 'طلبات المسار الأكاديمي', en: 'Academic applications', nl: 'Academische aanvragen' },
+        href: '/academic-rpl/applications',
+        icon: GraduationCap,
+      },
+      {
+        // Listed second but it gates everything: nothing scores until the
+        // framework is approved.
+        label: { ar: 'إطار الكفاءات الأكاديمية', en: 'Academic competency framework', nl: 'Academisch competentiekader' },
+        href: '/academic-rpl/framework',
+        icon: BookOpenCheck,
+      },
+    ],
+  },
+  {
     label: { ar: 'التعلم والمعايير', en: 'Learning & standards', nl: 'Leren & standaarden' },
     items: [
       {
