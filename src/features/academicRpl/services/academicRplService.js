@@ -83,9 +83,22 @@ export async function issueAcademicDiagnostic(diagnosticId, payload = {}) {
 /*
  * مكتبة الفجوات الأكاديمية — the academic gap library.
  *
- * What every gap plan is able to recommend from. A module the engine cannot see
- * is a module no applicant will ever be offered, which is why publication is
- * gated rather than a simple status flip.
+ * What every gap plan is able to recommend from. A package the engine cannot
+ * see is a package no applicant will ever be offered, which is why publication
+ * is gated rather than a simple status flip.
+ *
+ * THE UNIT HERE IS A PACKAGE, AND THE ADDRESS IS ITS CODE.
+ *
+ * These calls used to say `module` and pass a numeric id. Both were wrong under
+ * the Golden Specification: what this library authors is a PACKAGE (LD-001),
+ * and GMS reserves "module" for a learning unit INSIDE one. The server renamed
+ * the routes rather than aliasing them, so nothing here is kept for
+ * compatibility — a /modules call now 404s, and a dead export would only hide
+ * the next caller that reaches for it.
+ *
+ * Packages are bound by `code` server-side (AcademicPackage::getRouteKeyName),
+ * because the code is the identity an academic actually cites and it is
+ * URL-safe by construction.
  */
 
 export async function fetchAcademicLibrary() {
@@ -100,25 +113,62 @@ export async function approveAcademicSchool(schoolId, payload) {
   return read(await http.post(`/academic-rpl/library/schools/${schoolId}/approve`, payload))
 }
 
-export async function createAcademicModule(payload) {
-  return read(await http.post('/academic-rpl/library/modules', payload))
+export async function createAcademicPackage(payload) {
+  return read(await http.post('/academic-rpl/library/packages', payload))
 }
 
-export async function updateAcademicModule(moduleId, payload) {
-  return read(await http.put(`/academic-rpl/library/modules/${moduleId}`, payload))
+export async function updateAcademicPackage(code, payload) {
+  return read(await http.put(`/academic-rpl/library/packages/${encodeURIComponent(code)}`, payload))
 }
 
-/** The declaration the engine depends on: what this module actually closes. */
-export async function setAcademicModuleCompetencies(moduleId, competencies) {
-  return read(await http.put(`/academic-rpl/library/modules/${moduleId}/competencies`, { competencies }))
+/**
+ * GPS §6 — the declaration the engine depends on: what this package requires.
+ *
+ * Each row is { id, required_level, classification?, weight? }. `required_level`
+ * is mandatory per competency and lives on the PIVOT, because the same
+ * competency is required at diploma depth by one package and doctorate depth by
+ * another. The old `coverage` field is gone from this level entirely; coverage
+ * is now a MODULE pivot, and modules arrive by JSON import.
+ */
+export async function setAcademicPackageCompetencies(code, competencies) {
+  return read(await http.put(
+    `/academic-rpl/library/packages/${encodeURIComponent(code)}/competencies`,
+    { competencies },
+  ))
 }
 
-export async function publishAcademicModule(moduleId) {
-  return read(await http.post(`/academic-rpl/library/modules/${moduleId}/publish`))
+export async function publishAcademicPackage(code) {
+  return read(await http.post(`/academic-rpl/library/packages/${encodeURIComponent(code)}/publish`))
 }
 
-export async function deleteAcademicModule(moduleId) {
-  return read(await http.delete(`/academic-rpl/library/modules/${moduleId}`))
+export async function deleteAcademicPackage(code) {
+  return read(await http.delete(`/academic-rpl/library/packages/${encodeURIComponent(code)}`))
+}
+
+/*
+ * Bulk JSON intake — owner decision 4, the official v1.0 route into the
+ * library. Inspect and import run the identical validation and differ only in
+ * commitment: inspect writes nothing, import lands the whole file or none of it.
+ *
+ * Both inspect calls answer 200 even for a file full of errors, because finding
+ * the errors IS the inspection succeeding. A refused import answers 422 with
+ * error ACADEMIC_IMPORT_REFUSED and the full report under `report`.
+ */
+
+export async function inspectAcademicPackageFile(payload) {
+  return read(await http.post('/academic-rpl/library/import/packages/inspect', { payload }))
+}
+
+export async function importAcademicPackageFile(payload) {
+  return read(await http.post('/academic-rpl/library/import/packages', { payload }))
+}
+
+export async function inspectAcademicCompetencyFile(payload) {
+  return read(await http.post('/academic-rpl/library/import/competencies/inspect', { payload }))
+}
+
+export async function importAcademicCompetencyFile(payload) {
+  return read(await http.post('/academic-rpl/library/import/competencies', { payload }))
 }
 
 /**
