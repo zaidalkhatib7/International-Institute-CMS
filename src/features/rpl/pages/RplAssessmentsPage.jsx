@@ -52,6 +52,10 @@ import {
   scheduleRplInterview,
   submitRplAssessmentReport,
 } from "../services/rplService";
+import {
+  AdvisoryInputsStrip,
+  RecommendationGrounds,
+} from "../components/AdvisoryProvenance";
 import DynamicAssessmentPanel from "../components/DynamicAssessmentPanel";
 import GapClosurePanel from "../components/GapClosurePanel";
 import RplPageState from "../components/RplPageState";
@@ -341,6 +345,20 @@ const geminiCopyByLanguage = {
     readinessReady: "جاهز للمستوى المستهدف",
     readinessPartiallyReady: "جاهز جزئيًا ويحتاج إلى سد فجوات",
     readinessNotReady: "غير جاهز حاليًا للمستوى المستهدف",
+    inputsUsed: "ما استند إليه التحليل",
+    documentsRead: "ملفًا من ملفات المتقدم تمت قراءتها",
+    documentsWithheld: "ملفًا لم تتم قراءته",
+    documentsOff: "قراءة الملفات معطّلة — استند التحليل إلى البيانات الوصفية فقط",
+    answersRead: "تقييمًا مُجابًا",
+    noInputs:
+      "لم تُقرأ أي ملفات ولم يُجب أي تقييم بعد، لذا تبقى كل التوصيات مشروطة.",
+    groundedIn: "مبنية على",
+    ground_evidence_documents: "ملفات المتقدم",
+    ground_answered_assessment: "إجابات التقييم",
+    ground_assessor_findings: "قرارات المقيّم",
+    ground_evidence_metadata: "بيانات الأدلة الوصفية",
+    conditional: "مشروطة — تحتاج إلى تأكيد بالتقييم المحكوم",
+    demonstrated: "فجوة مثبتة",
   },
   en: {
     title: "Gemini advisory evaluation",
@@ -366,6 +384,21 @@ const geminiCopyByLanguage = {
     readinessReady: "Ready for the target level",
     readinessPartiallyReady: "Partially ready; competency gaps remain",
     readinessNotReady: "Not currently ready for the target level",
+    inputsUsed: "What this analysis rests on",
+    documentsRead: "applicant documents read",
+    documentsWithheld: "withheld",
+    documentsOff:
+      "Document reading is switched off — the analysis used metadata only",
+    answersRead: "answered assessments",
+    noInputs:
+      "No documents were read and no assessment has been answered, so every recommendation stays conditional.",
+    groundedIn: "Grounded in",
+    ground_evidence_documents: "applicant documents",
+    ground_answered_assessment: "assessment answers",
+    ground_assessor_findings: "assessor findings",
+    ground_evidence_metadata: "evidence metadata",
+    conditional: "Conditional — needs the governed assessment to confirm it",
+    demonstrated: "Demonstrated gap",
   },
   nl: {
     title: "Gemini-adviesbeoordeling",
@@ -393,6 +426,21 @@ const geminiCopyByLanguage = {
     readinessPartiallyReady:
       "Gedeeltelijk gereed; er blijven competentiehiaten",
     readinessNotReady: "Momenteel niet gereed voor het doelniveau",
+    inputsUsed: "Waarop deze analyse berust",
+    documentsRead: "documenten van de aanvrager gelezen",
+    documentsWithheld: "achtergehouden",
+    documentsOff:
+      "Het lezen van documenten staat uit — de analyse gebruikte alleen metadata",
+    answersRead: "beantwoorde toetsen",
+    noInputs:
+      "Er zijn geen documenten gelezen en geen toets beantwoord, dus elke aanbeveling blijft voorwaardelijk.",
+    groundedIn: "Gebaseerd op",
+    ground_evidence_documents: "documenten van de aanvrager",
+    ground_answered_assessment: "toetsantwoorden",
+    ground_assessor_findings: "bevindingen van de assessor",
+    ground_evidence_metadata: "bewijsmetadata",
+    conditional: "Voorwaardelijk — de beheerde toets moet dit bevestigen",
+    demonstrated: "Aangetoond hiaat",
   },
 };
 
@@ -1145,6 +1193,10 @@ export default function RplAssessmentsPage() {
                         ) : null}
                       </div>
                     ) : null}
+                    <AdvisoryInputsStrip
+                      snapshot={item.input_snapshot}
+                      copy={geminiCopy}
+                    />
                     {(Array.isArray(item.advisory?.criterion_advice)
                       ? item.advisory.criterion_advice
                       : []
@@ -1186,6 +1238,10 @@ export default function RplAssessmentsPage() {
                               <bdi>{course.slug}</bdi>
                             </p>
                             <p className="mt-2 leading-6">{course.reason}</p>
+                            <RecommendationGrounds
+                              course={course}
+                              copy={geminiCopy}
+                            />
                           </div>
                         ))}
                       </div>
