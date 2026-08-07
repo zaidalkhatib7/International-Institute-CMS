@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  BookMarked, CheckCircle2, Layers3, Loader2, Plus, RefreshCw, Send, ShieldAlert, Trash2,
+  BookMarked, Bot, CheckCircle2, Layers3, Loader2, Plus, RefreshCw, Send, ShieldAlert, Trash2,
   TriangleAlert, UploadCloud,
 } from 'lucide-react'
 import {
@@ -9,6 +9,7 @@ import {
 import { readApiError } from '../../../services/apiResponse'
 import { getAdminLanguage } from '../../../services/languageStorage'
 import { localize } from '../../rpl/domain/rpl'
+import AcademicAuthoringPanel from '../components/AcademicAuthoringPanel'
 import {
   approveAcademicSchool, createAcademicPackage, createAcademicSchool, deleteAcademicPackage,
   fetchAcademicLibrary, importAcademicCompetencyFile, importAcademicPackageFile,
@@ -135,6 +136,8 @@ export const COPY = {
     modulesHint: 'للقراءة فقط. تُؤلَّف الوحدات في ملف JSON للحقيبة وتدخل بالاستيراد، لا بالنموذج.',
     showModules: 'عرض الوحدات',
     hideModules: 'إخفاء الوحدات',
+    showAuthoring: 'التأليف بالذكاء الاصطناعي',
+    hideAuthoring: 'إغلاق لوحة التأليف',
     noModules: 'لا توجد وحدات. لا يمكن نشر هذه الحقيبة حتى يحمل ملفها وحدة واحدة على الأقل.',
     publish: 'نشر',
     publishedOk: 'نُشرت الحقيبة وأصبحت مرئية لمحرك الفجوات.',
@@ -293,6 +296,8 @@ export const COPY = {
     modulesHint: 'Read-only. Modules are authored in the package JSON and enter by import, never by form.',
     showModules: 'Show modules',
     hideModules: 'Hide modules',
+    showAuthoring: 'AI authoring',
+    hideAuthoring: 'Close the authoring panel',
     noModules: 'No modules. This package cannot be published until its JSON carries at least one.',
     publish: 'Publish',
     publishedOk: 'Package published and now visible to the gap engine.',
@@ -454,6 +459,8 @@ export const COPY = {
       'Alleen-lezen. Modules worden in de pakket-JSON geschreven en komen binnen via import, nooit via een formulier.',
     showModules: 'Modules tonen',
     hideModules: 'Modules verbergen',
+    showAuthoring: 'AI-ontwikkeling',
+    hideAuthoring: 'Ontwikkelpaneel sluiten',
     noModules: 'Geen modules. Dit pakket kan niet worden gepubliceerd tot de JSON er ten minste één bevat.',
     publish: 'Publiceren',
     publishedOk: 'Pakket gepubliceerd en nu zichtbaar voor de hiatenengine.',
@@ -594,6 +601,10 @@ export default function AcademicLibraryPage() {
   const [mappingFor, setMappingFor] = useState(null)
   const [mapping, setMapping] = useState({})
   const [openModules, setOpenModules] = useState({})
+  // Closed by default, and rendered only when opened: the authoring panel polls
+  // its own endpoint, and mounting one per package would fire a request per row
+  // on every load of a screen that mostly is not about authoring.
+  const [openAuthoring, setOpenAuthoring] = useState({})
   // Keyed by package code: the refusal belongs beside the package it refused,
   // which is where the author is looking when it happens.
   const [refusals, setRefusals] = useState({})
@@ -1266,6 +1277,30 @@ export default function AcademicLibraryPage() {
             const modules = pkg.modules || []
             const refusal = refusals[pkg.code]
 
+            /*
+             * THE SIBLING BOUNDARY, ASSEMBLED HERE BECAUSE THIS SCREEN IS WHERE
+             * IT LIVES.
+             *
+             * Every other package in the same knowledge school. The authoring
+             * request carries this list to the model as an explicit prohibition
+             * ("do not cover this, it belongs to LD-002"), and the panel needs it
+             * by code AND name to show a reviewer what the draft was told to stay
+             * out of. The run manifest records only the codes, and only after a
+             * run exists — so the names, and the before-the-run view, have to come
+             * from the library the screen already holds.
+             *
+             * A package with no school groups with nothing: two packages that both
+             * lack a school are not siblings, they are both unassigned.
+             */
+            const schoolKey = pkg.school?.code ?? pkg.school_id ?? pkg.academic_rpl_school_id ?? null
+            const siblings = schoolKey === null
+              ? []
+              : packages.filter(
+                (other) =>
+                  other.code !== pkg.code
+                  && (other.school?.code ?? other.school_id ?? other.academic_rpl_school_id ?? null) === schoolKey,
+              )
+
             return (
               <div key={pkg.code} className="space-y-3 rounded-xl border border-[var(--color-border)] p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
@@ -1334,6 +1369,25 @@ export default function AcademicLibraryPage() {
                         </ol>
                       )}
                     </div>
+                  ) : null}
+                </section>
+
+                {/*
+                  AI AUTHORING — offered for a published package too, deliberately.
+                  The panel refuses to change a frozen package, but its run record,
+                  its source verdicts and the boundary it was given are exactly what
+                  an auditor asks for about a package that is already live.
+                */}
+                <section className="space-y-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setOpenAuthoring((c) => ({ ...c, [pkg.code]: !c[pkg.code] }))}
+                  >
+                    <Bot size={16} /> {openAuthoring[pkg.code] ? copy.hideAuthoring : copy.showAuthoring}
+                  </Button>
+                  {openAuthoring[pkg.code] ? (
+                    <AcademicAuthoringPanel packageCode={pkg.code} siblings={siblings} onChanged={load} />
                   ) : null}
                 </section>
 

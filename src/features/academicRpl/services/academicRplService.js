@@ -171,6 +171,75 @@ export async function importAcademicCompetencyFile(payload) {
   return read(await http.post('/academic-rpl/library/import/competencies', { payload }))
 }
 
+/*
+ * AI PACKAGE AUTHORING — the academic mirror of the professional pipeline.
+ *
+ * THE PREFIX IS THE THING TO GET RIGHT. These live under
+ * /academic-rpl/library/packages/{code}/..., with NO /admin segment, and the
+ * package is addressed by CODE exactly like every other call above.
+ *
+ * TWO PERMISSIONS, AND THE SPLIT IS VISIBLE IN THE PATHS. Authorising and
+ * withdrawing sit inside the `library` group (rpl.settings.manage); starting,
+ * regenerating, resolving a source flag and rejecting sit in their own group
+ * (programs.manage). Two keys: one person records that this version may be
+ * authored, another spends it. The client cannot enforce that — the server does
+ * — but keeping the two sets named apart here stops a future caller from
+ * assuming one permission covers both.
+ */
+
+export async function fetchAcademicPackageAuthoring(code) {
+  return read(await http.get(`/academic-rpl/library/packages/${encodeURIComponent(code)}/authoring`))
+}
+
+/**
+ * Key one. `note` is the written basis; `expires_at` is optional and the server
+ * invents no default window, so an omitted expiry means the grant lapses only
+ * when it is spent or withdrawn.
+ */
+export async function authorizeAcademicPackageGeneration(code, payload) {
+  return read(await http.post(
+    `/academic-rpl/library/packages/${encodeURIComponent(code)}/authorize-generation`,
+    payload,
+  ))
+}
+
+export async function revokeAcademicPackageGeneration(code, payload) {
+  return read(await http.post(
+    `/academic-rpl/library/packages/${encodeURIComponent(code)}/revoke-generation-authorization`,
+    payload,
+  ))
+}
+
+/**
+ * Key two — spends the authorization and starts the run.
+ *
+ * `module_count` is REQUIRED and deliberately never defaulted here: the module
+ * is the smallest assessable unit, so the number is an academic judgement and
+ * the client must not make it on an academic's behalf either.
+ */
+export async function startAcademicPackageAuthoring(code, payload) {
+  return read(await http.post(`/academic-rpl/library/packages/${encodeURIComponent(code)}/authoring`, payload))
+}
+
+/** { component: module|content|question_bank|assessment_policy, ref: module code }. */
+export async function regenerateAcademicPackageComponent(code, payload) {
+  return read(await http.post(
+    `/academic-rpl/library/packages/${encodeURIComponent(code)}/authoring/regenerate`,
+    payload,
+  ))
+}
+
+export async function resolveAcademicPackageSourceFlag(code, payload) {
+  return read(await http.post(
+    `/academic-rpl/library/packages/${encodeURIComponent(code)}/authoring/source-flags`,
+    payload,
+  ))
+}
+
+export async function rejectAcademicPackageDraft(code) {
+  return read(await http.delete(`/academic-rpl/library/packages/${encodeURIComponent(code)}/authoring`))
+}
+
 /**
  * Open an academic case for a client from the administrator's workspace.
  *

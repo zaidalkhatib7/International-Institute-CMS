@@ -2,16 +2,23 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 import {
   approveAcademicSchool,
+  authorizeAcademicPackageGeneration,
   createAcademicPackage,
   createAcademicSchool,
   deleteAcademicPackage,
   fetchAcademicLibrary,
+  fetchAcademicPackageAuthoring,
   importAcademicCompetencyFile,
   importAcademicPackageFile,
   inspectAcademicCompetencyFile,
   inspectAcademicPackageFile,
   publishAcademicPackage,
+  regenerateAcademicPackageComponent,
+  rejectAcademicPackageDraft,
+  resolveAcademicPackageSourceFlag,
+  revokeAcademicPackageGeneration,
   setAcademicPackageCompetencies,
+  startAcademicPackageAuthoring,
   updateAcademicPackage,
 } from './academicRplService'
 
@@ -168,6 +175,147 @@ describe('the bulk JSON import endpoints', () => {
   })
 })
 
+/*
+ * THE AI AUTHORING ENDPOINTS.
+ *
+ * Transcribed from `php artisan route:list`, not from the service under test.
+ * Two things here are easy to get wrong and impossible to catch anywhere else:
+ *
+ *   1. THE PREFIX. These are /api/v1/academic-rpl/library/packages/{code}/...
+ *      with NO /admin segment. The professional pipeline's equivalents DO sit
+ *      under an admin prefix, so a copy of that client would 404 on every call.
+ *   2. THE SPLIT. Authorize and revoke hang off the package root
+ *      (rpl.settings.manage); start, regenerate, source-flags and reject hang
+ *      off /authoring (programs.manage). Sending an authorize to the /authoring
+ *      path would start a run instead of authorizing one.
+ */
+describe('the AI package authoring endpoints, as declared by the server', () => {
+  test('the authoring workspace is read from the package authoring path', async () => {
+    await fetchAcademicPackageAuthoring('LD-001')
+
+    expect(http.get).toHaveBeenCalledWith('/academic-rpl/library/packages/LD-001/authoring')
+  })
+
+  test('authorizing hangs off the package root, not off /authoring', async () => {
+    const body = { note: 'The school council signed off the framework.', expires_at: '2026-08-20T10:00' }
+    await authorizeAcademicPackageGeneration('LD-001', body)
+
+    // Key one. Posting this to /authoring would START a run rather than permit
+    // one — the same path, a different governed act, a different permission.
+    expect(http.post).toHaveBeenCalledWith('/academic-rpl/library/packages/LD-001/authorize-generation', body)
+  })
+
+  test('withdrawing an authorization has its own action, and carries a reason', async () => {
+    await revokeAcademicPackageGeneration('LD-001', { reason: 'Approval was rescinded by the council.' })
+
+    expect(http.post).toHaveBeenCalledWith(
+      '/academic-rpl/library/packages/LD-001/revoke-generation-authorization',
+      { reason: 'Approval was rescinded by the council.' },
+    )
+  })
+
+  test('starting a run posts to /authoring with a module count and the locale', async () => {
+    await startAcademicPackageAuthoring('LD-001', { module_count: 8, locale: 'ar' })
+
+    expect(http.post).toHaveBeenCalledWith(
+      '/academic-rpl/library/packages/LD-001/authoring',
+      { module_count: 8, locale: 'ar' },
+    )
+  })
+
+  test('regeneration posts to the regenerate action with a module CODE as the ref', async () => {
+    await regenerateAcademicPackageComponent('LD-001', { component: 'question_bank', ref: 'LD-001-M01' })
+
+    // The ref is the module code, not a numeric id: the professional panel
+    // parses an id out of its component_ref and the academic one must not.
+    expect(http.post).toHaveBeenCalledWith(
+      '/academic-rpl/library/packages/LD-001/authoring/regenerate',
+      { component: 'question_bank', ref: 'LD-001-M01' },
+    )
+  })
+
+  test('a source verdict posts to the source-flags action', async () => {
+    const verdict = {
+      artifact_id: 51,
+      citation: 'Mintzberg (1979)',
+      flag_id: 'sf_1',
+      verification_status: 'VERIFIED_APPROVED',
+      review_notes: 'Verified the title, publisher and year against the catalogue.',
+    }
+    await resolveAcademicPackageSourceFlag('LD-001', verdict)
+
+    expect(http.post).toHaveBeenCalledWith(
+      '/academic-rpl/library/packages/LD-001/authoring/source-flags',
+      verdict,
+    )
+  })
+
+  test('rejecting the draft is a DELETE on /authoring, not on the package', async () => {
+    await rejectAcademicPackageDraft('LD-001')
+
+    // DELETE on the package itself deletes the PACKAGE. This one removes only
+    // the generated content and leaves the slot the academic authored.
+    expect(http.delete).toHaveBeenCalledWith('/academic-rpl/library/packages/LD-001/authoring')
+    expect(http.delete).not.toHaveBeenCalledWith('/academic-rpl/library/packages/LD-001')
+  })
+
+  test('the package code is URL-encoded on every authoring call too', async () => {
+    await Promise.all([
+      fetchAcademicPackageAuthoring('LD-001/../schools'),
+      authorizeAcademicPackageGeneration('LD-001/../schools', {}),
+      revokeAcademicPackageGeneration('LD-001/../schools', {}),
+      startAcademicPackageAuthoring('LD-001/../schools', {}),
+      regenerateAcademicPackageComponent('LD-001/../schools', {}),
+      resolveAcademicPackageSourceFlag('LD-001/../schools', {}),
+      rejectAcademicPackageDraft('LD-001/../schools'),
+    ])
+
+    const everyUrl = [
+      ...http.get.mock.calls,
+      ...http.post.mock.calls,
+      ...http.delete.mock.calls,
+    ].map(([url]) => url)
+
+    expect(everyUrl).toHaveLength(7)
+
+    for (const url of everyUrl) {
+      expect(url).toContain('LD-001%2F..%2Fschools')
+      expect(url).not.toContain('/schools/authoring')
+    }
+  })
+
+  test('no authoring call is sent to an /admin prefix', async () => {
+    await Promise.all([
+      fetchAcademicPackageAuthoring('LD-001'),
+      authorizeAcademicPackageGeneration('LD-001', {}),
+      revokeAcademicPackageGeneration('LD-001', {}),
+      startAcademicPackageAuthoring('LD-001', {}),
+      regenerateAcademicPackageComponent('LD-001', {}),
+      resolveAcademicPackageSourceFlag('LD-001', {}),
+      rejectAcademicPackageDraft('LD-001'),
+    ])
+
+    /*
+     * A blanket sweep rather than one assertion per function. The professional
+     * routes DO carry an /admin segment, so the likeliest way this client breaks
+     * is somebody copying one of those paths across — and a new call added later
+     * is caught by a test nobody had to remember to write.
+     */
+    const everyUrl = [
+      ...http.get.mock.calls,
+      ...http.post.mock.calls,
+      ...http.delete.mock.calls,
+    ].map(([url]) => url)
+
+    expect(everyUrl).toHaveLength(7)
+
+    for (const url of everyUrl) {
+      expect(url).not.toContain('/admin')
+      expect(url.startsWith('/academic-rpl/library/packages/')).toBe(true)
+    }
+  })
+})
+
 describe('the removed module endpoints stay removed', () => {
   test('no library call anywhere addresses /modules', async () => {
     await Promise.all([
@@ -179,6 +327,9 @@ describe('the removed module endpoints stay removed', () => {
       setAcademicPackageCompetencies('LD-001', []),
       inspectAcademicPackageFile({}),
       importAcademicPackageFile({}),
+      fetchAcademicPackageAuthoring('LD-001'),
+      startAcademicPackageAuthoring('LD-001', {}),
+      regenerateAcademicPackageComponent('LD-001', {}),
     ])
 
     /*

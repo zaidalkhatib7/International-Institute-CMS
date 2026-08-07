@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AcademicLibraryPage, { COPY } from './AcademicLibraryPage'
+import { COPY as AUTHORING_COPY } from '../components/AcademicAuthoringPanel'
 
 /*
  * The academic gap library — the screen that decides what any gap plan is able
@@ -34,6 +35,15 @@ const mocks = vi.hoisted(() => ({
   importAcademicPackageFile: vi.fn(),
   inspectAcademicCompetencyFile: vi.fn(),
   importAcademicCompetencyFile: vi.fn(),
+  // The authoring panel mounts inside a package row, so its calls have to exist
+  // on this mock even though only the status read is ever reached from here.
+  fetchAcademicPackageAuthoring: vi.fn(),
+  authorizeAcademicPackageGeneration: vi.fn(),
+  revokeAcademicPackageGeneration: vi.fn(),
+  startAcademicPackageAuthoring: vi.fn(),
+  regenerateAcademicPackageComponent: vi.fn(),
+  resolveAcademicPackageSourceFlag: vi.fn(),
+  rejectAcademicPackageDraft: vi.fn(),
 }))
 
 // The page reads the admin language from storage, which is Arabic by default.
@@ -543,6 +553,48 @@ describe('AcademicLibraryPage', () => {
 
     // The draft school is id 2; approval is still addressed by id, not code.
     await waitFor(() => expect(mocks.approveAcademicSchool).toHaveBeenCalledWith(2, { basis }))
+  })
+
+  it('opens the authoring panel on a package and gives it that school’s siblings only', async () => {
+    const base = library().data.packages[0]
+    mocks.fetchAcademicLibrary.mockResolvedValue(
+      library({
+        packages: [
+          base,
+          { ...base, id: 12, code: 'LD-002', name: { en: 'Operational leadership' } },
+          {
+            ...base,
+            id: 13,
+            code: 'RI-001',
+            name: { en: 'Research design' },
+            academic_rpl_school_id: 2,
+            school: { code: 'RI', name: { en: 'Research and innovation' } },
+          },
+        ],
+      }),
+    )
+    mocks.fetchAcademicPackageAuthoring.mockResolvedValue({ data: null })
+
+    render(<AcademicLibraryPage />)
+
+    // Closed by default: the panel polls its own endpoint, so one per row would
+    // fire a request per package on every load of this screen.
+    await screen.findByText('Strategic leadership')
+    expect(mocks.fetchAcademicPackageAuthoring).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getAllByRole('button', { name: COPY.en.showAuthoring })[0])
+
+    await waitFor(() => expect(mocks.fetchAcademicPackageAuthoring).toHaveBeenCalledWith('LD-001'))
+
+    /*
+     * THE BOUNDARY IS SCHOOL-SCOPED, and that is the whole point of it. LD-002
+     * shares LD-001's school and is a boundary; RI-001 is a different school and
+     * is not. Handing the panel every package in the library would tell a
+     * reviewer this draft was fenced off from work it was never fenced off from.
+     */
+    const boundary = screen.getByText(AUTHORING_COPY.en.siblingTitle).closest('section')
+    expect(within(boundary).getByText('LD-002')).toBeInTheDocument()
+    expect(within(boundary).queryByText('RI-001')).not.toBeInTheDocument()
   })
 
   it('keeps every key in all three language blocks', () => {
