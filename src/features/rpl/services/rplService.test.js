@@ -5,10 +5,12 @@ import {
   addDynamicAssessmentItem,
   approveAllDynamicAssessmentItems,
   approveDynamicAssessmentItem,
+  cancelDynamicAssessment,
   createDynamicAssessment,
   fetchDynamicAssessment,
   fetchDynamicAssessments,
   fetchRplAssessment,
+  fetchRplSettings,
   finalEvaluateDynamicAssessment,
   generateDynamicAssessmentDraft,
   generateRplAiAdvisory,
@@ -18,6 +20,7 @@ import {
   saveRplAssessmentFindings,
   sendDynamicAssessment,
   updateDynamicAssessmentItem,
+  updateRplSettings,
 } from './rplService'
 
 /*
@@ -121,6 +124,17 @@ describe('the dynamic assessment endpoints, as declared by the server', () => {
     expect(url).not.toContain('/generate')
   })
 
+  test('withdrawal posts the required reason to its own set-level action', async () => {
+    // The escape hatch for a case an applicant will never finish. It is not
+    // reissue and it is not send: reaching the wrong one of the three would
+    // either re-deliver the set or renew a timer on an abandoned case.
+    await cancelDynamicAssessment(7, { reason: 'The applicant withdrew and will not answer.' })
+
+    expect(http.post).toHaveBeenCalledWith('/admin/rpl/dynamic-assessments/7/cancel', {
+      reason: 'The applicant withdrew and will not answer.',
+    })
+  })
+
   test('the final evaluation posts to the set with the long AI timeout', async () => {
     await finalEvaluateDynamicAssessment(7)
 
@@ -200,5 +214,27 @@ describe('the advisory and findings endpoints the same screen calls', () => {
     await saveRplAssessmentFindings(12, payload)
 
     expect(http.put).toHaveBeenCalledWith('/admin/rpl/assessments/12/findings', payload)
+  })
+})
+
+describe('the RPL settings endpoint the configuration screen writes through', () => {
+  test('settings are read from the collection root', async () => {
+    await fetchRplSettings()
+
+    expect(http.get).toHaveBeenCalledWith('/admin/rpl/settings')
+  })
+
+  test('the evidence-documents kill switch is PUT to the same root', async () => {
+    /*
+     * The switch that decides whether the applicant's own files leave the
+     * platform for Gemini. The configuration screen's own tests replace this
+     * module wholesale, so a wrong verb or path here would 404 in silence and
+     * the administrator would believe they had turned document reading off.
+     */
+    await updateRplSettings({ rpl_advisory_include_evidence_documents: false })
+
+    expect(http.put).toHaveBeenCalledWith('/admin/rpl/settings', {
+      rpl_advisory_include_evidence_documents: false,
+    })
   })
 })

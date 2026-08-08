@@ -112,6 +112,12 @@ const copyByLanguage = {
     withdrawPlaceholder: "مثال: انسحب المتقدم ولن يجيب.",
     withdrawConfirm: "سحب",
     withdrawDone: "سُحبت مجموعة الأسئلة؛ حُفظت الأسئلة وأي إجابات في السجل.",
+    withdrawnTitle: "مجموعات أسئلة مسحوبة (سجل)",
+    withdrawnIntro:
+      "هذه المجموعات سُحبت ولم تعد الحالة الحالية لهذا الملف. لم يُحذف شيء: تبقى الأسئلة وأي إجابات جزئية في السجل، والمجموعة المسحوبة لا تُحتسب دليلًا ولا فجوة. أنشئ مجموعة أسئلة جديدة للمتابعة.",
+    withdrawnReasonNote:
+      "سبب السحب مُسجَّل في سجل التدقيق باسم rpl.dynamic_assessment.cancelled؛ لا يُحفظ على السجل نفسه.",
+    withdrawnQuestions: "سؤالًا",
     finalEvaluate: "التقييم النهائي الاستشاري (Gemini)",
     finalTitle: "التقييم النهائي — استشاري وبانتظار مراجعة المدير",
     summary: "الخلاصة",
@@ -129,6 +135,7 @@ const copyByLanguage = {
       assessed: "تم التقييم",
       rejected: "مرفوض",
       superseded: "مستبدل",
+      cancelled: "مسحوب",
     },
     typeLabels: {
       knowledge: "معرفي",
@@ -214,6 +221,12 @@ const copyByLanguage = {
     withdrawPlaceholder: "For example: the applicant withdrew and will not be answering.",
     withdrawConfirm: "Withdraw",
     withdrawDone: "The question set was withdrawn; the questions and any answers were kept.",
+    withdrawnTitle: "Withdrawn question sets (history)",
+    withdrawnIntro:
+      "These sets were withdrawn and are no longer the current state of this case. Nothing was deleted: the questions and any partial answers stay on the record, and a withdrawn set counts neither as evidence nor as a gap. Create a new question set to carry on.",
+    withdrawnReasonNote:
+      "The reason each set was withdrawn is recorded in the audit trail as rpl.dynamic_assessment.cancelled; it is not stored on the row itself.",
+    withdrawnQuestions: "questions",
     finalEvaluate: "Final advisory evaluation (Gemini)",
     finalTitle: "Final evaluation — advisory, pending administrator review",
     summary: "Summary",
@@ -231,6 +244,7 @@ const copyByLanguage = {
       assessed: "Assessed",
       rejected: "Rejected",
       superseded: "Superseded",
+      cancelled: "Withdrawn",
     },
     typeLabels: {
       knowledge: "Knowledge",
@@ -317,6 +331,12 @@ const copyByLanguage = {
     withdrawPlaceholder: "Bijvoorbeeld: de aanvrager heeft zich teruggetrokken.",
     withdrawConfirm: "Intrekken",
     withdrawDone: "De vragenset is ingetrokken; de vragen en antwoorden zijn bewaard.",
+    withdrawnTitle: "Ingetrokken vragensets (historie)",
+    withdrawnIntro:
+      "Deze sets zijn ingetrokken en vormen niet langer de huidige stand van deze zaak. Er is niets verwijderd: de vragen en eventuele deelantwoorden blijven vastgelegd, en een ingetrokken set telt niet als bewijs en niet als hiaat. Maak een nieuwe vragenset aan om verder te gaan.",
+    withdrawnReasonNote:
+      "De reden van elke intrekking staat in het auditspoor als rpl.dynamic_assessment.cancelled; die wordt niet op de rij zelf bewaard.",
+    withdrawnQuestions: "vragen",
     finalEvaluate: "Definitieve adviserende evaluatie (Gemini)",
     finalTitle: "Definitieve evaluatie — adviserend, in afwachting van beoordeling",
     summary: "Samenvatting",
@@ -334,6 +354,7 @@ const copyByLanguage = {
       assessed: "Beoordeeld",
       rejected: "Afgewezen",
       superseded: "Vervangen",
+      cancelled: "Ingetrokken",
     },
     typeLabels: {
       knowledge: "Kennis",
@@ -374,6 +395,10 @@ function apiError(error, fallback) {
   return data?.message || fallback;
 }
 
+// `cancelled` is the server's terminal withdrawal state; the screen calls it
+// "withdrawn" because nothing is deleted and the row stays on the record.
+const isWithdrawn = (row) => row?.status === "cancelled";
+
 function promptText(prompt, language) {
   if (!prompt || typeof prompt !== "object") return String(prompt || "");
   return (
@@ -393,7 +418,12 @@ export default function DynamicAssessmentPanel({
 }) {
   const copy = copyByLanguage[language] || copyByLanguage.en;
   const isArabic = language === "ar";
-  const [state, setState] = useState({ loading: true, error: "", assessment: null });
+  const [state, setState] = useState({
+    loading: true,
+    error: "",
+    assessment: null,
+    withdrawn: [],
+  });
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState({ error: "", success: "" });
   const [editing, setEditing] = useState({ id: null, text: "" });
@@ -404,15 +434,43 @@ export default function DynamicAssessmentPanel({
   const load = useCallback(async () => {
     try {
       const listResponse = await fetchDynamicAssessments({ rpl_assessment_id: assessmentId });
-      const existing = (listResponse?.data || [])[0];
-      if (!existing) {
-        setState({ loading: false, error: "", assessment: null });
+      /*
+       * WHICH ROW IS "CURRENT".
+       *
+       * The controller index orders `latest('id')` and does NOT exclude
+       * withdrawn rows, so the newest row is first and it may well be a
+       * withdrawn one. Taking [0] blindly latched the panel onto a terminal
+       * container: the Create control is hidden while an assessment is
+       * selected, every edit path refuses a withdrawn set, and the case had no
+       * way forward — which defeats the escape hatch withdrawal exists to be.
+       *
+       * `storeForAssessment` picks the newest NON-withdrawn container, so this
+       * has to as well; otherwise the panel would show one row and Create would
+       * silently act on another. Withdrawn rows become history below.
+       */
+      const rows = Array.isArray(listResponse?.data) ? listResponse.data : [];
+      const current = rows.find((row) => !isWithdrawn(row));
+      const withdrawn = rows.filter(isWithdrawn);
+      if (!current) {
+        setState({ loading: false, error: "", assessment: null, withdrawn });
         return;
       }
-      const fullResponse = await fetchDynamicAssessment(existing.id);
-      setState({ loading: false, error: "", assessment: fullResponse?.data || null });
+      const full = (await fetchDynamicAssessment(current.id))?.data || null;
+      // Re-checked on the authoritative read: a set withdrawn by someone else
+      // between the list and this fetch would otherwise strand the case in
+      // exactly the way the selection above exists to prevent.
+      if (isWithdrawn(full)) {
+        setState({ loading: false, error: "", assessment: null, withdrawn: [full, ...withdrawn] });
+        return;
+      }
+      setState({ loading: false, error: "", assessment: full, withdrawn });
     } catch (error) {
-      setState({ loading: false, error: apiError(error, "Load failed"), assessment: null });
+      setState({
+        loading: false,
+        error: apiError(error, "Load failed"),
+        assessment: null,
+        withdrawn: [],
+      });
     }
   }, [assessmentId]);
 
@@ -435,6 +493,7 @@ export default function DynamicAssessmentPanel({
   }
 
   const assessment = state.assessment;
+  const withdrawn = state.withdrawn || [];
   const items = (assessment?.active_items || []).filter(
     (item) => item.status !== "superseded",
   );
@@ -1023,6 +1082,46 @@ export default function DynamicAssessmentPanel({
             ) : null}
           </>
         )}
+
+        {/*
+          HISTORY, NOT CURRENT STATE. Rendered outside the branch above so it
+          appears both when the withdrawn set is all there is — beside the
+          Create control, which is the way out — and when a replacement set is
+          already running. The withdrawal reason lives in the audit trail, not
+          on the row, so the screen says where to find it rather than inventing
+          a value it was never given.
+        */}
+        {withdrawn.length ? (
+          <section
+            aria-label={copy.withdrawnTitle}
+            className="rounded-2xl border border-[var(--color-border)] p-4 text-sm text-[var(--color-text-muted)]"
+          >
+            <strong className="block text-[var(--color-text)]">{copy.withdrawnTitle}</strong>
+            <p className="mt-1 leading-6">{copy.withdrawnIntro}</p>
+            <ul className="mt-3 space-y-2">
+              {withdrawn.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex flex-wrap items-center gap-2 rounded-xl bg-[var(--color-surface-muted)] p-3 leading-6"
+                >
+                  <Badge variant="neutral">{copy.statusLabels.cancelled}</Badge>
+                  <bdi>#{row.id}</bdi>
+                  {row.issued_at ? (
+                    <span>
+                      · {copy.issuedAt}: {formatLocalizedDateTime(row.issued_at, language)}
+                    </span>
+                  ) : null}
+                  {row.items_count != null ? (
+                    <span>
+                      · <bdi>{row.items_count}</bdi> {copy.withdrawnQuestions}
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 leading-6">{copy.withdrawnReasonNote}</p>
+          </section>
+        ) : null}
       </CardContent>
     </Card>
   );

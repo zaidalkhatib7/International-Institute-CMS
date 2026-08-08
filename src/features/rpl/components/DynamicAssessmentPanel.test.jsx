@@ -373,6 +373,105 @@ describe('withdrawing a question set the applicant will not finish', () => {
   })
 })
 
+/*
+ * THE WITHDRAWAL HAS TO LEAVE A DOOR OPEN.
+ *
+ * The controller index orders `latest('id')` and does NOT exclude withdrawn
+ * rows, so the newest row is first and may well be a withdrawn one. Taking [0]
+ * blindly latched the panel onto a terminal container: Create is hidden while
+ * an assessment is selected and every edit path refuses a withdrawn set, so the
+ * escape hatch the owner just gained had no exit. `storeForAssessment` picks the
+ * newest NON-withdrawn container, and this panel now agrees with it — otherwise
+ * the screen would show one row while Create acted on another.
+ */
+describe('a withdrawn question set is history, not the current state', () => {
+  function renderRows(rows, full = null) {
+    mocks.fetchDynamicAssessments.mockResolvedValue({ data: rows })
+    mocks.fetchDynamicAssessment.mockResolvedValue({ data: full })
+
+    return render(<DynamicAssessmentPanel assessmentId="12" language="en" evidence={[]} />)
+  }
+
+  const withdrawnRow = (overrides = {}) => ({
+    id: 9,
+    status: 'cancelled',
+    issued_at: '2026-08-01T09:00:00Z',
+    items_count: 27,
+    ...overrides,
+  })
+
+  it('offers Create when the only container is withdrawn', async () => {
+    renderRows([withdrawnRow()])
+
+    expect(await screen.findByRole('button', { name: /Create dynamic assessment/ })).toBeInTheDocument()
+    // The withdrawn row is never opened as the current one: it is terminal, and
+    // the server would build a fresh container rather than reuse it.
+    expect(mocks.fetchDynamicAssessment).not.toHaveBeenCalled()
+  })
+
+  it('shows the withdrawn set as history, and says where its reason lives', async () => {
+    renderRows([withdrawnRow()])
+
+    const history = within(await screen.findByRole('region', { name: COPY.en.withdrawnTitle }))
+    expect(history.getByText(COPY.en.statusLabels.cancelled)).toBeInTheDocument()
+    expect(history.getByText('27')).toBeInTheDocument()
+    // The withdrawal reason is written to the audit trail, not to the row, so
+    // the screen points at it instead of inventing a value it never received.
+    expect(history.getByText(COPY.en.withdrawnReasonNote)).toBeInTheDocument()
+  })
+
+  it('makes the newest surviving set current — the row the server would reuse', async () => {
+    renderRows([withdrawnRow(), { id: 7, status: 'issued' }], issued({ answeredCount: 4 }))
+
+    await screen.findByRole('region', { name: COPY.en.progressTitle })
+    expect(mocks.fetchDynamicAssessment).toHaveBeenCalledWith(7)
+    expect(screen.getByRole('region', { name: COPY.en.withdrawnTitle })).toBeInTheDocument()
+    // A live set is present, so Create would be the wrong offer here.
+    expect(screen.queryByRole('button', { name: /Create dynamic assessment/ })).not.toBeInTheDocument()
+  })
+
+  it('does not latch on when the row is withdrawn between the list and the read', async () => {
+    // A second administrator withdrew it in the gap. Without the re-check on the
+    // authoritative read the panel would seat a terminal container as current —
+    // the exact stranding this selection exists to prevent.
+    renderRows([{ id: 7, status: 'issued' }], withdrawnRow({ id: 7 }))
+
+    expect(
+      await screen.findByRole('button', { name: /Create dynamic assessment/ }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: COPY.en.withdrawnTitle })).toBeInTheDocument()
+  })
+
+  it('leaves a way forward the moment a set is withdrawn on screen', async () => {
+    mocks.fetchDynamicAssessments
+      .mockResolvedValueOnce({ data: [{ id: 7, status: 'issued' }] })
+      .mockResolvedValueOnce({ data: [withdrawnRow({ id: 7 })] })
+    mocks.fetchDynamicAssessment.mockResolvedValue({ data: issued({ answeredCount: 4 }) })
+    mocks.cancelDynamicAssessment.mockResolvedValue({ data: {} })
+
+    render(<DynamicAssessmentPanel assessmentId="12" language="en" evidence={[]} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: COPY.en.withdraw }))
+    fireEvent.change(screen.getByLabelText(COPY.en.withdrawReason), {
+      target: { value: 'The applicant withdrew and will not be answering.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: COPY.en.withdrawConfirm }))
+
+    expect(
+      await screen.findByRole('button', { name: /Create dynamic assessment/ }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText(COPY.en.withdrawDone)).toBeInTheDocument()
+  })
+
+  it('renders the history in Arabic, the language this CMS defaults to', async () => {
+    mocks.fetchDynamicAssessments.mockResolvedValue({ data: [withdrawnRow()] })
+    render(<DynamicAssessmentPanel assessmentId="12" language="ar" evidence={[]} />)
+
+    await screen.findByRole('region', { name: COPY.ar.withdrawnTitle })
+    expect(document.body.textContent).not.toContain('undefined')
+  })
+})
+
 describe('the copy itself', () => {
   it('keeps every key in all three language blocks', () => {
     /*
