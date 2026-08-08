@@ -354,11 +354,35 @@ function asList(value) {
   return [String(value)];
 }
 
+/*
+ * Was this draft made before the applicant had answered anything?
+ *
+ * The same test RplExportService uses for its provenance banner: `!== true`, not
+ * `=== false`. Every advisory generated before 6 Aug 2026 carries no
+ * answered_assessment_supplied key at all, and treating "the guarantee is absent"
+ * as "the guarantee held" is exactly the direction a governance flag must not
+ * fail in.
+ */
+function isPreAnswerAdvisory(advisory) {
+  return (
+    advisory?.input_snapshot?.guardrails?.answered_assessment_supplied !== true
+  );
+}
+
 const geminiCopyByLanguage = {
   ar: {
     title: "تقييم Gemini الاستشاري",
     notice:
-      "ينشئ Gemini مسودة استشارية جديدة بلغة الواجهة الحالية من معايير الملف وبيانات الأدلة وحالة التحقق. لا يستخدم ملفات خامًا ولا يصدر قرار اعتماد.",
+      "ينشئ Gemini مسودة استشارية جديدة بلغة الواجهة الحالية من معايير الملف وبيانات الأدلة وحالة التحقق، ومن ملفات المتقدم نفسها حين تسمح الحوكمة بذلك. لا يعمل إلا بعد أن يجيب المتقدم عن كل الأسئلة المُرسلة، ولا يصدر قرار اعتماد.",
+    answersTitle: "الإجابات الواردة",
+    answersAssessments: "تقييمًا مُرسلًا",
+    answersSubmitted: "مُسلَّمًا",
+    answersOutstanding: "سؤالًا بلا إجابة",
+    answersCaseScope:
+      "يشمل هذا العدّ كل تقييم مُرسل في ملف هذا المتقدم، لا هذا التقييم وحده. القاعدة تخص الشخص: لا يُقيّم Gemini قبل أن يجيب المتقدم عن كل سؤال أُرسل إليه في القضية كلها.",
+    preAnswerAdvisory: "أُنشئت قبل إجابة المتقدم — استشارية فقط",
+    preAnswerAdvisoryNote:
+      "أُنتجت هذه المسودة قبل أن يجيب المتقدم عن تقييم الكفاءة. تُحفظ كسجل ولا تُحذف، وهي استشارية فقط وليست دليلًا على كفاءة مُقيَّمة. وتحمل ملفات التصدير التنبيه نفسه.",
     question: "سؤال أو توجيه للمدير",
     placeholder: "مثال: قيّم فجوات الأدلة مقابل معايير التقييم المنشورة.",
     generate: "إنشاء مسودة Gemini",
@@ -395,7 +419,16 @@ const geminiCopyByLanguage = {
   en: {
     title: "Gemini advisory evaluation",
     notice:
-      "Gemini generates a new advisory draft in the current interface language from this case’s rubric, evidence metadata, and verification state. It never receives raw files and cannot make an accreditation decision.",
+      "Gemini generates a new advisory draft in the current interface language from this case’s rubric, evidence metadata and verification state, together with the applicant’s own uploaded documents when governance permits it. It runs only after the applicant has answered every issued question, and it cannot make an accreditation decision.",
+    answersTitle: "Answers received",
+    answersAssessments: "assessments issued",
+    answersSubmitted: "submitted",
+    answersOutstanding: "questions outstanding",
+    answersCaseScope:
+      "This count covers every question set issued anywhere on this applicant's case, not only this assessment. The rule is about the person: Gemini does not evaluate until the applicant has answered every question the case has asked them.",
+    preAnswerAdvisory: "Generated before the applicant answered — advisory only",
+    preAnswerAdvisoryNote:
+      "This draft was produced before the applicant answered the competency assessment. It is kept as a record and never deleted, it is advisory only, and it is not evidence of assessed competence. Exports carry the same notice.",
     question: "Question or direction for the administrator",
     placeholder:
       "For example: identify evidence gaps against the published rubric.",
@@ -435,7 +468,16 @@ const geminiCopyByLanguage = {
   nl: {
     title: "Gemini-adviesbeoordeling",
     notice:
-      "Gemini maakt in de huidige interfacetaal een nieuw adviesconcept op basis van de rubric, bewijsmetadata en verificatiestatus. Ruwe bestanden worden nooit verzonden en Gemini kan geen accreditatiebesluit nemen.",
+      "Gemini maakt in de huidige interfacetaal een nieuw adviesconcept op basis van de rubric, bewijsmetadata en verificatiestatus, en van de eigen geüploade documenten van de aanvrager wanneer de governance dat toestaat. Het draait pas nadat de aanvrager elke verzonden vraag heeft beantwoord en kan geen accreditatiebesluit nemen.",
+    answersTitle: "Ontvangen antwoorden",
+    answersAssessments: "toetsen verzonden",
+    answersSubmitted: "ingediend",
+    answersOutstanding: "vragen open",
+    answersCaseScope:
+      "Deze telling omvat elke verzonden vragenset in het dossier van deze aanvrager, niet alleen deze toets. De regel gaat over de persoon: Gemini evalueert pas als de aanvrager elke gestelde vraag heeft beantwoord.",
+    preAnswerAdvisory: "Gemaakt vóór de antwoorden — uitsluitend adviserend",
+    preAnswerAdvisoryNote:
+      "Dit concept is opgesteld voordat de aanvrager de competentietoets beantwoordde. Het blijft als registratie bewaard en wordt nooit verwijderd, het is uitsluitend adviserend en het is geen bewijs van beoordeelde competentie. Exports dragen dezelfde vermelding.",
     question: "Vraag of richting voor de beheerder",
     placeholder:
       "Bijvoorbeeld: identificeer bewijshiaten ten opzichte van de gepubliceerde rubric.",
@@ -496,6 +538,16 @@ const geminiStatusCopyByLanguage = {
       "أعاد Gemini مسودة ناقصة لا تستوفي قالب RPL المعتمد. أعد إنشاء المسودة.",
     target_level_required:
       "يجب تحديد هدف الاعتماد الذي اختاره المتقدم: ممارس مهني أو ممارس مهني متقدم أو خبير مهني، قبل تشغيل Gemini.",
+    no_assessment_issued:
+      "لم يُرسل إلى هذا المتقدم أي تقييم كفاءة بعد. ولّد الأسئلة من ملفات المتقدم واعتمدها وأرسلها، ودع المتقدم يجيب أولًا.",
+    assessment_not_answered:
+      "لم يُجب المتقدم بعد عن كل الأسئلة المُرسلة. لا يُقيّم Gemini إلا بعد اكتمال الإجابات — أعد فتح التقييم إذا احتاج المتقدم مزيدًا من الوقت.",
+    evidence_documents_unreadable:
+      "تعذّرت قراءة أي من ملفات المتقدم المرفوعة، فرُفض توليد الأسئلة بدل إنتاج أسئلة تبدو مبنية على الملفات وهي ليست كذلك. اطلب إعادة رفع الملفات المتأثرة بصيغة PDF أو PNG أو JPEG أو نص عادي.",
+    ai_prefill_advisory_not_answered:
+      "أُنشئت مسودة Gemini هذه قبل أن يجيب المتقدم عن التقييم، فلا يمكن تسجيلها مصدرًا لنتيجة مهنية. أنشئ مسودة جديدة بعد وصول الإجابات.",
+    ai_prefill_advisory_mismatch:
+      "مسودة Gemini هذه تخص تقييمًا آخر، ولا يمكن تسجيلها مصدرًا لنتيجة في هذا الملف.",
   },
   en: {
     gemini_disabled:
@@ -516,6 +568,16 @@ const geminiStatusCopyByLanguage = {
       "Gemini returned an incomplete draft that does not satisfy the approved RPL schema. Generate it again.",
     target_level_required:
       "Select the applicant’s desired accreditation target—Practitioner, Advanced Practitioner, or Expert—before running Gemini.",
+    no_assessment_issued:
+      "No competency assessment has been issued to this applicant yet. Generate the questions from the applicant’s files, approve them, send them, and let the applicant answer first.",
+    assessment_not_answered:
+      "The applicant has not answered every issued question yet. Gemini evaluates only once all answers are in — reopen the assessment if the applicant needs more time.",
+    evidence_documents_unreadable:
+      "None of the applicant’s uploaded documents could be read, so question generation was refused rather than producing questions that only appear to rest on the files. Ask for the affected documents again as PDF, PNG, JPEG or plain text.",
+    ai_prefill_advisory_not_answered:
+      "That Gemini draft was generated before the applicant answered the assessment, so it cannot be recorded as the source of a finding. Generate a new draft now that the answers are in.",
+    ai_prefill_advisory_mismatch:
+      "That Gemini draft belongs to a different assessment and cannot be recorded as the source of a finding here.",
   },
   nl: {
     gemini_disabled:
@@ -536,18 +598,55 @@ const geminiStatusCopyByLanguage = {
       "Gemini gaf een onvolledig concept dat niet aan het goedgekeurde RPL-schema voldoet. Genereer het opnieuw.",
     target_level_required:
       "Selecteer vóór Gemini het gewenste accreditatiedoel: Practitioner, Advanced Practitioner of Expert.",
+    no_assessment_issued:
+      "Er is nog geen competentietoets naar deze aanvrager verzonden. Genereer de vragen uit de documenten van de aanvrager, keur ze goed, verstuur ze en laat de aanvrager eerst antwoorden.",
+    assessment_not_answered:
+      "De aanvrager heeft nog niet elke verzonden vraag beantwoord. Gemini beoordeelt pas als alle antwoorden binnen zijn — heropen de toets als de aanvrager meer tijd nodig heeft.",
+    evidence_documents_unreadable:
+      "Geen van de geüploade documenten van de aanvrager kon worden gelezen, dus het genereren van vragen is geweigerd in plaats van vragen te maken die alleen op de bestanden lijken te berusten. Vraag de betrokken documenten opnieuw op als PDF, PNG, JPEG of platte tekst.",
+    ai_prefill_advisory_not_answered:
+      "Dit Gemini-concept is gemaakt voordat de aanvrager de toets beantwoordde en kan niet als bron van een bevinding worden vastgelegd. Genereer een nieuw concept nu de antwoorden binnen zijn.",
+    ai_prefill_advisory_mismatch:
+      "Dit Gemini-concept hoort bij een andere beoordeling en kan hier niet als bron van een bevinding worden vastgelegd.",
   },
 };
 
-function readGeminiError(error, language) {
+/* eslint-disable-next-line react-refresh/only-export-components -- exported so the
+   test can prove all three language blocks expose the same key set. Copy lookup is
+   a WHOLE-OBJECT fallback (block[language] || block.en) with no per-key rescue, so a
+   reason code present in en and missing in ar renders the string "undefined" on a
+   live case, in the language this CMS defaults to. */
+export const GEMINI_COPY = {
+  advisory: geminiCopyByLanguage,
+  status: geminiStatusCopyByLanguage,
+};
+
+/*
+ * A governed refusal arrives as a KEY, not as prose: the server names the reason
+ * (`assessment_not_answered`, `evidence_documents_unreadable`, …) and the CMS owns
+ * the sentence in the reader's language. Returns '' when no key is recognised, so
+ * the caller can choose its own fallback — the wrong fallback here is worse than
+ * none, because "Gemini could not create the draft" on a findings save sends the
+ * reader looking in the wrong place entirely.
+ */
+function readStatusKey(error, language) {
   const translations =
     geminiStatusCopyByLanguage[language] || geminiStatusCopyByLanguage.en;
   const key = Object.keys(error?.response?.data?.errors || {}).find(
     (candidate) => translations[candidate],
   );
-  return key
-    ? translations[key]
-    : readApiError(error, translations.gemini_unexpected, language);
+
+  return key ? translations[key] : "";
+}
+
+function readGeminiError(error, language) {
+  const translations =
+    geminiStatusCopyByLanguage[language] || geminiStatusCopyByLanguage.en;
+
+  return (
+    readStatusKey(error, language) ||
+    readApiError(error, translations.gemini_unexpected, language)
+  );
 }
 
 export default function RplAssessmentsPage() {
@@ -574,6 +673,9 @@ export default function RplAssessmentsPage() {
     outcomes: [],
     levels: [],
     requireVerifiedEvidence: true,
+    // The governance kill switch on document reading. Without it the readiness
+    // notice would promise the model will read files it will never be sent.
+    evidenceDocumentsEnabled: true,
   });
   const [criteria, setCriteria] = useState([]);
   /*
@@ -667,6 +769,9 @@ export default function RplAssessmentsPage() {
           requireVerifiedEvidence:
             reference.settings?.require_verified_evidence_for_assessment !==
             false,
+          evidenceDocumentsEnabled:
+            reference.settings?.rpl_advisory_include_evidence_documents !==
+            false,
         });
       } else {
         const response = await fetchRplAssessments({
@@ -682,6 +787,7 @@ export default function RplAssessmentsPage() {
           outcomes: [],
           levels: [],
           requireVerifiedEvidence: true,
+          evidenceDocumentsEnabled: true,
         });
       }
     } catch (error) {
@@ -698,14 +804,14 @@ export default function RplAssessmentsPage() {
     return () => window.clearTimeout(timer);
   }, [filters.search, load]);
 
-  async function execute(request, success) {
+  async function execute(request, success, resolveError = readApiError) {
     setAction({ busy: true, error: "", success: "" });
     try {
       await request();
       setAction({ busy: false, error: "", success });
       return true;
     } catch (error) {
-      setAction({ busy: false, error: readApiError(error), success: "" });
+      setAction({ busy: false, error: resolveError(error), success: "" });
       return false;
     }
   }
@@ -792,6 +898,10 @@ export default function RplAssessmentsPage() {
           },
         }),
       copy.saved,
+      // The server refuses a save whose provenance points at a pre-answer draft,
+      // or at another case's draft. Both come back as keys, and both are about
+      // this form — not about Gemini being unavailable.
+      (error) => readStatusKey(error, language) || readApiError(error),
     );
     // load() refetches the saved findings, so the draft markers clear with them.
     if (saved) {
@@ -1063,8 +1173,17 @@ export default function RplAssessmentsPage() {
   };
   const geminiUnavailableMessage =
     !geminiReadiness.available && geminiReadiness.reason_code
-      ? geminiStatusCopy[geminiReadiness.reason_code]
+      ? // A reason code this build has no sentence for shows as the code itself.
+        // Rendering the literal "undefined" on a live case is the worse failure.
+        geminiStatusCopy[geminiReadiness.reason_code] ||
+        geminiReadiness.reason_code
       : "";
+  /*
+   * Present whenever the server got far enough to count answers. It is what turns
+   * "the button is disabled" into "nine questions are still unanswered", which is
+   * an instruction rather than a mystery.
+   */
+  const geminiAnswers = geminiReadiness.answers || null;
   const evidence =
     assessment.evidence ||
     assessment.application?.evidences ||
@@ -1187,6 +1306,35 @@ export default function RplAssessmentsPage() {
                     {geminiUnavailableMessage}
                   </div>
                 ) : null}
+                {geminiAnswers ? (
+                  <section
+                    aria-label={geminiCopy.answersTitle}
+                    className="rounded-xl border border-[var(--color-border)] p-3 text-sm"
+                  >
+                    <strong className="block">{geminiCopy.answersTitle}</strong>
+                    <p className="mt-1 leading-6">
+                      <bdi>{geminiAnswers.verification_count}</bdi>{" "}
+                      {geminiCopy.answersAssessments} ·{" "}
+                      <bdi>{geminiAnswers.answered_verification_count}</bdi>{" "}
+                      {geminiCopy.answersSubmitted} ·{" "}
+                      <span
+                        className={
+                          geminiAnswers.outstanding_items
+                            ? "text-amber-700"
+                            : "text-green-700"
+                        }
+                      >
+                        <bdi>{geminiAnswers.outstanding_items}</bdi>{" "}
+                        {geminiCopy.answersOutstanding}
+                      </span>
+                    </p>
+                    {geminiAnswers.scope === "application" ? (
+                      <p className="mt-1 leading-6 text-[var(--color-text-muted)]">
+                        {geminiCopy.answersCaseScope}
+                      </p>
+                    ) : null}
+                  </section>
+                ) : null}
                 <Textarea
                   rows={2}
                   label={geminiCopy.question}
@@ -1225,21 +1373,41 @@ export default function RplAssessmentsPage() {
                           {formatLocalizedDateTime(item.generated_at, language)}
                         </p>
                       </div>
-                      {item.acknowledged_at ? (
-                        <Badge variant="success">
-                          {geminiCopy.acknowledged}
-                        </Badge>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => acknowledgeAdvisory(item.id)}
-                          disabled={action.busy}
-                        >
-                          {geminiCopy.acknowledge}
-                        </Button>
-                      )}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {isPreAnswerAdvisory(item) ? (
+                          <Badge variant="warning">
+                            {geminiCopy.preAnswerAdvisory}
+                          </Badge>
+                        ) : null}
+                        {item.acknowledged_at ? (
+                          <Badge variant="success">
+                            {geminiCopy.acknowledged}
+                          </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => acknowledgeAdvisory(item.id)}
+                            disabled={action.busy}
+                          >
+                            {geminiCopy.acknowledge}
+                          </Button>
+                        )}
+                      </div>
                     </div>
+                    {/*
+                      Labelled, never hidden and never deleted. The violation the
+                      platform now refuses is COMPUTING a judgement before hearing
+                      the applicant; a record that already exists is history, and
+                      rewriting history is its own governance failure. The export
+                      carries the identical notice, so the paper and the screen
+                      cannot disagree.
+                    */}
+                    {isPreAnswerAdvisory(item) ? (
+                      <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
+                        {geminiCopy.preAnswerAdvisoryNote}
+                      </p>
+                    ) : null}
                     <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
@@ -1347,6 +1515,10 @@ export default function RplAssessmentsPage() {
             <DynamicAssessmentPanel
               assessmentId={assessmentId}
               language={language}
+              /* The panel generates the questions from these files, so it is the
+                 panel that has to say which of them can actually be read. */
+              evidence={evidence}
+              evidenceDocumentsEnabled={state.evidenceDocumentsEnabled}
             />
           ) : null}
           {/*

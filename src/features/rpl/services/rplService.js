@@ -201,6 +201,36 @@ export async function sendDynamicAssessment(id) {
   return read(await http.post(`/admin/rpl/dynamic-assessments/${id}/send`))
 }
 
+/*
+ * Reopen the answering window on a delivered assessment.
+ *
+ * Allowed from `issued` when the window closed or was never opened at all
+ * (`due_at` is written by the applicant opening the assessment, not by sending
+ * it), and from `answered` or `assessed` with questions still outstanding. The
+ * question set and every answer already given are preserved — the applicant
+ * resumes rather than restarts. The reason is required by the server because
+ * this is the one action that hands a delivered assessment back to the
+ * applicant, and the audit trail has to say on whose judgement and why.
+ */
+export async function reissueDynamicAssessment(id, payload) {
+  return read(await http.post(`/admin/rpl/dynamic-assessments/${id}/reissue`, payload))
+}
+
+/*
+ * Withdraw a delivered question set the applicant will never finish.
+ *
+ * Reopening serves an applicant who is still there. This serves the case that
+ * would otherwise be stuck forever: an outstanding issued set blocks every AI
+ * evaluation on the applicant, so an abandoned assessment would remove the
+ * advisory and the final evaluation from that case permanently. Withdrawing
+ * deletes nothing — the frozen questions and any partial answers stay on the
+ * record — and it is not a shortcut past the ordering rule: a withdrawn set was
+ * never answered, so it neither blocks nor feeds an evaluation.
+ */
+export async function cancelDynamicAssessment(id, payload) {
+  return read(await http.post(`/admin/rpl/dynamic-assessments/${id}/cancel`, payload))
+}
+
 export async function finalEvaluateDynamicAssessment(id) {
   return read(await http.post(`/admin/rpl/dynamic-assessments/${id}/final-evaluation`, {}, AI_TIMEOUT))
 }

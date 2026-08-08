@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({ fetchRplSourceOfTruth: vi.fn() }))
 
 vi.mock('../services/rplService', () => ({ fetchRplSourceOfTruth: mocks.fetchRplSourceOfTruth }))
 
-function source() {
+function source(overrides = {}) {
   return { data: {
     schema_version: 'rpl-source-v2', source_hash: 'abc123',
     pathways: [{ id: 1, code: 'rpl_without_secondary', name: { ar: 'مسار دون الثانوية العامة', en: 'Without secondary certificate', nl: 'Zonder middelbareschooldiploma' }, description: { ar: 'مسار الخبرة', en: 'Experience route', nl: 'Ervaringstraject' }, levels: [{ id: 1, code: 'practitioner', name: { ar: 'ممارس', en: 'Practitioner', nl: 'Beoefenaar' } }] }],
@@ -16,6 +16,7 @@ function source() {
     programme_governance: { available_to_gemini: 1, unmapped_library_programs: 99 },
     rpl_course_catalogue: { rpl_without_secondary: [{ program_id: 2, official_code: 'CGP-ETH-001', title: { ar: 'أخلاقيات العمل المهني', en: 'Professional ethics', nl: 'Beroepsethiek' }, short_description: { ar: 'برنامج معتمد', en: 'Governed programme', nl: 'Beheerd programma' }, accredited_hours: 20 }] },
     gemini_governance: { enabled: true, model: 'gemini-flash', configured_prompt: 'Approved prompt', effective_prompt: 'Approved prompt\n\nIMMUTABLE RPL SOURCE-OF-TRUTH RULES' },
+    ...overrides,
   } }
 }
 
@@ -54,5 +55,45 @@ describe('RplSourceOfTruthPage', () => {
     expect(screen.getByText(/CGP-ETH-001/)).toBeInTheDocument()
     // Mojibake guard: Dutch and Arabic must survive the render intact.
     expect(document.body.textContent).not.toMatch(/[ØÙÃÂ]/)
+  })
+
+  /*
+   * THE SAFEGUARD LIST IS THE REPORT AN ACCREDITOR READS.
+   *
+   * It said "raw files are never sent" long after question generation and the
+   * final evaluation began attaching the applicant's own documents. A governance
+   * page that contradicts the platform is worse than no page: it is a written
+   * assurance that the institution cannot honour.
+   */
+  it('states that applicant documents ARE sent when the governed setting says so', async () => {
+    localStorage.setItem('icpc_admin_language', 'en')
+    mocks.fetchRplSourceOfTruth.mockResolvedValue(
+      source({ dynamic_assessment_generation: { raw_evidence_files_sent_to_gemini: true } }),
+    )
+    render(<MemoryRouter><RplSourceOfTruthPage /></MemoryRouter>)
+
+    expect(await screen.findByText(/documents ARE sent to Gemini/)).toBeInTheDocument()
+    expect(screen.getByText(/Reading a document is not verifying it/)).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/Raw files are never sent/)
+  })
+
+  it('states that reading is off when the kill switch is down', async () => {
+    localStorage.setItem('icpc_admin_language', 'en')
+    mocks.fetchRplSourceOfTruth.mockResolvedValue(
+      source({ dynamic_assessment_generation: { raw_evidence_files_sent_to_gemini: false } }),
+    )
+    render(<MemoryRouter><RplSourceOfTruthPage /></MemoryRouter>)
+
+    expect(await screen.findByText(/Document reading is currently switched off/)).toBeInTheDocument()
+  })
+
+  it('keeps the original sentence against a server too old to publish the key', async () => {
+    localStorage.setItem('icpc_admin_language', 'en')
+    render(<MemoryRouter><RplSourceOfTruthPage /></MemoryRouter>)
+
+    // undefined is not false: that server really does not send documents, and
+    // describing it with a governance line it never implements would be a
+    // different lie in the other direction.
+    expect(await screen.findByText(/Raw files are never sent/)).toBeInTheDocument()
   })
 })

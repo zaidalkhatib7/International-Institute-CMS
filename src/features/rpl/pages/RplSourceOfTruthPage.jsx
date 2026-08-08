@@ -48,7 +48,10 @@ const copyByLanguage = {
     noPrograms: 'لا توجد برامج منشورة ومربوطة بهذا المسار حتى الآن.', hours: 'ساعة',
     geminiTitle: 'ما الذي يراه Gemini بالضبط؟', enabled: 'مفعّل', disabled: 'غير مفعّل', model: 'النموذج', prompt: 'الـPrompt التشغيلي المعتمد',
     safeguards: 'ضوابط غير قابلة للتجاوز', adminOnly: 'المدير وحده ينشئ المسودة ويراجعها ويعدلها بعد Gemini.',
-    noRawFiles: 'لا تُرسل الملفات الخام؛ تُرسل بيانات الأدلة وحالة التحقق فقط.', noDecision: 'Gemini استشاري ولا يتحقق من الأدلة ولا يمنح اعتمادًا ولا يصدر قرار لجنة.',
+    noRawFiles: 'لا تُرسل الملفات الخام؛ تُرسل بيانات الأدلة وحالة التحقق فقط.',
+    rawFilesOn: 'تُرسل ملفات المتقدم نفسها إلى Gemini بحكم إعداد rpl_advisory_include_evidence_documents، ويُسجَّل بيان بما أُرسل وما حُجب ولماذا. قراءة الملف ليست تحققًا منه: حالة الدليل تبقى قرارًا بشريًا محكومًا.',
+    rawFilesOff: 'قراءة ملفات المتقدم معطّلة حاليًا بإعداد rpl_advisory_include_evidence_documents؛ تُرسل بيانات الأدلة وحالة التحقق فقط.',
+    noDecision: 'Gemini استشاري ولا يتحقق من الأدلة ولا يمنح اعتمادًا ولا يصدر قرار لجنة.',
     eligibleOnly: 'توصيات البرامج محصورة في الكتالوج المسموح لمسار المتقدم، وأي برنامج مخترع يُحذف من النتيجة.',
     settings: 'تحرير إعدادات Gemini', library: 'إدارة مكتبة سد الفجوات',
     warningTitle: 'هناك برامج غير مربوطة بمسار RPL', warningText: 'تبقى هذه البرامج خارج مصدر Gemini حتى يحدد المدير هل تخص مسار مع الثانوية أو دون الثانوية أو كليهما.',
@@ -70,7 +73,10 @@ const copyByLanguage = {
     pathwayGovernance: 'RPL pathways and programme mapping', pathwayGovernanceHint: 'A programme reaches Gemini only when published, active, and explicitly mapped to the current application pathway.',
     noPrograms: 'No published programmes are mapped to this pathway yet.', hours: 'hours',
     geminiTitle: 'What exactly does Gemini see?', enabled: 'Enabled', disabled: 'Disabled', model: 'Model', prompt: 'Approved operational prompt',
-    safeguards: 'Non-bypassable safeguards', adminOnly: 'Only an administrator generates, reviews, and edits the draft after Gemini.', noRawFiles: 'Raw files are never sent; only evidence metadata and verification state are supplied.',
+    safeguards: 'Non-bypassable safeguards', adminOnly: 'Only an administrator generates, reviews, and edits the draft after Gemini.',
+    noRawFiles: 'Raw files are never sent; only evidence metadata and verification state are supplied.',
+    rawFilesOn: 'The applicant’s own documents ARE sent to Gemini, governed by the rpl_advisory_include_evidence_documents setting, and every request stores a manifest of what was sent and what was withheld and why. Reading a document is not verifying it: evidence status remains a governed human decision.',
+    rawFilesOff: 'Document reading is currently switched off by the rpl_advisory_include_evidence_documents setting; only evidence metadata and verification state are supplied.',
     noDecision: 'Gemini is advisory: it cannot verify evidence, grant accreditation, or make a committee decision.', eligibleOnly: 'Recommendations are limited to the applicant pathway catalogue; invented programme IDs are removed server-side.',
     settings: 'Edit Gemini settings', library: 'Manage gap library', warningTitle: 'Some programmes have no RPL pathway mapping', warningText: 'They remain outside Gemini until an administrator maps them to the with-secondary pathway, the without-secondary pathway, or both.',
     standardsTitle: 'Active standards and rubrics', outcomes: 'Approved outcomes', evidence: 'Evidence categories', automatic: 'Automatic synchronisation', automaticHint: 'Create, edit, deactivate, or remap a programme and the next Gemini request reflects it without manual copying.',
@@ -90,7 +96,10 @@ const copyByLanguage = {
     pathwayGovernance: 'RPL-trajecten en programmakoppeling', pathwayGovernanceHint: 'Een programma bereikt Gemini alleen als het gepubliceerd, actief en expliciet aan het huidige traject gekoppeld is.',
     noPrograms: 'Er zijn nog geen gepubliceerde programma’s aan dit traject gekoppeld.', hours: 'uur',
     geminiTitle: 'Wat ziet Gemini precies?', enabled: 'Ingeschakeld', disabled: 'Uitgeschakeld', model: 'Model', prompt: 'Goedgekeurde operationele prompt',
-    safeguards: 'Niet-omzeilbare waarborgen', adminOnly: 'Alleen een beheerder maakt, beoordeelt en bewerkt het concept na Gemini.', noRawFiles: 'Ruwe bestanden worden nooit verzonden; alleen bewijsmetadata en verificatiestatus.',
+    safeguards: 'Niet-omzeilbare waarborgen', adminOnly: 'Alleen een beheerder maakt, beoordeelt en bewerkt het concept na Gemini.',
+    noRawFiles: 'Ruwe bestanden worden nooit verzonden; alleen bewijsmetadata en verificatiestatus.',
+    rawFilesOn: 'De eigen documenten van de aanvrager WORDEN naar Gemini gestuurd, beheerd door de instelling rpl_advisory_include_evidence_documents, en elk verzoek legt vast wat is verzonden en wat is achtergehouden en waarom. Een document lezen is het niet verifiëren: de bewijsstatus blijft een beheerd menselijk besluit.',
+    rawFilesOff: 'Het lezen van documenten staat momenteel uit via de instelling rpl_advisory_include_evidence_documents; alleen bewijsmetadata en verificatiestatus worden verstuurd.',
     noDecision: 'Gemini is adviserend en kan geen bewijs verifiëren, accreditatie verlenen of commissiebesluiten nemen.', eligibleOnly: 'Aanbevelingen zijn beperkt tot de trajectcatalogus; verzonnen programma-ID’s worden server-side verwijderd.',
     settings: 'Gemini-instellingen bewerken', library: 'Tekortbibliotheek beheren', warningTitle: 'Sommige programma’s hebben geen RPL-trajectkoppeling', warningText: 'Deze blijven buiten Gemini totdat een beheerder ze aan één of beide RPL-trajecten koppelt.',
     standardsTitle: 'Actieve normen en rubrics', outcomes: 'Goedgekeurde uitkomsten', evidence: 'Bewijscategorieën', automatic: 'Automatische synchronisatie', automaticHint: 'Aanmaken, bewerken, deactiveren of opnieuw koppelen is zonder handmatig kopiëren zichtbaar in het volgende Gemini-verzoek.',
@@ -130,6 +139,24 @@ export default function RplSourceOfTruthPage() {
   const catalogue = source.rpl_course_catalogue || {}
   const programmeGovernance = source.programme_governance || {}
   const gemini = source.gemini_governance || {}
+  /*
+   * This page is the report an accreditor reads, so it states what the platform
+   * DOES rather than a rule it used to follow. Question generation and the final
+   * evaluation now attach the applicant's own documents, governed by a setting
+   * whose live value the server publishes here.
+   *
+   * `undefined` is not `false`: a server too old to publish the key genuinely
+   * never sends files, and it keeps the original sentence rather than being
+   * described by a governance line it does not implement.
+   */
+  const rawFilesToGemini =
+    source.dynamic_assessment_generation?.raw_evidence_files_sent_to_gemini
+  const evidenceRule =
+    rawFilesToGemini === true
+      ? copy.rawFilesOn
+      : rawFilesToGemini === false
+        ? copy.rawFilesOff
+        : copy.noRawFiles
   const totalCourses = new Set(Object.values(catalogue).flat().map((program) => program.program_id)).size
 
   return (
@@ -196,7 +223,7 @@ export default function RplSourceOfTruthPage() {
               <CardHeader className="border-b border-[var(--color-border)]"><div className="flex items-center gap-2"><Sparkles className="text-amber-600" size={20} /><CardTitle>{copy.geminiTitle}</CardTitle></div></CardHeader>
               <CardContent className="space-y-5 p-6">
                 <div className="flex flex-wrap items-center gap-3"><Badge variant={gemini.enabled ? 'success' : 'neutral'}>{gemini.enabled ? copy.enabled : copy.disabled}</Badge><span className="text-sm"><strong>{copy.model}:</strong> <bdi>{gemini.model || '—'}</bdi></span></div>
-                <div><h3 className="font-bold">{copy.safeguards}</h3><ul className="mt-3 space-y-3 text-sm leading-6"><RuleLine>{copy.adminOnly}</RuleLine><RuleLine>{copy.noRawFiles}</RuleLine><RuleLine>{copy.noDecision}</RuleLine><RuleLine>{copy.eligibleOnly}</RuleLine></ul></div>
+                <div><h3 className="font-bold">{copy.safeguards}</h3><ul className="mt-3 space-y-3 text-sm leading-6"><RuleLine>{copy.adminOnly}</RuleLine><RuleLine>{evidenceRule}</RuleLine><RuleLine>{copy.noDecision}</RuleLine><RuleLine>{copy.eligibleOnly}</RuleLine></ul></div>
                 <div><p className="mb-2 text-sm font-bold">{copy.prompt}</p><pre dir="ltr" className="max-h-72 overflow-auto whitespace-pre-wrap rounded-xl bg-[var(--color-surface-muted)] p-4 text-left text-xs leading-6 text-[var(--color-text-muted)]">{gemini.effective_prompt || gemini.configured_prompt || '—'}</pre></div>
                 <div className="flex flex-wrap gap-3"><Button onClick={() => navigate('/rpl/configuration')} variant="outline">{copy.settings}</Button><Button onClick={() => navigate('/competency-gap-library')}>{copy.library}</Button></div>
               </CardContent>
