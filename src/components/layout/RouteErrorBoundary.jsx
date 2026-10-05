@@ -1,5 +1,6 @@
 import { Component } from "react";
 import { getAdminLanguage } from "../../services/languageStorage";
+import { appPath } from "../../services/appPath";
 
 const copyByLanguage = {
   ar: {
@@ -77,7 +78,7 @@ export default class RouteErrorBoundary extends Component {
           </button>
           <button
             type="button"
-            onClick={() => window.location.assign("/dashboard")}
+            onClick={() => window.location.assign(appPath("dashboard"))}
             className="rounded-xl border border-[var(--color-border)] bg-white px-5 py-2.5 text-sm font-semibold text-[var(--color-text)]"
           >
             {copy.home}
