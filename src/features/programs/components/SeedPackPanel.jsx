@@ -45,7 +45,11 @@ const COPY = {
     competency: 'الكفاية',
     targetLevel: 'المستوى المستهدف',
     entryLevel: 'مستوى الدخول (اختياري)',
-    weight: 'الوزن',
+    weight: 'الوزن (%)',
+    weightHint:
+      'الوزن عدد صحيح من 1 إلى 100: نصيب الكفاية من تركيز الدورة مقارنةً بالكفايات الأخرى المرتبطة. لا يلزم أن يبلغ مجموع الأوزان 100.',
+    weightInvalid: 'أدخل عددًا صحيحًا من 1 إلى 100.',
+    weightsIncomplete: 'لكل كفاية مرتبطة وزن من 1 إلى 100 قبل أن يمكن اعتماد الحزمة.',
     primary: 'أساسية',
     rationale: 'مبرر الربط (من Gemini)',
     code: 'الرمز',
@@ -92,7 +96,11 @@ const COPY = {
     competency: 'Competency',
     targetLevel: 'Target level',
     entryLevel: 'Entry level (optional)',
-    weight: 'Weight',
+    weight: 'Weight (%)',
+    weightHint:
+      'A weight is a whole number from 1 to 100: the share of the course’s emphasis this competency carries, relative to the others mapped. Weights do not have to total 100.',
+    weightInvalid: 'Enter a whole number from 1 to 100.',
+    weightsIncomplete: 'Every mapped competency needs a weight from 1 to 100 before the seed pack can be approved.',
     primary: 'Primary',
     rationale: 'Mapping rationale (from Gemini)',
     code: 'Code',
@@ -139,7 +147,11 @@ const COPY = {
     competency: 'Competentie',
     targetLevel: 'Streefniveau',
     entryLevel: 'Instapniveau (optioneel)',
-    weight: 'Gewicht',
+    weight: 'Gewicht (%)',
+    weightHint:
+      'Een gewicht is een geheel getal van 1 tot 100: het aandeel van deze competentie in de nadruk van de cursus, ten opzichte van de andere gekoppelde competenties. De gewichten hoeven samen geen 100 te zijn.',
+    weightInvalid: 'Voer een geheel getal van 1 tot 100 in.',
+    weightsIncomplete: 'Elke gekoppelde competentie heeft een gewicht van 1 tot 100 nodig voordat het startpakket kan worden goedgekeurd.',
     primary: 'Primair',
     rationale: 'Onderbouwing van de koppeling (van Gemini)',
     code: 'Code',
@@ -168,6 +180,23 @@ const COPY = {
     derived: 'afgeleid',
     saveFirst: 'Sla het programma eerst op en kom dan terug.',
   },
+}
+
+/*
+ * A competency weight is a whole-number percentage, 1 to 100 — the unit the
+ * column holds and the server enforces. The input used to step by 0.1, and
+ * MySQL stored every fraction as 0: four programmes lost all their weights
+ * through an approval that reported success.
+ *
+ * Digits only, so "30.0" and "0.3" are refused here rather than rounded, and
+ * an empty box — which is what a proposal the server could not trust arrives
+ * as — is refused until the reviewer types a value.
+ */
+function isValidWeight(value) {
+  const text = String(value ?? '').trim()
+  if (!/^\d{1,3}$/.test(text)) return false
+  const number = Number(text)
+  return number >= 1 && number <= 100
 }
 
 /** A translatable field as a plain string, whatever shape it arrives in. */
@@ -240,7 +269,9 @@ export default function SeedPackPanel({ programId, onApproved }) {
           target_proficiency_level_id: levels[levels.length - 1]?.id ?? '',
           entry_proficiency_level_id: null,
           is_primary: false,
-          weight: 1,
+          // Empty, not 1: in percentages a default of 1 is a near-zero share
+          // nobody chose. The reviewer enters it.
+          weight: null,
           rationale: '',
         },
       ],
@@ -261,8 +292,15 @@ export default function SeedPackPanel({ programId, onApproved }) {
     setError('')
     setNotice('')
     try {
+      // The box holds text; the server accepts a JSON integer and nothing else,
+      // so "30" is sent as 30. canApprove has already refused anything that is
+      // not a whole number from 1 to 100.
+      const competencies = draft.competencies.map((row) => ({
+        ...row,
+        weight: Number(String(row.weight).trim()),
+      }))
       const response = await approveSeedPack(
-        programId, draft.competencies, draft.learning_outcomes, draft.academic_identity,
+        programId, competencies, draft.learning_outcomes, draft.academic_identity,
       )
       setNotice(response?.message || '')
       setDraft(null)
@@ -274,12 +312,18 @@ export default function SeedPackPanel({ programId, onApproved }) {
     }
   }, [programId, draft, copy.approveConfirm, onApproved])
 
+  const weightsValid = useMemo(
+    () => (draft?.competencies || []).every((row) => isValidWeight(row.weight)),
+    [draft],
+  )
+
   const canApprove = useMemo(
     () =>
       Boolean(draft) &&
       (draft.competencies || []).length > 0 &&
-      (draft.learning_outcomes || []).length > 0,
-    [draft],
+      (draft.learning_outcomes || []).length > 0 &&
+      weightsValid,
+    [draft, weightsValid],
   )
 
   if (!programId) {
@@ -345,6 +389,8 @@ export default function SeedPackPanel({ programId, onApproved }) {
               <div>
                 <h4 className="text-sm font-semibold text-[var(--color-text)]">{copy.competencies}</h4>
                 <p className="text-xs text-[var(--color-text-muted)]">{copy.competenciesHint}</p>
+                {/* Once, here, rather than under every row's narrow weight column. */}
+                <p className="text-xs text-[var(--color-text-muted)]">{copy.weightHint}</p>
               </div>
 
               {(draft.competencies || []).length === 0 ? (
@@ -402,12 +448,21 @@ export default function SeedPackPanel({ programId, onApproved }) {
                         </option>
                       ))}
                     </Select>
+                    {/*
+                      Shown empty when the draft has no weight, never as 1. The
+                      server drops a proposed weight it cannot trust to null so a
+                      person decides it; displaying a 1 there would look decided.
+                    */}
                     <Input
                       label={copy.weight}
                       type="number"
-                      step="0.1"
-                      min="0"
-                      value={row.weight ?? 1}
+                      inputMode="numeric"
+                      step="1"
+                      min="1"
+                      max="100"
+                      required
+                      value={row.weight ?? ''}
+                      error={isValidWeight(row.weight) ? undefined : copy.weightInvalid}
                       onChange={(event) => patchCompetency(index, { weight: event.target.value })}
                     />
                     <label className="flex items-center gap-2 py-3 text-sm text-[var(--color-text)]">
@@ -557,6 +612,8 @@ export default function SeedPackPanel({ programId, onApproved }) {
                 )}
               </Button>
               <p className="text-xs text-[var(--color-text-muted)]">{copy.approveHint}</p>
+              {/* Says why the button is disabled, instead of leaving it to be guessed. */}
+              {!weightsValid ? <p className="text-xs text-amber-600">{copy.weightsIncomplete}</p> : null}
             </div>
           </>
         ) : null}
