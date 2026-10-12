@@ -452,6 +452,7 @@ const qualificationTypes = [
   "bachelor",
   "academic_diploma",
   "academic_master",
+  "academic_doctorate",
   "other",
 ];
 
@@ -529,6 +530,11 @@ function qualificationTypeLabel(type, language) {
       en: "Academic master",
       ar: "ماجستير أكاديمي",
       nl: "Academische master",
+    },
+    academic_doctorate: {
+      en: "Doctorate",
+      ar: "دكتوراه",
+      nl: "Doctoraat",
     },
     other: {
       en: "Other qualification",
