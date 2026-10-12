@@ -113,7 +113,7 @@ export const copyByLanguage = {
     created: "Account created",
     academicEvidence: "Academic-entry evidence",
     academicEvidenceHint:
-      "Record and verify qualifications before routing. A declared bachelor degree or equivalent routes to the Professional Academic RPL; it does not exclude recognition.",
+      "Record and verify qualifications before routing. Each client gets exactly one door: an intermediate-institute diploma, licence, bachelor or higher leads to the Professional Academic pathway; a general secondary certificate or below leads to RPL.",
     addQualification: "Add qualification",
     updateQualification: "Update qualification",
     type: "Qualification type",
@@ -137,23 +137,31 @@ export const copyByLanguage = {
       "Experience and evidence are assessed. Competency-gap programmes may be required before professional accreditation.",
     rplWithoutHint:
       "Experience and evidence are assessed. Foundation and competency-gap programmes may be required before professional accreditation.",
-    noRplDegree: "This client belongs on the academic RPL pathway",
+    noRplDegree: "This client takes the Professional Academic pathway",
     noRplDegreeHint:
-      "A bachelor degree or equivalent has been declared. Open a Professional Academic RPL case below — the degree routes them, it does not exclude them.",
+      "A verified intermediate-institute diploma, licence, bachelor or higher sends this client through the academic door only. RPL is not offered to them.",
     academicRpl: "Professional Academic RPL",
     academicRplHint:
-      "The second RPL pathway, for degree holders: Professional Diploma, Master, Doctorate. Assessed on evidence and competencies, not on the certificate alone.",
+      "For holders of an intermediate-institute diploma, licence, bachelor or equivalent: Professional Diploma, Master, Doctorate. Assessed on evidence and competencies, not on the certificate alone.",
     academicSelectTrack: "Target qualification",
     academicOpen: "Open an academic case",
     academicOpened: "Professional Academic RPL case opened.",
     academicNoTracks: "The academic tracks are not configured yet.",
-    pendingAcademic: "Academic degree evidence is awaiting verification",
+    pendingAcademic:
+      "An intermediate-institute diploma, licence or bachelor is awaiting verification",
     pendingAcademicHint:
-      "RPL stays unavailable. Verify the degree, then choose an eligible professional qualification.",
+      "Neither door opens yet. Once staff verify it, this client takes the academic pathway; if it is not such a qualification, correct its type or delete it and RPL opens.",
     pendingSecondary: "Secondary certificate is awaiting verification",
     pendingSecondaryHint:
       "Do not select the no-secondary route while this evidence is under review.",
     startRpl: "Create the correct RPL case",
+    openOtherCase: "This client has an open case on the other door",
+    openOtherCaseHint:
+      "One door at a time. Close or withdraw the open case before opening a case on the other door.",
+    academicRoute: "Admission route",
+    routeUniversityDegree: "University degree",
+    routeIntermediateInstitute: "Intermediate institute diploma",
+    routeRplExpert: "Completed RPL at Expert level",
     noPathway: "The required RPL pathway is not configured yet.",
     targetLevel: "Desired professional accreditation target",
     targetLevelHint:
@@ -221,10 +229,10 @@ export const copyByLanguage = {
     created: "تاريخ إنشاء الحساب",
     academicEvidence: "أدلة المؤهلات ومسار القبول",
     academicEvidenceHint:
-      "سجّل المؤهلات وتحقق منها قبل اختيار الخدمة. حامل البكالوريوس أو ما يعادله يُوجَّه إلى المسار الأكاديمي المهني.",
+      "سجّل المؤهلات وتحقق منها قبل اختيار الخدمة. لكل عميل باب واحد فقط: حامل شهادة المعهد المتوسط أو الليسانس أو البكالوريوس أو ما يعادلها أو أعلى يُوجَّه إلى المسار الأكاديمي المهني، وحامل الثانوية العامة أو ما دونها يُوجَّه إلى RPL.",
     academicRpl: "المسار الأكاديمي المهني — RPL",
     academicRplHint:
-      "مسار RPL الثاني، لحاملي المؤهلات الجامعية: دبلوم مهني، ماجستير مهني، دكتوراه مهنية. يُقيَّم بالأدلة والكفاءات، لا بالشهادة وحدها.",
+      "لحاملي شهادة المعهد المتوسط أو الليسانس أو البكالوريوس أو ما يعادلها: دبلوم مهني، ماجستير مهني، دكتوراه مهنية. يُقيَّم بالأدلة والكفاءات، لا بالشهادة وحدها.",
     academicSelectTrack: "الدرجة المستهدفة",
     academicOpen: "افتح ملف المسار الأكاديمي",
     academicOpened: "تم فتح ملف المسار الأكاديمي المهني.",
@@ -252,16 +260,24 @@ export const copyByLanguage = {
       "يُقيّم ملف الخبرة والأدلة، وقد تُطلب برامج لسد فجوات الكفاءة قبل الاعتماد المهني.",
     rplWithoutHint:
       "يُقيّم ملف الخبرة والأدلة، وقد تُطلب برامج تأسيسية وبرامج لسد فجوات الكفاءة قبل الاعتماد المهني.",
-    noRplDegree: "هذا العميل ينتمي إلى المسار الأكاديمي المهني",
+    noRplDegree: "هذا العميل يُوجَّه إلى المسار الأكاديمي المهني",
     noRplDegreeHint:
-      "تم تسجيل بكالوريوس أو مؤهل أكاديمي معادل. افتح ملف المسار الأكاديمي المهني أدناه — المؤهل يُوجِّه ولا يستبعد من الاعتراف.",
-    pendingAcademic: "دليل المؤهل الأكاديمي بانتظار التحقق",
+      "تم التحقق من شهادة معهد متوسط أو ليسانس أو بكالوريوس أو أعلى، لذلك يدخل هذا العميل من باب المسار الأكاديمي فقط، ولا يُعرض عليه RPL.",
+    pendingAcademic:
+      "شهادة المعهد المتوسط أو الليسانس أو البكالوريوس بانتظار التحقق",
     pendingAcademicHint:
-      "يبقى RPL غير متاح. تحقق من المؤهل ثم اختر المؤهل المهني المناسب.",
+      "لا يُفتح أي باب بعد. بعد تحقق الموظف منها يُوجَّه العميل إلى المسار الأكاديمي؛ وإن لم تكن مؤهلاً من هذا النوع فصحّح نوعها أو احذفها فيُفتح RPL.",
     pendingSecondary: "شهادة الثانوية العامة بانتظار التحقق",
     pendingSecondaryHint:
       "لا تختَر مسار دون الثانوية العامة بينما هذا الدليل قيد المراجعة.",
     startRpl: "إنشاء طلب RPL الصحيح",
+    openOtherCase: "لدى هذا العميل ملف مفتوح على الباب الآخر",
+    openOtherCaseHint:
+      "باب واحد في كل مرة. أغلق الملف المفتوح أو اسحبه قبل فتح ملف على الباب الآخر.",
+    academicRoute: "مسار القبول",
+    routeUniversityDegree: "شهادة جامعية",
+    routeIntermediateInstitute: "شهادة معهد متوسط",
+    routeRplExpert: "أنهى RPL بمستوى ممارس خبير",
     noPathway: "مسار RPL المطلوب غير مهيأ بعد.",
     targetLevel: "هدف الاعتماد المهني المطلوب",
     targetLevelHint:
@@ -332,7 +348,7 @@ export const copyByLanguage = {
     created: "Account aangemaakt",
     academicEvidence: "Bewijs voor academische toelating",
     academicEvidenceHint:
-      "Registreer en verifieer kwalificaties vóór de routing. Een verklaarde bachelor of gelijkwaardig leidt naar het Professioneel Academisch RPL; het sluit erkenning niet uit.",
+      "Registreer en verifieer kwalificaties vóór de routing. Elke cliënt krijgt precies één deur: een diploma van een middelbaar instituut, licence, bachelor of hoger leidt naar het Professioneel Academisch traject; een middelbareschooldiploma of lager leidt naar RPL.",
     addQualification: "Kwalificatie toevoegen",
     updateQualification: "Kwalificatie bijwerken",
     type: "Type kwalificatie",
@@ -356,9 +372,9 @@ export const copyByLanguage = {
       "Ervaring en bewijs worden beoordeeld. Competentiegap-programma’s kunnen vóór accreditatie nodig zijn.",
     rplWithoutHint:
       "Ervaring en bewijs worden beoordeeld. Basis- en competentiegap-programma’s kunnen vóór accreditatie nodig zijn.",
-    noRplDegree: "Deze cliënt hoort bij het academische RPL-traject",
+    noRplDegree: "Deze cliënt volgt het Professioneel Academisch traject",
     noRplDegreeHint:
-      "Er is een bachelor of gelijkwaardig diploma geregistreerd. Open hieronder een Professioneel Academisch RPL-dossier — het diploma stuurt door, het sluit niet uit.",
+      "Een geverifieerd diploma van een middelbaar instituut, licence, bachelor of hoger stuurt deze cliënt alleen door de academische deur. RPL wordt niet aangeboden.",
     /*
      * These six were added to `en` and `ar` on 6 Aug and missed here, which
      * rendered the whole Professional Academic RPL card blank in Dutch: the
@@ -369,18 +385,26 @@ export const copyByLanguage = {
      */
     academicRpl: "Professioneel Academisch RPL",
     academicRplHint:
-      "Het tweede RPL-traject, voor houders van een universitaire kwalificatie: professioneel diploma, professionele master, professioneel doctoraat. Beoordeeld op bewijs en competenties, niet op het diploma alleen.",
+      "Voor houders van een diploma van een middelbaar instituut, licence, bachelor of gelijkwaardig: professioneel diploma, professionele master, professioneel doctoraat. Beoordeeld op bewijs en competenties, niet op het diploma alleen.",
     academicSelectTrack: "Doelkwalificatie",
     academicOpen: "Academisch dossier openen",
     academicOpened: "Professioneel Academisch RPL-dossier geopend.",
     academicNoTracks: "De academische trajecten zijn nog niet geconfigureerd.",
-    pendingAcademic: "Bewijs van academische graad wacht op verificatie",
+    pendingAcademic:
+      "Een diploma van een middelbaar instituut, licence of bachelor wacht op verificatie",
     pendingAcademicHint:
-      "RPL blijft niet beschikbaar. Verifieer de graad en kies daarna een passende professionele kwalificatie.",
+      "Nog geen deur gaat open. Na verificatie volgt deze cliënt het academische traject; is het geen zulke kwalificatie, corrigeer dan het type of verwijder haar en RPL gaat open.",
     pendingSecondary: "Middelbareschooldiploma wacht op verificatie",
     pendingSecondaryHint:
       "Kies de route zonder diploma niet zolang dit bewijs wordt beoordeeld.",
     startRpl: "Juiste RPL-dossier aanmaken",
+    openOtherCase: "Deze cliënt heeft een open dossier achter de andere deur",
+    openOtherCaseHint:
+      "Eén deur tegelijk. Sluit of trek het open dossier in voordat u achter de andere deur een dossier opent.",
+    academicRoute: "Toelatingsroute",
+    routeUniversityDegree: "Universitair diploma",
+    routeIntermediateInstitute: "Diploma middelbaar instituut",
+    routeRplExpert: "RPL afgerond op Expert-niveau",
     noPathway: "Het benodigde RPL-traject is nog niet geconfigureerd.",
     targetLevel: "Gewenst professioneel accreditatiedoel",
     targetLevelHint:
@@ -411,6 +435,7 @@ export const copyByLanguage = {
 
 const qualificationTypes = [
   "secondary_general",
+  "intermediate_diploma",
   "bachelor",
   "academic_diploma",
   "academic_master",
@@ -466,6 +491,11 @@ function qualificationTypeLabel(type, language) {
       en: "Secondary certificate",
       ar: "شهادة ثانوية عامة",
       nl: "Middelbareschooldiploma",
+    },
+    intermediate_diploma: {
+      en: "Intermediate institute diploma",
+      ar: "شهادة معهد متوسط",
+      nl: "Diploma middelbaar instituut",
     },
     bachelor: {
       en: "Bachelor / licence / equivalent",
@@ -752,11 +782,35 @@ export default function UserWorkspacePage() {
     setProfileForm((current) => ({ ...current, [field]: value }));
   const setQualificationField = (field, value) =>
     setQualificationForm((current) => ({ ...current, [field]: value }));
+  /*
+   * THE TWO DOORS (owner decision, 12 Oct 2026). Every client gets exactly one:
+   * an intermediate-institute diploma, licence, bachelor or higher → the
+   * academic pathway; a general secondary certificate or below → RPL. The server
+   * decides both (`rpl` and `academic_rpl` in the eligibility response, never
+   * both eligible) and refuses the other door anyway; this page only shows the
+   * one door the client has, or why neither is open yet.
+   */
+  const academicEligibility = state.eligibility?.academic_rpl;
   const rplIsAvailable = Boolean(rplEligibility?.eligible && routePathway);
-  const rplIsDegreeBlocked =
-    rplEligibility?.routing_status === "professional_qualifications_only";
+  const academicIsAvailable = Boolean(academicEligibility?.eligible);
+  const door = rplIsAvailable
+    ? "rpl"
+    : academicIsAvailable
+      ? "academic"
+      : "none";
   const rplIsSecondaryPending =
     rplEligibility?.routing_status === "secondary_verification_pending";
+  const academicIsPending =
+    rplEligibility?.reason_code ===
+    "academic_entry_qualification_pending_verification";
+  const hasOpenCaseOnOtherDoor =
+    rplEligibility?.reason_code === "open_academic_rpl_case" ||
+    academicEligibility?.reason_code === "open_rpl_case";
+  const academicRouteLabel = {
+    university_degree: copy.routeUniversityDegree,
+    intermediate_institute: copy.routeIntermediateInstitute,
+    rpl_expert_practitioner: copy.routeRplExpert,
+  }[academicEligibility?.recommended_eligibility_route_code];
   const routeTitle =
     rplEligibility?.recommended_pathway_code === "rpl_with_secondary"
       ? copy.rplWith
@@ -1006,7 +1060,11 @@ export default function UserWorkspacePage() {
             could not do it either.
           */}
           {subjectIsStaff ? (
-            <RoleAssignmentPanel user={user} language={language} onSaved={load} />
+            <RoleAssignmentPanel
+              user={user}
+              language={language}
+              onSaved={load}
+            />
           ) : null}
 
           {/* Everything from here to the danger zone is the client journey:
@@ -1203,46 +1261,30 @@ export default function UserWorkspacePage() {
                 <CardHeader className="border-b border-[var(--color-border)]">
                   <CardTitle>{copy.routing}</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-5 p-6 lg:grid-cols-2">
-                  <div
-                    className={`rounded-2xl border p-5 ${rplIsAvailable ? "border-sky-200 bg-sky-50" : rplIsDegreeBlocked ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-lg font-bold">
-                          {rplIsAvailable
-                            ? routeTitle
-                            : rplIsDegreeBlocked
-                              ? copy.noRplDegree
-                              : rplIsSecondaryPending
-                                ? copy.pendingSecondary
-                                : copy.noPathway}
-                        </h3>
-                        <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
-                          {rplIsAvailable
-                            ? routeHint
-                            : rplIsDegreeBlocked
-                              ? rplEligibility?.has_pending_academic_degree_verification
-                                ? copy.pendingAcademicHint
-                                : copy.noRplDegreeHint
-                              : rplIsSecondaryPending
-                                ? copy.pendingSecondaryHint
-                                : copy.noPathway}
-                        </p>
-                      </div>
-                      {rplIsAvailable ? (
+                <CardContent className="p-6">
+                  {/*
+                    ONE DOOR (owner decision, 12 Oct 2026). This card used to
+                    show RPL and the academic pathway side by side, so a client
+                    with only a ninth-grade certificate was offered both. Now
+                    it shows the single door the server opened for the client,
+                    or why neither is open yet; the server refuses the other
+                    door whatever this page shows.
+
+                    (The separate "Professional Qualifications" routing tile was
+                    removed on 6 Aug 2026; enrolling into a professional-
+                    qualification programme is its own card further down.)
+                  */}
+                  {door === "rpl" ? (
+                    <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-lg font-bold">{routeTitle}</h3>
+                          <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+                            {routeHint}
+                          </p>
+                        </div>
                         <Badge variant="info">RPL</Badge>
-                      ) : (
-                        <Badge
-                          variant={rplIsDegreeBlocked ? "warning" : "neutral"}
-                        >
-                          {rplIsDegreeBlocked
-                            ? copy.professional
-                            : copy.unverified}
-                        </Badge>
-                      )}
-                    </div>
-                    {rplIsAvailable ? (
+                      </div>
                       <div className="mt-5 space-y-3">
                         <Select
                           label={copy.targetLevel}
@@ -1273,75 +1315,96 @@ export default function UserWorkspacePage() {
                           {copy.startRpl}
                         </Button>
                       </div>
-                    ) : null}
-                  </div>
-                  {/*
-                    The old "Professional Qualifications" card used to sit here,
-                    showing a recommended diploma/master/doctorate as a service
-                    SEPARATE from RPL. Removed on the owner's instruction,
-                    6 Aug 2026: those three targets are now the Professional
-                    Academic RPL pathway below, and presenting them twice — once
-                    as "independent of RPL" and once as the second RPL pathway —
-                    described one thing as two and contradicted itself.
-
-                    Enrolling into a professional-qualification programme still
-                    exists as its own card further down the page; only this
-                    duplicated routing tile is gone.
-                  */}
-
-                  {/*
-                    THE SECOND RPL PATHWAY. Always offered, never as a
-                    consolation for being refused the first: a degree holder is
-                    routed here, not excluded, and the two pathways are an
-                    integrated journey rather than alternatives.
-                  */}
-                  <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-lg font-bold">
-                          {copy.academicRpl}
-                        </h3>
-                        <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
-                          {copy.academicRplHint}
-                        </p>
-                      </div>
-                      <Badge variant="neutral">RPL</Badge>
                     </div>
-
-                    {state.academicTracks.length ? (
-                      <div className="mt-4 space-y-3">
-                        <Select
-                          label={copy.academicSelectTrack}
-                          value={academicTrackId}
-                          onChange={(event) =>
-                            setAcademicTrackId(event.target.value)
-                          }
-                        >
-                          <option value="">{copy.academicSelectTrack}</option>
-                          {state.academicTracks.map((track) => (
-                            <option key={track.id} value={track.id}>
-                              {localize(track.name, language)}
-                            </option>
-                          ))}
-                        </Select>
-                        <Button
-                          onClick={openAcademicCase}
-                          disabled={!academicTrackId || busy}
-                        >
-                          {busy ? (
-                            <LoaderCircle className="animate-spin" size={17} />
-                          ) : (
-                            <GraduationCap size={17} />
-                          )}
-                          {copy.academicOpen}
-                        </Button>
+                  ) : door === "academic" ? (
+                    <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-lg font-bold">
+                            {copy.academicRpl}
+                          </h3>
+                          <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+                            {copy.noRplDegreeHint}
+                          </p>
+                          <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
+                            {copy.academicRplHint}
+                          </p>
+                          {academicRouteLabel ? (
+                            <p className="mt-2 text-sm font-semibold">
+                              {copy.academicRoute}: {academicRouteLabel}
+                            </p>
+                          ) : null}
+                        </div>
+                        <Badge variant="neutral">RPL</Badge>
                       </div>
-                    ) : (
-                      <p className="mt-4 text-sm text-[var(--color-text-muted)]">
-                        {copy.academicNoTracks}
-                      </p>
-                    )}
-                  </div>
+
+                      {state.academicTracks.length ? (
+                        <div className="mt-4 space-y-3">
+                          <Select
+                            label={copy.academicSelectTrack}
+                            value={academicTrackId}
+                            onChange={(event) =>
+                              setAcademicTrackId(event.target.value)
+                            }
+                          >
+                            <option value="">{copy.academicSelectTrack}</option>
+                            {state.academicTracks.map((track) => (
+                              <option key={track.id} value={track.id}>
+                                {localize(track.name, language)}
+                              </option>
+                            ))}
+                          </Select>
+                          <Button
+                            onClick={openAcademicCase}
+                            disabled={!academicTrackId || busy}
+                          >
+                            {busy ? (
+                              <LoaderCircle
+                                className="animate-spin"
+                                size={17}
+                              />
+                            ) : (
+                              <GraduationCap size={17} />
+                            )}
+                            {copy.academicOpen}
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="mt-4 text-sm text-[var(--color-text-muted)]">
+                          {copy.academicNoTracks}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-lg font-bold">
+                            {hasOpenCaseOnOtherDoor
+                              ? copy.openOtherCase
+                              : academicIsPending
+                                ? copy.pendingAcademic
+                                : rplIsSecondaryPending
+                                  ? copy.pendingSecondary
+                                  : copy.noPathway}
+                          </h3>
+                          <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+                            {hasOpenCaseOnOtherDoor
+                              ? copy.openOtherCaseHint
+                              : academicIsPending
+                                ? copy.pendingAcademicHint
+                                : rplIsSecondaryPending
+                                  ? copy.pendingSecondaryHint
+                                  : copy.noPathway}
+                          </p>
+                        </div>
+                        {!hasOpenCaseOnOtherDoor &&
+                        (academicIsPending || rplIsSecondaryPending) ? (
+                          <Badge variant="warning">{copy.unverified}</Badge>
+                        ) : null}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
