@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   MAX_DOCUMENT_BYTES,
   MAX_READABLE_DOCUMENTS,
+  MAX_TOTAL_BYTES,
+  base64EncodedSize,
   projectEvidenceReadability,
 } from './evidenceReadability'
 
@@ -103,35 +105,81 @@ describe('projectEvidenceReadability', () => {
     expect(projection.withheld[0]).toMatchObject({ reason: 'file_too_large' })
   })
 
-  it('stops at the reader’s real document ceiling, which is six and not twelve', () => {
-    const rows = Array.from({ length: MAX_READABLE_DOCUMENTS + 2 }, (_, index) => pdf(index + 1))
+  it('stops at the reader’s document ceiling, which is twelve documents', () => {
+    const rows = Array.from({ length: 14 }, (_, index) => pdf(index + 1))
     const projection = projectEvidenceReadability(rows)
 
     /*
-     * The reader's constant is MAX_DOCUMENTS = 12, but it counts PARTS and
-     * appends two per document (a label and the inline data), so the seventh
-     * document is the first refused. Telling the administrator all eight will be
-     * read when two silently will not is the failure this whole file exists to
-     * prevent.
+     * RplAdvisoryEvidenceReader::MAX_DOCUMENTS = 12, and the reader counts the
+     * documents it included, not the two parts it sends for each. The
+     * thirteenth is the first refused. This projection used to stop at six,
+     * mirroring the reader's old part-counting bug, and so told administrators
+     * that six of their twelve readable documents would be withheld.
      */
-    expect(projection.readable).toHaveLength(MAX_READABLE_DOCUMENTS)
+    expect(MAX_READABLE_DOCUMENTS).toBe(12)
+    expect(projection.readable).toHaveLength(12)
     expect(projection.withheld).toHaveLength(2)
-    expect(projection.withheld[0]).toMatchObject({ reason: 'document_limit_reached' })
+    expect(projection.withheld[0]).toMatchObject({ evidence_id: 13, reason: 'document_limit_reached' })
   })
 
-  it('withholds once the whole-request size ceiling would be crossed', () => {
+  it('does not count a withheld document towards the ceiling', () => {
+    const rows = [
+      { id: 100, title: 'Curriculum vitae', media: { mime_type: DOCX_MIME, size: 40_000 } },
+      ...Array.from({ length: 12 }, (_, index) => pdf(index + 1)),
+    ]
+    const projection = projectEvidenceReadability(rows)
+
+    // The reader increments its count only for a document it actually sends.
+    expect(projection.readable).toHaveLength(12)
+    expect(projection.withheld).toEqual([
+      expect.objectContaining({ evidence_id: 100, reason: 'unsupported_format' }),
+    ])
+  })
+
+  it('sizes the request budget by the base64 payload, as the reader does', () => {
+    expect(base64EncodedSize(0)).toBe(0)
+    expect(base64EncodedSize(1)).toBe(4)
+    expect(base64EncodedSize(3)).toBe(4)
+    expect(base64EncodedSize(4)).toBe(8)
+    expect(base64EncodedSize(MAX_DOCUMENT_BYTES)).toBe(5_592_408)
+  })
+
+  it('withholds a third 4 MiB scan, whose raw sizes would still fit under 14 MiB', () => {
     const projection = projectEvidenceReadability([
-      pdf(1, 4 * 1024 * 1024),
-      pdf(2, 4 * 1024 * 1024),
-      pdf(3, 4 * 1024 * 1024),
-      pdf(4, 4 * 1024 * 1024),
+      pdf(1, MAX_DOCUMENT_BYTES),
+      pdf(2, MAX_DOCUMENT_BYTES),
+      pdf(3, MAX_DOCUMENT_BYTES),
     ])
 
-    expect(projection.readable).toHaveLength(3)
-    expect(projection.withheld[0]).toMatchObject({
-      evidence_id: 4,
-      reason: 'request_size_limit_reached',
-    })
+    /*
+     * Raw, the three add up to 12 MiB, under the 14 MiB ceiling. Encoded, which
+     * is what the reader adds up, each is 5,592,408 bytes and the third would
+     * take the request to 16,777,224 against 14,680,064. Summing raw sizes here
+     * would promise a document the server withholds.
+     */
+    expect(3 * MAX_DOCUMENT_BYTES).toBeLessThan(MAX_TOTAL_BYTES)
+    expect(projection.readable).toHaveLength(2)
+    expect(projection.withheld).toEqual([
+      expect.objectContaining({
+        evidence_id: 3,
+        reason: 'request_size_limit_reached',
+        size: MAX_DOCUMENT_BYTES,
+        encoded_size: 5_592_408,
+      }),
+    ])
+  })
+
+  it('still reads a smaller document that fits in the budget a larger one could not', () => {
+    const projection = projectEvidenceReadability([
+      pdf(1, MAX_DOCUMENT_BYTES),
+      pdf(2, MAX_DOCUMENT_BYTES),
+      pdf(3, MAX_DOCUMENT_BYTES),
+      pdf(4, 1024),
+    ])
+
+    // The reader skips the one that does not fit and keeps going, so does this.
+    expect(projection.readable.map((item) => item.evidence_id)).toEqual([1, 2, 4])
+    expect(projection.withheld[0]).toMatchObject({ evidence_id: 3, reason: 'request_size_limit_reached' })
   })
 
   it('treats a mixed set as partial rather than refused', () => {

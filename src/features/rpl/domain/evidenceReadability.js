@@ -33,19 +33,33 @@ export const READABLE_MIME_TYPES = [
 /** RplAdvisoryEvidenceReader::MAX_DOCUMENT_BYTES. */
 export const MAX_DOCUMENT_BYTES = 4 * 1024 * 1024
 
-/** RplAdvisoryEvidenceReader::MAX_TOTAL_BYTES — the whole-request ceiling. */
+/*
+ * RplAdvisoryEvidenceReader::MAX_TOTAL_BYTES — the whole-request ceiling, measured
+ * on the BASE64 payload, not on the files' own sizes.
+ *
+ * The reader encodes each document and adds the encoded length to the budget,
+ * because base64 is what travels: four bytes out for every three in. So three
+ * 4 MiB scans do not fit (about 16 MiB encoded) although their raw sizes add up
+ * to 12 MiB. Summing raw sizes here would promise a third document the server
+ * withholds.
+ */
 export const MAX_TOTAL_BYTES = 14 * 1024 * 1024
 
+/** The length of base64_encode() output for `bytes` bytes of input: no line breaks, padded to whole quads. */
+export function base64EncodedSize(bytes) {
+  return 4 * Math.ceil(Math.max(0, bytes) / 3)
+}
+
 /*
- * SIX, NOT TWELVE, AND THAT IS DELIBERATE.
+ * TWELVE DOCUMENTS, COUNTED AS DOCUMENTS.
  *
- * The reader's ceiling is `count($parts) >= MAX_DOCUMENTS` with MAX_DOCUMENTS = 12,
- * but it appends TWO parts per document — a label part and the inline data — so
- * the seventh document is the first one refused. This mirrors what the server
- * does, not what its constant is named. If the server is corrected to count
- * documents, raise this to 12 with it.
+ * RplAdvisoryEvidenceReader::MAX_DOCUMENTS = 12. The reader once tested
+ * `count($parts)` while appending two parts per document (a label and the inline
+ * data), which admitted six, and this projection mirrored that. The reader now
+ * counts documents it actually included, so the thirteenth readable document is
+ * the first refused.
  */
-export const MAX_READABLE_DOCUMENTS = 6
+export const MAX_READABLE_DOCUMENTS = 12
 
 /** The reader's machine reason codes. The UI translates them; the manifest stores them. */
 export const WITHHELD_REASONS = [
@@ -84,7 +98,7 @@ export function projectEvidenceReadability(evidence) {
   const rows = Array.isArray(evidence) ? evidence : []
   const readable = []
   const withheld = []
-  let totalBytes = 0
+  let totalEncodedBytes = 0
 
   for (const item of rows) {
     if (readable.length >= MAX_READABLE_DOCUMENTS) {
@@ -111,13 +125,16 @@ export function projectEvidenceReadability(evidence) {
       continue
     }
 
-    if (totalBytes + size > MAX_TOTAL_BYTES) {
-      withheld.push(describe(item, { reason: 'request_size_limit_reached', size }))
+    const encodedSize = base64EncodedSize(size)
+    if (totalEncodedBytes + encodedSize > MAX_TOTAL_BYTES) {
+      withheld.push(
+        describe(item, { reason: 'request_size_limit_reached', size, encoded_size: encodedSize }),
+      )
       continue
     }
 
-    totalBytes += size
-    readable.push(describe(item, { mime_type: mime, size }))
+    totalEncodedBytes += encodedSize
+    readable.push(describe(item, { mime_type: mime, size, encoded_size: encodedSize }))
   }
 
   return {

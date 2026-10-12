@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  Briefcase,
   FilePlus2,
   FolderOpen,
   GraduationCap,
   LoaderCircle,
   Pencil,
+  Plus,
   Save,
   Trash2,
   UserRound,
@@ -22,6 +24,7 @@ import {
   Input,
   PageHeader,
   Select,
+  Textarea,
 } from "../../../components/ui";
 import {
   unwrapApiData,
@@ -29,14 +32,17 @@ import {
   readApiError,
 } from "../../../services/apiResponse";
 import {
+  createUserExperience,
   createUserQualification,
   deleteUser,
+  deleteUserExperience,
   deleteUserQualification,
   enrollUserByStaff,
   fetchUser,
   fetchUserProfessionalEligibility,
   purgeUser,
   updateUser,
+  updateUserExperience,
   updateUserQualification,
 } from "../services/usersService";
 import {
@@ -55,6 +61,7 @@ import RplStatusBadge from "../../rpl/components/RplStatusBadge";
 import RoleAssignmentPanel from "../components/RoleAssignmentPanel";
 import {
   formatLocalizedDate,
+  formatLocalizedDateTime,
   formatLocalizedNumber,
 } from "../../../utils/localization";
 
@@ -190,6 +197,41 @@ export const copyByLanguage = {
     updateFailed: "Unable to update user information.",
     updated: "User information updated successfully.",
     saving: "Saving…",
+    intakeOpenCase: "This client already has an open RPL request",
+    intakeOpenCaseHint:
+      "A client holds one open RPL request at a time. Continue that request, or close it before opening another. This rule cannot be overridden.",
+    intakeOpenCaseReference: "Open request",
+    intakeCooldown:
+      "The waiting period after a declined request is still running",
+    intakeCooldownFrom: "The client may open a new request from",
+    overrideCooldown: "Override the waiting period",
+    overrideReason: "Reason for the override",
+    overrideReasonHint:
+      "Required, 10 to 2,000 characters. It is recorded in the audit trail with the new request.",
+    experiences: "Work experience",
+    experiencesHint:
+      "At least one work experience is required before an RPL request can be submitted.",
+    noExperiences: "No work experience is recorded for this client yet.",
+    addExperience: "Add work experience",
+    updateExperience: "Update work experience",
+    editExperience: "Edit",
+    deleteExperience: "Delete",
+    jobTitle: "Job title",
+    organization: "Organisation",
+    experienceDescription: "Description of the role",
+    experienceStart: "Started on",
+    experienceEnd: "Ended on",
+    isCurrent: "Currently works here",
+    experienceCurrent: "current",
+    country: "Country code",
+    countryHint: "Two letters, ISO 3166-1 alpha-2 (for example SY, JO, NL).",
+    city: "City",
+    website: "Employer website",
+    registrationNumber: "Employer registration number",
+    experienceSaved: "Work experience saved.",
+    experienceDeleted: "Work experience deleted.",
+    experienceFailed: "Unable to save the work experience.",
+    confirmDeleteExperience: "Delete this work experience?",
   },
   ar: {
     workspace: "مساحة عمل العميل",
@@ -311,6 +353,40 @@ export const copyByLanguage = {
     updateFailed: "تعذر تحديث بيانات المستخدم.",
     updated: "تم تحديث بيانات المستخدم بنجاح.",
     saving: "جارٍ الحفظ…",
+    intakeOpenCase: "لدى هذا العميل طلب RPL مفتوح بالفعل",
+    intakeOpenCaseHint:
+      "للعميل طلب RPL واحد مفتوح في كل مرة. تابع ذلك الطلب أو أغلقه قبل فتح طلب آخر. لا يمكن تجاوز هذه القاعدة.",
+    intakeOpenCaseReference: "الطلب المفتوح",
+    intakeCooldown: "فترة الانتظار بعد رفض الطلب السابق ما زالت سارية",
+    intakeCooldownFrom: "يمكن للعميل فتح طلب جديد اعتبارًا من",
+    overrideCooldown: "تجاوز فترة الانتظار",
+    overrideReason: "سبب التجاوز",
+    overrideReasonHint:
+      "مطلوب، من 10 إلى 2000 حرف. يُسجَّل في سجل التدقيق مع الطلب الجديد.",
+    experiences: "الخبرة العملية",
+    experiencesHint:
+      "يجب تسجيل خبرة عملية واحدة على الأقل قبل أن يمكن تقديم طلب RPL.",
+    noExperiences: "لم تُسجَّل أي خبرة عملية لهذا العميل بعد.",
+    addExperience: "إضافة خبرة عملية",
+    updateExperience: "تحديث الخبرة العملية",
+    editExperience: "تعديل",
+    deleteExperience: "حذف",
+    jobTitle: "المسمى الوظيفي",
+    organization: "جهة العمل",
+    experienceDescription: "وصف الدور",
+    experienceStart: "تاريخ البدء",
+    experienceEnd: "تاريخ الانتهاء",
+    isCurrent: "ما زال يعمل هنا",
+    experienceCurrent: "حتى الآن",
+    country: "رمز الدولة",
+    countryHint: "حرفان لاتينيان وفق ISO 3166-1 alpha-2 (مثل SY أو JO أو NL).",
+    city: "المدينة",
+    website: "الموقع الإلكتروني لجهة العمل",
+    registrationNumber: "رقم السجل التجاري لجهة العمل",
+    experienceSaved: "تم حفظ الخبرة العملية.",
+    experienceDeleted: "تم حذف الخبرة العملية.",
+    experienceFailed: "تعذر حفظ الخبرة العملية.",
+    confirmDeleteExperience: "هل تريد حذف هذه الخبرة العملية؟",
   },
   nl: {
     workspace: "Cliëntwerkruimte",
@@ -442,6 +518,41 @@ export const copyByLanguage = {
     updateFailed: "Gebruikersgegevens kunnen niet worden bijgewerkt.",
     updated: "Gebruikersgegevens bijgewerkt.",
     saving: "Opslaan…",
+    intakeOpenCase: "Deze cliënt heeft al een open RPL-aanvraag",
+    intakeOpenCaseHint:
+      "Een cliënt heeft één open RPL-aanvraag tegelijk. Zet die aanvraag voort of sluit haar voordat u een nieuwe opent. Deze regel kan niet worden overschreven.",
+    intakeOpenCaseReference: "Open aanvraag",
+    intakeCooldown: "De wachttijd na een afgewezen aanvraag loopt nog",
+    intakeCooldownFrom: "De cliënt mag een nieuwe aanvraag openen vanaf",
+    overrideCooldown: "De wachttijd overschrijven",
+    overrideReason: "Reden voor het overschrijven",
+    overrideReasonHint:
+      "Verplicht, 10 tot 2.000 tekens. Wordt met de nieuwe aanvraag in het auditspoor vastgelegd.",
+    experiences: "Werkervaring",
+    experiencesHint:
+      "Er is minstens één werkervaring nodig voordat een RPL-aanvraag kan worden ingediend.",
+    noExperiences: "Voor deze cliënt is nog geen werkervaring vastgelegd.",
+    addExperience: "Werkervaring toevoegen",
+    updateExperience: "Werkervaring bijwerken",
+    editExperience: "Bewerken",
+    deleteExperience: "Verwijderen",
+    jobTitle: "Functietitel",
+    organization: "Organisatie",
+    experienceDescription: "Beschrijving van de functie",
+    experienceStart: "Begonnen op",
+    experienceEnd: "Beëindigd op",
+    isCurrent: "Werkt hier nog",
+    experienceCurrent: "heden",
+    country: "Landcode",
+    countryHint:
+      "Twee letters, ISO 3166-1 alpha-2 (bijvoorbeeld SY, JO, NL).",
+    city: "Plaats",
+    website: "Website van de werkgever",
+    registrationNumber: "Inschrijvingsnummer van de werkgever",
+    experienceSaved: "Werkervaring opgeslagen.",
+    experienceDeleted: "Werkervaring verwijderd.",
+    experienceFailed: "Werkervaring kan niet worden opgeslagen.",
+    confirmDeleteExperience: "Deze werkervaring verwijderen?",
   },
 };
 
@@ -498,6 +609,72 @@ function qualificationFormFrom(qualification) {
     is_verified: Boolean(qualification?.is_verified),
   };
 }
+
+function emptyExperience() {
+  return {
+    job_title: "",
+    organization: "",
+    description: "",
+    started_on: "",
+    ended_on: "",
+    is_current: false,
+    country: "",
+    city: "",
+    website: "",
+    registration_number: "",
+  };
+}
+
+function experienceFormFrom(experience) {
+  return {
+    job_title: experience?.job_title || "",
+    organization: experience?.organization || "",
+    description: experience?.description || "",
+    started_on: dateInput(experience?.started_on),
+    ended_on: dateInput(experience?.ended_on),
+    is_current: Boolean(experience?.is_current),
+    country: experience?.country || "",
+    city: experience?.city || "",
+    website: experience?.website || "",
+    registration_number: experience?.registration_number || "",
+  };
+}
+
+/*
+ * The body for POST/PUT /admin/users/{user}/experiences — exactly the fields of
+ * ProfileController::experienceRules, nothing more. Blank optional fields are
+ * sent as null so an edit can clear them; a current role has no end date.
+ */
+function experiencePayload(form) {
+  const optional = (value) => {
+    const trimmed = String(value ?? "").trim();
+    return trimmed === "" ? null : trimmed;
+  };
+  return {
+    job_title: form.job_title.trim(),
+    organization: form.organization.trim(),
+    description: optional(form.description),
+    started_on: optional(form.started_on),
+    ended_on: form.is_current ? null : optional(form.ended_on),
+    is_current: Boolean(form.is_current),
+    country: optional(form.country)?.toUpperCase() ?? null,
+    city: optional(form.city),
+    website: optional(form.website),
+    registration_number: optional(form.registration_number),
+  };
+}
+
+/* ISO 3166-1 alpha-2 as typed: Latin letters only, uppercased, at most two. */
+function countryCodeInput(value) {
+  return String(value || "")
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "")
+    .slice(0, 2);
+}
+
+/* The server's own bounds on override_reason, applied to the trimmed text. */
+const OVERRIDE_REASON_MIN = 10;
+const OVERRIDE_REASON_MAX = 2000;
 
 function qualificationTypeLabel(type, language) {
   const labels = {
@@ -582,6 +759,12 @@ export default function UserWorkspacePage() {
     useState(emptyQualification());
   const [editingQualificationId, setEditingQualificationId] = useState(null);
   const [savingQualification, setSavingQualification] = useState(false);
+  const [experienceForm, setExperienceForm] = useState(emptyExperience());
+  // null: the form is closed; "new": adding; otherwise the id being edited.
+  const [editingExperienceId, setEditingExperienceId] = useState(null);
+  const [savingExperience, setSavingExperience] = useState(false);
+  const [overrideCooldown, setOverrideCooldown] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
 
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: "" }));
@@ -707,15 +890,70 @@ export default function UserWorkspacePage() {
     }
   }
 
+  function closeExperienceForm() {
+    setEditingExperienceId(null);
+    setExperienceForm(emptyExperience());
+  }
+
+  async function saveExperience() {
+    setSavingExperience(true);
+    setState((current) => ({ ...current, error: "", message: "" }));
+    try {
+      const payload = experiencePayload(experienceForm);
+      if (editingExperienceId && editingExperienceId !== "new")
+        await updateUserExperience(userId, editingExperienceId, payload);
+      else await createUserExperience(userId, payload);
+      closeExperienceForm();
+      await load();
+      setState((current) => ({ ...current, message: copy.experienceSaved }));
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        error: readApiError(error, copy.experienceFailed),
+      }));
+    } finally {
+      setSavingExperience(false);
+    }
+  }
+
+  async function removeExperience(experience) {
+    if (!window.confirm(copy.confirmDeleteExperience)) return;
+    setSavingExperience(true);
+    setState((current) => ({ ...current, error: "", message: "" }));
+    try {
+      await deleteUserExperience(userId, experience.id);
+      if (editingExperienceId === experience.id) closeExperienceForm();
+      await load();
+      setState((current) => ({ ...current, message: copy.experienceDeleted }));
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        error: readApiError(error, copy.experienceFailed),
+      }));
+    } finally {
+      setSavingExperience(false);
+    }
+  }
+
   async function startRpl(pathwayId) {
     if (!pathwayId || !targetLevelId) return;
     setBusy(true);
     try {
-      const response = await createRplApplication({
+      const payload = {
         user_id: Number(userId),
         pathway_id: Number(pathwayId),
         requested_level_id: Number(targetLevelId),
-      });
+      };
+      // The waiting-period override travels only when staff ticked it while the
+      // cooldown applies; every other request is byte-for-byte what it was.
+      if (
+        overrideCooldown &&
+        state.eligibility?.rpl?.intake?.reason_code === "reapply_cooldown"
+      ) {
+        payload.override_reapply_cooldown = true;
+        payload.override_reason = overrideReason.trim();
+      }
+      const response = await createRplApplication(payload);
       const application = unwrapApiData(response);
       navigate(`/rpl/applications/${application.public_id || application.id}`);
     } catch (error) {
@@ -794,6 +1032,23 @@ export default function UserWorkspacePage() {
   const professionalEligibility =
     state.eligibility?.professional_qualifications;
   const rplEligibility = state.eligibility?.rpl;
+  /*
+   * THE INTAKE RULES (owner, 12 Oct 2026), beside the door rather than inside
+   * it: the door says WHICH pathway, `intake` says whether a NEW case may be
+   * opened on it now. One open RPL request per client, never overridable; and a
+   * waiting period after a declined request, which staff may override with a
+   * written, audited reason. The server enforces both whatever this page shows.
+   */
+  const rplIntake = rplEligibility?.intake || null;
+  const intakeHasOpenCase = rplIntake?.reason_code === "open_rpl_case";
+  const intakeInCooldown = rplIntake?.reason_code === "reapply_cooldown";
+  const overrideReasonLength = overrideReason.trim().length;
+  const overrideReasonIsValid =
+    overrideReasonLength >= OVERRIDE_REASON_MIN &&
+    overrideReasonLength <= OVERRIDE_REASON_MAX;
+  const intakeBlocksStart =
+    intakeHasOpenCase ||
+    (intakeInCooldown && !(overrideCooldown && overrideReasonIsValid));
   const routePathway = state.pathways.find(
     (pathway) => pathway.code === rplEligibility?.recommended_pathway_code,
   );
@@ -806,6 +1061,8 @@ export default function UserWorkspacePage() {
     setProfileForm((current) => ({ ...current, [field]: value }));
   const setQualificationField = (field, value) =>
     setQualificationForm((current) => ({ ...current, [field]: value }));
+  const setExperienceField = (field, value) =>
+    setExperienceForm((current) => ({ ...current, [field]: value }));
   /*
    * THE TWO DOORS (owner decision, 12 Oct 2026). Every client gets exactly one:
    * an intermediate-institute diploma, licence, bachelor or higher → the
@@ -1300,6 +1557,254 @@ export default function UserWorkspacePage() {
                 </CardContent>
               </Card>
 
+              {/*
+                WORK EXPERIENCE (owner flow, 12 Oct 2026). At least one on the
+                client's profile is a submit requirement for an RPL request, and
+                an on-site client may have no way to record it themselves, so
+                staff can. The employer fields are what makes the company
+                checkable: an ISO country code, city, website and registration
+                number, all optional.
+              */}
+              <Card data-testid="work-experiences">
+                <CardHeader className="flex flex-row items-start justify-between gap-3 border-b border-[var(--color-border)]">
+                  <div>
+                    <CardTitle>{copy.experiences}</CardTitle>
+                    <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                      {copy.experiencesHint}
+                    </p>
+                  </div>
+                  {canManageUsers && editingExperienceId === null ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setExperienceForm(emptyExperience());
+                        setEditingExperienceId("new");
+                      }}
+                    >
+                      <Plus size={16} />
+                      {copy.addExperience}
+                    </Button>
+                  ) : null}
+                </CardHeader>
+                <CardContent className="space-y-5 p-6">
+                  {(user.work_experiences || []).length ? (
+                    <div className="grid gap-3">
+                      {user.work_experiences.map((experience) => (
+                        <div
+                          key={experience.id}
+                          className="flex flex-col justify-between gap-3 rounded-xl border border-[var(--color-border)] p-4 md:flex-row md:items-center"
+                        >
+                          <div>
+                            <strong>{experience.job_title}</strong>
+                            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                              {experience.organization}
+                              {experience.started_on ||
+                              experience.ended_on ||
+                              experience.is_current
+                                ? ` · ${dateForLanguage(experience.started_on, language)} – ${
+                                    experience.is_current
+                                      ? copy.experienceCurrent
+                                      : dateForLanguage(
+                                          experience.ended_on,
+                                          language,
+                                        )
+                                  }`
+                                : ""}
+                              {experience.city || experience.country
+                                ? ` · ${[experience.city, experience.country]
+                                    .filter(Boolean)
+                                    .join(", ")}`
+                                : ""}
+                            </p>
+                            {experience.website ||
+                            experience.registration_number ? (
+                              <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                                {[
+                                  experience.website,
+                                  experience.registration_number,
+                                ]
+                                  .filter(Boolean)
+                                  .map((value, index) => (
+                                    <bdi key={index} className="me-3">
+                                      {value}
+                                    </bdi>
+                                  ))}
+                              </p>
+                            ) : null}
+                          </div>
+                          {canManageUsers ? (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingExperienceId(experience.id);
+                                  setExperienceForm(
+                                    experienceFormFrom(experience),
+                                  );
+                                }}
+                              >
+                                <Pencil size={15} />
+                                {copy.editExperience}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="danger"
+                                disabled={savingExperience}
+                                onClick={() => removeExperience(experience)}
+                              >
+                                <Trash2 size={15} />
+                                {copy.deleteExperience}
+                              </Button>
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[var(--color-text-muted)]">
+                      {copy.noExperiences}
+                    </p>
+                  )}
+                  {canManageUsers && editingExperienceId !== null ? (
+                    <div className="grid gap-4 rounded-xl border border-sky-200 bg-sky-50/60 p-5 md:grid-cols-2">
+                      <Input
+                        label={copy.jobTitle}
+                        required
+                        maxLength={255}
+                        value={experienceForm.job_title}
+                        onChange={(event) =>
+                          setExperienceField("job_title", event.target.value)
+                        }
+                      />
+                      <Input
+                        label={copy.organization}
+                        required
+                        maxLength={255}
+                        value={experienceForm.organization}
+                        onChange={(event) =>
+                          setExperienceField("organization", event.target.value)
+                        }
+                      />
+                      <Input
+                        label={copy.experienceStart}
+                        type="date"
+                        value={experienceForm.started_on}
+                        onChange={(event) =>
+                          setExperienceField("started_on", event.target.value)
+                        }
+                      />
+                      <Input
+                        label={copy.experienceEnd}
+                        type="date"
+                        disabled={experienceForm.is_current}
+                        value={experienceForm.ended_on}
+                        onChange={(event) =>
+                          setExperienceField("ended_on", event.target.value)
+                        }
+                      />
+                      <label className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-semibold md:col-span-2">
+                        <input
+                          type="checkbox"
+                          checked={experienceForm.is_current}
+                          onChange={(event) =>
+                            setExperienceForm((current) => ({
+                              ...current,
+                              is_current: event.target.checked,
+                              ended_on: event.target.checked
+                                ? ""
+                                : current.ended_on,
+                            }))
+                          }
+                        />
+                        {copy.isCurrent}
+                      </label>
+                      <Input
+                        label={copy.country}
+                        hint={copy.countryHint}
+                        maxLength={2}
+                        autoComplete="off"
+                        inputClassName="uppercase"
+                        value={experienceForm.country}
+                        onChange={(event) =>
+                          setExperienceField(
+                            "country",
+                            countryCodeInput(event.target.value),
+                          )
+                        }
+                      />
+                      <Input
+                        label={copy.city}
+                        maxLength={120}
+                        value={experienceForm.city}
+                        onChange={(event) =>
+                          setExperienceField("city", event.target.value)
+                        }
+                      />
+                      <Input
+                        label={copy.website}
+                        type="url"
+                        dir="ltr"
+                        placeholder="https://"
+                        maxLength={2048}
+                        value={experienceForm.website}
+                        onChange={(event) =>
+                          setExperienceField("website", event.target.value)
+                        }
+                      />
+                      <Input
+                        label={copy.registrationNumber}
+                        maxLength={120}
+                        value={experienceForm.registration_number}
+                        onChange={(event) =>
+                          setExperienceField(
+                            "registration_number",
+                            event.target.value,
+                          )
+                        }
+                      />
+                      <Textarea
+                        className="md:col-span-2"
+                        label={copy.experienceDescription}
+                        rows={3}
+                        value={experienceForm.description}
+                        onChange={(event) =>
+                          setExperienceField("description", event.target.value)
+                        }
+                      />
+                      <div className="flex flex-wrap items-end gap-3 md:col-span-2">
+                        <Button
+                          onClick={saveExperience}
+                          disabled={
+                            savingExperience ||
+                            !experienceForm.job_title.trim() ||
+                            !experienceForm.organization.trim() ||
+                            ![0, 2].includes(experienceForm.country.length)
+                          }
+                        >
+                          {savingExperience ? (
+                            <LoaderCircle className="animate-spin" size={17} />
+                          ) : (
+                            <Briefcase size={17} />
+                          )}
+                          {editingExperienceId === "new"
+                            ? copy.addExperience
+                            : copy.updateExperience}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          disabled={savingExperience}
+                          onClick={closeExperienceForm}
+                        >
+                          {copy.cancel}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader className="border-b border-[var(--color-border)]">
                   <CardTitle>{copy.routing}</CardTitle>
@@ -1346,9 +1851,73 @@ export default function UserWorkspacePage() {
                         <p className="text-xs leading-5 text-[var(--color-text-muted)]">
                           {copy.targetLevelHint}
                         </p>
+                        {intakeHasOpenCase ? (
+                          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6">
+                            <p className="font-semibold">
+                              {copy.intakeOpenCase}
+                            </p>
+                            <p className="mt-1 text-[var(--color-text-muted)]">
+                              {copy.intakeOpenCaseHint}
+                            </p>
+                            {rplIntake.open_case_reference ? (
+                              <p className="mt-2">
+                                {copy.intakeOpenCaseReference}:{" "}
+                                <bdi className="font-bold">
+                                  {rplIntake.open_case_reference}
+                                </bdi>
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : null}
+                        {intakeInCooldown ? (
+                          <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6">
+                            <div>
+                              <p className="font-semibold">
+                                {copy.intakeCooldown}
+                              </p>
+                              <p className="mt-1">
+                                {copy.intakeCooldownFrom}{" "}
+                                <bdi className="font-bold">
+                                  {/* A precise moment, not a day: the API keeps
+                                      refusing until it has passed. */}
+                                  {formatLocalizedDateTime(
+                                    rplIntake.reapply_available_at,
+                                    language,
+                                  )}
+                                </bdi>
+                              </p>
+                            </div>
+                            <label className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-sm font-semibold">
+                              <input
+                                type="checkbox"
+                                checked={overrideCooldown}
+                                onChange={(event) =>
+                                  setOverrideCooldown(event.target.checked)
+                                }
+                              />
+                              {copy.overrideCooldown}
+                            </label>
+                            <Textarea
+                              label={copy.overrideReason}
+                              rows={3}
+                              maxLength={OVERRIDE_REASON_MAX}
+                              required={overrideCooldown}
+                              aria-invalid={
+                                overrideCooldown && !overrideReasonIsValid
+                                  ? true
+                                  : undefined
+                              }
+                              value={overrideReason}
+                              onChange={(event) =>
+                                setOverrideReason(event.target.value)
+                              }
+                              hint={copy.overrideReasonHint}
+                            />
+                          </div>
+                        ) : null}
                         <Button
                           onClick={() => startRpl(routePathway.id)}
-                          disabled={busy || !targetLevelId}
+                          disabled={busy || !targetLevelId || intakeBlocksStart}
                         >
                           {busy ? (
                             <LoaderCircle className="animate-spin" size={17} />

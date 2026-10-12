@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DECLINE_REASONS,
   EVIDENCE_CATEGORIES,
   EVIDENCE_UPLOAD_POLICY,
   evidencePreviewKind,
@@ -7,6 +8,7 @@ import {
   isEvidenceEligibleForAssessment,
   MAX_EVIDENCE_FILE_SIZE,
   readApplicationCompleteness,
+  readApplicationDecline,
   readApplicationDeclarationAccepted,
   validateEvidenceFile,
 } from './rpl'
@@ -81,5 +83,80 @@ describe('RPL application evidence contract', () => {
   it('publishes the immutable runtime upload policy', () => {
     expect(EVIDENCE_UPLOAD_POLICY.maxFileSizeBytes).toBe(50 * 1024 * 1024)
     expect(EVIDENCE_UPLOAD_POLICY.extensions).toEqual(['pdf', 'jpg', 'jpeg', 'png', 'docx', 'xlsx', 'pptx', 'mp4', 'mp3'])
+  })
+})
+
+/*
+ * THE DECLINE STAMP (owner, 12 Oct 2026).
+ *
+ * Every move into `rejected` now records why (a code from App\Enums\RplDeclineReason)
+ * and when the same client may open a new RPL case. Staff see both on the case.
+ * The date is the one frozen at the rejection, never one recomputed from the
+ * cooldown setting as it stands today.
+ */
+describe('RPL decline stamp', () => {
+  it('labels every code the API can stamp, in all three languages', () => {
+    expect(Object.keys(DECLINE_REASONS).sort()).toEqual([
+      'appeal_rejected',
+      'committee_rejected',
+      'intake_declined',
+      'interview_declined',
+      'interview_no_show',
+      'quiz_below_pass_mark',
+      'screening_declined',
+    ])
+    for (const { labels } of Object.values(DECLINE_REASONS)) {
+      expect(Object.keys(labels).sort()).toEqual(['ar', 'en', 'nl'])
+      expect(Object.values(labels).every((label) => typeof label === 'string' && label.trim() !== '')).toBe(true)
+    }
+  })
+
+  it('reads the stored reason and reapply date of a rejected case', () => {
+    const application = {
+      status: 'rejected',
+      decline_reason_code: 'intake_declined',
+      reapply_available_at: '2026-10-19T10:00:00+00:00',
+    }
+
+    expect(readApplicationDecline(application, 'en')).toEqual({
+      code: 'intake_declined',
+      reason: 'Declined at the initial review',
+      reapplyAvailableAt: '2026-10-19T10:00:00+00:00',
+      reapplyDerived: false,
+    })
+    expect(readApplicationDecline(application, 'ar').reason).toBe(DECLINE_REASONS.intake_declined.labels.ar)
+    expect(readApplicationDecline(application, 'nl').reason).toBe(DECLINE_REASONS.intake_declined.labels.nl)
+  })
+
+  it('shows nothing for a case that carries no stamp and imposes no date', () => {
+    // An open case, and a case rejected before the stamp existed under a scope that gives it no cooldown.
+    expect(readApplicationDecline({ status: 'submitted', effective_reapply_available_at: null })).toBeNull()
+    expect(readApplicationDecline({ status: 'rejected', decline_reason_code: null, reapply_available_at: null, effective_reapply_available_at: null })).toBeNull()
+    expect(readApplicationDecline(null)).toBeNull()
+  })
+
+  it('shows the date the API holds a pre-stamp rejection to, flagged as derived', () => {
+    // Rejected before the stamp existed: no code, no stored date, but the intake
+    // check refuses the client until finalised_at + the governed days.
+    expect(readApplicationDecline({ status: 'rejected', decline_reason_code: null, reapply_available_at: null, effective_reapply_available_at: '2026-10-17T12:00:00.000000Z' }, 'en')).toEqual({
+      code: null,
+      reason: null,
+      reapplyAvailableAt: '2026-10-17T12:00:00.000000Z',
+      reapplyDerived: true,
+    })
+    // A stored stamp always wins over the derived date.
+    expect(readApplicationDecline({ decline_reason_code: 'intake_declined', reapply_available_at: '2026-10-19T10:00:00.000000Z', effective_reapply_available_at: '2026-11-11T10:00:00.000000Z' })).toMatchObject({
+      reapplyAvailableAt: '2026-10-19T10:00:00.000000Z',
+      reapplyDerived: false,
+    })
+  })
+
+  it('shows an unknown code as itself rather than hiding it', () => {
+    expect(readApplicationDecline({ decline_reason_code: 'some_future_code', reapply_available_at: null }, 'en')).toEqual({
+      code: 'some_future_code',
+      reason: 'some_future_code',
+      reapplyAvailableAt: null,
+      reapplyDerived: false,
+    })
   })
 })

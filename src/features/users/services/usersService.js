@@ -46,6 +46,29 @@ export async function deleteUserQualification(userId, qualificationId) {
   return response.data
 }
 
+/*
+ * WORK EXPERIENCE, ON THE CLIENT'S BEHALF.
+ *
+ * At least one work experience on the client's profile is a submit requirement
+ * for an RPL request, and an on-site client may have no way to add it
+ * themselves. These mirror the client's own /profile/experiences routes and take
+ * exactly the same body fields; an experience that is not this user's is a 404.
+ */
+export async function createUserExperience(userId, payload) {
+  const response = await http.post(`/admin/users/${userId}/experiences`, payload)
+  return response.data
+}
+
+export async function updateUserExperience(userId, experienceId, payload) {
+  const response = await http.put(`/admin/users/${userId}/experiences/${experienceId}`, payload)
+  return response.data
+}
+
+export async function deleteUserExperience(userId, experienceId) {
+  const response = await http.delete(`/admin/users/${userId}/experiences/${experienceId}`)
+  return response.data
+}
+
 export async function enrollUserByStaff(id, programId) {
   const response = await http.post(`/admin/users/${id}/enrollments`, { program_id: Number(programId) })
   return response.data

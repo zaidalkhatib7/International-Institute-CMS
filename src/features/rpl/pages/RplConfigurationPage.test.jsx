@@ -52,6 +52,8 @@ beforeEach(() => {
       gemini_advisory_model: 'gemini-3.5-flash',
       gemini_advisory_prompt: longPrompt,
       rpl_advisory_include_evidence_documents: true,
+      rpl_reapply_cooldown_days: 7,
+      rpl_reapply_cooldown_scope: 'all_rejections',
     },
   })
 })
@@ -147,6 +149,8 @@ describe('the evidence-documents kill switch', () => {
         gemini_advisory_model: 'gemini-3.5-flash',
         gemini_advisory_prompt: longPrompt,
         rpl_advisory_include_evidence_documents: false,
+        rpl_reapply_cooldown_days: 7,
+        rpl_reapply_cooldown_scope: 'all_rejections',
       },
     })
     const toggle = await openControls()
@@ -179,6 +183,86 @@ describe('the evidence-documents kill switch', () => {
     expect(screen.getByText(COPY.en.geminiHint)).toHaveTextContent(
       /the applicant’s own uploaded files|the applicant's own uploaded files/,
     )
+  })
+})
+
+/*
+ * THE REAPPLY COOLDOWN (owner, 12 Oct 2026).
+ *
+ * Two governed settings: how many days a rejected client waits before a new RPL
+ * case (0-365), and which rejections start the wait. The API holds no default
+ * for either and refuses every rejection while one is missing, so this form must
+ * not invent one either: an absent row shows empty and blocks the save.
+ */
+describe('the reapply cooldown controls', () => {
+  it('shows the stored days and scope', async () => {
+    await openControls()
+
+    expect(screen.getByLabelText(COPY.en.cooldownDays)).toHaveValue(7)
+    expect(screen.getByLabelText(COPY.en.cooldownScope)).toHaveValue('all_rejections')
+    expect(screen.getByRole('option', { name: COPY.en.cooldownScopeNarrow })).toHaveValue('screening_interview_quiz_declines')
+  })
+
+  it('saves an edited cooldown as a number, with the other controls intact', async () => {
+    await openControls()
+
+    fireEvent.change(screen.getByLabelText(COPY.en.cooldownDays), { target: { value: '14' } })
+    fireEvent.change(screen.getByLabelText(COPY.en.cooldownScope), { target: { value: 'screening_interview_quiz_declines' } })
+    fireEvent.click(screen.getByRole('button', { name: COPY.en.saveSettings }))
+
+    await waitFor(() => expect(mocks.updateRplSettings).toHaveBeenCalledTimes(1))
+    expect(mocks.updateRplSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rpl_reapply_cooldown_days: 14,
+        rpl_reapply_cooldown_scope: 'screening_interview_quiz_declines',
+        appeal_window_days: 15,
+        rpl_advisory_include_evidence_documents: true,
+      }),
+    )
+  })
+
+  it('accepts zero days, which means no wait', async () => {
+    await openControls()
+
+    fireEvent.change(screen.getByLabelText(COPY.en.cooldownDays), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: COPY.en.saveSettings }))
+
+    await waitFor(() =>
+      expect(mocks.updateRplSettings).toHaveBeenCalledWith(expect.objectContaining({ rpl_reapply_cooldown_days: 0 })),
+    )
+  })
+
+  it('invents no value when the rows are absent, and will not save until one is chosen', async () => {
+    mocks.fetchRplSettings.mockResolvedValue({
+      data: { appeal_window_days: 15, gemini_advisory_prompt: longPrompt },
+    })
+    await openControls()
+
+    expect(screen.getByLabelText(COPY.en.cooldownDays)).toHaveValue(null)
+    expect(screen.getByLabelText(COPY.en.cooldownScope)).toHaveValue('')
+    expect(screen.getAllByText(COPY.en.cooldownMissing)).toHaveLength(2)
+    expect(screen.getByRole('button', { name: COPY.en.saveSettings })).toBeDisabled()
+
+    fireEvent.change(screen.getByLabelText(COPY.en.cooldownDays), { target: { value: '7' } })
+    fireEvent.change(screen.getByLabelText(COPY.en.cooldownScope), { target: { value: 'all_rejections' } })
+    expect(screen.getByRole('button', { name: COPY.en.saveSettings })).toBeEnabled()
+  })
+
+  it.each(['366', '-1', '2.5', ''])('will not save %j days', async (value) => {
+    await openControls()
+
+    fireEvent.change(screen.getByLabelText(COPY.en.cooldownDays), { target: { value } })
+
+    expect(screen.getByRole('button', { name: COPY.en.saveSettings })).toBeDisabled()
+  })
+
+  it('renders the cooldown in Arabic without a literal "undefined"', async () => {
+    language.current = 'ar'
+    await openControls(COPY.ar)
+
+    expect(screen.getByText(COPY.ar.cooldownTitle)).toBeInTheDocument()
+    expect(screen.getByLabelText(COPY.ar.cooldownDays)).toHaveValue(7)
+    expect(document.body.textContent).not.toContain('undefined')
   })
 })
 

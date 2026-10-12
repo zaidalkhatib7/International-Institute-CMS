@@ -26,6 +26,7 @@ import {
   getApplicationEvidenceCategories,
   localize,
   readApplicationCompleteness,
+  readApplicationDecline,
   readApplicationDeclarationAccepted,
 } from '../domain/rpl'
 import {
@@ -61,7 +62,7 @@ const copyByLanguage = {
   ar: {
     eyebrow: 'مساحة عمل حالة RPL', title: 'ملف الاعتراف بالخبرة', description: 'ملف تشغيلي موحد يحافظ على فصل التحقق والتقييم وقرار اللجنة.', back: 'العودة إلى الطلبات', refresh: 'تحديث',
     overview: 'نظرة عامة', evidence: 'الأدلة والتحقق', assessment: 'التقييم والمقيّمون', governance: 'اللجنة والجودة', timeline: 'الخط الزمني',
-    caseSummary: 'ملخص الملف', applicant: 'المتقدم', reference: 'رقم الطلب', pathway: 'المسار', requestedLevel: 'المستوى المطلوب', experience: 'سنوات الخبرة', submitted: 'تاريخ التقديم',
+    caseSummary: 'ملخص الملف', applicant: 'المتقدم', reference: 'رقم الطلب', pathway: 'المسار', requestedLevel: 'المستوى المطلوب', experience: 'سنوات الخبرة', submitted: 'تاريخ التقديم', declineReason: 'سبب الرفض', reapplyFrom: 'يمكنه تقديم طلب جديد اعتبارًا من', reapplyDerived: 'محسوب من تاريخ الرفض وإعداد فترة الانتظار الحالي',
     contact: 'بيانات التواصل', email: 'البريد الإلكتروني', phone: 'الهاتف', nationality: 'الجنسية', country: 'بلد الإقامة', profession: 'المجال المهني',
     initialReview: 'المراجعة الإدارية الأولية', accepted: 'مقبول للتحقق', needsInformation: 'معلومات إضافية مطلوبة', rejected: 'مرفوض', subject: 'الموضوع', message: 'الرسالة للمتقدم', dueAt: 'موعد الرد', saveReview: 'حفظ المراجعة', reviewSaved: 'تمت المراجعة الإدارية.', requests: 'طلبات المعلومات الناقصة', createRequest: 'إرسال طلب', requestSaved: 'تم إرسال طلب المعلومات.', closeRequest: 'إغلاق', noRequests: 'لا توجد طلبات مفتوحة.',
     workflow: 'إدارة حالة الطلب', nextStatus: 'الحالة التالية', note: 'ملاحظة انتقال الحالة', saveTransition: 'تحديث الحالة', transitionSaved: 'تم تحديث حالة الطلب.',
@@ -77,7 +78,7 @@ const copyByLanguage = {
   en: {
     eyebrow: 'RPL Case Workspace', title: 'Prior Learning Recognition Case', description: 'A unified operational case that keeps verification, assessment, and committee authority separate.', back: 'Back to applications', refresh: 'Refresh',
     overview: 'Overview', evidence: 'Evidence & verification', assessment: 'Assessment & assessors', governance: 'Committee & quality', timeline: 'Timeline',
-    caseSummary: 'Case summary', applicant: 'Applicant', reference: 'Reference', pathway: 'Pathway', requestedLevel: 'Requested level', experience: 'Years of experience', submitted: 'Submitted',
+    caseSummary: 'Case summary', applicant: 'Applicant', reference: 'Reference', pathway: 'Pathway', requestedLevel: 'Requested level', experience: 'Years of experience', submitted: 'Submitted', declineReason: 'Decline reason', reapplyFrom: 'May open a new request from', reapplyDerived: 'derived from the rejection date and the current cooldown setting',
     contact: 'Contact and profile', email: 'Email', phone: 'Phone', nationality: 'Nationality', country: 'Country of residence', profession: 'Professional field',
     initialReview: 'Initial administrative review', accepted: 'Accepted for verification', needsInformation: 'More information required', rejected: 'Rejected', subject: 'Subject', message: 'Message to applicant', dueAt: 'Response due', saveReview: 'Save review', reviewSaved: 'Initial review completed.', requests: 'Missing-information requests', createRequest: 'Send request', requestSaved: 'Information request sent.', closeRequest: 'Close', noRequests: 'No information requests exist.',
     workflow: 'Application workflow', nextStatus: 'Next status', note: 'Transition note', saveTransition: 'Update status', transitionSaved: 'Application status updated.',
@@ -92,7 +93,7 @@ const copyByLanguage = {
   nl: {
     eyebrow: 'RPL-dossierwerkruimte', title: 'Dossier Erkenning Eerder Leren', description: 'Eén operationeel dossier met gescheiden verificatie, beoordeling en commissiebevoegdheid.', back: 'Terug naar aanvragen', refresh: 'Vernieuwen',
     overview: 'Overzicht', evidence: 'Bewijs & verificatie', assessment: 'Beoordeling & beoordelaars', governance: 'Commissie & kwaliteit', timeline: 'Tijdlijn',
-    caseSummary: 'Dossiersamenvatting', applicant: 'Aanvrager', reference: 'Referentie', pathway: 'Traject', requestedLevel: 'Aangevraagd niveau', experience: 'Jaren ervaring', submitted: 'Ingediend',
+    caseSummary: 'Dossiersamenvatting', applicant: 'Aanvrager', reference: 'Referentie', pathway: 'Traject', requestedLevel: 'Aangevraagd niveau', experience: 'Jaren ervaring', submitted: 'Ingediend', declineReason: 'Reden van afwijzing', reapplyFrom: 'Mag een nieuwe aanvraag indienen vanaf', reapplyDerived: 'afgeleid van de afwijzingsdatum en de huidige wachttijdinstelling',
     contact: 'Contact en profiel', email: 'E-mail', phone: 'Telefoon', nationality: 'Nationaliteit', country: 'Woonland', profession: 'Vakgebied',
     initialReview: 'Eerste administratieve beoordeling', accepted: 'Geaccepteerd voor verificatie', needsInformation: 'Meer informatie vereist', rejected: 'Afgewezen', subject: 'Onderwerp', message: 'Bericht aan aanvrager', dueAt: 'Reactietermijn', saveReview: 'Beoordeling opslaan', reviewSaved: 'Eerste beoordeling voltooid.', requests: 'Verzoeken om ontbrekende informatie', createRequest: 'Verzoek verzenden', requestSaved: 'Informatieverzoek verzonden.', closeRequest: 'Sluiten', noRequests: 'Geen informatieverzoeken.',
     workflow: 'Aanvraagworkflow', nextStatus: 'Volgende status', note: 'Overgangsnotitie', saveTransition: 'Status bijwerken', transitionSaved: 'Aanvraagstatus bijgewerkt.',
@@ -218,6 +219,9 @@ export default function RplCaseWorkspacePage() {
   const applicant = applicantOf(application)
   const reference = application.case_reference || application.reference_number || application.case_number || `RPL-${application.id || applicationId}`
   const declarationAccepted = readApplicationDeclarationAccepted(application)
+  // Frozen on the case when it was rejected (owner, 12 Oct 2026); null on any other case.
+  // A case rejected before the stamp existed shows the date the API derives for it, marked as such.
+  const decline = readApplicationDecline(application, language)
 
   const tabLabels = useMemo(() => ({ overview: copy.overview, evidence: copy.evidence, assessment: copy.assessment, governance: copy.governance, timeline: copy.timeline }), [copy])
 
@@ -326,6 +330,8 @@ export default function RplCaseWorkspacePage() {
                 <Definition label={copy.requestedLevel} value={localize(application.requested_level?.name || application.requestedLevel?.name || application.target_level?.name, language) || application.requested_level_code} />
                 <Definition label={copy.experience} value={application.years_of_experience ?? applicant.years_of_experience} />
                 <Definition label={copy.submitted} value={formatLocalizedDateTime(application.submitted_at, language)} />
+                {decline ? <Definition label={copy.declineReason} value={decline.reason} /> : null}
+                {decline ? <Definition label={copy.reapplyFrom} value={decline.reapplyDerived ? `${formatLocalizedDateTime(decline.reapplyAvailableAt, language)} (${copy.reapplyDerived})` : formatLocalizedDateTime(decline.reapplyAvailableAt, language)} /> : null}
               </dl>
             </CardContent>
           </Card>

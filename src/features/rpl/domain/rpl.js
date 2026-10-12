@@ -136,6 +136,25 @@ export const APPLICATION_STATUS = {
   rejected: { variant: 'danger', labels: { ar: 'مرفوض', en: 'Rejected', nl: 'Afgewezen' } },
 }
 
+/*
+ * WHY A CASE WAS DECLINED (owner flow of 12 Oct 2026).
+ *
+ * App\Enums\RplDeclineReason: the fixed list RplWorkflowService::transition
+ * stamps on every move into `rejected` as `decline_reason_code`. It is a staff
+ * label, not the staff rationale, and it never carries a figure. Only the first,
+ * sixth and seventh are produced today; the other four arrive with the
+ * screening, interview and quiz declines.
+ */
+export const DECLINE_REASONS = {
+  intake_declined: { labels: { ar: 'رُفض في المراجعة الإدارية الأولية', en: 'Declined at the initial review', nl: 'Afgewezen bij de eerste beoordeling' } },
+  screening_declined: { labels: { ar: 'رُفض بعد فرز الوثائق', en: 'Declined after document screening', nl: 'Afgewezen na documentscreening' } },
+  interview_declined: { labels: { ar: 'رُفض بعد المقابلة', en: 'Declined after the interview', nl: 'Afgewezen na het interview' } },
+  interview_no_show: { labels: { ar: 'لم يحضر المقابلة', en: 'Did not attend the interview', nl: 'Niet verschenen bij het interview' } },
+  quiz_below_pass_mark: { labels: { ar: 'دون علامة النجاح في الاختبار', en: 'Below the quiz pass mark', nl: 'Onder de cesuur van de toets' } },
+  committee_rejected: { labels: { ar: 'رفض لجنة الاعتماد', en: 'Rejected by the accreditation committee', nl: 'Afgewezen door de accreditatiecommissie' } },
+  appeal_rejected: { labels: { ar: 'رُفض بعد التظلم', en: 'Rejected on appeal', nl: 'Afgewezen na bezwaar' } },
+}
+
 export const PROFESSIONAL_LEVELS = [
   { code: 'practitioner', labels: { ar: 'ممارس مهني', en: 'Professional Practitioner', nl: 'Professioneel beoefenaar' } },
   { code: 'advanced_practitioner', labels: { ar: 'ممارس مهني متقدم', en: 'Advanced Professional Practitioner', nl: 'Gevorderd professional' } },
@@ -194,6 +213,32 @@ export function readApplicationDeclarationAccepted(application) {
   }
 
   return Boolean(application?.declaration?.accepted ?? application?.consent?.accepted ?? application?.declaration_accepted)
+}
+
+/*
+ * The decline stamp on a rejected case: its reason and the moment the same client
+ * may open a new RPL case. Both were frozen at the rejection, so this reads the
+ * stored date and never recomputes one from today's cooldown setting.
+ *
+ * A case rejected before the stamp existed has neither, yet the API still holds
+ * its client to a date: finalised_at plus the governed cooldown days. The staff
+ * case view sends that date as effective_reapply_available_at, and it is shown
+ * in place of the missing stamp, flagged as derived because a change to the
+ * setting still moves it. An unknown code is shown as the code itself rather
+ * than hidden.
+ */
+export function readApplicationDecline(application, language = 'en') {
+  const code = application?.decline_reason_code || null
+  const stamped = application?.reapply_available_at || null
+  const reapplyAvailableAt = stamped || application?.effective_reapply_available_at || null
+  if (!code && !reapplyAvailableAt) return null
+
+  return {
+    code,
+    reason: code ? localize(DECLINE_REASONS[code]?.labels, language) || code : null,
+    reapplyAvailableAt,
+    reapplyDerived: !stamped && Boolean(reapplyAvailableAt),
+  }
 }
 
 export function isEvidenceEligibleForAssessment(evidence, requireVerified = true) {
