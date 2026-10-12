@@ -113,7 +113,7 @@ export const copyByLanguage = {
     created: "Account created",
     academicEvidence: "Academic-entry evidence",
     academicEvidenceHint:
-      "Record and verify qualifications before routing. Each client gets exactly one door: an intermediate-institute diploma, licence, bachelor or higher leads to the Professional Academic pathway; a general secondary certificate or below leads to RPL.",
+      "Record and verify qualifications before routing. Each client gets exactly one door: an intermediate-institute diploma, licence, bachelor or higher leads to the Professional Academic pathway; a general secondary certificate or below leads to Professional Recognition of Prior Learning.",
     addQualification: "Add qualification",
     updateQualification: "Update qualification",
     type: "Qualification type",
@@ -131,15 +131,15 @@ export const copyByLanguage = {
     qualificationFailed: "Unable to save the qualification.",
     confirmDelete: "Delete this qualification?",
     routing: "Service routing decision",
-    rplWith: "RPL — with secondary certificate",
-    rplWithout: "RPL — without secondary certificate",
+    rplWith: "Professional Recognition of Prior Learning",
+    rplWithout: "Professional Recognition of Prior Learning",
     rplWithHint:
       "Experience and evidence are assessed. Competency-gap programmes may be required before professional accreditation.",
     rplWithoutHint:
       "Experience and evidence are assessed. Foundation and competency-gap programmes may be required before professional accreditation.",
     noRplDegree: "This client takes the Professional Academic pathway",
     noRplDegreeHint:
-      "A verified intermediate-institute diploma, licence, bachelor or higher sends this client through the academic door only. RPL is not offered to them.",
+      "A verified intermediate-institute diploma, licence, bachelor or higher sends this client through the academic door only. Professional Recognition of Prior Learning is not offered to them.",
     academicRpl: "Professional Academic RPL",
     academicRplHint:
       "For holders of an intermediate-institute diploma, licence, bachelor or equivalent: Professional Diploma, Master, Doctorate. Assessed on evidence and competencies, not on the certificate alone.",
@@ -150,7 +150,7 @@ export const copyByLanguage = {
     pendingAcademic:
       "An intermediate-institute diploma, licence or bachelor is awaiting verification",
     pendingAcademicHint:
-      "Neither door opens yet. Once staff verify it, this client takes the academic pathway; if it is not such a qualification, correct its type or delete it and RPL opens.",
+      "Neither door opens yet. Once staff verify it, this client takes the academic pathway; if it is not such a qualification, correct its type or delete it and Professional Recognition of Prior Learning opens.",
     pendingSecondary: "Secondary certificate is awaiting verification",
     pendingSecondaryHint:
       "Do not select the no-secondary route while this evidence is under review.",
@@ -229,7 +229,7 @@ export const copyByLanguage = {
     created: "تاريخ إنشاء الحساب",
     academicEvidence: "أدلة المؤهلات ومسار القبول",
     academicEvidenceHint:
-      "سجّل المؤهلات وتحقق منها قبل اختيار الخدمة. لكل عميل باب واحد فقط: حامل شهادة المعهد المتوسط أو الليسانس أو البكالوريوس أو ما يعادلها أو أعلى يُوجَّه إلى المسار الأكاديمي المهني، وحامل الثانوية العامة أو ما دونها يُوجَّه إلى RPL.",
+      "سجّل المؤهلات وتحقق منها قبل اختيار الخدمة. لكل عميل باب واحد فقط: حامل شهادة المعهد المتوسط أو الليسانس أو البكالوريوس أو ما يعادلها أو أعلى يُوجَّه إلى المسار الأكاديمي المهني، وحامل الثانوية العامة أو ما دونها يُوجَّه إلى مسار الاعتراف المهني بالتعلم السابق.",
     academicRpl: "المسار الأكاديمي المهني — RPL",
     academicRplHint:
       "لحاملي شهادة المعهد المتوسط أو الليسانس أو البكالوريوس أو ما يعادلها: دبلوم مهني، ماجستير مهني، دكتوراه مهنية. يُقيَّم بالأدلة والكفاءات، لا بالشهادة وحدها.",
@@ -254,19 +254,19 @@ export const copyByLanguage = {
     qualificationFailed: "تعذر حفظ المؤهل.",
     confirmDelete: "هل تريد حذف هذا المؤهل؟",
     routing: "قرار توجيه الخدمة",
-    rplWith: "RPL — مع شهادة ثانوية عامة",
-    rplWithout: "RPL — دون شهادة ثانوية عامة",
+    rplWith: "مسار الاعتراف المهني بالتعلم السابق",
+    rplWithout: "مسار الاعتراف المهني بالتعلم السابق",
     rplWithHint:
       "يُقيّم ملف الخبرة والأدلة، وقد تُطلب برامج لسد فجوات الكفاءة قبل الاعتماد المهني.",
     rplWithoutHint:
       "يُقيّم ملف الخبرة والأدلة، وقد تُطلب برامج تأسيسية وبرامج لسد فجوات الكفاءة قبل الاعتماد المهني.",
     noRplDegree: "هذا العميل يُوجَّه إلى المسار الأكاديمي المهني",
     noRplDegreeHint:
-      "تم التحقق من شهادة معهد متوسط أو ليسانس أو بكالوريوس أو أعلى، لذلك يدخل هذا العميل من باب المسار الأكاديمي فقط، ولا يُعرض عليه RPL.",
+      "تم التحقق من شهادة معهد متوسط أو ليسانس أو بكالوريوس أو أعلى، لذلك يدخل هذا العميل من باب المسار الأكاديمي فقط، ولا يُعرض عليه مسار الاعتراف المهني بالتعلم السابق.",
     pendingAcademic:
       "شهادة المعهد المتوسط أو الليسانس أو البكالوريوس بانتظار التحقق",
     pendingAcademicHint:
-      "لا يُفتح أي باب بعد. بعد تحقق الموظف منها يُوجَّه العميل إلى المسار الأكاديمي؛ وإن لم تكن مؤهلاً من هذا النوع فصحّح نوعها أو احذفها فيُفتح RPL.",
+      "لا يُفتح أي باب بعد. بعد تحقق الموظف منها يُوجَّه العميل إلى المسار الأكاديمي؛ وإن لم تكن مؤهلاً من هذا النوع فصحّح نوعها أو احذفها فيُفتح مسار الاعتراف المهني بالتعلم السابق.",
     pendingSecondary: "شهادة الثانوية العامة بانتظار التحقق",
     pendingSecondaryHint:
       "لا تختَر مسار دون الثانوية العامة بينما هذا الدليل قيد المراجعة.",
@@ -348,7 +348,7 @@ export const copyByLanguage = {
     created: "Account aangemaakt",
     academicEvidence: "Bewijs voor academische toelating",
     academicEvidenceHint:
-      "Registreer en verifieer kwalificaties vóór de routing. Elke cliënt krijgt precies één deur: een diploma van een middelbaar instituut, licence, bachelor of hoger leidt naar het Professioneel Academisch traject; een middelbareschooldiploma of lager leidt naar RPL.",
+      "Registreer en verifieer kwalificaties vóór de routing. Elke cliënt krijgt precies één deur: een diploma van een middelbaar instituut, licence, bachelor of hoger leidt naar het Professioneel Academisch traject; een middelbareschooldiploma of lager leidt naar Professionele erkenning van eerder leren.",
     addQualification: "Kwalificatie toevoegen",
     updateQualification: "Kwalificatie bijwerken",
     type: "Type kwalificatie",
@@ -366,15 +366,15 @@ export const copyByLanguage = {
     qualificationFailed: "Kwalificatie kan niet worden opgeslagen.",
     confirmDelete: "Deze kwalificatie verwijderen?",
     routing: "Beslissing over servicerouting",
-    rplWith: "RPL — met middelbareschooldiploma",
-    rplWithout: "RPL — zonder middelbareschooldiploma",
+    rplWith: "Professionele erkenning van eerder leren",
+    rplWithout: "Professionele erkenning van eerder leren",
     rplWithHint:
       "Ervaring en bewijs worden beoordeeld. Competentiegap-programma’s kunnen vóór accreditatie nodig zijn.",
     rplWithoutHint:
       "Ervaring en bewijs worden beoordeeld. Basis- en competentiegap-programma’s kunnen vóór accreditatie nodig zijn.",
     noRplDegree: "Deze cliënt volgt het Professioneel Academisch traject",
     noRplDegreeHint:
-      "Een geverifieerd diploma van een middelbaar instituut, licence, bachelor of hoger stuurt deze cliënt alleen door de academische deur. RPL wordt niet aangeboden.",
+      "Een geverifieerd diploma van een middelbaar instituut, licence, bachelor of hoger stuurt deze cliënt alleen door de academische deur. Professionele erkenning van eerder leren wordt niet aangeboden.",
     /*
      * These six were added to `en` and `ar` on 6 Aug and missed here, which
      * rendered the whole Professional Academic RPL card blank in Dutch: the
@@ -393,7 +393,7 @@ export const copyByLanguage = {
     pendingAcademic:
       "Een diploma van een middelbaar instituut, licence of bachelor wacht op verificatie",
     pendingAcademicHint:
-      "Nog geen deur gaat open. Na verificatie volgt deze cliënt het academische traject; is het geen zulke kwalificatie, corrigeer dan het type of verwijder haar en RPL gaat open.",
+      "Nog geen deur gaat open. Na verificatie volgt deze cliënt het academische traject; is het geen zulke kwalificatie, corrigeer dan het type of verwijder haar en Professionele erkenning van eerder leren gaat open.",
     pendingSecondary: "Middelbareschooldiploma wacht op verificatie",
     pendingSecondaryHint:
       "Kies de route zonder diploma niet zolang dit bewijs wordt beoordeeld.",
@@ -434,6 +434,7 @@ export const copyByLanguage = {
 };
 
 const qualificationTypes = [
+  "below_secondary",
   "secondary_general",
   "intermediate_diploma",
   "bachelor",
@@ -487,6 +488,11 @@ function qualificationFormFrom(qualification) {
 
 function qualificationTypeLabel(type, language) {
   const labels = {
+    below_secondary: {
+      en: "Below general secondary",
+      ar: "دون الثانوية العامة",
+      nl: "Lager dan middelbareschooldiploma",
+    },
     secondary_general: {
       en: "Secondary certificate",
       ar: "شهادة ثانوية عامة",
