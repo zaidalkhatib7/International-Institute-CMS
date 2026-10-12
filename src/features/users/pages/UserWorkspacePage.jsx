@@ -115,6 +115,10 @@ export const copyByLanguage = {
     academicEvidenceHint:
       "Record and verify qualifications before routing. Each client gets exactly one door: an intermediate-institute diploma, licence, bachelor or higher leads to the Professional Academic pathway; a general secondary certificate or below leads to Professional Recognition of Prior Learning.",
     addQualification: "Add qualification",
+    oneQualification:
+      "A client records one qualification: their highest. To change it, use Edit.",
+    severalQualifications:
+      "This client holds several qualifications recorded before the one-qualification rule. Keep the highest and delete the others.",
     updateQualification: "Update qualification",
     type: "Qualification type",
     title: "Qualification title",
@@ -238,6 +242,10 @@ export const copyByLanguage = {
     academicOpened: "تم فتح ملف المسار الأكاديمي المهني.",
     academicNoTracks: "لم تُهيَّأ درجات المسار الأكاديمي بعد.",
     addQualification: "إضافة مؤهل",
+    oneQualification:
+      "يسجّل العميل مؤهلاً واحداً فقط هو أعلى مؤهل يحمله. لتغييره استخدم «تعديل».",
+    severalQualifications:
+      "لدى هذا العميل أكثر من مؤهل سُجّل قبل قاعدة المؤهل الواحد. أبقِ الأعلى واحذف الباقي.",
     updateQualification: "تحديث المؤهل",
     type: "نوع المؤهل",
     title: "اسم المؤهل",
@@ -350,6 +358,10 @@ export const copyByLanguage = {
     academicEvidenceHint:
       "Registreer en verifieer kwalificaties vóór de routing. Elke cliënt krijgt precies één deur: een diploma van een middelbaar instituut, licence, bachelor of hoger leidt naar het Professioneel Academisch traject; een middelbareschooldiploma of lager leidt naar Professionele erkenning van eerder leren.",
     addQualification: "Kwalificatie toevoegen",
+    oneQualification:
+      "Een cliënt registreert één kwalificatie: de hoogste. Gebruik Bewerken om die te wijzigen.",
+    severalQualifications:
+      "Deze cliënt heeft meerdere kwalificaties van vóór de regel van één kwalificatie. Houd de hoogste en verwijder de rest.",
     updateQualification: "Kwalificatie bijwerken",
     type: "Type kwalificatie",
     title: "Naam kwalificatie",
@@ -1151,7 +1163,26 @@ export default function UserWorkspacePage() {
                       ))}
                     </div>
                   ) : null}
-                  {canManageUsers ? (
+                  {/*
+                    ONE QUALIFICATION PER CLIENT (owner, 12 Oct 2026): the
+                    highest, recorded once and edited afterwards. The server
+                    refuses a second one on this route and the client's own.
+                  */}
+                  {canManageUsers && (user.qualifications || []).length > 1 ? (
+                    <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6">
+                      {copy.severalQualifications}
+                    </p>
+                  ) : null}
+                  {canManageUsers &&
+                  (user.qualifications || []).length &&
+                  !editingQualificationId ? (
+                    <p className="text-sm leading-6 text-[var(--color-text-muted)]">
+                      {copy.oneQualification}
+                    </p>
+                  ) : null}
+                  {canManageUsers &&
+                  (editingQualificationId ||
+                    !(user.qualifications || []).length) ? (
                     <div className="grid gap-4 rounded-xl border border-sky-200 bg-sky-50/60 p-5 md:grid-cols-2">
                       <Select
                         label={copy.type}
