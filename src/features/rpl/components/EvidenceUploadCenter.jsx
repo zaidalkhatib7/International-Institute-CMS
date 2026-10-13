@@ -275,7 +275,7 @@ function SavedEvidenceCard({ evidence, language, text, categories, canReview, on
           <Button onClick={saveReview} disabled={busy || (['clarification_required', 'rejected', 'unverifiable'].includes(review.status) && !review.reason.trim())}>{busy ? <LoaderCircle className="animate-spin" size={17} /> : <ShieldCheck size={17} />}{text.saveReview}</Button>
         </div>
       ) : null}
-      {message ? <p className={`mt-3 text-sm ${message === text.reviewSaved ? 'text-green-700' : 'text-red-600'}`}>{message}</p> : null}
+      {message ? <p className={`mt-3 whitespace-pre-line text-sm [unicode-bidi:plaintext] ${message === text.reviewSaved ? 'text-green-700' : 'text-red-600'}`}>{message}</p> : null}
       {history.open ? (
         <div className="mt-5 rounded-xl bg-[var(--color-surface-muted)] p-4">
           <h4 className="font-semibold text-[var(--color-text)]">{text.statusHistory}</h4>

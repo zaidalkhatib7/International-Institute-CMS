@@ -13,6 +13,7 @@ import {
   LoaderCircle,
   RefreshCw,
   Save,
+  ScanSearch,
   ShieldCheck,
   UserRoundCheck,
 } from 'lucide-react'
@@ -30,6 +31,14 @@ import {
   readApplicationDeclarationAccepted,
 } from '../domain/rpl'
 import {
+  SCREENING_PERMISSIONS,
+  claimedEmployersCopy,
+  readClaimedEmployers,
+  regionName,
+  safeExternalUrl,
+  screeningCopy,
+} from '../domain/documentScreening'
+import {
   assignRplAssessor,
   acceptRplAssignment,
   closeRplInformationRequest,
@@ -41,6 +50,7 @@ import {
   fetchRplAssignments,
   fetchRplEvidence,
   fetchRplReferenceData,
+  fetchRplScreenings,
   fetchRplTimeline,
   submitRplCommitteeDecision,
   submitRplInitialReview,
@@ -50,13 +60,14 @@ import {
   transitionRplApplication,
 } from '../services/rplService'
 import CompletenessMeter from '../components/CompletenessMeter'
+import DocumentScreeningPanel from '../components/DocumentScreeningPanel'
 import EvidenceUploadCenter from '../components/EvidenceUploadCenter'
 import PaymentReconciliationPanel from '../components/PaymentReconciliationPanel'
 import RplPageState from '../components/RplPageState'
 import RplStatusBadge from '../components/RplStatusBadge'
 import { useModalDialog } from '../../../hooks/useModalDialog'
 import { useAuthorization } from '../../auth/context/useAuthorization'
-import { formatLocalizedDateTime } from '../../../utils/localization'
+import { formatLocalizedDate, formatLocalizedDateTime } from '../../../utils/localization'
 
 const copyByLanguage = {
   ar: {
@@ -110,6 +121,8 @@ const copyByLanguage = {
 const tabs = [
   { key: 'overview', icon: BriefcaseBusiness },
   { key: 'evidence', icon: FileCheck2 },
+  // Document screening (owner flow of 12 Oct 2026, D17(a)): only for rpl.screening.view, and hidden on a 403.
+  { key: 'screening', icon: ScanSearch },
   { key: 'assessment', icon: ClipboardCheck },
   { key: 'governance', icon: Gavel },
   { key: 'timeline', icon: History },
@@ -125,6 +138,18 @@ function applicantOf(application) {
 
 function Definition({ label, value }) {
   return <div><dt className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{label}</dt><dd className="mt-1 break-words font-semibold text-[var(--color-text)]">{value || '—'}</dd></div>
+}
+
+function experiencePeriod(experience, copy, language) {
+  const format = (value) => formatLocalizedDate(value, language, { year: 'numeric', month: 'short' })
+  if (!experience.started_on && !experience.ended_on && !experience.is_current) return null
+  return `${experience.started_on ? format(experience.started_on) : '—'} – ${experience.is_current ? copy.present : experience.ended_on ? format(experience.ended_on) : '—'}`
+}
+
+function WebsiteValue({ value }) {
+  const href = safeExternalUrl(value)
+  if (!href) return <bdi className="break-all">{value}</bdi>
+  return <a href={href} target="_blank" rel="noopener noreferrer" className="break-all text-[var(--color-primary)] underline underline-offset-2"><bdi>{value}</bdi></a>
 }
 
 function assignmentLabel(value, copy) {
@@ -146,7 +171,13 @@ export default function RplCaseWorkspacePage() {
   const language = getAdminLanguage()
   const isArabic = language === 'ar'
   const copy = copyByLanguage[language] || copyByLanguage.en
-  const { isAdministrator } = useAuthorization()
+  const { isAdministrator, hasPermission } = useAuthorization()
+  // New copy is Arabic and English only (owner, 13 Oct 2026); any other language reads English.
+  const screenLanguage = isArabic ? 'ar' : 'en'
+  const screeningText = screeningCopy(screenLanguage)
+  const employersText = claimedEmployersCopy(screenLanguage)
+  const canViewScreening = hasPermission(SCREENING_PERMISSIONS.view)
+  const canRunScreening = hasPermission(SCREENING_PERMISSIONS.run)
   const adminEvaluationCopy = {
     ar: {
       title: '\u0627\u0644\u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0625\u062f\u0627\u0631\u064a \u0628\u0645\u0633\u0627\u0639\u062f\u0629 Gemini',
@@ -157,7 +188,9 @@ export default function RplCaseWorkspacePage() {
     en: { title: 'Gemini-assisted administrator evaluation', hint: 'No external assessor is required. Gemini prepares a draft; only the administrator who starts it can review, edit, and submit it.', start: 'Start administrator evaluation', open: 'Open administrator evaluation', started: 'Administrator evaluation started. Generate the Gemini draft, then review and edit it.' },
     nl: { title: 'Gemini-ondersteunde beheerdersbeoordeling', hint: 'Er is geen externe beoordelaar nodig. Gemini maakt een concept; alleen de beheerder die het start kan dit beoordelen, bewerken en indienen.', start: 'Beheerdersbeoordeling starten', open: 'Beheerdersbeoordeling openen', started: 'Beheerdersbeoordeling gestart. Genereer het Gemini-concept en beoordeel en bewerk het daarna.' },
   }[language] || copyByLanguage.en
-  const activeTab = tabs.some((tab) => tab.key === searchParams.get('tab')) ? searchParams.get('tab') : 'overview'
+  const [screening, setScreening] = useState({ loading: false, error: '', forbidden: false, items: [] })
+  const visibleTabs = tabs.filter((tab) => tab.key !== 'screening' || (canViewScreening && !screening.forbidden))
+  const activeTab = visibleTabs.some((tab) => tab.key === searchParams.get('tab')) ? searchParams.get('tab') : 'overview'
   const [state, setState] = useState({ loading: true, error: '', auxiliaryWarning: false, application: null, evidence: [], categories: EVIDENCE_CATEGORIES, timeline: [], assessments: [], assignments: [], assessors: [], levels: [], committees: [], committeeActions: [], outcomes: [] })
   const [action, setAction] = useState({ busy: false, error: '', success: '' })
   const [transition, setTransition] = useState({ status: 'administrative_review', reason: '' })
@@ -214,6 +247,29 @@ export default function RplCaseWorkspacePage() {
     return () => window.clearTimeout(timer)
   }, [load])
 
+  /*
+   * Document screening (D17(a)) loads on its own, outside the case load: an
+   * account without rpl.screening.view never asks, and a 403 from the server,
+   * which is the authority on that permission, removes the tab instead of
+   * showing an error or the "supporting data unavailable" warning.
+   */
+  const loadScreenings = useCallback(async () => {
+    if (!canViewScreening) return
+    setScreening((current) => ({ ...current, loading: true, error: '' }))
+    try {
+      const response = await fetchRplScreenings(applicationId)
+      setScreening({ loading: false, error: '', forbidden: false, items: unwrapCollection(response) })
+    } catch (error) {
+      if (Number(error?.response?.status) === 403) setScreening({ loading: false, error: '', forbidden: true, items: [] })
+      else setScreening((current) => ({ ...current, loading: false, error: readApiError(error, screeningText.loadError) }))
+    }
+  }, [applicationId, canViewScreening, screeningText.loadError])
+
+  useEffect(() => {
+    const timer = window.setTimeout(loadScreenings, 0)
+    return () => window.clearTimeout(timer)
+  }, [loadScreenings])
+
   const application = state.application || {}
   const administratorAssessment = state.assessments.find((assessment) => assessment.rpl_assessor_assignment_id === null)
   const applicant = applicantOf(application)
@@ -223,7 +279,7 @@ export default function RplCaseWorkspacePage() {
   // A case rejected before the stamp existed shows the date the API derives for it, marked as such.
   const decline = readApplicationDecline(application, language)
 
-  const tabLabels = useMemo(() => ({ overview: copy.overview, evidence: copy.evidence, assessment: copy.assessment, governance: copy.governance, timeline: copy.timeline }), [copy])
+  const tabLabels = useMemo(() => ({ overview: copy.overview, evidence: copy.evidence, screening: screeningText.tab, assessment: copy.assessment, governance: copy.governance, timeline: copy.timeline }), [copy, screeningText.tab])
 
   async function runAction(request, success, after) {
     setAction({ busy: true, error: '', success: '' })
@@ -316,6 +372,35 @@ export default function RplCaseWorkspacePage() {
     if (response) load()
   }
 
+  /*
+   * The employers the case claims (owner flow of 12 Oct 2026), shown nowhere
+   * before. A submitted case reads the list frozen at submit, which is what the
+   * screen compares against; a draft reads the live profile, labelled as such.
+   */
+  function renderClaimedEmployers() {
+    const claimed = readClaimedEmployers(application)
+    return (
+      <Card>
+        <CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{employersText.title}</CardTitle>{claimed.source ? <p className="mt-2 text-sm text-[var(--color-text-muted)]">{claimed.source === 'snapshot' ? employersText.snapshotHint : employersText.profileHint}</p> : null}</CardHeader>
+        <CardContent className="space-y-4 pt-6">
+          {claimed.items.length ? claimed.items.map((experience, index) => (
+            <article key={experience.id || index} className="rounded-2xl border border-[var(--color-border)] p-4">
+              <h3 dir="auto" className="font-bold text-[var(--color-text)]">{experience.organization || '—'}</h3>
+              <dl className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <Definition label={employersText.jobTitle} value={experience.job_title} />
+                <Definition label={employersText.period} value={experiencePeriod(experience, employersText, screenLanguage)} />
+                <Definition label={employersText.country} value={experience.country ? regionName(experience.country, screenLanguage) : null} />
+                <Definition label={employersText.city} value={experience.city} />
+                <Definition label={employersText.website} value={experience.website ? <WebsiteValue value={experience.website} /> : null} />
+                <Definition label={employersText.registrationNumber} value={experience.registration_number ? <bdi>{experience.registration_number}</bdi> : null} />
+              </dl>
+            </article>
+          )) : <p className="text-sm text-[var(--color-text-muted)]">{employersText.empty}</p>}
+        </CardContent>
+      </Card>
+    )
+  }
+
   function renderOverview() {
     return (
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
@@ -339,6 +424,7 @@ export default function RplCaseWorkspacePage() {
             <CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.contact}</CardTitle></CardHeader>
             <CardContent className="pt-6"><dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"><Definition label={copy.email} value={applicant.email} /><Definition label={copy.phone} value={applicant.phone_number || applicant.phone} /><Definition label={copy.nationality} value={applicant.nationality} /><Definition label={copy.country} value={applicant.country_of_residence || applicant.country} /><Definition label={copy.profession} value={applicant.professional_field || application.professional_field} /></dl></CardContent>
           </Card>
+          {renderClaimedEmployers()}
           {['submitted', 'administrative_review'].includes(application.status) ? <Card><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.initialReview}</CardTitle></CardHeader><CardContent className="space-y-4 pt-6"><Select label={copy.decision} value={initialReview.decision} onChange={(event) => setInitialReview((current) => ({ ...current, decision: event.target.value }))}><option value="accepted">{copy.accepted}</option><option value="needs_information">{copy.needsInformation}</option><option value="rejected">{copy.rejected}</option></Select>{initialReview.decision !== 'accepted' ? <Textarea rows={3} label={copy.rationale} value={initialReview.reason} onChange={(event) => setInitialReview((current) => ({ ...current, reason: event.target.value }))} /> : null}{initialReview.decision === 'needs_information' ? <div className="grid gap-4 sm:grid-cols-2"><Input label={copy.subject} value={initialReview.subject} onChange={(event) => setInitialReview((current) => ({ ...current, subject: event.target.value }))} /><Input type="datetime-local" label={copy.dueAt} value={initialReview.due_at} onChange={(event) => setInitialReview((current) => ({ ...current, due_at: event.target.value }))} /><Textarea className="sm:col-span-2" rows={4} label={copy.message} value={initialReview.message} onChange={(event) => setInitialReview((current) => ({ ...current, message: event.target.value }))} /></div> : null}<div className="flex justify-end"><Button onClick={saveInitialReview} disabled={action.busy || (initialReview.decision !== 'accepted' && !initialReview.reason.trim()) || (initialReview.decision === 'needs_information' && (!initialReview.subject.trim() || !initialReview.message.trim()))}><Save size={17} />{copy.saveReview}</Button></div></CardContent></Card> : null}
           <Card><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.requests}</CardTitle></CardHeader><CardContent className="space-y-5 pt-6"><div className="grid gap-4 sm:grid-cols-2"><Input label={copy.subject} value={informationRequest.subject} onChange={(event) => setInformationRequest((current) => ({ ...current, subject: event.target.value }))} /><Input type="datetime-local" label={copy.dueAt} value={informationRequest.due_at} onChange={(event) => setInformationRequest((current) => ({ ...current, due_at: event.target.value }))} /><Textarea className="sm:col-span-2" rows={3} label={copy.message} value={informationRequest.message} onChange={(event) => setInformationRequest((current) => ({ ...current, message: event.target.value }))} /></div><div className="flex justify-end"><Button onClick={sendInformationRequest} disabled={action.busy || !informationRequest.subject.trim() || !informationRequest.message.trim()}>{copy.createRequest}</Button></div><div className="space-y-3">{application.information_requests?.length ? application.information_requests.map((item) => <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-[var(--color-border)] p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold">{item.subject}</p><p className="mt-1 text-sm text-[var(--color-text-muted)]">{item.message}</p></div><div className="flex items-center gap-2"><Badge variant={item.status === 'closed' ? 'neutral' : 'warning'}>{item.status}</Badge>{item.status !== 'closed' ? <Button size="sm" variant="outline" onClick={() => closeInformationRequest(item.id)}>{copy.closeRequest}</Button> : null}</div></div>) : <p className="text-sm text-[var(--color-text-muted)]">{copy.noRequests}</p>}</div></CardContent></Card>
         </div>
@@ -418,7 +504,7 @@ export default function RplCaseWorkspacePage() {
 
   return (
     <section dir={isArabic ? 'rtl' : 'ltr'} className="space-y-7">
-      <PageHeader title={`${copy.title} · ${reference}`} description={copy.description} actions={<><Button variant="outline" onClick={() => navigate('/rpl/applications')}>{isArabic ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}{copy.back}</Button><Button variant="outline" onClick={load}><RefreshCw size={17} />{copy.refresh}</Button></>} />
+      <PageHeader title={`${copy.title} · ${reference}`} description={copy.description} actions={<><Button variant="outline" onClick={() => navigate('/rpl/applications')}>{isArabic ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}{copy.back}</Button><Button variant="outline" onClick={() => { load(); loadScreenings() }}><RefreshCw size={17} />{copy.refresh}</Button></>} />
 
       <RplPageState loading={state.loading} error={state.error} onRetry={load} language={language}>
         <>
@@ -432,14 +518,15 @@ export default function RplCaseWorkspacePage() {
           </Card>
 
           {state.auxiliaryWarning ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{copy.auxiliaryWarning}</div> : null}
-          {action.error || action.success ? <div role="alert" className={`rounded-2xl border px-4 py-3 text-sm ${action.error ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700'}`}>{action.error || action.success}</div> : null}
+          {action.error || action.success ? <div role="alert" className={`whitespace-pre-line [unicode-bidi:plaintext] rounded-2xl border px-4 py-3 text-sm ${action.error ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700'}`}>{action.error || action.success}</div> : null}
 
           <div className="overflow-x-auto rounded-2xl border border-[var(--color-border)] bg-white p-2">
-            <nav className="flex min-w-max gap-1" aria-label={copy.title}>{tabs.map((tab) => { const Icon = tab.icon; const active = activeTab === tab.key; return <button key={tab.key} type="button" onClick={() => setSearchParams({ tab: tab.key })} className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${active ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'}`} aria-current={active ? 'page' : undefined}><Icon size={17} />{tabLabels[tab.key]}</button> })}</nav>
+            <nav className="flex min-w-max gap-1" aria-label={copy.title}>{visibleTabs.map((tab) => { const Icon = tab.icon; const active = activeTab === tab.key; return <button key={tab.key} type="button" onClick={() => setSearchParams({ tab: tab.key })} className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${active ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'}`} aria-current={active ? 'page' : undefined}><Icon size={17} />{tabLabels[tab.key]}</button> })}</nav>
           </div>
 
           {activeTab === 'overview' ? renderOverview() : null}
           {activeTab === 'evidence' ? <EvidenceUploadCenter applicationId={applicationId} evidence={state.evidence} categories={state.categories} completeness={readApplicationCompleteness(application)} declarationAccepted={declarationAccepted} language={language} canReview onEvidenceChange={(next) => setState((current) => ({ ...current, evidence: next }))} onCompletenessChange={(next) => setState((current) => ({ ...current, application: { ...current.application, completeness: next, completeness_percentage: next?.percentage } }))} onDeclarationChange={(accepted) => setState((current) => ({ ...current, application: { ...current.application, completeness: { ...(current.application?.completeness || {}), declaration: { ...(current.application?.completeness?.declaration || {}), accepted } } } }))} onRefreshRequested={load} /> : null}
+          {activeTab === 'screening' ? <DocumentScreeningPanel applicationId={applicationId} screenings={screening.items} loading={screening.loading} error={screening.error} canRun={canRunScreening} categories={state.categories} language={screenLanguage} onReload={loadScreenings} onScreeningAdded={(created) => setScreening((current) => ({ ...current, items: [created, ...current.items.filter((item) => item.public_id !== created.public_id)] }))} onScreeningUpdated={(updated) => setScreening((current) => ({ ...current, items: current.items.map((item) => (item.public_id === updated.public_id ? updated : item)) }))} /> : null}
           {activeTab === 'assessment' ? renderAssessment() : null}
           {activeTab === 'governance' ? renderGovernance() : null}
           {activeTab === 'timeline' ? renderTimeline() : null}

@@ -5,6 +5,7 @@ import { readApiError, unwrapApiData, unwrapCollection } from '../../../services
 import { getAdminLanguage } from '../../../services/languageStorage'
 import { fetchUsers } from '../../users/services/usersService'
 import { APPLICATION_STATUS, EVIDENCE_EXTENSIONS, localize } from '../domain/rpl'
+import { SCREENING_IDENTITY_CATEGORY, SCREENING_MODEL_MAX_LENGTH, SCREENING_SETTING_KEYS, screeningSettingsCopy } from '../domain/documentScreening'
 import {
   createRplConfiguration,
   deleteRplConfiguration,
@@ -38,6 +39,23 @@ const REAPPLY_COOLDOWN_SCOPES = ['all_rejections', 'screening_interview_quiz_dec
 
 function isReapplyCooldownValid({ rpl_reapply_cooldown_days: days, rpl_reapply_cooldown_scope: scope }) {
   return /^\d+$/.test(String(days ?? '')) && Number(days) <= 365 && REAPPLY_COOLDOWN_SCOPES.includes(scope)
+}
+
+/* A stored screening switch reads on only when it is plainly on: anything else is off, the seeded and safe value. */
+function isSwitchedOn(value) {
+  return value === true || value === 1 || value === '1' || value === 'true'
+}
+
+/** The server's validation lines for the screening keys, by key ("…_categories.0" counts as its list). */
+function screeningFieldErrors(error) {
+  const errors = error?.response?.data?.errors
+  if (!errors || typeof errors !== 'object') return {}
+  const collected = {}
+  for (const [field, messages] of Object.entries(errors)) {
+    const key = SCREENING_SETTING_KEYS.find((candidate) => field === candidate || field.startsWith(`${candidate}.`))
+    if (key) collected[key] = [...(collected[key] || []), ...[].concat(messages).filter((line) => typeof line === 'string')]
+  }
+  return Object.fromEntries(Object.entries(collected).map(([key, lines]) => [key, [...new Set(lines)].join('\n')]))
 }
 
 const copyByLanguage = {
@@ -163,7 +181,19 @@ export default function RplConfigurationPage() {
   const [activeTab, setActiveTab] = useState('pathways')
   const tab = tabs.find((item) => item.key === activeTab) || tabs[0]
   const [state, setState] = useState({ loading: true, error: '', rows: [], reference: {}, users: [] })
-  const [settings, setSettings] = useState({ appeal_window_days: 15, require_verified_evidence_for_assessment: true, gemini_advisory_model: 'gemini-3.5-flash', gemini_advisory_prompt: '', rpl_advisory_include_evidence_documents: true, rpl_reapply_cooldown_days: '', rpl_reapply_cooldown_scope: '' })
+  const [settings, setSettings] = useState({ appeal_window_days: 15, require_verified_evidence_for_assessment: true, gemini_advisory_model: 'gemini-3.5-flash', gemini_advisory_prompt: '', rpl_advisory_include_evidence_documents: true, rpl_reapply_cooldown_days: '', rpl_reapply_cooldown_scope: '', rpl_document_screening_enabled: false, rpl_document_screening_web_search_enabled: false, rpl_document_screening_model: '', rpl_document_screening_excluded_categories: [], rpl_document_screening_extraction_only_categories: [] })
+  /*
+   * Document screening (owner flow of 12 Oct 2026, P2). A save writes only the
+   * screening keys the server returned or an administrator changed: a key the
+   * server does not hold is never written with a value nobody saw or chose. An
+   * absent extraction-only list saved as [] would put identity documents back
+   * under a figure (D20(c)) without anyone deciding so.
+   */
+  const [screeningKeys, setScreeningKeys] = useState([])
+  const [screeningErrors, setScreeningErrors] = useState({})
+  // New copy is Arabic and English only (owner, 13 Oct 2026); any other language reads English.
+  const screenLanguage = isArabic ? 'ar' : 'en'
+  const screeningText = screeningSettingsCopy(screenLanguage)
   const [form, setForm] = useState(() => emptyForm(tab.resource))
   const [formOpen, setFormOpen] = useState(false)
   const [formLanguage, setFormLanguage] = useState(language === 'ar' || language === 'nl' ? language : 'en')
@@ -175,7 +205,9 @@ export default function RplConfigurationPage() {
     setState((current) => ({ ...current, loading: true, error: '' }))
     try {
       if (tab.settings) {
-        const raw = unwrapApiData(await fetchRplSettings()) || {}
+        // The reference data only lists the categories for the screening controls; the controls still load without it.
+        const [settingsResponse, referenceResponse] = await Promise.all([fetchRplSettings(), fetchRplReferenceData().catch(() => ({}))])
+        const raw = unwrapApiData(settingsResponse) || {}
         setSettings({
           appeal_window_days: Number(raw.appeal_window_days || 15),
           require_verified_evidence_for_assessment: raw.require_verified_evidence_for_assessment !== false,
@@ -190,8 +222,15 @@ export default function RplConfigurationPage() {
           // save until somebody chooses a value.
           rpl_reapply_cooldown_days: raw.rpl_reapply_cooldown_days ?? '',
           rpl_reapply_cooldown_scope: raw.rpl_reapply_cooldown_scope ?? '',
+          rpl_document_screening_enabled: isSwitchedOn(raw.rpl_document_screening_enabled),
+          rpl_document_screening_web_search_enabled: isSwitchedOn(raw.rpl_document_screening_web_search_enabled),
+          rpl_document_screening_model: typeof raw.rpl_document_screening_model === 'string' ? raw.rpl_document_screening_model : '',
+          rpl_document_screening_excluded_categories: Array.isArray(raw.rpl_document_screening_excluded_categories) ? raw.rpl_document_screening_excluded_categories : [],
+          rpl_document_screening_extraction_only_categories: Array.isArray(raw.rpl_document_screening_extraction_only_categories) ? raw.rpl_document_screening_extraction_only_categories : [],
         })
-        setState({ loading: false, error: '', rows: [], reference: {}, users: [] })
+        setScreeningKeys(SCREENING_SETTING_KEYS.filter((key) => raw[key] != null))
+        setScreeningErrors({})
+        setState({ loading: false, error: '', rows: [], reference: unwrapApiData(referenceResponse) || {}, users: [] })
         return
       }
       const [records, referenceResponse, usersResponse] = await Promise.all([
@@ -253,8 +292,37 @@ export default function RplConfigurationPage() {
     try { await deleteRplConfiguration(tab.resource, deleteTarget.id); setDeleteTarget(null); setAction({ busy: false, error: '', success: copy.deleted }); await load() } catch (error) { setDeleteTarget(null); setAction({ busy: false, error: readApiError(error), success: '' }) }
   }
 
+  function updateScreening(key, next) {
+    setSettings((current) => ({ ...current, [key]: typeof next === 'function' ? next(current[key]) : next }))
+    setScreeningKeys((current) => (current.includes(key) ? current : [...current, key]))
+    setScreeningErrors((current) => {
+      if (!current[key]) return current
+      const { [key]: _cleared, ...rest } = current
+      return rest
+    })
+  }
+
+  function toggleScreeningCategory(key, code) {
+    updateScreening(key, (current) => (current.includes(code) ? current.filter((item) => item !== code) : [...current, code]))
+  }
+
+  const screeningModel = String(settings.rpl_document_screening_model ?? '').trim()
+  const isScreeningModelValid = !screeningKeys.includes('rpl_document_screening_model') || (screeningModel.length >= 1 && screeningModel.length <= SCREENING_MODEL_MAX_LENGTH)
+
+  function screeningPayload() {
+    const values = {
+      rpl_document_screening_enabled: Boolean(settings.rpl_document_screening_enabled),
+      rpl_document_screening_web_search_enabled: Boolean(settings.rpl_document_screening_web_search_enabled),
+      rpl_document_screening_model: screeningModel,
+      rpl_document_screening_excluded_categories: [...settings.rpl_document_screening_excluded_categories],
+      rpl_document_screening_extraction_only_categories: [...settings.rpl_document_screening_extraction_only_categories],
+    }
+    return Object.fromEntries(SCREENING_SETTING_KEYS.filter((key) => screeningKeys.includes(key)).map((key) => [key, values[key]]))
+  }
+
   async function saveSettings() {
     setAction({ busy: true, error: '', success: '' })
+    setScreeningErrors({})
     try {
       await updateRplSettings({
         appeal_window_days: Number(settings.appeal_window_days),
@@ -264,9 +332,67 @@ export default function RplConfigurationPage() {
         rpl_advisory_include_evidence_documents: Boolean(settings.rpl_advisory_include_evidence_documents),
         rpl_reapply_cooldown_days: Number(settings.rpl_reapply_cooldown_days),
         rpl_reapply_cooldown_scope: settings.rpl_reapply_cooldown_scope,
+        ...screeningPayload(),
       })
       setAction({ busy: false, error: '', success: copy.saved })
-    } catch (error) { setAction({ busy: false, error: readApiError(error), success: '' }) }
+    } catch (error) {
+      // The web-search 422 (active declaration below version 2) is also shown under its own switch.
+      setScreeningErrors(screeningFieldErrors(error))
+      setAction({ busy: false, error: readApiError(error), success: '' })
+    }
+  }
+
+  function screeningCategoryFieldset(key, legend, hint) {
+    const selected = settings[key]
+    const otherKey = key === 'rpl_document_screening_excluded_categories' ? 'rpl_document_screening_extraction_only_categories' : 'rpl_document_screening_excluded_categories'
+    const active = evidenceCategories.filter((category) => category?.code && category.is_active !== false)
+    const activeCodes = new Set(active.map((category) => category.code))
+    // A stored code that is no longer an active category stays visible, so it can be unticked; the server refuses it on save.
+    const options = [
+      ...active.map((category) => ({ code: category.code, label: localize(category.name, screenLanguage) || category.code, inactive: false })),
+      ...selected.filter((code) => !activeCodes.has(code)).map((code) => ({ code, label: code, inactive: active.length > 0 })),
+    ]
+    /*
+     * Identity documents are always excluded or extraction-only (D20(c)): never a
+     * percentage, as declaration v2 tells applicants, and the server refuses a save
+     * that leaves them in neither list. So identity cannot be unticked here until
+     * it is ticked in the other list; moving it is "tick there, then untick here".
+     */
+    const isLocked = (code) => code === SCREENING_IDENTITY_CATEGORY && activeCodes.has(code) && selected.includes(code) && !settings[otherKey].includes(code)
+    const locked = options.some((option) => isLocked(option.code))
+    return (
+      <fieldset>
+        <legend className="font-semibold">{legend}</legend>
+        <p className="mt-1 leading-6 text-[var(--color-text-muted)]">{hint}</p>
+        {options.length ? (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {options.map((option) => <label key={option.code} className={`flex items-start gap-2 rounded-xl border p-3 ${isLocked(option.code) ? 'cursor-not-allowed' : 'cursor-pointer'} ${option.inactive ? 'border-red-200 bg-red-50' : 'border-[var(--color-border)]'}`}><input type="checkbox" className="mt-1" checked={selected.includes(option.code)} disabled={isLocked(option.code)} onChange={() => toggleScreeningCategory(key, option.code)} /><span><span className="block">{option.label}</span><code className="text-xs text-[var(--color-text-muted)]">{option.code}</code>{option.inactive ? <span className="block text-xs text-red-700">{screeningText.inactiveCategory}</span> : null}</span></label>)}
+          </div>
+        ) : null}
+        {locked ? <p className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">{screeningText.identityLocked}</p> : null}
+        {!active.length ? <p className="mt-2 text-xs text-amber-800">{screeningText.noCategories}</p> : null}
+        {screeningErrors[key] ? <p className="mt-2 whitespace-pre-line text-sm text-[var(--color-danger)]">{screeningErrors[key]}</p> : null}
+      </fieldset>
+    )
+  }
+
+  function renderScreeningSettings() {
+    const webSearchErrorId = 'rpl-screening-web-search-error'
+    return (
+      <section aria-labelledby="rpl-screening-settings-title" className="space-y-4 rounded-2xl border border-[var(--color-border)] p-5 text-sm">
+        <div><h3 id="rpl-screening-settings-title" className="font-bold">{screeningText.title}</h3><p className="mt-1 leading-6 text-[var(--color-text-muted)]">{screeningText.hint}</p></div>
+        <label className="flex items-start gap-3 rounded-xl border border-[var(--color-border)] p-4"><input type="checkbox" className="mt-1" checked={settings.rpl_document_screening_enabled} onChange={(event) => updateScreening('rpl_document_screening_enabled', event.target.checked)} /><span><strong className="block">{screeningText.enabled}</strong><span className="mt-1 block leading-6 text-[var(--color-text-muted)]">{screeningText.enabledHint}</span></span></label>
+        {/* The screen reads documents through the same kill switch as the advisory, and refuses (reading_disabled) while it is off. */}
+        {settings.rpl_document_screening_enabled && !settings.rpl_advisory_include_evidence_documents ? <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 leading-6 text-amber-900">{screeningText.readingOff}</p> : null}
+        <div>
+          <label className="flex items-start gap-3 rounded-xl border border-[var(--color-border)] p-4"><input type="checkbox" className="mt-1" checked={settings.rpl_document_screening_web_search_enabled} aria-invalid={screeningErrors.rpl_document_screening_web_search_enabled ? true : undefined} aria-describedby={screeningErrors.rpl_document_screening_web_search_enabled ? webSearchErrorId : undefined} onChange={(event) => updateScreening('rpl_document_screening_web_search_enabled', event.target.checked)} /><span><strong className="block">{screeningText.webSearch}</strong><span className="mt-1 block leading-6 text-[var(--color-text-muted)]">{screeningText.webSearchHint}</span></span></label>
+          {screeningErrors.rpl_document_screening_web_search_enabled ? <p id={webSearchErrorId} className="mt-2 whitespace-pre-line text-sm text-[var(--color-danger)]">{screeningErrors.rpl_document_screening_web_search_enabled}</p> : null}
+        </div>
+        <Input label={screeningText.model} maxLength={SCREENING_MODEL_MAX_LENGTH} value={settings.rpl_document_screening_model} hint={screeningText.modelHint} error={!isScreeningModelValid ? screeningText.modelRequired : screeningErrors.rpl_document_screening_model} onChange={(event) => updateScreening('rpl_document_screening_model', event.target.value)} />
+        {screeningCategoryFieldset('rpl_document_screening_excluded_categories', screeningText.excluded, screeningText.excludedHint)}
+        {screeningCategoryFieldset('rpl_document_screening_extraction_only_categories', screeningText.extractionOnly, screeningText.extractionOnlyHint)}
+      </section>
+    )
   }
 
   const columns = [
@@ -309,7 +435,7 @@ export default function RplConfigurationPage() {
   }
 
   function renderSettings() {
-    return <div className="space-y-6"><Card><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.workflowTitle}</CardTitle><p className="mt-2 text-sm text-[var(--color-text-muted)]">{copy.workflowHint}</p></CardHeader><CardContent className="pt-6"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{Object.keys(APPLICATION_STATUS).map((status, index) => <div key={status} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-surface-muted)] text-xs font-bold">{index + 1}</span><RplStatusBadge status={status} language={language} /></div>)}</div></CardContent></Card><Card><CardContent className="space-y-5 p-6"><div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm leading-6 text-sky-900"><strong className="block text-base">{copy.fixedUploadPolicy}</strong><span>{copy.fixedUploadPolicyHint}</span></div><Input type="number" min="1" max="180" label={copy.appealDays} value={settings.appeal_window_days} onChange={(event) => setSettings((current) => ({ ...current, appeal_window_days: event.target.value }))} /><label className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] p-4"><input type="checkbox" checked={settings.require_verified_evidence_for_assessment} onChange={(event) => setSettings((current) => ({ ...current, require_verified_evidence_for_assessment: event.target.checked }))} />{copy.requireVerified}</label>{/* The reapply cooldown (owner, 12 Oct 2026). Governed: no default here or in the API, and the date is frozen onto each rejected case, so an edit only affects rejections made after it. */}<section className="space-y-4 rounded-2xl border border-[var(--color-border)] p-5 text-sm"><div><h3 className="font-bold">{copy.cooldownTitle}</h3><p className="mt-1 leading-6 text-[var(--color-text-muted)]">{copy.cooldownHint}</p></div><div className="grid gap-4 sm:grid-cols-2"><Input type="number" min="0" max="365" step="1" label={copy.cooldownDays} value={settings.rpl_reapply_cooldown_days} error={settings.rpl_reapply_cooldown_days === '' ? copy.cooldownMissing : undefined} onChange={(event) => setSettings((current) => ({ ...current, rpl_reapply_cooldown_days: event.target.value }))} /><Select label={copy.cooldownScope} value={settings.rpl_reapply_cooldown_scope} error={settings.rpl_reapply_cooldown_scope === '' ? copy.cooldownMissing : undefined} onChange={(event) => setSettings((current) => ({ ...current, rpl_reapply_cooldown_scope: event.target.value }))}><option value="" disabled>—</option><option value="all_rejections">{copy.cooldownScopeAll}</option><option value="screening_interview_quiz_declines">{copy.cooldownScopeNarrow}</option></Select></div></section><section className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950"><div><h3 className="font-bold">{copy.geminiTitle}</h3><p className="mt-1 leading-6">{copy.geminiHint}</p></div>{/* The privacy kill switch. It decides whether the applicant's own files leave the platform for the model, and until now the only way to move it was an UPDATE against rpl_settings — not a control anyone can reach in the moment they need it. */}<label className="flex items-start gap-3 rounded-xl border border-amber-300 bg-white p-4"><input type="checkbox" className="mt-1" checked={settings.rpl_advisory_include_evidence_documents} onChange={(event) => setSettings((current) => ({ ...current, rpl_advisory_include_evidence_documents: event.target.checked }))} /><span><strong className="block">{copy.evidenceDocuments}</strong><span className="mt-1 block leading-6">{copy.evidenceDocumentsHint}</span></span></label><Input label={copy.geminiModel} value={settings.gemini_advisory_model} onChange={(event) => setSettings((current) => ({ ...current, gemini_advisory_model: event.target.value }))} /><Textarea rows={14} label={copy.geminiPrompt} value={settings.gemini_advisory_prompt} onChange={(event) => setSettings((current) => ({ ...current, gemini_advisory_prompt: event.target.value }))} /><p className="text-xs leading-5">{copy.geminiGovernance}</p></section><div className="flex justify-end"><Button onClick={saveSettings} disabled={action.busy || Number(settings.appeal_window_days) < 1 || Number(settings.appeal_window_days) > 180 || settings.gemini_advisory_prompt.trim().length < 200 || !isReapplyCooldownValid(settings)}><Save size={17} />{copy.saveSettings}</Button></div></CardContent></Card></div>
+    return <div className="space-y-6"><Card><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.workflowTitle}</CardTitle><p className="mt-2 text-sm text-[var(--color-text-muted)]">{copy.workflowHint}</p></CardHeader><CardContent className="pt-6"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{Object.keys(APPLICATION_STATUS).map((status, index) => <div key={status} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-surface-muted)] text-xs font-bold">{index + 1}</span><RplStatusBadge status={status} language={language} /></div>)}</div></CardContent></Card><Card><CardContent className="space-y-5 p-6"><div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm leading-6 text-sky-900"><strong className="block text-base">{copy.fixedUploadPolicy}</strong><span>{copy.fixedUploadPolicyHint}</span></div><Input type="number" min="1" max="180" label={copy.appealDays} value={settings.appeal_window_days} onChange={(event) => setSettings((current) => ({ ...current, appeal_window_days: event.target.value }))} /><label className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] p-4"><input type="checkbox" checked={settings.require_verified_evidence_for_assessment} onChange={(event) => setSettings((current) => ({ ...current, require_verified_evidence_for_assessment: event.target.checked }))} />{copy.requireVerified}</label>{/* The reapply cooldown (owner, 12 Oct 2026). Governed: no default here or in the API, and the date is frozen onto each rejected case, so an edit only affects rejections made after it. */}<section className="space-y-4 rounded-2xl border border-[var(--color-border)] p-5 text-sm"><div><h3 className="font-bold">{copy.cooldownTitle}</h3><p className="mt-1 leading-6 text-[var(--color-text-muted)]">{copy.cooldownHint}</p></div><div className="grid gap-4 sm:grid-cols-2"><Input type="number" min="0" max="365" step="1" label={copy.cooldownDays} value={settings.rpl_reapply_cooldown_days} error={settings.rpl_reapply_cooldown_days === '' ? copy.cooldownMissing : undefined} onChange={(event) => setSettings((current) => ({ ...current, rpl_reapply_cooldown_days: event.target.value }))} /><Select label={copy.cooldownScope} value={settings.rpl_reapply_cooldown_scope} error={settings.rpl_reapply_cooldown_scope === '' ? copy.cooldownMissing : undefined} onChange={(event) => setSettings((current) => ({ ...current, rpl_reapply_cooldown_scope: event.target.value }))}><option value="" disabled>—</option><option value="all_rejections">{copy.cooldownScopeAll}</option><option value="screening_interview_quiz_declines">{copy.cooldownScopeNarrow}</option></Select></div></section><section className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950"><div><h3 className="font-bold">{copy.geminiTitle}</h3><p className="mt-1 leading-6">{copy.geminiHint}</p></div>{/* The privacy kill switch. It decides whether the applicant's own files leave the platform for the model, and until now the only way to move it was an UPDATE against rpl_settings — not a control anyone can reach in the moment they need it. */}<label className="flex items-start gap-3 rounded-xl border border-amber-300 bg-white p-4"><input type="checkbox" className="mt-1" checked={settings.rpl_advisory_include_evidence_documents} onChange={(event) => setSettings((current) => ({ ...current, rpl_advisory_include_evidence_documents: event.target.checked }))} /><span><strong className="block">{copy.evidenceDocuments}</strong><span className="mt-1 block leading-6">{copy.evidenceDocumentsHint}</span></span></label><Input label={copy.geminiModel} value={settings.gemini_advisory_model} onChange={(event) => setSettings((current) => ({ ...current, gemini_advisory_model: event.target.value }))} /><Textarea rows={14} label={copy.geminiPrompt} value={settings.gemini_advisory_prompt} onChange={(event) => setSettings((current) => ({ ...current, gemini_advisory_prompt: event.target.value }))} /><p className="text-xs leading-5">{copy.geminiGovernance}</p></section>{renderScreeningSettings()}<div className="flex justify-end"><Button onClick={saveSettings} disabled={action.busy || Number(settings.appeal_window_days) < 1 || Number(settings.appeal_window_days) > 180 || settings.gemini_advisory_prompt.trim().length < 200 || !isReapplyCooldownValid(settings) || !isScreeningModelValid}><Save size={17} />{copy.saveSettings}</Button></div></CardContent></Card></div>
   }
 
   return (

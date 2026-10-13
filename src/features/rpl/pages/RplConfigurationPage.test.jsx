@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import RplConfigurationPage, { COPY } from './RplConfigurationPage'
+import { SCREENING_SETTINGS_COPY } from '../domain/documentScreening'
 
 /*
  * THE PRIVACY KILL SWITCH NEEDS A SWITCH.
@@ -278,5 +279,214 @@ describe('the copy itself', () => {
     const en = paths(COPY.en).sort()
     expect(paths(COPY.ar).sort()).toEqual(en)
     expect(paths(COPY.nl).sort()).toEqual(en)
+  })
+})
+
+/*
+ * THE DOCUMENT SCREENING CONTROLS (owner flow of 12 Oct 2026, P2).
+ *
+ * Five settings on the same endpoint and the same save: the screen switch, the
+ * online employer check, the model, and two category lists. The server refuses
+ * the employer check (422) while the active applicant declaration is below
+ * version 2, and that refusal has to be visible beside the switch. A key the
+ * server does not hold is never written with a value nobody chose: an absent
+ * extraction-only list saved as [] would quietly put identity documents back
+ * under a figure.
+ */
+describe('the document screening controls', () => {
+  const SC = SCREENING_SETTINGS_COPY.en
+  const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const checkbox = (label) => screen.getByRole('checkbox', { name: new RegExp(escape(label)) })
+  const group = (legend) => screen.getByRole('group', { name: legend })
+
+  const screeningSettings = {
+    rpl_document_screening_enabled: false,
+    rpl_document_screening_web_search_enabled: false,
+    rpl_document_screening_model: 'gemini-3-pro-preview',
+    rpl_document_screening_excluded_categories: [],
+    rpl_document_screening_extraction_only_categories: ['identity'],
+  }
+
+  function storedSettings(overrides = {}) {
+    return {
+      data: {
+        appeal_window_days: 15,
+        require_verified_evidence_for_assessment: true,
+        gemini_advisory_model: 'gemini-3.5-flash',
+        gemini_advisory_prompt: longPrompt,
+        rpl_advisory_include_evidence_documents: true,
+        rpl_reapply_cooldown_days: 7,
+        rpl_reapply_cooldown_scope: 'all_rejections',
+        ...screeningSettings,
+        ...overrides,
+      },
+    }
+  }
+
+  beforeEach(() => {
+    mocks.fetchRplSettings.mockResolvedValue(storedSettings())
+    mocks.fetchRplReferenceData.mockResolvedValue({
+      data: {
+        evidence_categories: [
+          { id: 1, code: 'identity', name: { en: 'Personal identity', ar: 'الهوية الشخصية' }, is_active: true },
+          { id: 2, code: 'professional_experience', name: { en: 'Professional experience', ar: 'الخبرة المهنية' }, is_active: true },
+          { id: 3, code: 'legacy_letters', name: { en: 'Legacy letters', ar: 'خطابات قديمة' }, is_active: false },
+        ],
+      },
+    })
+  })
+
+  it('shows the stored values, with active categories only', async () => {
+    await openControls()
+
+    expect(checkbox(SC.enabled)).not.toBeChecked()
+    expect(checkbox(SC.webSearch)).not.toBeChecked()
+    expect(screen.getByLabelText(SC.model)).toHaveValue('gemini-3-pro-preview')
+    expect(within(group(SC.extractionOnly)).getByRole('checkbox', { name: /Personal identity/ })).toBeChecked()
+    expect(within(group(SC.excluded)).getByRole('checkbox', { name: /Personal identity/ })).not.toBeChecked()
+    expect(screen.queryByText('Legacy letters')).not.toBeInTheDocument()
+  })
+
+  it('saves all five with the existing save, the other controls intact', async () => {
+    await openControls()
+
+    fireEvent.click(checkbox(SC.enabled))
+    fireEvent.click(checkbox(SC.webSearch))
+    fireEvent.change(screen.getByLabelText(SC.model), { target: { value: '  gemini-3-pro  ' } })
+    fireEvent.click(within(group(SC.excluded)).getByRole('checkbox', { name: /Professional experience/ }))
+    fireEvent.click(screen.getByRole('button', { name: COPY.en.saveSettings }))
+
+    await waitFor(() => expect(mocks.updateRplSettings).toHaveBeenCalledTimes(1))
+    expect(mocks.updateRplSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rpl_document_screening_enabled: true,
+        rpl_document_screening_web_search_enabled: true,
+        rpl_document_screening_model: 'gemini-3-pro',
+        rpl_document_screening_excluded_categories: ['professional_experience'],
+        rpl_document_screening_extraction_only_categories: ['identity'],
+        appeal_window_days: 15,
+        rpl_advisory_include_evidence_documents: true,
+        rpl_reapply_cooldown_days: 7,
+      }),
+    )
+  })
+
+  it('shows the server\'s 422 for the employer check beside its switch', async () => {
+    const refusal = 'Online employer checks need applicant declaration version 2 or later to be active.'
+    mocks.updateRplSettings.mockRejectedValue({
+      response: { status: 422, data: { message: refusal, errors: { rpl_document_screening_web_search_enabled: [refusal] } } },
+    })
+    await openControls()
+
+    fireEvent.click(checkbox(SC.webSearch))
+    fireEvent.click(screen.getByRole('button', { name: COPY.en.saveSettings }))
+
+    // Once in the page alert, once under the switch itself.
+    await waitFor(() => expect(screen.getAllByText(new RegExp(escape(refusal)))).toHaveLength(2))
+    const toggle = checkbox(SC.webSearch)
+    expect(toggle).toHaveAttribute('aria-invalid', 'true')
+    expect(document.getElementById(toggle.getAttribute('aria-describedby'))).toHaveTextContent(refusal)
+  })
+
+  it('writes no screening key the server does not hold, until somebody changes one', async () => {
+    mocks.fetchRplSettings.mockResolvedValue({
+      data: { appeal_window_days: 15, gemini_advisory_prompt: longPrompt, rpl_reapply_cooldown_days: 7, rpl_reapply_cooldown_scope: 'all_rejections' },
+    })
+    await openControls()
+
+    fireEvent.click(screen.getByRole('button', { name: COPY.en.saveSettings }))
+    await waitFor(() => expect(mocks.updateRplSettings).toHaveBeenCalledTimes(1))
+    expect(Object.keys(mocks.updateRplSettings.mock.calls[0][0]).filter((key) => key.startsWith('rpl_document_screening'))).toEqual([])
+
+    fireEvent.click(checkbox(SC.enabled))
+    fireEvent.click(screen.getByRole('button', { name: COPY.en.saveSettings }))
+    await waitFor(() => expect(mocks.updateRplSettings).toHaveBeenCalledTimes(2))
+    const second = mocks.updateRplSettings.mock.calls[1][0]
+    expect(Object.keys(second).filter((key) => key.startsWith('rpl_document_screening'))).toEqual(['rpl_document_screening_enabled'])
+    expect(second.rpl_document_screening_enabled).toBe(true)
+  })
+
+  it('will not save a blank model', async () => {
+    await openControls()
+
+    fireEvent.change(screen.getByLabelText(SC.model), { target: { value: '   ' } })
+
+    expect(screen.getByText(SC.modelRequired)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: COPY.en.saveSettings })).toBeDisabled()
+  })
+
+  it('warns that every screen is refused while document reading is off', async () => {
+    mocks.fetchRplSettings.mockResolvedValue(storedSettings({ rpl_document_screening_enabled: true, rpl_advisory_include_evidence_documents: false }))
+    await openControls()
+
+    expect(screen.getByText(SC.readingOff)).toBeInTheDocument()
+  })
+
+  it('keeps a stored code that is no longer active visible, so it can be unticked', async () => {
+    mocks.fetchRplSettings.mockResolvedValue(storedSettings({ rpl_document_screening_excluded_categories: ['legacy_letters'] }))
+    await openControls()
+
+    const stale = within(group(SC.excluded)).getByRole('checkbox', { name: /legacy_letters/ })
+    expect(stale).toBeChecked()
+    expect(within(group(SC.excluded)).getByText(SC.inactiveCategory)).toBeInTheDocument()
+
+    fireEvent.click(stale)
+    fireEvent.click(screen.getByRole('button', { name: COPY.en.saveSettings }))
+
+    await waitFor(() =>
+      expect(mocks.updateRplSettings).toHaveBeenCalledWith(expect.objectContaining({ rpl_document_screening_excluded_categories: [] })),
+    )
+  })
+
+  it('never lets identity documents be left in neither list: identity is unticked only once it is ticked in the other (D20(c))', async () => {
+    await openControls()
+
+    const extractionIdentity = within(group(SC.extractionOnly)).getByRole('checkbox', { name: /Personal identity/ })
+    expect(extractionIdentity).toBeChecked()
+    expect(extractionIdentity).toBeDisabled()
+    expect(within(group(SC.extractionOnly)).getByText(SC.identityLocked)).toBeInTheDocument()
+    // Other categories stay free.
+    expect(within(group(SC.extractionOnly)).getByRole('checkbox', { name: /Professional experience/ })).toBeEnabled()
+
+    // Moving it: tick it in the excluded list first, then untick it here.
+    fireEvent.click(within(group(SC.excluded)).getByRole('checkbox', { name: /Personal identity/ }))
+    expect(extractionIdentity).toBeEnabled()
+    fireEvent.click(extractionIdentity)
+    // Now the excluded one is the only place it stands, so that one is held.
+    expect(within(group(SC.excluded)).getByRole('checkbox', { name: /Personal identity/ })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: COPY.en.saveSettings }))
+
+    await waitFor(() => expect(mocks.updateRplSettings).toHaveBeenCalledTimes(1))
+    expect(mocks.updateRplSettings).toHaveBeenCalledWith(expect.objectContaining({
+      rpl_document_screening_excluded_categories: ['identity'],
+      rpl_document_screening_extraction_only_categories: [],
+    }))
+  })
+
+  it('says the employer check sends name and location only, never a website', async () => {
+    await openControls()
+
+    expect(screen.getByText(SC.webSearchHint)).toBeInTheDocument()
+    expect(SC.webSearchHint).toMatch(/country and city only/)
+    expect(SC.webSearchHint).toMatch(/never the employer's website/)
+    expect(SCREENING_SETTINGS_COPY.ar.webSearchHint).toMatch(/بلدها ومدينتها فقط/)
+  })
+
+  it('renders in Arabic, and in English for the NL switcher, never "undefined"', async () => {
+    language.current = 'ar'
+    const { unmount } = render(<RplConfigurationPage />)
+    fireEvent.click(await screen.findByRole('button', { name: COPY.ar.workflow }))
+
+    expect(await screen.findByText(SCREENING_SETTINGS_COPY.ar.title)).toBeInTheDocument()
+    expect(within(group(SCREENING_SETTINGS_COPY.ar.extractionOnly)).getByRole('checkbox', { name: /الهوية الشخصية/ })).toBeChecked()
+    expect(document.body.textContent).not.toContain('undefined')
+    unmount()
+
+    language.current = 'nl'
+    render(<RplConfigurationPage />)
+    fireEvent.click(await screen.findByRole('button', { name: COPY.nl.workflow }))
+
+    expect(await screen.findByText(SC.title)).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('undefined')
   })
 })

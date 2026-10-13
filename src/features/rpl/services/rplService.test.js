@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 import {
   acknowledgeRplAiAdvisory,
+  acknowledgeRplScreening,
+  fetchRplScreenings,
+  requestRplScreening,
   addDynamicAssessmentItem,
   approveAllDynamicAssessmentItems,
   approveDynamicAssessmentItem,
@@ -214,6 +217,34 @@ describe('the advisory and findings endpoints the same screen calls', () => {
     await saveRplAssessmentFindings(12, payload)
 
     expect(http.put).toHaveBeenCalledWith('/admin/rpl/assessments/12/findings', payload)
+  })
+})
+
+/*
+ * DOCUMENT SCREENING (owner flow of 12 Oct 2026, P2). Transcribed from the
+ * admin contract, not from the service: the list and the re-run hang off the
+ * CASE (bound by public_id); acknowledge hangs off the SCREENING's own
+ * public_id, under its own root.
+ */
+describe('the document screening endpoints', () => {
+  test('the screens are listed under the case', async () => {
+    await fetchRplScreenings('9a1c0d6e-case')
+
+    expect(http.get).toHaveBeenCalledWith('/admin/rpl/applications/9a1c0d6e-case/screenings')
+  })
+
+  test('a re-run posts to the same collection, with no body and the normal timeout', async () => {
+    // The request only queues the job; the model runs on the worker.
+    await requestRplScreening('9a1c0d6e-case')
+
+    expect(http.post).toHaveBeenCalledWith('/admin/rpl/applications/9a1c0d6e-case/screenings')
+    expect(http.post.mock.calls[0]).toHaveLength(1)
+  })
+
+  test('acknowledging addresses the SCREENING, not the case', async () => {
+    await acknowledgeRplScreening('5f2e-screening')
+
+    expect(http.post).toHaveBeenCalledWith('/admin/rpl/screenings/5f2e-screening/acknowledge')
   })
 })
 

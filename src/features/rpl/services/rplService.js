@@ -121,6 +121,26 @@ export async function acknowledgeRplAiAdvisory(id) {
   return read(await http.post(`/admin/rpl/ai-advisories/${id}/acknowledge`))
 }
 
+/*
+ * DOCUMENT SCREENING (owner flow of 12 Oct 2026, P2).
+ *
+ * Staff-only: rpl.screening.view reads and acknowledges, rpl.screening.run
+ * re-runs (at most 5 per case per calendar day, 429 beyond). The application is
+ * addressed by public_id like every other case route, and a screening by its
+ * own public_id. A re-run only QUEUES the job, so it needs no AI timeout.
+ */
+export async function fetchRplScreenings(applicationId) {
+  return read(await http.get(`/admin/rpl/applications/${applicationId}/screenings`))
+}
+
+export async function requestRplScreening(applicationId) {
+  return read(await http.post(`/admin/rpl/applications/${applicationId}/screenings`))
+}
+
+export async function acknowledgeRplScreening(screeningPublicId) {
+  return read(await http.post(`/admin/rpl/screenings/${screeningPublicId}/acknowledge`))
+}
+
 // ===== Downloads (PDF/CSV exports) =====
 
 function saveDownload(response, fallbackName) {
