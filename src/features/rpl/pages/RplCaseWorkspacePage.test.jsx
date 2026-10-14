@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import RplCaseWorkspacePage from './RplCaseWorkspacePage'
 import { DECLINE_REASONS } from '../domain/rpl'
 import { CLAIMED_EMPLOYERS_COPY, SCREENING_COPY } from '../domain/documentScreening'
+import { CASE_DECISION_COPY, DECLINE_COPY, INTERVIEW_COPY } from '../domain/caseDecision'
 import { createAuthorization } from '../../auth/authorization'
 import { formatLocalizedDateTime } from '../../../utils/localization'
 
@@ -40,6 +41,19 @@ const mocks = vi.hoisted(() => ({
   fetchRplScreenings: vi.fn(),
   requestRplScreening: vi.fn(),
   acknowledgeRplScreening: vi.fn(),
+  // The decision tab (P3).
+  fetchRplScreeningDecisions: vi.fn(),
+  recordRplScreeningDecision: vi.fn(),
+  declineRplApplication: vi.fn(),
+  fetchRplInterviews: vi.fn(),
+  fetchRplSettings: vi.fn(),
+  offerRplInterview: vi.fn(),
+  scheduleRplCaseInterview: vi.fn(),
+  completeRplInterview: vi.fn(),
+  markRplInterviewNoShow: vi.fn(),
+  cancelRplInterview: vi.fn(),
+  decideRplInterview: vi.fn(),
+  updateRplInterview: vi.fn(),
 }))
 
 const language = vi.hoisted(() => ({ current: 'en' }))
@@ -78,6 +92,7 @@ function renderCase(entry = '/rpl/applications/41') {
     <MemoryRouter initialEntries={[entry]}>
       <Routes>
         <Route path="/rpl/applications/:applicationId" element={<RplCaseWorkspacePage />} />
+        <Route path="/rpl/assessments/:assessmentId" element={<p>Assessment page</p>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -95,6 +110,9 @@ beforeEach(() => {
   mocks.fetchRplAssessments.mockResolvedValue({ data: [] })
   mocks.fetchRplAssignments.mockResolvedValue({ data: [] })
   mocks.fetchRplAssessors.mockResolvedValue({ data: [] })
+  mocks.fetchRplScreeningDecisions.mockResolvedValue({ data: [] })
+  mocks.fetchRplInterviews.mockResolvedValue({ data: [] })
+  mocks.fetchRplSettings.mockResolvedValue({ data: {} })
 })
 
 describe('the decline stamp on the case summary', () => {
@@ -348,5 +366,256 @@ describe('the claimed employers on the overview', () => {
     expect(screen.getByText(CLAIMED_EMPLOYERS_COPY.en.snapshotHint)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: SCREENING_COPY.en.tab })).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('undefined')
+  })
+})
+
+/*
+ * THE NEXT-STATUS SELECT LISTS ONLY WHAT THE GENERIC ROUTE ACCEPTS (owner flow
+ * of 12 Oct 2026, plan 4.5).
+ *
+ * The moves into ready_for_assessment, interview_required and rejected from
+ * verification need a decision, an interview or a decline record, and the
+ * server refuses them on the generic route. The select used to list every
+ * status; it now lists the case's allowed_transitions, and the dedicated
+ * controls carry the rest.
+ */
+describe('the next-status select', () => {
+  const open = (overrides = {}) => mocks.fetchRplApplication.mockResolvedValue({
+    data: application({ status: 'evidence_verification', finalised_at: null, decline_reason_code: null, reapply_available_at: null, ...overrides }),
+  })
+
+  it('lists only the allowed transitions, and posts the one chosen', async () => {
+    open({ allowed_transitions: ['awaiting_applicant', 'withdrawn'] })
+    mocks.transitionRplApplication.mockResolvedValue({ data: { status: 'awaiting_applicant' } })
+    renderCase()
+
+    const select = await screen.findByLabelText('Next status')
+    expect(within(select).getAllByRole('option').map((option) => option.value)).toEqual(['', 'awaiting_applicant', 'withdrawn'])
+    expect(screen.getByRole('button', { name: 'Update status' })).toBeDisabled()
+
+    fireEvent.change(select, { target: { value: 'awaiting_applicant' } })
+    fireEvent.change(screen.getByLabelText('Transition note'), { target: { value: 'Need the original letter.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Update status' }))
+
+    await waitFor(() => expect(mocks.transitionRplApplication).toHaveBeenCalledWith('41', { status: 'awaiting_applicant', reason: 'Need the original letter.' }))
+    // The case is read again: what may follow depends on the status just set.
+    await waitFor(() => expect(mocks.fetchRplApplication).toHaveBeenCalledTimes(2))
+  })
+
+  it('says so when nothing can be set from here', async () => {
+    open({ allowed_transitions: [] })
+    renderCase()
+
+    const select = await screen.findByLabelText('Next status')
+    expect(select).toBeDisabled()
+    expect(screen.getByText('No other status can be set from here. Use the decision, interview or decline actions.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Update status' })).toBeDisabled()
+  })
+
+  it('labels interview_required wherever a status is shown', async () => {
+    open({ status: 'interview_required', allowed_transitions: ['awaiting_applicant', 'withdrawn'] })
+    renderCase()
+
+    expect((await screen.findAllByText('Interview required')).length).toBeGreaterThan(0)
+  })
+
+  it('labels it in Arabic too', async () => {
+    language.current = 'ar'
+    open({ status: 'interview_required', allowed_transitions: [] })
+    renderCase()
+
+    expect((await screen.findAllByText('مقابلة مطلوبة')).length).toBeGreaterThan(0)
+    expect(document.body.textContent).not.toContain('undefined')
+  })
+})
+
+/*
+ * THE DECISION TAB (owner flow of 12 Oct 2026, P3, D17(a)).
+ *
+ * The same staff as the screening decide and run interviews: administrators
+ * and the evidence reviewers who hold rpl.screening.decide and
+ * rpl.interviews.manage, never assessor- or committee-only roles. Each part of
+ * the tab shows itself only to those allowed to use it.
+ */
+describe('the decision tab', () => {
+  const DT = CASE_DECISION_COPY.en
+  const decisionTab = () => screen.queryByRole('button', { name: DT.tab })
+  const caseIn = (status, overrides = {}) => mocks.fetchRplApplication.mockResolvedValue({
+    data: application({ status, finalised_at: null, decline_reason_code: null, reapply_available_at: null, allowed_transitions: [], ...overrides }),
+  })
+
+  it('leads an administrator from the overview to the decision while the evidence is under verification', async () => {
+    caseIn('evidence_verification')
+    renderCase()
+
+    expect(await screen.findByText(DT.awaitingDecision)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: DT.goToDecision }))
+
+    expect(await screen.findByText(DT.title)).toBeInTheDocument()
+    expect(screen.getAllByRole('radio')).toHaveLength(3)
+    await waitFor(() => expect(mocks.fetchRplScreeningDecisions).toHaveBeenCalledWith('41'))
+    await waitFor(() => expect(mocks.fetchRplInterviews).toHaveBeenCalledWith('41'))
+  })
+
+  it('gives a role holding only rpl.screening.decide the card, without figures, history or interviews', async () => {
+    auth.current = createAuthorization({ id: 7, roles: [{ slug: 'evidence-reviewer', permissions: ['rpl.applications.view', 'rpl.screening.decide'] }] })
+    caseIn('evidence_verification')
+    mocks.fetchRplScreenings.mockResolvedValue({ data: [{ public_id: 'scr-1', status: 'completed', fake_likelihood_percent: 30, score_out_of_10: 3, coverage: { documents_total: 1, read: 1 } }] })
+    renderCase('/rpl/applications/41?tab=decision')
+
+    expect(await screen.findByText(DT.title)).toBeInTheDocument()
+    expect(screen.queryByText(/Authenticity risk/)).not.toBeInTheDocument()
+    expect(mocks.fetchRplScreenings).not.toHaveBeenCalled()
+    expect(mocks.fetchRplScreeningDecisions).not.toHaveBeenCalled()
+    expect(mocks.fetchRplInterviews).not.toHaveBeenCalled()
+  })
+
+  it.each(['assessor', 'committee-member'])('is absent for a %s, with no decline action', async (role) => {
+    auth.current = createAuthorization({ id: 9, roles: [{ slug: role, permissions: ['rpl.applications.view', 'rpl.evidence.view'] }] })
+    caseIn('evidence_verification')
+    renderCase('/rpl/applications/41?tab=decision')
+
+    expect(await screen.findByText('Case summary')).toBeInTheDocument()
+    expect(decisionTab()).not.toBeInTheDocument()
+    expect(screen.queryByText(DT.title)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: DECLINE_COPY.en.action })).not.toBeInTheDocument()
+    expect(mocks.fetchRplInterviews).not.toHaveBeenCalled()
+  })
+
+  it('shows no decision card before the case is under verification', async () => {
+    caseIn('administrative_review')
+    renderCase('/rpl/applications/41?tab=decision')
+
+    expect(await screen.findByText(DT.history)).toBeInTheDocument()
+    expect(screen.queryByText(DT.title)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: DECLINE_COPY.en.action })).not.toBeInTheDocument()
+  })
+
+  it('opens the interview panel for rpl.interviews.manage while the case waits for its interview', async () => {
+    auth.current = createAuthorization({ id: 7, roles: [{ slug: 'evidence-reviewer', permissions: ['rpl.applications.view', 'rpl.interviews.manage'] }] })
+    caseIn('interview_required')
+    renderCase()
+
+    fireEvent.click(await screen.findByRole('button', { name: DT.goToInterview }))
+
+    expect(await screen.findByText(INTERVIEW_COPY.en.title)).toBeInTheDocument()
+    await waitFor(() => expect(mocks.fetchRplInterviews).toHaveBeenCalledWith('41'))
+    expect(await screen.findByRole('region', { name: INTERVIEW_COPY.en.offerTitle })).toBeInTheDocument()
+    // The office address lives in the settings, read only with rpl.settings.manage.
+    expect(mocks.fetchRplSettings).not.toHaveBeenCalled()
+  })
+
+  it('offers a legacy interview\'s outcome only where the old route takes it from the signed-in member of staff', async () => {
+    const legacy = { id: 4, application_public_id: 'case-41', kind: 'legacy_assessment', rpl_assessment_id: 12, status: 'scheduled', offered_modes: [], chosen_mode: 'phone', scheduled_at: '2026-08-01T09:00:00Z', created_at: '2026-08-01T08:00:00Z' }
+    mocks.fetchRplInterviews.mockResolvedValue({ data: [legacy] })
+    // The administrator's own evaluation: the administrator signed in may record it.
+    caseIn('assessment_in_progress', { assessments: [{ id: 12, rpl_assessor_assignment_id: null, assessor_id: 5, locked_at: null }] })
+    const first = renderCase('/rpl/applications/41?tab=decision')
+    expect(await screen.findByRole('button', { name: INTERVIEW_COPY.en.legacyTitle })).toBeInTheDocument()
+    first.unmount()
+
+    // Assigned to an assessor: only that assessor may, so the administrator is not offered it.
+    caseIn('assessment_in_progress', {
+      assessments: [{ id: 12, rpl_assessor_assignment_id: 7, assessor_id: 21, locked_at: null }],
+      assessor_assignments: [{ id: 7, status: 'accepted', conflict_declaration: { has_conflict: false, resolution: 'cleared' } }],
+    })
+    renderCase('/rpl/applications/41?tab=decision')
+    expect(await screen.findByRole('region', { name: INTERVIEW_COPY.en.history })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: INTERVIEW_COPY.en.legacyTitle })).not.toBeInTheDocument()
+  })
+
+  it('records a decision, says so, and reads the case and the lists again', async () => {
+    caseIn('evidence_verification')
+    mocks.recordRplScreeningDecision.mockResolvedValue({ data: { decision: { id: 1, decision: 'pass_to_quiz' }, application_status: 'ready_for_assessment', interview: null } })
+    renderCase('/rpl/applications/41?tab=decision')
+
+    fireEvent.click(await screen.findByRole('radio', { name: new RegExp(DT.decisions.pass_to_quiz) }))
+    fireEvent.change(screen.getByLabelText(DT.rationale), { target: { value: 'All required evidence is verified.' } })
+    fireEvent.click(screen.getByRole('button', { name: DT.submit }))
+
+    await waitFor(() => expect(mocks.recordRplScreeningDecision).toHaveBeenCalledWith('41', { decision: 'pass_to_quiz', rationale: 'All required evidence is verified.' }))
+    expect(await screen.findByText(DT.recorded.pass_to_quiz)).toBeInTheDocument()
+    await waitFor(() => expect(mocks.fetchRplApplication).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(mocks.fetchRplScreeningDecisions).toHaveBeenCalledTimes(2))
+  })
+
+  it('passes to quiz and opens the new assessment for an administrator', async () => {
+    caseIn('evidence_verification')
+    mocks.recordRplScreeningDecision.mockResolvedValue({ data: { decision: { id: 1, decision: 'pass_to_quiz' }, application_status: 'ready_for_assessment', interview: null } })
+    mocks.startAdminRplAssessment.mockResolvedValue({ data: { id: 77 } })
+    renderCase('/rpl/applications/41?tab=decision')
+
+    fireEvent.click(await screen.findByRole('radio', { name: new RegExp(DT.decisions.pass_to_quiz) }))
+    fireEvent.change(screen.getByLabelText(DT.rationale), { target: { value: 'All required evidence is verified.' } })
+    fireEvent.click(screen.getByRole('button', { name: DT.passAndStart }))
+
+    expect(await screen.findByText('Assessment page')).toBeInTheDocument()
+    expect(mocks.startAdminRplAssessment).toHaveBeenCalledWith('41')
+  })
+})
+
+describe('the decline action', () => {
+  const DC = DECLINE_COPY.en
+  const caseIn = (status) => mocks.fetchRplApplication.mockResolvedValue({
+    data: application({ status, finalised_at: null, decline_reason_code: null, reapply_available_at: null, allowed_transitions: [] }),
+  })
+
+  it('declines a case waiting for its interview with a category and a rationale', async () => {
+    caseIn('interview_required')
+    mocks.declineRplApplication.mockResolvedValue({ data: { application_status: 'rejected', decline: { reason_code: 'screening_declined', applicant_category: 'requirements_not_met', reapply_available_at: '2026-10-21T10:00:00+00:00' } } })
+    renderCase()
+
+    fireEvent.click(await screen.findByRole('button', { name: DC.action }))
+    const dialog = screen.getByRole('dialog', { name: DC.title })
+    expect(within(dialog).getByRole('button', { name: DC.submit })).toBeDisabled()
+    fireEvent.change(within(dialog).getByLabelText(CASE_DECISION_COPY.en.category), { target: { value: 'requirements_not_met' } })
+    fireEvent.change(within(dialog).getByLabelText(CASE_DECISION_COPY.en.rationale), { target: { value: '  The stated experience is outside the pathway.  ' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: DC.submit }))
+
+    await waitFor(() => expect(mocks.declineRplApplication).toHaveBeenCalledWith('41', { decline_category: 'requirements_not_met', rationale: 'The stated experience is outside the pathway.' }))
+    expect(await screen.findByText(`The request was declined. The applicant may apply again from ${formatLocalizedDateTime('2026-10-21T10:00:00+00:00', 'en')}.`)).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('needs rpl.screening.decide', async () => {
+    auth.current = createAuthorization({ id: 7, roles: [{ slug: 'evidence-reviewer', permissions: ['rpl.applications.view', 'rpl.interviews.manage'] }] })
+    caseIn('interview_required')
+    renderCase()
+
+    expect(await screen.findByText('Case summary')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: DC.action })).not.toBeInTheDocument()
+  })
+
+  it.each(['administrative_review', 'ready_for_assessment', 'rejected'])('is absent while the case is %s', async (status) => {
+    caseIn(status)
+    renderCase()
+
+    expect(await screen.findByText('Case summary')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: DC.action })).not.toBeInTheDocument()
+  })
+})
+
+describe('the decision on the overview', () => {
+  const latest = {
+    id: 5, decision: 'decline', rationale: 'Two letters carry the same reference number.', override_reason: null,
+    screening_snapshot: { state: 'completed', fake_likelihood_percent: 70, score_out_of_10: 7, coverage: { documents_total: 2, read: 2 }, is_stale: false, employer_summary: null },
+    decided_by: { id: 3, name: 'Reviewer Example' }, decided_at: '2026-10-14T09:00:00Z',
+  }
+
+  it('shows every staff role the decision and its rationale, and the figure only to those who see screens', async () => {
+    mocks.fetchRplApplication.mockResolvedValue({ data: application({ decline_reason_code: 'screening_declined', decline_applicant_category: 'documents_not_verified', latest_screening_decision: latest, active_interview: null }) })
+    auth.current = createAuthorization({ id: 9, roles: [{ slug: 'assessor', permissions: ['rpl.applications.view'] }] })
+    const { unmount } = renderCase()
+
+    expect(await screen.findByText('Two letters carry the same reference number.')).toBeInTheDocument()
+    expect(screen.queryByText(/Authenticity risk/)).not.toBeInTheDocument()
+    // The sentence the applicant was given, beside the staff reason.
+    expect(screen.getByText('What the applicant was told')).toBeInTheDocument()
+    expect(screen.getByText('The documents submitted could not be verified.')).toBeInTheDocument()
+    unmount()
+
+    auth.current = createAuthorization(ADMINISTRATOR)
+    renderCase()
+    expect(await screen.findByText('Authenticity risk 70% (7/10)')).toBeInTheDocument()
   })
 })

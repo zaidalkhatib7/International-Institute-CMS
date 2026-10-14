@@ -141,6 +141,55 @@ export async function acknowledgeRplScreening(screeningPublicId) {
   return read(await http.post(`/admin/rpl/screenings/${screeningPublicId}/acknowledge`))
 }
 
+/*
+ * THE STAFF DECISION, THE INTERVIEW AND THE DECLINE (owner flow of 12 Oct 2026, P3).
+ *
+ * The case is addressed by public_id, an interview by its numeric id. Reading
+ * the decisions needs rpl.screening.view (they carry the screening snapshot);
+ * recording one, and declining, need rpl.screening.decide; every interview call
+ * needs rpl.interviews.manage. Each of these is the only way into its target
+ * status: the generic transition route refuses those moves.
+ */
+export async function fetchRplScreeningDecisions(applicationId) {
+  return read(await http.get(`/admin/rpl/applications/${applicationId}/screening-decisions`))
+}
+
+export async function recordRplScreeningDecision(applicationId, payload) {
+  return read(await http.post(`/admin/rpl/applications/${applicationId}/screening-decision`, payload))
+}
+
+export async function declineRplApplication(applicationId, payload) {
+  return read(await http.post(`/admin/rpl/applications/${applicationId}/decline`, payload))
+}
+
+export async function fetchRplInterviews(applicationId) {
+  return read(await http.get(`/admin/rpl/applications/${applicationId}/interviews`))
+}
+
+export async function offerRplInterview(applicationId, payload) {
+  return read(await http.post(`/admin/rpl/applications/${applicationId}/interviews`, payload))
+}
+
+export async function scheduleRplCaseInterview(interviewId, payload) {
+  return read(await http.post(`/admin/rpl/interviews/${interviewId}/schedule`, payload))
+}
+
+export async function completeRplInterview(interviewId, payload = {}) {
+  return read(await http.post(`/admin/rpl/interviews/${interviewId}/complete`, payload))
+}
+
+export async function markRplInterviewNoShow(interviewId) {
+  return read(await http.post(`/admin/rpl/interviews/${interviewId}/no-show`))
+}
+
+export async function cancelRplInterview(interviewId, payload) {
+  return read(await http.post(`/admin/rpl/interviews/${interviewId}/cancel`, payload))
+}
+
+export async function decideRplInterview(interviewId, payload) {
+  return read(await http.post(`/admin/rpl/interviews/${interviewId}/decision`, payload))
+}
+
 // ===== Downloads (PDF/CSV exports) =====
 
 function saveDownload(response, fallbackName) {
@@ -278,6 +327,13 @@ export async function saveRplCompletionPlan(id, payload) {
   return read(await http.put(`/admin/rpl/assessments/${id}/completion-plan`, payload))
 }
 
+/*
+ * The assessment-scoped interview routes, kept for the rows created before the
+ * interview moved to the case (owner flow of 12 Oct 2026). The CMS no longer
+ * schedules one here, and the API refuses a new one (422, R17): new interviews
+ * are offered on the case. The update is still how the outcome of such a legacy
+ * row is recorded.
+ */
 export async function scheduleRplInterview(id, payload) {
   return read(await http.post(`/admin/rpl/assessments/${id}/interviews`, payload))
 }

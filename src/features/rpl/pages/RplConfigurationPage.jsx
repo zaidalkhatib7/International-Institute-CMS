@@ -6,6 +6,7 @@ import { getAdminLanguage } from '../../../services/languageStorage'
 import { fetchUsers } from '../../users/services/usersService'
 import { APPLICATION_STATUS, EVIDENCE_EXTENSIONS, localize } from '../domain/rpl'
 import { SCREENING_IDENTITY_CATEGORY, SCREENING_MODEL_MAX_LENGTH, SCREENING_SETTING_KEYS, screeningSettingsCopy } from '../domain/documentScreening'
+import { CASE_DECISION_LIMITS } from '../domain/caseDecision'
 import {
   createRplConfiguration,
   deleteRplConfiguration,
@@ -50,16 +51,39 @@ function isSwitchedOn(value) {
   return value === true || value === 1 || value === '1' || value === 'true'
 }
 
-/** The server's validation lines for the screening keys, by key ("…_categories.0" counts as its list). */
-function screeningFieldErrors(error) {
+/** The server's validation lines for the given keys, by key ("…_categories.0" counts as its list; the first key that matches wins). */
+function settingFieldErrors(error, keys) {
   const errors = error?.response?.data?.errors
   if (!errors || typeof errors !== 'object') return {}
   const collected = {}
   for (const [field, messages] of Object.entries(errors)) {
-    const key = SCREENING_SETTING_KEYS.find((candidate) => field === candidate || field.startsWith(`${candidate}.`))
+    const key = keys.find((candidate) => field === candidate || field.startsWith(`${candidate}.`))
     if (key) collected[key] = [...(collected[key] || []), ...[].concat(messages).filter((line) => typeof line === 'string')]
   }
   return Object.fromEntries(Object.entries(collected).map(([key, lines]) => [key, [...new Set(lines)].join('\n')]))
+}
+
+function screeningFieldErrors(error) {
+  return settingFieldErrors(error, SCREENING_SETTING_KEYS)
+}
+
+/*
+ * The interview settings (owner flow of 12 Oct 2026, P3): the days an applicant
+ * has to choose online or at the office, and the office address in Arabic and
+ * English. Seeded by the API (7 days, empty address); like the screening keys, a
+ * save writes them only when the server holds them or an administrator changed one.
+ */
+const INTERVIEW_SETTING_KEYS = ['rpl_interview_response_days', 'rpl_interview_office_address']
+// Most specific first, so an error on one language lands under that language's field.
+const INTERVIEW_ERROR_KEYS = ['rpl_interview_response_days', 'rpl_interview_office_address.ar', 'rpl_interview_office_address.en', 'rpl_interview_office_address']
+
+function isInterviewResponseDaysValid(days) {
+  return /^\d+$/.test(String(days ?? '').trim()) && Number(days) >= CASE_DECISION_LIMITS.responseDaysMin && Number(days) <= CASE_DECISION_LIMITS.responseDaysMax
+}
+
+function readOfficeAddress(value) {
+  const read = (language) => (value && typeof value === 'object' && typeof value[language] === 'string' ? value[language] : '')
+  return { ar: read('ar'), en: read('en') }
 }
 
 const copyByLanguage = {
@@ -73,9 +97,10 @@ const copyByLanguage = {
     draft: 'مسودة', published: 'منشور', retired: 'متقاعد', chair: 'رئيس اللجنة', committeeMember: 'عضو', secretary: 'أمين السر', requiresGapPlan: 'يتطلب خطة لسد الفجوات', credentialEligible: 'مؤهل لإصدار اعتماد',
     achievedBehavior: 'متحقق', developmentRequired: 'يتطلب برنامج تطوير', limitedCompletion: 'يتطلب استكمالًا محدودًا', notAchievedBehavior: 'غير متحقق', approveBehavior: 'موافقة', conditionalBehavior: 'موافقة مشروطة', remediationBehavior: 'استكمال مطلوب', rejectBehavior: 'رفض', reassignBehavior: 'إعادة إسناد',
     saved: 'تم حفظ الإعداد.', deleted: 'تم حذف السجل.', confirmDelete: 'تأكيد الحذف', confirmText: 'سيتم حذف هذا السجل إذا لم يكن مرتبطًا ببيانات تشغيلية.', deactivateHint: 'يحمي النظام السجلات التاريخية؛ قم بتعطيلها بدلًا من حذفها.',
-    workflowTitle: 'ضوابط محرك RPL', workflowHint: 'حالة الطلب مستقلة عن حالة الدليل وقرار اللجنة.', appealDays: 'مدة التظلم (يوم)', requireVerified: 'اشتراط دليل متحقق للتقييم', saveSettings: 'حفظ الضوابط', fixedUploadPolicy: 'سياسة الرفع التشغيلية ثابتة', fixedUploadPolicyHint: '50 MiB لكل ملف. الصيغ: PDF، JPG، JPEG، PNG، DOCX، XLSX، PPTX، MP4، MP3. هذه الحدود مطبقة في واجهة CMS وواجهة Laravel.',
+    workflowTitle: 'ضوابط محرك RPL', workflowHint: 'حالة الطلب مستقلة عن حالة الدليل وقرار اللجنة.', appealDays: 'مدة التظلم (يوم)', requireVerified: 'اشتراط دليل متحقق للتقييم', saveSettings: 'حفظ الضوابط', fixedUploadPolicy: 'سياسة الرفع التشغيلية ثابتة', fixedUploadPolicyHint: '50 MiB لكل ملف. الصيغ: PDF، JPG، JPEG، PNG، DOCX، XLSX، PPTX، MP4، MP3. هذه الحدود مطبقة في المنصة والخادم.',
     geminiTitle: 'مساعد Gemini لتقييم RPL', geminiHint: 'تحت سيطرة المدير فقط. يستقبل نموذج التقييم وبيانات الأدلة، ويستقبل كذلك ملفات المتقدم نفسها ما دام المفتاح أدناه مُفعَّلًا؛ ولا يستطيع التحقق من الأدلة أو اعتماد النتيجة أو إصدار قرار اللجنة.', geminiModel: 'نموذج Gemini', geminiPrompt: 'Prompt التقييم الاستشاري', geminiGovernance: 'يُحفظ الـPrompt ومصدر الحقيقة والمدخلات والمخرجات مع كل مسودة. راجعه ضمن حوكمة RPL.',
     evidenceDocuments: 'إرسال ملفات المتقدم إلى Gemini', evidenceDocumentsHint: 'عند التفعيل تُرسل ملفات المتقدم المرفوعة إلى Gemini في كل مسار يقرأها: الاستشارة على الملف، وتوليد أسئلة التقييم الديناميكي، وتقييم إجابات المتقدم، وتحليل القبول في مسار RPL الأكاديمي. وعند الإيقاف يعود كل مسار منها إلى بيانات الأدلة وحدها — العناوين والفئات وحالة التحقق، دون أي محتوى للملفات. لا يُرفض أي طلب بسبب هذا المفتاح، ويظل كل طلب يسجّل بيانًا بما أُرسل وما حُجب ولماذا.',
+    interviewTitle: 'المقابلات', interviewHint: 'المهلة التي يختار فيها المتقدم أن تكون المقابلة عبر الإنترنت أو في المكتب، وعنوان المكتب للمقابلات التي تُعقد فيه (قرار المالك في 12 أكتوبر 2026). تسري المهلة على كل عرض جديد، ويحتفظ العرض القائم بموعده.', interviewResponseDays: 'مهلة اختيار نمط المقابلة (يوم، من 1 إلى 60)', interviewResponseDaysInvalid: 'أدخل عددًا صحيحًا من 1 إلى 60.', officeAddressAr: 'عنوان المكتب بالعربية', officeAddressEn: 'عنوان المكتب بالإنجليزية', officeAddressHint: 'يُنسخ إلى كل مقابلة في المكتب عند جدولتها، بلغة المتقدم، ويمكن للموظف تعديله لتلك المقابلة. بحد أقصى 500 حرف لكل لغة.', officeAddressTooLong: 'بحد أقصى 500 حرف.',
     cooldownTitle: 'مهلة إعادة التقديم بعد الرفض', cooldownHint: 'إعداد محكوم يقرره المالك، ولا قيمة افتراضية له في الشيفرة. يُثبَّت تاريخ إعادة التقديم على الطلب لحظة رفضه، فلا يغيّر تعديل هذه القيمة لاحقًا تاريخًا أُعطي للعميل. تسري المهلة على العميل في مساري RPL كليهما.', cooldownDays: 'مدة المهلة (يوم، من 0 إلى 365)', cooldownScope: 'ما الذي يبدأ المهلة', cooldownScopeAll: 'كل رفض لطلب RPL، بما فيه قرار اللجنة والتظلم', cooldownScopeNarrow: 'رفض الفرز أو المقابلة أو الاختبار فقط', cooldownMissing: 'غير مضبوط: يُرفض كل قرار رفض حتى يُحدَّد هذا الإعداد.',
   },
   en: {
@@ -88,9 +113,10 @@ const copyByLanguage = {
     draft: 'Draft', published: 'Published', retired: 'Retired', chair: 'Chair', committeeMember: 'Member', secretary: 'Secretary', requiresGapPlan: 'Requires a competency-gap plan', credentialEligible: 'Eligible for credential issuance',
     achievedBehavior: 'Achieved', developmentRequired: 'Development programme required', limitedCompletion: 'Limited completion required', notAchievedBehavior: 'Not achieved', approveBehavior: 'Approve', conditionalBehavior: 'Conditional approval', remediationBehavior: 'Remediation required', rejectBehavior: 'Reject', reassignBehavior: 'Reassign',
     saved: 'Configuration saved.', deleted: 'Record deleted.', confirmDelete: 'Confirm deletion', confirmText: 'This record will be deleted if it is not referenced by operational data.', deactivateHint: 'Historical definitions are protected; deactivate them instead of deleting them.',
-    workflowTitle: 'RPL engine controls', workflowHint: 'Application workflow remains separate from evidence state and committee authority.', appealDays: 'Appeal window (days)', requireVerified: 'Require verified evidence for assessment', saveSettings: 'Save controls', fixedUploadPolicy: 'Runtime upload policy is fixed', fixedUploadPolicyHint: '50 MiB per file. Formats: PDF, JPG, JPEG, PNG, DOCX, XLSX, PPTX, MP4, and MP3. These limits are enforced by both the CMS and Laravel endpoint.',
+    workflowTitle: 'RPL engine controls', workflowHint: 'Application workflow remains separate from evidence state and committee authority.', appealDays: 'Appeal window (days)', requireVerified: 'Require verified evidence for assessment', saveSettings: 'Save controls', fixedUploadPolicy: 'Runtime upload policy is fixed', fixedUploadPolicyHint: '50 MiB per file. Formats: PDF, JPG, JPEG, PNG, DOCX, XLSX, PPTX, MP4, and MP3. These limits are enforced by both the platform and the API.',
     geminiTitle: 'Gemini RPL evaluation assistant', geminiHint: 'Administrator-controlled only. It receives the rubric and evidence metadata, and — while the switch below is on — the applicant\'s own uploaded files; it cannot verify evidence, adopt an outcome, or make a committee decision.', geminiModel: 'Gemini model', geminiPrompt: 'Advisory evaluation prompt', geminiGovernance: 'The prompt, source of truth, input, and output are snapshotted with every draft. Review them through RPL governance.',
     evidenceDocuments: 'Send applicant documents to Gemini', evidenceDocumentsHint: 'While this is on, the applicant\'s own uploaded files are sent to Gemini on every path that reads them: the case advisory, the dynamic-assessment question generation, the evaluation of the applicant\'s answers, and the Academic RPL admission analysis. Turn it off and every one of those falls back to evidence metadata only — titles, categories and verification state, never file contents. Nothing is refused because of the switch, and every request still records a manifest of what was sent, what was withheld, and why.',
+    interviewTitle: 'Interviews', interviewHint: 'How long an applicant has to choose an interview online or at the office, and the office address for interviews held there (owner decision of 12 Oct 2026). The days apply to each new offer; an offer already made keeps its date.', interviewResponseDays: 'Days to choose the interview mode (1 to 60)', interviewResponseDaysInvalid: 'Enter a whole number from 1 to 60.', officeAddressAr: 'Office address in Arabic', officeAddressEn: 'Office address in English', officeAddressHint: "Copied onto each interview at the office when it is scheduled, in the applicant's language; staff may change it for that interview. At most 500 characters per language.", officeAddressTooLong: 'At most 500 characters.',
     cooldownTitle: 'Reapply cooldown after a rejection', cooldownHint: 'A governed setting the owner decides; the code holds no default. The reapply date is frozen onto a case at the moment it is rejected, so changing this later never moves a date a client was given. The cooldown applies to the client across both RPL pathways.', cooldownDays: 'Cooldown (days, 0 to 365)', cooldownScope: 'Which rejections start it', cooldownScopeAll: 'Every RPL rejection, committee and appeal included', cooldownScopeNarrow: 'Screening, interview and quiz declines only', cooldownMissing: 'Not set: every rejection is refused until it is.',
   },
 }
@@ -172,7 +198,7 @@ export default function RplConfigurationPage() {
   const [activeTab, setActiveTab] = useState('pathways')
   const tab = tabs.find((item) => item.key === activeTab) || tabs[0]
   const [state, setState] = useState({ loading: true, error: '', rows: [], reference: {}, users: [] })
-  const [settings, setSettings] = useState({ appeal_window_days: 15, require_verified_evidence_for_assessment: true, gemini_advisory_model: 'gemini-3.5-flash', gemini_advisory_prompt: '', rpl_advisory_include_evidence_documents: true, rpl_reapply_cooldown_days: '', rpl_reapply_cooldown_scope: '', rpl_document_screening_enabled: false, rpl_document_screening_web_search_enabled: false, rpl_document_screening_model: '', rpl_document_screening_excluded_categories: [], rpl_document_screening_extraction_only_categories: [] })
+  const [settings, setSettings] = useState({ appeal_window_days: 15, require_verified_evidence_for_assessment: true, gemini_advisory_model: 'gemini-3.5-flash', gemini_advisory_prompt: '', rpl_advisory_include_evidence_documents: true, rpl_reapply_cooldown_days: '', rpl_reapply_cooldown_scope: '', rpl_document_screening_enabled: false, rpl_document_screening_web_search_enabled: false, rpl_document_screening_model: '', rpl_document_screening_excluded_categories: [], rpl_document_screening_extraction_only_categories: [], rpl_interview_response_days: '', rpl_interview_office_address: { ar: '', en: '' } })
   /*
    * Document screening (owner flow of 12 Oct 2026, P2). A save writes only the
    * screening keys the server returned or an administrator changed: a key the
@@ -182,6 +208,8 @@ export default function RplConfigurationPage() {
    */
   const [screeningKeys, setScreeningKeys] = useState([])
   const [screeningErrors, setScreeningErrors] = useState({})
+  const [interviewKeys, setInterviewKeys] = useState([])
+  const [interviewErrors, setInterviewErrors] = useState({})
   // Entry-quiz pass mark (owner, 12 Oct 2026, P4): its own state, written only once the server holds it or someone types one.
   const [quizPassMark, setQuizPassMark] = useState(() => readQuizPassMarkSetting({}))
   // Per-level course minimums (owner, 12 Oct 2026, P5): the same rule, the whole map with every level once written.
@@ -222,9 +250,13 @@ export default function RplConfigurationPage() {
           rpl_document_screening_model: typeof raw.rpl_document_screening_model === 'string' ? raw.rpl_document_screening_model : '',
           rpl_document_screening_excluded_categories: Array.isArray(raw.rpl_document_screening_excluded_categories) ? raw.rpl_document_screening_excluded_categories : [],
           rpl_document_screening_extraction_only_categories: Array.isArray(raw.rpl_document_screening_extraction_only_categories) ? raw.rpl_document_screening_extraction_only_categories : [],
+          rpl_interview_response_days: raw.rpl_interview_response_days ?? '',
+          rpl_interview_office_address: readOfficeAddress(raw.rpl_interview_office_address),
         })
         setScreeningKeys(SCREENING_SETTING_KEYS.filter((key) => raw[key] != null))
         setScreeningErrors({})
+        setInterviewKeys(INTERVIEW_SETTING_KEYS.filter((key) => raw[key] != null))
+        setInterviewErrors({})
         setQuizPassMark(readQuizPassMarkSetting(raw))
         setCoursePlanMinimums(readCoursePlanMinimumsSetting(raw, minimumLevels(unwrapCollection(unwrapApiData(referenceResponse)?.pathways || []).flatMap((pathway) => pathway.levels || []))))
         setState({ loading: false, error: '', rows: [], reference: unwrapApiData(referenceResponse) || {}, users: [] })
@@ -303,6 +335,27 @@ export default function RplConfigurationPage() {
     updateScreening(key, (current) => (current.includes(code) ? current.filter((item) => item !== code) : [...current, code]))
   }
 
+  function updateInterview(key, next, errorKey = key) {
+    setSettings((current) => ({ ...current, [key]: typeof next === 'function' ? next(current[key]) : next }))
+    setInterviewKeys((current) => (current.includes(key) ? current : [...current, key]))
+    setInterviewErrors((current) => {
+      const cleared = Object.fromEntries(Object.entries(current).filter(([field]) => field !== errorKey && field !== key))
+      return Object.keys(cleared).length === Object.keys(current).length ? current : cleared
+    })
+  }
+
+  const officeAddressTooLong = (language) => settings.rpl_interview_office_address[language].trim().length > CASE_DECISION_LIMITS.officeAddressMax
+  const isInterviewSettingsValid = (!interviewKeys.includes('rpl_interview_response_days') || isInterviewResponseDaysValid(settings.rpl_interview_response_days))
+    && (!interviewKeys.includes('rpl_interview_office_address') || (!officeAddressTooLong('ar') && !officeAddressTooLong('en')))
+
+  function interviewPayload() {
+    const values = {
+      rpl_interview_response_days: Number(settings.rpl_interview_response_days),
+      rpl_interview_office_address: { ar: settings.rpl_interview_office_address.ar.trim(), en: settings.rpl_interview_office_address.en.trim() },
+    }
+    return Object.fromEntries(INTERVIEW_SETTING_KEYS.filter((key) => interviewKeys.includes(key)).map((key) => [key, values[key]]))
+  }
+
   const screeningModel = String(settings.rpl_document_screening_model ?? '').trim()
   const isScreeningModelValid = !screeningKeys.includes('rpl_document_screening_model') || (screeningModel.length >= 1 && screeningModel.length <= SCREENING_MODEL_MAX_LENGTH)
 
@@ -320,6 +373,7 @@ export default function RplConfigurationPage() {
   async function saveSettings() {
     setAction({ busy: true, error: '', success: '' })
     setScreeningErrors({})
+    setInterviewErrors({})
     setQuizPassMark((current) => ({ ...current, error: '' }))
     setCoursePlanMinimums((current) => ({ ...current, errors: { general: '', levels: {} } }))
     try {
@@ -332,6 +386,7 @@ export default function RplConfigurationPage() {
         rpl_reapply_cooldown_days: Number(settings.rpl_reapply_cooldown_days),
         rpl_reapply_cooldown_scope: settings.rpl_reapply_cooldown_scope,
         ...screeningPayload(),
+        ...interviewPayload(),
         ...quizPassMarkPayload(quizPassMark),
         ...coursePlanMinimumsPayload(coursePlanMinimums),
       })
@@ -339,6 +394,8 @@ export default function RplConfigurationPage() {
     } catch (error) {
       // The web-search 422 (active declaration below version 2) is also shown under its own switch.
       setScreeningErrors(screeningFieldErrors(error))
+      // And an interview setting's 422 under its own field.
+      setInterviewErrors(settingFieldErrors(error, INTERVIEW_ERROR_KEYS))
       setQuizPassMark((current) => ({ ...current, error: quizPassMarkFieldError(error) }))
       setCoursePlanMinimums((current) => ({ ...current, errors: coursePlanMinimumsFieldErrors(error) }))
       setAction({ busy: false, error: readApiError(error), success: '' })
@@ -398,6 +455,25 @@ export default function RplConfigurationPage() {
     )
   }
 
+  function renderInterviewSettings() {
+    const days = settings.rpl_interview_response_days
+    const daysError = interviewKeys.includes('rpl_interview_response_days') && !isInterviewResponseDaysValid(days) ? copy.interviewResponseDaysInvalid : interviewErrors.rpl_interview_response_days
+    const addressError = (language) => (officeAddressTooLong(language) ? copy.officeAddressTooLong : interviewErrors[`rpl_interview_office_address.${language}`])
+    const setAddress = (language, value) => updateInterview('rpl_interview_office_address', (current) => ({ ...current, [language]: value }), `rpl_interview_office_address.${language}`)
+    return (
+      <section aria-labelledby="rpl-interview-settings-title" className="space-y-4 rounded-2xl border border-[var(--color-border)] p-5 text-sm">
+        <div><h3 id="rpl-interview-settings-title" className="font-bold">{copy.interviewTitle}</h3><p className="mt-1 leading-6 text-[var(--color-text-muted)]">{copy.interviewHint}</p></div>
+        <Input type="number" min={CASE_DECISION_LIMITS.responseDaysMin} max={CASE_DECISION_LIMITS.responseDaysMax} step="1" label={copy.interviewResponseDays} value={days} error={daysError} onChange={(event) => updateInterview('rpl_interview_response_days', event.target.value)} />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Textarea dir="rtl" lang="ar" rows={3} label={copy.officeAddressAr} value={settings.rpl_interview_office_address.ar} error={addressError('ar')} onChange={(event) => setAddress('ar', event.target.value)} />
+          <Textarea dir="ltr" lang="en" rows={3} label={copy.officeAddressEn} value={settings.rpl_interview_office_address.en} error={addressError('en')} onChange={(event) => setAddress('en', event.target.value)} />
+        </div>
+        <p className="leading-6 text-[var(--color-text-muted)]">{copy.officeAddressHint}</p>
+        {interviewErrors.rpl_interview_office_address ? <p className="whitespace-pre-line text-sm text-[var(--color-danger)]">{interviewErrors.rpl_interview_office_address}</p> : null}
+      </section>
+    )
+  }
+
   const columns = [
     { key: 'code', label: copy.code, render: (row) => <code className="rounded-lg bg-[var(--color-surface-muted)] px-2 py-1 text-xs font-semibold">{row.code || row.currency || `#${row.id}`}</code> },
     { key: 'name', label: copy.name, render: (row) => <div><span className="font-bold">{localize(row.name || row.content, language) || (row.amount != null ? `${row.amount} ${row.currency}` : '—')}</span><p className="mt-1 max-w-lg text-xs leading-5 text-[var(--color-text-muted)]">{localize(row.description, language)}</p></div> },
@@ -438,7 +514,7 @@ export default function RplConfigurationPage() {
   }
 
   function renderSettings() {
-    return <div className="space-y-6"><Card><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.workflowTitle}</CardTitle><p className="mt-2 text-sm text-[var(--color-text-muted)]">{copy.workflowHint}</p></CardHeader><CardContent className="pt-6"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{Object.keys(APPLICATION_STATUS).map((status, index) => <div key={status} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-surface-muted)] text-xs font-bold">{index + 1}</span><RplStatusBadge status={status} language={language} /></div>)}</div></CardContent></Card><Card><CardContent className="space-y-5 p-6"><div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm leading-6 text-sky-900"><strong className="block text-base">{copy.fixedUploadPolicy}</strong><span>{copy.fixedUploadPolicyHint}</span></div><Input type="number" min="1" max="180" label={copy.appealDays} value={settings.appeal_window_days} onChange={(event) => setSettings((current) => ({ ...current, appeal_window_days: event.target.value }))} /><label className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] p-4"><input type="checkbox" checked={settings.require_verified_evidence_for_assessment} onChange={(event) => setSettings((current) => ({ ...current, require_verified_evidence_for_assessment: event.target.checked }))} />{copy.requireVerified}</label>{/* The reapply cooldown (owner, 12 Oct 2026). Governed: no default here or in the API, and the date is frozen onto each rejected case, so an edit only affects rejections made after it. */}<section className="space-y-4 rounded-2xl border border-[var(--color-border)] p-5 text-sm"><div><h3 className="font-bold">{copy.cooldownTitle}</h3><p className="mt-1 leading-6 text-[var(--color-text-muted)]">{copy.cooldownHint}</p></div><div className="grid gap-4 sm:grid-cols-2"><Input type="number" min="0" max="365" step="1" label={copy.cooldownDays} value={settings.rpl_reapply_cooldown_days} error={settings.rpl_reapply_cooldown_days === '' ? copy.cooldownMissing : undefined} onChange={(event) => setSettings((current) => ({ ...current, rpl_reapply_cooldown_days: event.target.value }))} /><Select label={copy.cooldownScope} value={settings.rpl_reapply_cooldown_scope} error={settings.rpl_reapply_cooldown_scope === '' ? copy.cooldownMissing : undefined} onChange={(event) => setSettings((current) => ({ ...current, rpl_reapply_cooldown_scope: event.target.value }))}><option value="" disabled>—</option><option value="all_rejections">{copy.cooldownScopeAll}</option><option value="screening_interview_quiz_declines">{copy.cooldownScopeNarrow}</option></Select></div></section><section className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950"><div><h3 className="font-bold">{copy.geminiTitle}</h3><p className="mt-1 leading-6">{copy.geminiHint}</p></div>{/* The privacy kill switch. It decides whether the applicant's own files leave the platform for the model, and until now the only way to move it was an UPDATE against rpl_settings — not a control anyone can reach in the moment they need it. */}<label className="flex items-start gap-3 rounded-xl border border-amber-300 bg-white p-4"><input type="checkbox" className="mt-1" checked={settings.rpl_advisory_include_evidence_documents} onChange={(event) => setSettings((current) => ({ ...current, rpl_advisory_include_evidence_documents: event.target.checked }))} /><span><strong className="block">{copy.evidenceDocuments}</strong><span className="mt-1 block leading-6">{copy.evidenceDocumentsHint}</span></span></label><Input label={copy.geminiModel} value={settings.gemini_advisory_model} onChange={(event) => setSettings((current) => ({ ...current, gemini_advisory_model: event.target.value }))} /><Textarea rows={14} label={copy.geminiPrompt} value={settings.gemini_advisory_prompt} onChange={(event) => setSettings((current) => ({ ...current, gemini_advisory_prompt: event.target.value }))} /><p className="text-xs leading-5">{copy.geminiGovernance}</p></section>{renderScreeningSettings()}<QuizPassMarkSetting language={screenLanguage} state={quizPassMark} onChange={(value) => setQuizPassMark({ value, include: true, error: '' })} /><CoursePlanMinimumsSetting language={screenLanguage} levels={minimumLevels(levels)} state={coursePlanMinimums} onChange={(code, value) => setCoursePlanMinimums((current) => changeCoursePlanMinimum(current, code, value))} /><div className="flex justify-end"><Button onClick={saveSettings} disabled={action.busy || Number(settings.appeal_window_days) < 1 || Number(settings.appeal_window_days) > 180 || settings.gemini_advisory_prompt.trim().length < 200 || !isReapplyCooldownValid(settings) || !isScreeningModelValid || !isQuizPassMarkReady(quizPassMark) || !isCoursePlanMinimumsReady(coursePlanMinimums)}><Save size={17} />{copy.saveSettings}</Button></div></CardContent></Card></div>
+    return <div className="space-y-6"><Card><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.workflowTitle}</CardTitle><p className="mt-2 text-sm text-[var(--color-text-muted)]">{copy.workflowHint}</p></CardHeader><CardContent className="pt-6"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{Object.keys(APPLICATION_STATUS).map((status, index) => <div key={status} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-surface-muted)] text-xs font-bold">{index + 1}</span><RplStatusBadge status={status} language={language} /></div>)}</div></CardContent></Card><Card><CardContent className="space-y-5 p-6"><div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm leading-6 text-sky-900"><strong className="block text-base">{copy.fixedUploadPolicy}</strong><span>{copy.fixedUploadPolicyHint}</span></div><Input type="number" min="1" max="180" label={copy.appealDays} value={settings.appeal_window_days} onChange={(event) => setSettings((current) => ({ ...current, appeal_window_days: event.target.value }))} /><label className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] p-4"><input type="checkbox" checked={settings.require_verified_evidence_for_assessment} onChange={(event) => setSettings((current) => ({ ...current, require_verified_evidence_for_assessment: event.target.checked }))} />{copy.requireVerified}</label>{/* The reapply cooldown (owner, 12 Oct 2026). Governed: no default here or in the API, and the date is frozen onto each rejected case, so an edit only affects rejections made after it. */}<section className="space-y-4 rounded-2xl border border-[var(--color-border)] p-5 text-sm"><div><h3 className="font-bold">{copy.cooldownTitle}</h3><p className="mt-1 leading-6 text-[var(--color-text-muted)]">{copy.cooldownHint}</p></div><div className="grid gap-4 sm:grid-cols-2"><Input type="number" min="0" max="365" step="1" label={copy.cooldownDays} value={settings.rpl_reapply_cooldown_days} error={settings.rpl_reapply_cooldown_days === '' ? copy.cooldownMissing : undefined} onChange={(event) => setSettings((current) => ({ ...current, rpl_reapply_cooldown_days: event.target.value }))} /><Select label={copy.cooldownScope} value={settings.rpl_reapply_cooldown_scope} error={settings.rpl_reapply_cooldown_scope === '' ? copy.cooldownMissing : undefined} onChange={(event) => setSettings((current) => ({ ...current, rpl_reapply_cooldown_scope: event.target.value }))}><option value="" disabled>—</option><option value="all_rejections">{copy.cooldownScopeAll}</option><option value="screening_interview_quiz_declines">{copy.cooldownScopeNarrow}</option></Select></div></section>{renderInterviewSettings()}<section className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950"><div><h3 className="font-bold">{copy.geminiTitle}</h3><p className="mt-1 leading-6">{copy.geminiHint}</p></div>{/* The privacy kill switch. It decides whether the applicant's own files leave the platform for the model, and until now the only way to move it was an UPDATE against rpl_settings — not a control anyone can reach in the moment they need it. */}<label className="flex items-start gap-3 rounded-xl border border-amber-300 bg-white p-4"><input type="checkbox" className="mt-1" checked={settings.rpl_advisory_include_evidence_documents} onChange={(event) => setSettings((current) => ({ ...current, rpl_advisory_include_evidence_documents: event.target.checked }))} /><span><strong className="block">{copy.evidenceDocuments}</strong><span className="mt-1 block leading-6">{copy.evidenceDocumentsHint}</span></span></label><Input label={copy.geminiModel} value={settings.gemini_advisory_model} onChange={(event) => setSettings((current) => ({ ...current, gemini_advisory_model: event.target.value }))} /><Textarea rows={14} label={copy.geminiPrompt} value={settings.gemini_advisory_prompt} onChange={(event) => setSettings((current) => ({ ...current, gemini_advisory_prompt: event.target.value }))} /><p className="text-xs leading-5">{copy.geminiGovernance}</p></section>{renderScreeningSettings()}<QuizPassMarkSetting language={screenLanguage} state={quizPassMark} onChange={(value) => setQuizPassMark({ value, include: true, error: '' })} /><CoursePlanMinimumsSetting language={screenLanguage} levels={minimumLevels(levels)} state={coursePlanMinimums} onChange={(code, value) => setCoursePlanMinimums((current) => changeCoursePlanMinimum(current, code, value))} /><div className="flex justify-end"><Button onClick={saveSettings} disabled={action.busy || Number(settings.appeal_window_days) < 1 || Number(settings.appeal_window_days) > 180 || settings.gemini_advisory_prompt.trim().length < 200 || !isReapplyCooldownValid(settings) || !isScreeningModelValid || !isInterviewSettingsValid || !isQuizPassMarkReady(quizPassMark) || !isCoursePlanMinimumsReady(coursePlanMinimums)}><Save size={17} />{copy.saveSettings}</Button></div></CardContent></Card></div>
   }
 
   return (

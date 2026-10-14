@@ -489,3 +489,118 @@ describe('the document screening controls', () => {
     expect(document.body.textContent).not.toContain('undefined')
   })
 })
+
+/*
+ * THE INTERVIEW SETTINGS (owner flow of 12 Oct 2026, P3).
+ *
+ * Two keys on the same endpoint and the same save: the days an applicant has
+ * to choose an interview online or at the office (1 to 60, seeded 7), and the
+ * office address in Arabic and English (at most 500 characters each, seeded
+ * empty), which prefills an interview at the office. A key the server does not
+ * hold is not written until somebody changes it, and a refusal from the server
+ * appears under the field it names.
+ */
+describe('the interview settings', () => {
+  function storedSettings(overrides = {}) {
+    return {
+      data: {
+        appeal_window_days: 15,
+        require_verified_evidence_for_assessment: true,
+        gemini_advisory_model: 'gemini-3.5-flash',
+        gemini_advisory_prompt: longPrompt,
+        rpl_advisory_include_evidence_documents: true,
+        rpl_reapply_cooldown_days: 7,
+        rpl_reapply_cooldown_scope: 'all_rejections',
+        rpl_interview_response_days: 7,
+        rpl_interview_office_address: { ar: 'عمّان، شارع الجامعة 12', en: 'Amman, University Street 12' },
+        ...overrides,
+      },
+    }
+  }
+
+  beforeEach(() => {
+    mocks.fetchRplSettings.mockResolvedValue(storedSettings())
+  })
+
+  it('shows the stored days and the address in both languages', async () => {
+    await openControls()
+
+    expect(screen.getByLabelText(COPY.en.interviewResponseDays)).toHaveValue(7)
+    expect(screen.getByLabelText(COPY.en.officeAddressAr)).toHaveValue('عمّان، شارع الجامعة 12')
+    expect(screen.getByLabelText(COPY.en.officeAddressEn)).toHaveValue('Amman, University Street 12')
+  })
+
+  it('saves them with the existing save, the other controls intact', async () => {
+    await openControls()
+
+    fireEvent.change(screen.getByLabelText(COPY.en.interviewResponseDays), { target: { value: '10' } })
+    fireEvent.change(screen.getByLabelText(COPY.en.officeAddressEn), { target: { value: '  Amman, Mecca Street 4  ' } })
+    fireEvent.click(screen.getByRole('button', { name: COPY.en.saveSettings }))
+
+    await waitFor(() => expect(mocks.updateRplSettings).toHaveBeenCalledTimes(1))
+    expect(mocks.updateRplSettings).toHaveBeenCalledWith(expect.objectContaining({
+      rpl_interview_response_days: 10,
+      rpl_interview_office_address: { ar: 'عمّان، شارع الجامعة 12', en: 'Amman, Mecca Street 4' },
+      rpl_reapply_cooldown_days: 7,
+      appeal_window_days: 15,
+    }))
+  })
+
+  it.each(['0', '61', '2.5', ''])('will not save %j days', async (value) => {
+    await openControls()
+
+    fireEvent.change(screen.getByLabelText(COPY.en.interviewResponseDays), { target: { value } })
+
+    expect(screen.getByText(COPY.en.interviewResponseDaysInvalid)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: COPY.en.saveSettings })).toBeDisabled()
+  })
+
+  it('will not save an address over 500 characters', async () => {
+    await openControls()
+
+    fireEvent.change(screen.getByLabelText(COPY.en.officeAddressAr), { target: { value: 'ع'.repeat(501) } })
+
+    expect(screen.getByText(COPY.en.officeAddressTooLong)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: COPY.en.saveSettings })).toBeDisabled()
+  })
+
+  it("shows the server's 422 under the field it names, and in the page alert", async () => {
+    const refusal = 'The rpl interview office address.en field must not be greater than 500 characters.'
+    mocks.updateRplSettings.mockRejectedValue({ response: { status: 422, data: { message: refusal, errors: { 'rpl_interview_office_address.en': [refusal] } } } })
+    await openControls()
+
+    fireEvent.click(screen.getByRole('button', { name: COPY.en.saveSettings }))
+
+    await waitFor(() => expect(screen.getAllByText(new RegExp(refusal.replace(/\./g, '\\.')))).toHaveLength(2))
+    const field = screen.getByLabelText(COPY.en.officeAddressEn)
+    expect(field).toHaveAttribute('aria-invalid', 'true')
+    expect(document.getElementById(field.getAttribute('aria-describedby'))).toHaveTextContent(refusal)
+  })
+
+  it('writes neither key when the server holds neither, until somebody changes one', async () => {
+    mocks.fetchRplSettings.mockResolvedValue({
+      data: { appeal_window_days: 15, gemini_advisory_prompt: longPrompt, rpl_reapply_cooldown_days: 7, rpl_reapply_cooldown_scope: 'all_rejections' },
+    })
+    await openControls()
+
+    fireEvent.click(screen.getByRole('button', { name: COPY.en.saveSettings }))
+    await waitFor(() => expect(mocks.updateRplSettings).toHaveBeenCalledTimes(1))
+    expect(Object.keys(mocks.updateRplSettings.mock.calls[0][0]).filter((key) => key.startsWith('rpl_interview'))).toEqual([])
+
+    fireEvent.change(screen.getByLabelText(COPY.en.interviewResponseDays), { target: { value: '7' } })
+    fireEvent.click(screen.getByRole('button', { name: COPY.en.saveSettings }))
+    await waitFor(() => expect(mocks.updateRplSettings).toHaveBeenCalledTimes(2))
+    const second = mocks.updateRplSettings.mock.calls[1][0]
+    expect(Object.keys(second).filter((key) => key.startsWith('rpl_interview'))).toEqual(['rpl_interview_response_days'])
+    expect(second.rpl_interview_response_days).toBe(7)
+  })
+
+  it('renders in Arabic without a literal "undefined"', async () => {
+    language.current = 'ar'
+    await openControls(COPY.ar)
+
+    expect(screen.getByText(COPY.ar.interviewTitle)).toBeInTheDocument()
+    expect(screen.getByLabelText(COPY.ar.officeAddressAr)).toHaveValue('عمّان، شارع الجامعة 12')
+    expect(document.body.textContent).not.toContain('undefined')
+  })
+})

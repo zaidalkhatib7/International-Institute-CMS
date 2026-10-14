@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import RplConfigurationPage, { COPY } from './RplConfigurationPage'
 import { COURSE_PLAN_MINIMUMS_COPY } from '../domain/coursePlan'
+import { QUIZ_PASS_MARK_COPY } from '../domain/entryQuiz'
 import { PROFESSIONAL_LEVELS } from '../domain/rpl'
 
 /*
@@ -219,5 +220,74 @@ describe('the course minimums', () => {
     expect(block.getByText(AR.reasonRule)).toBeInTheDocument()
     expect(block.getByText(AR.ownerValues)).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('undefined')
+  })
+})
+
+/*
+ * THE INTERVIEW SETTINGS, THE PASS MARK AND THE MINIMUMS ON ONE SAVE (P3 + P4 +
+ * P5). The three phases share the page's one save: one PUT carries the interview
+ * days and office address (P3), the entry-quiz pass mark (P4) and the per-level
+ * minimums (P5), each as edited, and a 422 that names keys of more than one of
+ * them lands under every field it names.
+ */
+describe('the interview settings, the pass mark and the minimums together', () => {
+  const INTERVIEW = { rpl_interview_response_days: 7, rpl_interview_office_address: { ar: 'عمّان، شارع الجامعة 12', en: 'Amman, University Street 12' } }
+
+  beforeEach(() => {
+    mocks.fetchRplSettings.mockResolvedValue(storedSettings(INTERVIEW))
+  })
+
+  it('one save carries all three, each as edited', async () => {
+    const practitioner = await openControls()
+
+    fireEvent.change(screen.getByLabelText(COPY.en.interviewResponseDays), { target: { value: '10' } })
+    fireEvent.change(screen.getByLabelText(QUIZ_PASS_MARK_COPY.en.label), { target: { value: '60' } })
+    fireEvent.change(practitioner, { target: { value: '6' } })
+    save()
+
+    await waitFor(() => expect(mocks.updateRplSettings).toHaveBeenCalledTimes(1))
+    expect(mocks.updateRplSettings.mock.calls[0][0]).toMatchObject({
+      rpl_interview_response_days: 10,
+      rpl_interview_office_address: INTERVIEW.rpl_interview_office_address,
+      rpl_quiz_pass_mark_percent: 60,
+      rpl_course_plan_minimums: { practitioner: 6, advanced_practitioner: 7, expert: 10 },
+    })
+  })
+
+  it('any one of the three that is invalid holds the save back', async () => {
+    const practitioner = await openControls()
+
+    fireEvent.change(screen.getByLabelText(COPY.en.interviewResponseDays), { target: { value: '61' } })
+    expect(saveButton()).toBeDisabled()
+    fireEvent.change(screen.getByLabelText(COPY.en.interviewResponseDays), { target: { value: '7' } })
+    expect(saveButton()).toBeEnabled()
+
+    fireEvent.change(screen.getByLabelText(QUIZ_PASS_MARK_COPY.en.label), { target: { value: '100' } })
+    expect(saveButton()).toBeDisabled()
+    fireEvent.change(screen.getByLabelText(QUIZ_PASS_MARK_COPY.en.label), { target: { value: '50' } })
+    expect(saveButton()).toBeEnabled()
+
+    fireEvent.change(practitioner, { target: { value: '51' } })
+    expect(saveButton()).toBeDisabled()
+  })
+
+  it('a 422 naming an interview key and a level lands under each, and nowhere else', async () => {
+    const daysLine = 'The rpl interview response days field must not be greater than 60.'
+    const levelLine = 'The rpl course plan minimums.expert field must not be greater than 50.'
+    mocks.updateRplSettings.mockRejectedValue({
+      response: { status: 422, data: { message: daysLine, errors: { rpl_interview_response_days: [daysLine], 'rpl_course_plan_minimums.expert': [levelLine] } } },
+    })
+    await openControls()
+
+    save()
+
+    const expert = screen.getByLabelText(label('Professional Expert'))
+    await waitFor(() => expect(expert).toHaveAttribute('aria-invalid', 'true'))
+    expect(document.getElementById(expert.getAttribute('aria-describedby'))).toHaveTextContent(levelLine)
+    const days = screen.getByLabelText(COPY.en.interviewResponseDays)
+    expect(days).toHaveAttribute('aria-invalid', 'true')
+    expect(document.getElementById(days.getAttribute('aria-describedby'))).toHaveTextContent(daysLine)
+    expect(screen.getByLabelText(QUIZ_PASS_MARK_COPY.en.label)).not.toHaveAttribute('aria-invalid')
+    expect(screen.getByLabelText(label('Professional Practitioner'))).not.toHaveAttribute('aria-invalid')
   })
 })

@@ -207,6 +207,7 @@ export const SCREENING_COPY = {
     employerFlags: {
       privacy_query_breach: 'تضمّن أحد استعلامات البحث جزءًا من اسم المتقدم. أبلغ مسؤول حماية البيانات.',
       ungrounded_sources_dropped: 'حُذفت مصادر ذكرها النموذج لأن البحث لم يُرجعها؛ المصادر المعروضة هي ما أرجعه البحث فقط.',
+      sources_unattributable: 'لم تُعرض صفحات موقع ذكره النموذج: أرجع البحث صفحات من هذا الموقع، لكن لم يمكن ربط أي منها بهذه الجهة دون غيرها.',
       result_capped_without_grounded_source: 'خُفّضت النتيجة إلى «غير حاسم»: قال النموذج إنه عثر على الجهة، لكن البحث لم يُرجع أي مصدر يدعم ذلك.',
       result_capped_without_search: 'خُفّضت النتيجة إلى «غير حاسم»: لم يُنفَّذ أي بحث، فلا يمكن القول إن الجهة غير موجودة على الإنترنت.',
       employer_search_failed: 'تعذّر إكمال البحث عن هذه الجهة، فلم يُعثر على شيء ولم يُستنتج شيء. افحصها يدويًا.',
@@ -385,6 +386,7 @@ export const SCREENING_COPY = {
     employerFlags: {
       privacy_query_breach: "A search query contained part of the applicant's name. Report this to the data-protection lead.",
       ungrounded_sources_dropped: 'Sources the model named but the search never returned were removed; only sources the search returned are shown.',
+      sources_unattributable: 'Pages of a site the model cited are not shown: the search returned pages from that site, but none could be tied to this employer rather than another.',
       result_capped_without_grounded_source: 'Lowered to "ambiguous": the model said it found the employer, but the search returned no source for it.',
       result_capped_without_search: 'Lowered to "ambiguous": no search ran, so nothing says the employer has no online presence.',
       employer_search_failed: 'The search for this employer could not be completed, so nothing was found or concluded. Check it by hand.',

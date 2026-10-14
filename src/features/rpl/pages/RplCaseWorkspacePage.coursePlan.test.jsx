@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import RplCaseWorkspacePage from './RplCaseWorkspacePage'
 import { APPLICATION_STATUS } from '../domain/rpl'
 import { COURSE_PLAN_COPY } from '../domain/coursePlan'
+import { CASE_DECISION_COPY, DECLINE_COPY } from '../domain/caseDecision'
+import { SCREENING_COPY } from '../domain/documentScreening'
 import { createAuthorization } from '../../auth/authorization'
 
 /*
@@ -50,6 +52,19 @@ const mocks = vi.hoisted(() => ({
   approveRplCoursePlan: vi.fn(),
   amendRplCoursePlan: vi.fn(),
   discardRplCoursePlan: vi.fn(),
+  // The decision tab (P3), so the merged page never reaches for an export this mock lacks.
+  fetchRplScreeningDecisions: vi.fn(),
+  recordRplScreeningDecision: vi.fn(),
+  declineRplApplication: vi.fn(),
+  fetchRplInterviews: vi.fn(),
+  fetchRplSettings: vi.fn(),
+  offerRplInterview: vi.fn(),
+  scheduleRplCaseInterview: vi.fn(),
+  completeRplInterview: vi.fn(),
+  markRplInterviewNoShow: vi.fn(),
+  cancelRplInterview: vi.fn(),
+  decideRplInterview: vi.fn(),
+  updateRplInterview: vi.fn(),
 }))
 
 const language = vi.hoisted(() => ({ current: 'en' }))
@@ -271,5 +286,97 @@ describe('the overview card', () => {
     expect(await screen.findByText(COURSE_PLAN_COPY.ar.awaitingPlan)).toBeInTheDocument()
     expect(within(screen.getByRole('navigation')).getByRole('button', { name: COURSE_PLAN_COPY.ar.tab })).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('undefined')
+  })
+})
+
+/*
+ * THE COURSE PLAN BESIDE THE STAFF DECISION (P3 + P5 merge). P3's decision tab
+ * and P5's course plan tab live on the same case: both show, in the workflow's
+ * order; the course plan card sits after the latest decision on the overview;
+ * a course plan case is never declined from here (P3 declines only during
+ * verification or at the interview) and the generic select offers no course
+ * plan move (the server never lists one); and a course plan act re-reads the
+ * case and its timeline only, not the whole page.
+ */
+describe('the course plan beside the staff decision', () => {
+  const DT = CASE_DECISION_COPY.en
+  const tabNames = () => within(screen.getByRole('navigation')).getAllByRole('button').map((button) => button.textContent)
+
+  it('shows the decision tab and the course plan tab together, in the order of the flow', async () => {
+    renderCase()
+
+    await screen.findByText('Case summary')
+    expect(tabNames()).toEqual(['Overview', 'Evidence & verification', SCREENING_COPY.en.tab, DT.tab, 'Assessment & assessors', EN.tab, 'Committee & quality', 'Timeline'])
+  })
+
+  it('puts the course plan card after the latest decision on the overview', async () => {
+    const latest = {
+      id: 5, decision: 'pass_to_quiz', rationale: 'All required evidence is verified.', override_reason: null,
+      screening_snapshot: null, decided_by: { id: 3, name: 'Reviewer Example' }, decided_at: '2026-10-14T09:00:00Z',
+    }
+    mocks.fetchRplApplication.mockResolvedValue({ data: application({ status: 'course_plan_review', latest_screening_decision: latest, active_interview: null, course_plan: { entry_quiz_result: 'passed', draft_version: 2, in_force_version: null, has_plan: true } }) })
+    renderCase()
+
+    const decision = await screen.findByText('All required evidence is verified.')
+    const plan = screen.getByText('The course plan awaits approval (version 2).')
+    expect(decision.compareDocumentPosition(plan) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it.each(['course_plan_review', 'course_plan_active'])('offers no decline and no generic move while the case is in %s', async (status) => {
+    mocks.fetchRplApplication.mockResolvedValue({ data: application({ status, allowed_transitions: [], course_plan: { entry_quiz_result: 'passed', draft_version: status === 'course_plan_review' ? 1 : null, in_force_version: status === 'course_plan_active' ? 1 : null, has_plan: true } }) })
+    renderCase()
+
+    const select = await screen.findByLabelText('Next status')
+    expect(select).toBeDisabled()
+    expect(within(select).getAllByRole('option').map((option) => option.value)).toEqual([''])
+    expect(screen.queryByRole('button', { name: DECLINE_COPY.en.action })).not.toBeInTheDocument()
+    expect(tabButton()).toBeInTheDocument()
+    // The hint points to the course plan tab, never to P3's decision, interview or decline actions.
+    const hint = status === 'course_plan_review' ? EN.noTransitionsReview : EN.noTransitionsActive
+    expect(screen.getByText(hint)).toBeInTheDocument()
+    expect(select).toHaveAccessibleDescription(hint)
+    expect(screen.queryByText(/decision, interview or decline/)).not.toBeInTheDocument()
+  })
+
+  it.each(['course_plan_review', 'course_plan_active'])('points to the course plan tab in Arabic while the case is in %s', async (status) => {
+    language.current = 'ar'
+    mocks.fetchRplApplication.mockResolvedValue({ data: application({ status, allowed_transitions: [], course_plan: { entry_quiz_result: 'passed', draft_version: status === 'course_plan_review' ? 1 : null, in_force_version: status === 'course_plan_active' ? 1 : null, has_plan: true } }) })
+    renderCase()
+
+    const hint = status === 'course_plan_review' ? COURSE_PLAN_COPY.ar.noTransitionsReview : COURSE_PLAN_COPY.ar.noTransitionsActive
+    expect(await screen.findByText(hint)).toBeInTheDocument()
+    expect(screen.queryByText(/المقابلة أو الرفض/)).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('undefined')
+  })
+
+  it('keeps the decision, interview and decline sentence for a status outside the course plan', async () => {
+    mocks.fetchRplApplication.mockResolvedValue({ data: application({ status: 'assessment_in_progress', allowed_transitions: [] }) })
+    renderCase()
+
+    const select = await screen.findByLabelText('Next status')
+    expect(select).toBeDisabled()
+    expect(screen.getByText('No other status can be set from here. Use the decision, interview or decline actions.')).toBeInTheDocument()
+    expect(screen.queryByText(EN.noTransitionsReview)).not.toBeInTheDocument()
+    expect(screen.queryByText(EN.noTransitionsActive)).not.toBeInTheDocument()
+  })
+
+  it('re-reads only the case and its timeline after a course plan act', async () => {
+    mocks.fetchRplApplication
+      .mockResolvedValueOnce({ data: application() })
+      .mockResolvedValue({ data: application({ status: 'course_plan_review', course_plan: { entry_quiz_result: 'passed', draft_version: 1, in_force_version: null, has_plan: true } }) })
+    mocks.generateRplCoursePlan.mockResolvedValue({ message: 'RPL course plan generated.', data: { plan: draftPlan(), application_status: 'course_plan_review' } })
+    renderCase('/rpl/applications/case-41?tab=course_plan')
+
+    fireEvent.click(await screen.findByRole('button', { name: EN.generate }))
+
+    await waitFor(() => expect(mocks.fetchRplApplication).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(mocks.fetchRplTimeline).toHaveBeenCalledTimes(2))
+    expect(mocks.fetchRplEvidence).toHaveBeenCalledTimes(1)
+    expect(mocks.fetchRplAssessments).toHaveBeenCalledTimes(1)
+    expect(mocks.fetchRplReferenceData).toHaveBeenCalledTimes(1)
+    expect(mocks.fetchRplScreeningDecisions).not.toHaveBeenCalled()
+    expect(mocks.fetchRplInterviews).not.toHaveBeenCalled()
+    // The case never fell back to the full-page loading state: the tab kept its place.
+    expect(tabButton()).toHaveAttribute('aria-current', 'page')
   })
 })

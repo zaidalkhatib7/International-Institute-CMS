@@ -1,5 +1,5 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import RplAssessmentsPage, { GEMINI_COPY } from './RplAssessmentsPage'
 
@@ -388,5 +388,40 @@ describe('the copy itself', () => {
     expect(document.body.textContent).not.toMatch(/never receives raw files/)
     expect(await screen.findByText(/only after the applicant has answered every issued question/))
       .toBeInTheDocument()
+  })
+})
+
+/*
+ * THE INTERVIEW MOVED TO THE CASE (owner flow of 12 Oct 2026, P3).
+ *
+ * The interview now comes before the assessment: it is offered, scheduled and
+ * decided in the case workspace. The card that scheduled one on the assessment
+ * is a link there, and it no longer posts to the assessment-scoped route.
+ */
+function LocationProbe() {
+  const location = useLocation()
+  return <p>{location.pathname + location.search}</p>
+}
+
+describe('the interview card', () => {
+  it('links to the interview on the case instead of scheduling one here', async () => {
+    language.current = 'en'
+    mocks.fetchRplAssessment.mockResolvedValue({ data: assessment({ application: { ...assessment().application, public_id: 'case-41' } }) })
+    render(
+      <MemoryRouter initialEntries={['/rpl/assessments/12']}>
+        <Routes>
+          <Route path="/rpl/assessments/:assessmentId" element={<RplAssessmentsPage />} />
+          <Route path="/rpl/applications/:applicationId" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const link = await screen.findByRole('button', { name: 'Open the interview on the case' })
+    expect(screen.queryByLabelText('Interview date and time')).not.toBeInTheDocument()
+
+    fireEvent.click(link)
+
+    expect(await screen.findByText('/rpl/applications/case-41?tab=decision')).toBeInTheDocument()
+    expect(mocks.scheduleRplInterview).not.toHaveBeenCalled()
   })
 })

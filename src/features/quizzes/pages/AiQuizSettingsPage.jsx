@@ -25,13 +25,13 @@ const copyByLanguage = {
     title: 'إعدادات بنك الأسئلة بالذكاء الاصطناعي', description: 'تحكم في طريقة تحويل Gemini لملفات PDF التعليمية إلى مسودات بنوك أسئلة متعددة اللغات وقابلة للمراجعة.',
     loadError: 'تعذر تحميل إعدادات بنك الأسئلة بالذكاء الاصطناعي.', promptMinimum: 'يجب ألا تقل تعليمات التوليد عن 50 حرفًا.', saved: 'تم حفظ تعليمات توليد الأسئلة من PDF.', saveError: 'تعذر حفظ إعدادات بنك الأسئلة بالذكاء الاصطناعي.',
     promptTitle: 'تعليمات التوليد', promptDescription: 'تُطبق هذه التعليمات على كل عملية استيراد من PDF. أبقِ المتغير {token} في الموضع الذي يجب أن يظهر فيه عدد الأسئلة المطلوب.', loading: 'جارٍ تحميل الإعدادات...', characters: 'حرف', saving: 'جارٍ الحفظ...', save: 'حفظ التعليمات',
-    connection: 'اتصال الخادم', status: 'الحالة', configured: 'مهيأ', missingKey: 'مفتاح API غير موجود', model: 'النموذج', pdfLimit: 'حد ملف PDF', keySafety: 'حماية المفتاح السري', keySafetyDescription: 'يقرأ Laravel المفتاح من GEMINI_API_KEY داخل بيئة الخادم فقط، ولا يُعاد إلى واجهة CMS مطلقًا. غيّر المفتاح أو دوّره في بيئة الخادم ثم أعد تشغيل Herd.',
+    connection: 'اتصال الخادم', status: 'الحالة', configured: 'مهيأ', missingKey: 'مفتاح API غير موجود', model: 'النموذج', pdfLimit: 'حد ملف PDF', keySafety: 'حماية المفتاح السري', keySafetyDescription: 'يقرأ Laravel المفتاح من GEMINI_API_KEY داخل بيئة الخادم فقط، ولا يُعاد إلى المنصة مطلقًا. غيّر المفتاح أو دوّره في بيئة الخادم ثم أعد تشغيل Herd.',
   },
   en: {
     title: 'AI Question Bank Settings', description: 'Control how Gemini turns teaching PDFs into reviewable multilingual question-bank drafts.',
     loadError: 'Could not load AI quiz settings.', promptMinimum: 'The generation prompt must contain at least 50 characters.', saved: 'The PDF question-generation prompt was saved.', saveError: 'Could not save AI quiz settings.',
     promptTitle: 'Generation prompt', promptDescription: 'This instruction is applied to every PDF import. Keep {token} where the requested number of questions should appear.', loading: 'Loading settings...', characters: 'characters', saving: 'Saving...', save: 'Save prompt',
-    connection: 'Backend connection', status: 'Status', configured: 'Configured', missingKey: 'API key missing', model: 'Model', pdfLimit: 'PDF limit', keySafety: 'Secret-key safety', keySafetyDescription: 'Laravel reads the key only from GEMINI_API_KEY in the backend environment. It is never returned to this CMS. Change or rotate it in the backend environment, then restart Herd.',
+    connection: 'Backend connection', status: 'Status', configured: 'Configured', missingKey: 'API key missing', model: 'Model', pdfLimit: 'PDF limit', keySafety: 'Secret-key safety', keySafetyDescription: 'Laravel reads the key only from GEMINI_API_KEY in the backend environment. It is never returned to this platform. Change or rotate it in the backend environment, then restart Herd.',
   },
 }
 

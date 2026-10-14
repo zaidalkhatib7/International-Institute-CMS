@@ -1,7 +1,7 @@
 import { icpcLogoDataUri } from '../assets/icpcLogo'
 
 export const branding = {
-  appName: 'ICPC Professional Accreditation CMS',
+  appName: 'ICPC Professional Accreditation Platform',
   shortName: 'ICPC',
   organizationName: 'اللجنة الدولية لحماية المدنيين',
   organizationNameEnglish: 'International Commission for the Protection of Civilians',

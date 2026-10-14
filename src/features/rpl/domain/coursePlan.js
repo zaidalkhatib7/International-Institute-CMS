@@ -192,6 +192,9 @@ export const COURSE_PLAN_COPY = {
     awaitingApproval: 'تنتظر خطة الدورات الاعتماد (الإصدار {version}).',
     inForce: 'الإصدار {version} من خطة الدورات ساري.',
     openPlan: 'فتح خطة الدورات',
+    // The hint under the disabled next-status select in each course-plan status: the act is on the course plan tab, not in P3's decision, interview or decline.
+    noTransitionsReview: 'لا توجد حالة أخرى يمكن تعيينها من هنا. استخدم تبويب خطة الدورات: اعتمد المسودة أو ألغِها.',
+    noTransitionsActive: 'لا توجد حالة أخرى يمكن تعيينها من هنا. خطة الدورات سارية، وأي تغيير فيها يكون بتعديلها من تبويب خطة الدورات.',
     someone: 'أحد الموظفين',
     failed: 'تعذّر إكمال الإجراء.',
     demonstrated: 'فجوة مثبتة',
@@ -342,6 +345,8 @@ export const COURSE_PLAN_COPY = {
     awaitingApproval: 'The course plan awaits approval (version {version}).',
     inForce: 'Course plan version {version} is in force.',
     openPlan: 'Open the course plan',
+    noTransitionsReview: 'No other status can be set from here. Use the course plan tab: approve or discard the draft.',
+    noTransitionsActive: 'No other status can be set from here. The course plan is in force; any change is an amendment on the course plan tab.',
     someone: 'a staff member',
     failed: 'The action could not be completed.',
     demonstrated: 'Demonstrated gap',
