@@ -75,7 +75,7 @@ const API_WITHHELD_REASONS = [
 
 const API_EMPLOYER_FLAGS = [
   'privacy_query_breach', 'ungrounded_sources_dropped', 'result_capped_without_grounded_source', 'result_capped_without_search',
-  'employer_search_failed', 'not_searched_names_applicant', 'website_not_sent_names_applicant',
+  'employer_search_failed', 'not_searched_names_applicant', 'website_not_sent_names_applicant', 'sources_unattributable',
 ]
 
 /*
