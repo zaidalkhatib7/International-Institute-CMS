@@ -2,6 +2,16 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 import {
   acknowledgeRplAiAdvisory,
+  addRplCoursePlanItem,
+  amendRplCoursePlan,
+  approveRplCoursePlan,
+  discardRplCoursePlan,
+  fetchRplCoursePlan,
+  fetchRplCoursePlanCatalogue,
+  fetchRplCoursePlanVersion,
+  generateRplCoursePlan,
+  regenerateRplCoursePlan,
+  removeRplCoursePlanItem,
   acknowledgeRplScreening,
   fetchRplScreenings,
   requestRplScreening,
@@ -291,6 +301,70 @@ describe('the RPL settings endpoint the configuration screen writes through', ()
 
     expect(http.put).toHaveBeenCalledWith('/admin/rpl/settings', {
       rpl_advisory_include_evidence_documents: false,
+    })
+  })
+})
+
+/*
+ * THE GOVERNED COURSE PLAN (owner flow of 12 Oct 2026, P5). Transcribed from the
+ * P5 contract (routes R1-R10 under /api/v1/admin/rpl), not from the service: the
+ * case hangs off /applications/{public_id}/course-plan; a plan version is
+ * addressed by its own public_id under /course-plans; an item by its id under
+ * its plan. Only generate and regenerate call Gemini, so only they take the AI
+ * timeout, and the item removal carries its body on the DELETE.
+ */
+describe('the course plan endpoints', () => {
+  test('the overview and the picker catalogue are read under the case', async () => {
+    await fetchRplCoursePlan('case-41')
+    await fetchRplCoursePlanCatalogue('case-41')
+
+    expect(http.get).toHaveBeenNthCalledWith(1, '/admin/rpl/applications/case-41/course-plan')
+    expect(http.get).toHaveBeenNthCalledWith(2, '/admin/rpl/applications/case-41/course-plan/catalogue')
+  })
+
+  test('one version is read by the plan public_id', async () => {
+    await fetchRplCoursePlanVersion('plan-1')
+
+    expect(http.get).toHaveBeenCalledWith('/admin/rpl/course-plans/plan-1')
+  })
+
+  test('generation posts the locale under the case, with the long AI timeout', async () => {
+    await generateRplCoursePlan('case-41', { locale: 'ar' })
+
+    const [url, body, options] = http.post.mock.calls[0]
+    expect(url).toBe('/admin/rpl/applications/case-41/course-plan/generate')
+    expect(body).toEqual({ locale: 'ar' })
+    expect(options.timeout).toBe(5 * 60 * 1000)
+  })
+
+  test('regeneration posts the lock_version, the reason and the locale to the draft, with the long AI timeout', async () => {
+    await regenerateRplCoursePlan('plan-1', { lock_version: 3, reason: 'The client sent a new letter.', locale: 'en' })
+
+    const [url, body, options] = http.post.mock.calls[0]
+    expect(url).toBe('/admin/rpl/course-plans/plan-1/regenerate')
+    expect(body).toEqual({ lock_version: 3, reason: 'The client sent a new letter.', locale: 'en' })
+    expect(options.timeout).toBe(5 * 60 * 1000)
+  })
+
+  test('every other write posts its body to the plan, with the normal timeout', async () => {
+    await addRplCoursePlanItem('plan-1', { lock_version: 3, program_id: 43, reason: 'Already certified elsewhere.' })
+    await approveRplCoursePlan('plan-1', { lock_version: 4, below_minimum_reason: 'The library holds no more.' })
+    await amendRplCoursePlan('plan-1', { lock_version: 5, reason: 'The client asked for a swap.' })
+    await discardRplCoursePlan('plan-2', { lock_version: 1, reason: 'Drafted against the wrong level.' })
+
+    expect(http.post.mock.calls).toEqual([
+      ['/admin/rpl/course-plans/plan-1/items', { lock_version: 3, program_id: 43, reason: 'Already certified elsewhere.' }],
+      ['/admin/rpl/course-plans/plan-1/approve', { lock_version: 4, below_minimum_reason: 'The library holds no more.' }],
+      ['/admin/rpl/course-plans/plan-1/amend', { lock_version: 5, reason: 'The client asked for a swap.' }],
+      ['/admin/rpl/course-plans/plan-2/discard', { lock_version: 1, reason: 'Drafted against the wrong level.' }],
+    ])
+  })
+
+  test('removing an item sends its reason and lock_version as the DELETE body, under its plan', async () => {
+    await removeRplCoursePlanItem('plan-1', 11, { lock_version: 3, reason: 'Already certified elsewhere.' })
+
+    expect(http.delete).toHaveBeenCalledWith('/admin/rpl/course-plans/plan-1/items/11', {
+      data: { lock_version: 3, reason: 'Already certified elsewhere.' },
     })
   })
 })

@@ -394,6 +394,59 @@ export async function fetchGapClosurePlan(applicationPublicId) {
   return response.data
 }
 
+/*
+ * THE GOVERNED COURSE PLAN (owner flow of 12 Oct 2026, plan 4.7 and 5.4-5.6, P5).
+ *
+ * Gemini proposes the courses, at least the governed minimum for the client's
+ * target level after a passed entry quiz; staff add and remove courses with a
+ * reason and approve the plan. Reading needs rpl.applications.view; every write
+ * needs rpl.course_plans.manage. The case is addressed by public_id, a plan
+ * version by its own public_id, an item by its id. Every write sends the PLAN's
+ * lock_version and gets 409 (code rpl_course_plan_stale) when someone else
+ * changed the plan first. Generating and regenerating call Gemini synchronously,
+ * so only those two take the AI timeout. saveRplCompletionPlan above is retired
+ * (the API answers 423) and is left as it is.
+ */
+export async function fetchRplCoursePlan(applicationId) {
+  return read(await http.get(`/admin/rpl/applications/${applicationId}/course-plan`))
+}
+
+export async function fetchRplCoursePlanCatalogue(applicationId) {
+  return read(await http.get(`/admin/rpl/applications/${applicationId}/course-plan/catalogue`))
+}
+
+export async function generateRplCoursePlan(applicationId, payload = {}) {
+  return read(await http.post(`/admin/rpl/applications/${applicationId}/course-plan/generate`, payload, AI_TIMEOUT))
+}
+
+export async function fetchRplCoursePlanVersion(planId) {
+  return read(await http.get(`/admin/rpl/course-plans/${planId}`))
+}
+
+export async function regenerateRplCoursePlan(planId, payload) {
+  return read(await http.post(`/admin/rpl/course-plans/${planId}/regenerate`, payload, AI_TIMEOUT))
+}
+
+export async function addRplCoursePlanItem(planId, payload) {
+  return read(await http.post(`/admin/rpl/course-plans/${planId}/items`, payload))
+}
+
+export async function removeRplCoursePlanItem(planId, itemId, payload) {
+  return read(await http.delete(`/admin/rpl/course-plans/${planId}/items/${itemId}`, { data: payload }))
+}
+
+export async function approveRplCoursePlan(planId, payload) {
+  return read(await http.post(`/admin/rpl/course-plans/${planId}/approve`, payload))
+}
+
+export async function amendRplCoursePlan(planId, payload) {
+  return read(await http.post(`/admin/rpl/course-plans/${planId}/amend`, payload))
+}
+
+export async function discardRplCoursePlan(planId, payload) {
+  return read(await http.post(`/admin/rpl/course-plans/${planId}/discard`, payload))
+}
+
 /**
  * Record a certificate fee received outside the platform.
  *

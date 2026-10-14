@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   Download,
   Eye,
+  ListChecks,
   LoaderCircle,
   Plus,
   Save,
@@ -305,10 +306,13 @@ const geminiCopyByLanguage = {
     acknowledgeSuccess: "تم توثيق مراجعة المدير لمسودة Gemini.",
     criterion: "استشارة المعيار",
     gaps: "فجوات الأدلة",
-    courses: "البرامج المقترحة من مكتبة سد فجوات الكفاءات",
+    courses: "البرامج الواردة في هذه الاستشارة (عرض استشاري، وليس خطة الدورات)",
+    coursesNotPlan:
+      "خطة الدورات التي يراها العميل تُبنى وتُعتمد في ملف الطلب، من تقييم الإجابات. هذه القائمة استشارية فقط.",
+    openCoursePlan: "فتح خطة الدورات",
     targetLevel: "هدف الاعتماد الذي اختاره المتقدم",
     targetMethod:
-      "يُقيّم Gemini الأدلة بصرامة المستوى المستهدف، ثم يختار فقط البرامج اللازمة لسد الفجوات المثبتة دون عدد ثابت أو دورات غير لازمة.",
+      "يطبّق Gemini صرامة المستوى المستهدف. بعد اجتياز اختبار الدخول تضم خطة الدورات على الأقل الحد الأدنى من الدورات المحدد لهذا المستوى (قرار المالك، 12 أكتوبر 2026): أولًا الدورات التي تسد الفجوات المثبتة، ثم دورات تقوّي أضعف الجوانب، وتُوسم كل دورة بغرضها.",
     currentReadiness: "الجاهزية الحالية وفق الأدلة",
     readinessReady: "جاهز للمستوى المستهدف",
     readinessPartiallyReady: "جاهز جزئيًا ويحتاج إلى سد فجوات",
@@ -327,6 +331,11 @@ const geminiCopyByLanguage = {
     ground_evidence_metadata: "بيانات الأدلة الوصفية",
     conditional: "مشروطة — تحتاج إلى تأكيد بالتقييم المحكوم",
     demonstrated: "فجوة مثبتة",
+    claimsNoGap: "لا تدّعي وجود فجوة",
+    coursePurpose: {
+      gap_closure: "تسد فجوة",
+      minimum_completion: "لاستكمال الحد الأدنى",
+    },
   },
   en: {
     title: "Gemini advisory evaluation",
@@ -353,10 +362,13 @@ const geminiCopyByLanguage = {
       "The administrator review of the Gemini draft was recorded.",
     criterion: "Criterion advice",
     gaps: "Evidence gaps",
-    courses: "Recommended programmes from the Competency Gap Learning Library",
+    courses: "Programmes in this advisory (advisory view, not the course plan)",
+    coursesNotPlan:
+      "The course plan the client sees is built and approved on the case, from the evaluation of the answers. This list is advisory only.",
+    openCoursePlan: "Open the course plan",
     targetLevel: "Applicant-selected accreditation target",
     targetMethod:
-      "Gemini applies the rigor of this target and selects only the programmes justified by demonstrated gaps—without fixed course counts or unnecessary learning.",
+      "Gemini applies the rigor of this target. After a passed entry quiz the course plan holds at least the minimum number of courses set for this level (owner decision, 12 Oct 2026): first the courses that close demonstrated gaps, then courses that strengthen the weakest areas, each labelled with its purpose.",
     currentReadiness: "Current evidence-based readiness",
     readinessReady: "Ready for the target level",
     readinessPartiallyReady: "Partially ready; competency gaps remain",
@@ -376,6 +388,11 @@ const geminiCopyByLanguage = {
     ground_evidence_metadata: "evidence metadata",
     conditional: "Conditional — needs the governed assessment to confirm it",
     demonstrated: "Demonstrated gap",
+    claimsNoGap: "Claims no gap",
+    coursePurpose: {
+      gap_closure: "Closes a gap",
+      minimum_completion: "Brings the plan to the minimum",
+    },
   },
 };
 
@@ -1317,6 +1334,26 @@ export default function RplAssessmentsPage() {
                         <strong className="block text-sky-900">
                           {geminiCopy.courses}
                         </strong>
+                        {/* Owner flow of 12 Oct 2026 (P5, plan 5.4): the plan comes from the
+                            evaluation of the answers and is approved on the case. */}
+                        <p className="mt-1 leading-6 text-sky-900">
+                          {geminiCopy.coursesNotPlan}
+                        </p>
+                        {assessment.application?.public_id ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="mt-2"
+                            onClick={() =>
+                              navigate(
+                                `/rpl/applications/${assessment.application.public_id}?tab=course_plan`,
+                              )
+                            }
+                          >
+                            <ListChecks size={15} />
+                            {geminiCopy.openCoursePlan}
+                          </Button>
+                        ) : null}
                         {item.advisory.course_recommendations.map((course) => (
                           <div
                             key={course.program_id}
@@ -1328,6 +1365,20 @@ export default function RplAssessmentsPage() {
                             <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                               <bdi>{course.slug}</bdi>
                             </p>
+                            {/* P5 (R11): the purpose says whether the course closes a gap
+                                or only tops the list up to the minimum. */}
+                            {geminiCopy.coursePurpose[course.purpose] ? (
+                              <Badge
+                                variant={
+                                  course.purpose === "minimum_completion"
+                                    ? "warning"
+                                    : "info"
+                                }
+                                className="mt-2"
+                              >
+                                {geminiCopy.coursePurpose[course.purpose]}
+                              </Badge>
+                            ) : null}
                             <p className="mt-2 leading-6">{course.reason}</p>
                             <RecommendationGrounds
                               course={course}
@@ -1350,6 +1401,14 @@ export default function RplAssessmentsPage() {
                  panel that has to say which of them can actually be read. */
               evidence={evidence}
               evidenceDocumentsEnabled={state.evidenceDocumentsEnabled}
+              onOpenCoursePlan={
+                assessment.application?.public_id
+                  ? () =>
+                      navigate(
+                        `/rpl/applications/${assessment.application.public_id}?tab=course_plan`,
+                      )
+                  : undefined
+              }
             />
           ) : null}
           {/*

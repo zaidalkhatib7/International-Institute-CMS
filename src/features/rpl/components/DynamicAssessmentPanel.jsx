@@ -43,6 +43,7 @@ import {
 } from "../services/rplService";
 import { formatLocalizedDateTime } from "../../../utils/localization";
 import { answerProgress } from "../domain/answerCompleteness";
+import { coursePlanCopy } from "../domain/coursePlan";
 import { fill } from "../domain/documentScreening";
 import {
   RESCORE_REASON_MAX,
@@ -323,6 +324,8 @@ export default function DynamicAssessmentPanel({
   language,
   evidence,
   evidenceDocumentsEnabled = true,
+  // P5: the evaluation below seeds the course plan; the page decides where "open it" goes.
+  onOpenCoursePlan,
 }) {
   const copy = copyByLanguage[language] || copyByLanguage.en;
   // The entry-quiz copy (owner, 12 Oct 2026, P4) is Arabic and English only and falls back to English.
@@ -666,7 +669,12 @@ export default function DynamicAssessmentPanel({
             ) : null}
 
             {/* The platform's mark of an entry quiz (owner, 12 Oct 2026, P4); nothing for any other set. */}
-            <EntryQuizResultCard assessment={assessment} items={items} language={language} />
+            <EntryQuizResultCard
+              assessment={assessment}
+              items={items}
+              language={language}
+              onOpenCoursePlan={onOpenCoursePlan}
+            />
 
             {canRescore ? (
               <section
@@ -949,6 +957,13 @@ export default function DynamicAssessmentPanel({
                 ) : null}
                 {Array.isArray(finalAdvisory.suggested_next_steps) && finalAdvisory.suggested_next_steps.length ? (
                   <p><strong>{copy.nextSteps}:</strong> {finalAdvisory.suggested_next_steps.join(" · ")}</p>
+                ) : null}
+                {onOpenCoursePlan ? (
+                  <div>
+                    <Button size="sm" variant="outline" onClick={onOpenCoursePlan}>
+                      {coursePlanCopy(language).openPlan}
+                    </Button>
+                  </div>
                 ) : null}
               </div>
             ) : null}

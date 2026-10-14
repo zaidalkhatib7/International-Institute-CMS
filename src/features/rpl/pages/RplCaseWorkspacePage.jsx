@@ -10,6 +10,7 @@ import {
   FileCheck2,
   Gavel,
   History,
+  ListChecks,
   LoaderCircle,
   RefreshCw,
   Save,
@@ -33,11 +34,13 @@ import {
 import {
   SCREENING_PERMISSIONS,
   claimedEmployersCopy,
+  fill,
   readClaimedEmployers,
   regionName,
   safeExternalUrl,
   screeningCopy,
 } from '../domain/documentScreening'
+import { COURSE_PLAN_LIVE_STATUSES, COURSE_PLAN_PERMISSIONS, coursePlanCopy } from '../domain/coursePlan'
 import {
   assignRplAssessor,
   acceptRplAssignment,
@@ -60,8 +63,10 @@ import {
   transitionRplApplication,
 } from '../services/rplService'
 import CompletenessMeter from '../components/CompletenessMeter'
+import CoursePlanEditor from '../components/CoursePlanEditor'
 import DocumentScreeningPanel from '../components/DocumentScreeningPanel'
 import EvidenceUploadCenter from '../components/EvidenceUploadCenter'
+import GapClosurePanel from '../components/GapClosurePanel'
 import PaymentReconciliationPanel from '../components/PaymentReconciliationPanel'
 import RplPageState from '../components/RplPageState'
 import RplStatusBadge from '../components/RplStatusBadge'
@@ -109,6 +114,8 @@ const tabs = [
   // Document screening (owner flow of 12 Oct 2026, D17(a)): only for rpl.screening.view, and hidden on a 403.
   { key: 'screening', icon: ScanSearch },
   { key: 'assessment', icon: ClipboardCheck },
+  // The governed course plan (owner flow of 12 Oct 2026, P5): from the assessment stage, or once the case has a plan.
+  { key: 'course_plan', icon: ListChecks },
   { key: 'governance', icon: Gavel },
   { key: 'timeline', icon: History },
 ]
@@ -163,6 +170,7 @@ export default function RplCaseWorkspacePage() {
   const employersText = claimedEmployersCopy(screenLanguage)
   const canViewScreening = hasPermission(SCREENING_PERMISSIONS.view)
   const canRunScreening = hasPermission(SCREENING_PERMISSIONS.run)
+  const coursePlanText = coursePlanCopy(screenLanguage)
   const adminEvaluationCopy = {
     ar: {
       title: '\u0627\u0644\u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0625\u062f\u0627\u0631\u064a \u0628\u0645\u0633\u0627\u0639\u062f\u0629 Gemini',
@@ -173,9 +181,16 @@ export default function RplCaseWorkspacePage() {
     en: { title: 'Gemini-assisted administrator evaluation', hint: 'No external assessor is required. Gemini prepares a draft; only the administrator who starts it can review, edit, and submit it.', start: 'Start administrator evaluation', open: 'Open administrator evaluation', started: 'Administrator evaluation started. Generate the Gemini draft, then review and edit it.' },
   }[language] || copyByLanguage.en
   const [screening, setScreening] = useState({ loading: false, error: '', forbidden: false, items: [] })
-  const visibleTabs = tabs.filter((tab) => tab.key !== 'screening' || (canViewScreening && !screening.forbidden))
-  const activeTab = visibleTabs.some((tab) => tab.key === searchParams.get('tab')) ? searchParams.get('tab') : 'overview'
   const [state, setState] = useState({ loading: true, error: '', auxiliaryWarning: false, application: null, evidence: [], categories: EVIDENCE_CATEGORIES, timeline: [], assessments: [], assignments: [], assessors: [], levels: [], committees: [], committeeActions: [], outcomes: [] })
+  // The course plan tab (P5): needs rpl.applications.view, and a 403 from the server removes it.
+  // P3 MERGE: these lines read `state`, so P3's canViewScreeningData / visibleTabs / activeTab
+  // block must move BELOW the `state` and `coursePlanForbidden` declarations, with the
+  // course_plan branch inside P3's filter. Left above them, the filter runs during render
+  // before they exist and every case crashes (ReferenceError: cannot access before initialization).
+  const [coursePlanForbidden, setCoursePlanForbidden] = useState(false)
+  const showCoursePlan = hasPermission(COURSE_PLAN_PERMISSIONS.view) && !coursePlanForbidden && (COURSE_PLAN_LIVE_STATUSES.includes(state.application?.status) || state.application?.course_plan?.has_plan === true)
+  const visibleTabs = tabs.filter((tab) => (tab.key !== 'screening' || (canViewScreening && !screening.forbidden)) && (tab.key !== 'course_plan' || showCoursePlan))
+  const activeTab = visibleTabs.some((tab) => tab.key === searchParams.get('tab')) ? searchParams.get('tab') : 'overview'
   const [action, setAction] = useState({ busy: false, error: '', success: '' })
   const [transition, setTransition] = useState({ status: 'administrative_review', reason: '' })
   const [assignment, setAssignment] = useState({ expert_profile_id: '', assignment_role: 'primary' })
@@ -254,6 +269,17 @@ export default function RplCaseWorkspacePage() {
     return () => window.clearTimeout(timer)
   }, [loadScreenings])
 
+  /*
+   * The course plan editor loads its own data and is never part of load(). When
+   * one of its acts moves the case (generate, first approval, discard of a first
+   * draft) the page reloads the case and shows the editor's sentence.
+   */
+  const onCoursePlanChanged = useCallback(({ message } = {}) => {
+    setAction({ busy: false, error: '', success: message || '' })
+    load()
+  }, [load])
+  const onCoursePlanForbidden = useCallback(() => setCoursePlanForbidden(true), [])
+
   const application = state.application || {}
   const administratorAssessment = state.assessments.find((assessment) => assessment.rpl_assessor_assignment_id === null)
   const applicant = applicantOf(application)
@@ -263,7 +289,7 @@ export default function RplCaseWorkspacePage() {
   // A case rejected before the stamp existed shows the date the API derives for it, marked as such.
   const decline = readApplicationDecline(application, language)
 
-  const tabLabels = useMemo(() => ({ overview: copy.overview, evidence: copy.evidence, screening: screeningText.tab, assessment: copy.assessment, governance: copy.governance, timeline: copy.timeline }), [copy, screeningText.tab])
+  const tabLabels = useMemo(() => ({ overview: copy.overview, evidence: copy.evidence, screening: screeningText.tab, assessment: copy.assessment, course_plan: coursePlanText.tab, governance: copy.governance, timeline: copy.timeline }), [copy, screeningText.tab, coursePlanText.tab])
 
   async function runAction(request, success, after) {
     setAction({ busy: true, error: '', success: '' })
@@ -385,6 +411,39 @@ export default function RplCaseWorkspacePage() {
     )
   }
 
+  /*
+   * Where the case stands on its course plan (P5), from the case detail's
+   * course_plan summary: awaiting a plan, a draft awaiting approval, a version in
+   * force. Each line opens the course plan tab.
+   */
+  function renderCoursePlanNotice() {
+    const summary = application.course_plan
+    if (!showCoursePlan || !summary || typeof summary !== 'object') return null
+    const live = summary.draft_version != null || summary.in_force_version != null
+    const lines = []
+    if (application.status === 'assessment_in_progress' && ['passed', 'failed'].includes(summary.entry_quiz_result) && !live) lines.push(coursePlanText.awaitingPlan)
+    if (summary.draft_version != null) lines.push(fill(coursePlanText.awaitingApproval, { version: summary.draft_version }))
+    if (summary.in_force_version != null) lines.push(fill(coursePlanText.inForce, { version: summary.in_force_version }))
+    if (!lines.length) return null
+    return (
+      <Card>
+        <CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{coursePlanText.title}</CardTitle></CardHeader>
+        <CardContent className="space-y-3 pt-6">
+          {lines.map((line) => <div key={line} className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm leading-6">{line}</p><Button size="sm" variant="outline" onClick={() => setSearchParams({ tab: 'course_plan' })}><ListChecks size={16} />{coursePlanText.openPlan}</Button></div>)}
+        </CardContent>
+      </Card>
+    )
+  }
+
+  function renderCoursePlan() {
+    return (
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+        <CoursePlanEditor applicationId={applicationId} application={application} evidence={state.evidence} canManage={hasPermission(COURSE_PLAN_PERMISSIONS.manage)} language={screenLanguage} onCaseChanged={onCoursePlanChanged} onForbidden={onCoursePlanForbidden} />
+        <div><GapClosurePanel applicationPublicId={applicationId} language={screenLanguage} crossCheck /></div>
+      </div>
+    )
+  }
+
   function renderOverview() {
     return (
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
@@ -426,6 +485,7 @@ export default function RplCaseWorkspacePage() {
               <Button fullWidth onClick={updateStatus} disabled={action.busy}>{action.busy ? <LoaderCircle className="animate-spin" size={17} /> : <Save size={17} />}{copy.saveTransition}</Button>
             </CardContent>
           </Card>
+          {renderCoursePlanNotice()}
         </div>
       </div>
     )
@@ -512,6 +572,7 @@ export default function RplCaseWorkspacePage() {
           {activeTab === 'evidence' ? <EvidenceUploadCenter applicationId={applicationId} evidence={state.evidence} categories={state.categories} completeness={readApplicationCompleteness(application)} declarationAccepted={declarationAccepted} language={language} canReview onEvidenceChange={(next) => setState((current) => ({ ...current, evidence: next }))} onCompletenessChange={(next) => setState((current) => ({ ...current, application: { ...current.application, completeness: next, completeness_percentage: next?.percentage } }))} onDeclarationChange={(accepted) => setState((current) => ({ ...current, application: { ...current.application, completeness: { ...(current.application?.completeness || {}), declaration: { ...(current.application?.completeness?.declaration || {}), accepted } } } }))} onRefreshRequested={load} /> : null}
           {activeTab === 'screening' ? <DocumentScreeningPanel applicationId={applicationId} screenings={screening.items} loading={screening.loading} error={screening.error} canRun={canRunScreening} categories={state.categories} language={screenLanguage} onReload={loadScreenings} onScreeningAdded={(created) => setScreening((current) => ({ ...current, items: [created, ...current.items.filter((item) => item.public_id !== created.public_id)] }))} onScreeningUpdated={(updated) => setScreening((current) => ({ ...current, items: current.items.map((item) => (item.public_id === updated.public_id ? updated : item)) }))} /> : null}
           {activeTab === 'assessment' ? renderAssessment() : null}
+          {activeTab === 'course_plan' ? renderCoursePlan() : null}
           {activeTab === 'governance' ? renderGovernance() : null}
           {activeTab === 'timeline' ? renderTimeline() : null}
         </>

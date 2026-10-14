@@ -114,6 +114,9 @@ export const APPLICATION_STATUS = {
   evidence_verification: { variant: 'warning', labels: { ar: 'قيد التحقق', en: 'Evidence verification' } },
   ready_for_assessment: { variant: 'info', labels: { ar: 'جاهز للتقييم', en: 'Ready for assessment' } },
   assessment_in_progress: { variant: 'warning', labels: { ar: 'قيد التقييم', en: 'Assessment in progress' } },
+  // Owner flow of 12 Oct 2026 (P5): the course plan is drafted, then in force.
+  course_plan_review: { variant: 'info', labels: { ar: 'مراجعة خطة الدورات', en: 'Course plan review' } },
+  course_plan_active: { variant: 'success', labels: { ar: 'خطة الدورات سارية', en: 'Course plan active' } },
   remediation_required: { variant: 'danger', labels: { ar: 'يحتاج استكمال', en: 'Remediation required' } },
   committee_review: { variant: 'info', labels: { ar: 'لجنة الاعتماد', en: 'Committee review' } },
   quality_review: { variant: 'info', labels: { ar: 'مراجعة الجودة', en: 'Quality review' } },

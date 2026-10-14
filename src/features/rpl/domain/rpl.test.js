@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  APPLICATION_STATUS,
   DECLINE_REASONS,
   EVIDENCE_CATEGORIES,
   EVIDENCE_UPLOAD_POLICY,
@@ -157,5 +158,21 @@ describe('RPL decline stamp', () => {
       reapplyAvailableAt: null,
       reapplyDerived: false,
     })
+  })
+})
+
+/*
+ * THE COURSE PLAN STATUSES (owner flow of 12 Oct 2026, P5): a draft course plan
+ * awaits staff approval, then the approved plan is in force. Both are labelled
+ * in Arabic and English, so the badge, the applications filter and the settings
+ * list never show a raw code.
+ */
+describe('RPL course plan statuses', () => {
+  it('labels both statuses in Arabic and English, right after assessment in progress', () => {
+    expect(APPLICATION_STATUS.course_plan_review).toEqual({ variant: 'info', labels: { ar: 'مراجعة خطة الدورات', en: 'Course plan review' } })
+    expect(APPLICATION_STATUS.course_plan_active).toEqual({ variant: 'success', labels: { ar: 'خطة الدورات سارية', en: 'Course plan active' } })
+    const order = Object.keys(APPLICATION_STATUS)
+    const start = order.indexOf('assessment_in_progress')
+    expect(order.slice(start, start + 3)).toEqual(['assessment_in_progress', 'course_plan_review', 'course_plan_active'])
   })
 })

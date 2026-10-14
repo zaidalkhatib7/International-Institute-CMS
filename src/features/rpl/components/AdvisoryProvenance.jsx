@@ -60,16 +60,26 @@ export function AdvisoryInputsStrip({ snapshot, copy }) {
  * A recommendation resting on a wrong answer or a read document is defensible
  * to an accreditor. One resting on absent evidence is a hypothesis. Only the
  * assessor can act on that difference, so the badge has to make it visible.
+ *
+ * Only a course that closes a gap makes that claim (owner flow of 12 Oct 2026,
+ * R11). A course added to reach the per-level minimum (purpose
+ * minimum_completion) claims no gap, so it says so instead of "Demonstrated
+ * gap"; a course staff added (purpose staff_added) carries no claim from Gemini
+ * at all, so it gets no badge.
  */
 export function RecommendationGrounds({ course, copy }) {
+  if (course?.purpose === 'staff_added') return null
+  const topUp = course?.purpose === 'minimum_completion'
   const grounds = Array.isArray(course?.grounded_in) ? course.grounded_in : []
   // Advisories generated before provenance existed carry neither field.
   // Rendering nothing is honest; defaulting a badge would invent a claim.
-  if (!grounds.length && course?.is_conditional === undefined) return null
+  if (!topUp && !grounds.length && course?.is_conditional === undefined) return null
 
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--color-border)] pt-2">
-      {course.is_conditional === false ? (
+      {topUp ? (
+        <Badge variant="neutral">{copy.claimsNoGap}</Badge>
+      ) : course.is_conditional === false ? (
         <Badge variant="success">{copy.demonstrated}</Badge>
       ) : (
         <Badge variant="warning">{copy.conditional}</Badge>

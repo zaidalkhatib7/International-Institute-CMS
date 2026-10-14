@@ -25,6 +25,7 @@ const copy = {
   ground_answered_assessment: 'assessment answers',
   conditional: 'Conditional — needs the governed assessment to confirm it',
   demonstrated: 'Demonstrated gap',
+  claimsNoGap: 'Claims no gap',
 }
 
 function snapshot(overrides = {}) {
@@ -116,5 +117,29 @@ describe('RecommendationGrounds', () => {
   it('renders nothing rather than inventing provenance for an older advisory', () => {
     const { container } = render(<RecommendationGrounds course={{ reason: 'legacy' }} copy={copy} />)
     expect(container).toBeEmptyDOMElement()
+  })
+
+  /*
+   * The governed course plan (owner flow of 12 Oct 2026, R11): a course added
+   * only to reach the per-level minimum claims no gap, and a course staff added
+   * carries no claim from Gemini. Neither may read as a demonstrated gap.
+   */
+  it('says a minimum_completion course claims no gap, never "Demonstrated gap", and keeps its grounds', () => {
+    render(<RecommendationGrounds course={{ purpose: 'minimum_completion', is_conditional: false, grounded_in: ['evidence_documents'] }} copy={copy} />)
+    expect(screen.getByText(copy.claimsNoGap)).toBeInTheDocument()
+    expect(screen.queryByText(copy.demonstrated)).not.toBeInTheDocument()
+    expect(screen.queryByText(copy.conditional)).not.toBeInTheDocument()
+    expect(screen.getByText(/applicant documents/)).toBeInTheDocument()
+  })
+
+  it('gives a staff_added course no badge at all, never "Conditional"', () => {
+    const { container } = render(<RecommendationGrounds course={{ purpose: 'staff_added', is_conditional: null, grounded_in: [] }} copy={copy} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('still marks a gap_closure course by its own flag', () => {
+    render(<RecommendationGrounds course={{ purpose: 'gap_closure', is_conditional: false, grounded_in: ['answered_assessment'] }} copy={copy} />)
+    expect(screen.getByText(copy.demonstrated)).toBeInTheDocument()
+    expect(screen.queryByText(copy.claimsNoGap)).not.toBeInTheDocument()
   })
 })

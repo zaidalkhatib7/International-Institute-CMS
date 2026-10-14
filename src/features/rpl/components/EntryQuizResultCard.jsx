@@ -1,5 +1,6 @@
-import { Badge } from "../../../components/ui";
+import { Badge, Button } from "../../../components/ui";
 import { formatLocalizedDateTime } from "../../../utils/localization";
+import { coursePlanCopy } from "../domain/coursePlan";
 import { fill, humanizeCode } from "../domain/documentScreening";
 import {
   entryQuizCopy,
@@ -16,6 +17,10 @@ import {
  * percentage (display only), the pass mark it was judged by and the strict
  * "more than" rule, the result, how the quiz closed, and each question's mark.
  * Staff-only: the applicant sees only passed / not passed and the percentage.
+ *
+ * `onOpenCoursePlan` (P5): a passed or failed result leads to the course plan
+ * (D11: a failed client gets the gap-closing courses), so the card offers a way
+ * there. A callback, not a link: the panel's tests render without a router.
  */
 
 const RESULT_VARIANT = { passed: "success", failed: "danger", referred: "warning" };
@@ -28,7 +33,7 @@ export function EntryQuizItemMark({ mark, language }) {
   return <Badge variant={MARK_VARIANT[mark] || "neutral"}>{copy.marks[mark] || mark}</Badge>;
 }
 
-export default function EntryQuizResultCard({ assessment, items = [], language }) {
+export default function EntryQuizResultCard({ assessment, items = [], language, onOpenCoursePlan }) {
   const copy = entryQuizCopy(language);
   const quiz = readEntryQuiz(assessment);
 
@@ -103,6 +108,14 @@ export default function EntryQuizResultCard({ assessment, items = [], language }
 
       {outcome ? <p className="leading-6">{copy.resultExplanation[outcome]}</p> : null}
       {reason ? <p className="leading-6">{fill(copy.referralReason, { reason })}</p> : null}
+
+      {onOpenCoursePlan && (outcome === "passed" || outcome === "failed") ? (
+        <div>
+          <Button size="sm" variant="outline" onClick={onOpenCoursePlan}>
+            {coursePlanCopy(language).openPlan}
+          </Button>
+        </div>
+      ) : null}
 
       <p className="flex flex-wrap gap-x-4 gap-y-1 leading-6">
         {result.closed_by ? (

@@ -49,7 +49,9 @@ const COPY = {
     declaringNone: 'حقيبة لا تُعلن أي كفاءة — غير مرئية للمحرك',
     mapped: 'كفاءة معيار مربوطة بالقاموس',
     draftWarning: 'مسودة — غير متاحة للتسجيل بعد',
-    computedNote: 'هذه خطة محسوبة ولم تُحفظ. الاعتماد يبقى قرار المقيّم عبر المسار المحكوم.',
+    computedNote: 'هذه خطة محسوبة ولم تُحفظ. الخطة التي تُعتمد هي خطة الدورات في ملف الطلب، يقترحها Gemini ويعتمدها الموظفون.',
+    crossCheckTitle: 'مراجعة حتمية',
+    crossCheck: 'مراجعة حتمية مبنية على الفجوات المسجلة، وليست خطة الدورات. تعدّ الفجوات فقط، فقد تقترح دورات أقل من الحد الأدنى للمستوى.',
   },
   en: {
     title: 'Gap Closure Engine',
@@ -71,11 +73,17 @@ const COPY = {
     declaringNone: 'packages declare none — invisible to the engine',
     mapped: 'standard competencies mapped to the dictionary',
     draftWarning: 'draft — not yet enrollable',
-    computedNote: 'This is a computed plan and has not been saved. Approval remains the assessor’s decision through the governed route.',
+    computedNote: 'This is a computed plan and has not been saved. The plan that is approved is the course plan on the case, which Gemini proposes and staff approve.',
+    crossCheckTitle: 'cross-check',
+    crossCheck: 'A deterministic cross-check from the recorded gaps, not the course plan. It counts gaps only, so it can list fewer courses than the level minimum.',
   },
 }
 
-export default function GapClosurePanel({ applicationPublicId, language }) {
+/*
+ * `crossCheck` (owner flow of 12 Oct 2026, P5): beside the course plan, the engine
+ * is a gap-only cross-check, never the plan, and the panel says so.
+ */
+export default function GapClosurePanel({ applicationPublicId, language, crossCheck = false }) {
   const copy = COPY[language] || COPY.en
 
   const [plan, setPlan] = useState(null)
@@ -111,13 +119,14 @@ export default function GapClosurePanel({ applicationPublicId, language }) {
       <CardHeader className="border-b border-[var(--color-border)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5" aria-hidden="true" /> {copy.title}
+            <Target className="h-5 w-5" aria-hidden="true" /> {copy.title}{crossCheck ? <span className="text-sm font-semibold text-[var(--color-text-muted)]"> · {copy.crossCheckTitle}</span> : null}
           </CardTitle>
           {plan?.target_level?.code ? (
             <Badge variant="neutral">{plan.target_level.code}</Badge>
           ) : null}
         </div>
         <p className="mt-2 max-w-3xl text-sm text-[var(--color-text-muted)]">{copy.subtitle}</p>
+        {crossCheck ? <p className="mt-2 max-w-3xl rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-900">{copy.crossCheck}</p> : null}
       </CardHeader>
 
       <CardContent className="space-y-6 p-6">

@@ -135,3 +135,33 @@ describe('GapClosurePanel', () => {
     expect(await screen.findByRole('button', { name: /Compute the gap closure plan/ })).toBeInTheDocument()
   })
 })
+
+/*
+ * Beside the course plan (owner flow of 12 Oct 2026, P5) the engine is a
+ * deterministic, gap-only cross-check: it counts gaps, never the level minimum,
+ * so it can list fewer courses than the plan. The panel says so there, and only
+ * there.
+ */
+describe('GapClosurePanel as a cross-check', () => {
+  it('says it is not the course plan only when asked to', async () => {
+    const { unmount } = render(<GapClosurePanel applicationPublicId="abc-123" language="en" crossCheck />)
+    expect(await screen.findByText('A deterministic cross-check from the recorded gaps, not the course plan. It counts gaps only, so it can list fewer courses than the level minimum.')).toBeInTheDocument()
+    unmount()
+
+    render(<GapClosurePanel applicationPublicId="abc-123" language="en" />)
+    expect(await screen.findByText('CGP-GOV-001')).toBeInTheDocument()
+    expect(screen.queryByText(/not the course plan/)).not.toBeInTheDocument()
+  })
+
+  it('points to the course plan rather than to the assessor route', async () => {
+    renderPanel()
+    expect(await screen.findByText(/The plan that is approved is the course plan on the case/)).toBeInTheDocument()
+    expect(screen.queryByText(/through the governed route/)).not.toBeInTheDocument()
+  })
+
+  it('says it in Arabic too', async () => {
+    render(<GapClosurePanel applicationPublicId="abc-123" language="ar" crossCheck />)
+    expect(await screen.findByText('مراجعة حتمية مبنية على الفجوات المسجلة، وليست خطة الدورات. تعدّ الفجوات فقط، فقد تقترح دورات أقل من الحد الأدنى للمستوى.')).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('undefined')
+  })
+})
