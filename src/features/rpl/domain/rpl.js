@@ -112,6 +112,8 @@ export const APPLICATION_STATUS = {
   administrative_review: { variant: 'warning', labels: { ar: 'مراجعة إدارية', en: 'Administrative review' } },
   awaiting_applicant: { variant: 'warning', labels: { ar: 'بانتظار المتقدم', en: 'Awaiting applicant' } },
   evidence_verification: { variant: 'warning', labels: { ar: 'قيد التحقق', en: 'Evidence verification' } },
+  // Owner flow of 12 Oct 2026 (P3): staff asked for an interview before the quiz.
+  interview_required: { variant: 'warning', labels: { ar: 'مقابلة مطلوبة', en: 'Interview required' } },
   ready_for_assessment: { variant: 'info', labels: { ar: 'جاهز للتقييم', en: 'Ready for assessment' } },
   assessment_in_progress: { variant: 'warning', labels: { ar: 'قيد التقييم', en: 'Assessment in progress' } },
   remediation_required: { variant: 'danger', labels: { ar: 'يحتاج استكمال', en: 'Remediation required' } },
@@ -132,9 +134,9 @@ export const APPLICATION_STATUS = {
  *
  * App\Enums\RplDeclineReason: the fixed list RplWorkflowService::transition
  * stamps on every move into `rejected` as `decline_reason_code`. It is a staff
- * label, not the staff rationale, and it never carries a figure. Only the first,
- * sixth and seventh are produced today; the other four arrive with the
- * screening, interview and quiz declines.
+ * label, not the staff rationale, and it never carries a figure. The screening
+ * and interview declines (P3) produce the second to fourth; the quiz decline
+ * arrives with P4.
  */
 export const DECLINE_REASONS = {
   intake_declined: { labels: { ar: 'رُفض في المراجعة الإدارية الأولية', en: 'Declined at the initial review' } },
@@ -144,6 +146,35 @@ export const DECLINE_REASONS = {
   quiz_below_pass_mark: { labels: { ar: 'دون علامة النجاح في الاختبار', en: 'Below the quiz pass mark' } },
   committee_rejected: { labels: { ar: 'رفض لجنة الاعتماد', en: 'Rejected by the accreditation committee' } },
   appeal_rejected: { labels: { ar: 'رُفض بعد التظلم', en: 'Rejected on appeal' } },
+}
+
+/*
+ * WHAT A DECLINED APPLICANT IS TOLD (D8(b), owner flow of 12 Oct 2026).
+ *
+ * App\Enums\DeclineCategory: a fixed, neutral list, stored on the case as
+ * `decline_applicant_category`. The applicant sees one of these sentences and
+ * the date they may apply again: never the staff rationale, never a screening
+ * figure, never free text. The admin reference data sends the same list as
+ * `decline_categories`; this copy, word for word, stands in when it does not.
+ */
+export const DECLINE_CATEGORIES = [
+  { code: 'documents_not_verified', label: { ar: 'تعذّر التحقق من الوثائق المقدّمة.', en: 'The documents submitted could not be verified.' } },
+  { code: 'experience_not_confirmed', label: { ar: 'تعذّر تأكيد الخبرة المهنية المذكورة.', en: 'The professional experience stated could not be confirmed.' } },
+  { code: 'interview_not_attended', label: { ar: 'لم تُعقد المقابلة.', en: 'The interview did not take place.' } },
+  { code: 'requirements_not_met', label: { ar: 'الطلب لا يستوفي متطلبات المسار.', en: 'The request does not meet the requirements of the pathway.' } },
+]
+
+/** The server's decline categories when it sends a usable list, else the fixed copy above. */
+export function readDeclineCategories(reference) {
+  const sent = Array.isArray(reference?.decline_categories) ? reference.decline_categories.filter((item) => item?.code) : []
+  return sent.length ? sent : DECLINE_CATEGORIES
+}
+
+/** The applicant-facing sentence for a category code; the code itself when the list does not know it. */
+export function declineCategoryLabel(code, language = 'en', categories = DECLINE_CATEGORIES) {
+  if (!code) return ''
+  const found = categories.find((item) => item.code === code) || DECLINE_CATEGORIES.find((item) => item.code === code)
+  return localize(found?.label, language) || code
 }
 
 export const PROFESSIONAL_LEVELS = [
@@ -217,18 +248,23 @@ export function readApplicationDeclarationAccepted(application) {
  * in place of the missing stamp, flagged as derived because a change to the
  * setting still moves it. An unknown code is shown as the code itself rather
  * than hidden.
+ *
+ * A screening or interview decline (P3) also carries the neutral category the
+ * applicant was shown (D8(b)); staff see the same sentence the applicant reads.
  */
-export function readApplicationDecline(application, language = 'en') {
+export function readApplicationDecline(application, language = 'en', categories = DECLINE_CATEGORIES) {
   const code = application?.decline_reason_code || null
   const stamped = application?.reapply_available_at || null
   const reapplyAvailableAt = stamped || application?.effective_reapply_available_at || null
   if (!code && !reapplyAvailableAt) return null
+  const applicantCategory = application?.decline_applicant_category || null
 
   return {
     code,
     reason: code ? localize(DECLINE_REASONS[code]?.labels, language) || code : null,
     reapplyAvailableAt,
     reapplyDerived: !stamped && Boolean(reapplyAvailableAt),
+    ...(applicantCategory ? { applicantCategory, applicantCategoryLabel: declineCategoryLabel(applicantCategory, language, categories) } : {}),
   }
 }
 

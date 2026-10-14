@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  APPLICATION_STATUS,
+  DECLINE_CATEGORIES,
   DECLINE_REASONS,
   EVIDENCE_CATEGORIES,
   EVIDENCE_UPLOAD_POLICY,
@@ -10,6 +12,8 @@ import {
   readApplicationCompleteness,
   readApplicationDecline,
   readApplicationDeclarationAccepted,
+  readDeclineCategories,
+  declineCategoryLabel,
   validateEvidenceFile,
 } from './rpl'
 
@@ -156,6 +160,56 @@ describe('RPL decline stamp', () => {
       reason: 'some_future_code',
       reapplyAvailableAt: null,
       reapplyDerived: false,
+    })
+  })
+})
+
+/*
+ * THE INTERVIEW STATUS AND WHAT A DECLINED APPLICANT IS TOLD (owner flow of
+ * 12 Oct 2026, P3).
+ *
+ * `interview_required` is labelled wherever a status is (badges, filters, the
+ * controls list). The decline categories are applicant-facing and fixed (D8(b)):
+ * the sentences below are transcribed from App\Enums\DeclineCategory, not from
+ * the module under test, and they stand in whenever the reference data does not
+ * send its own list.
+ */
+describe('the P3 status and the decline categories', () => {
+  it('labels interview_required in Arabic and English', () => {
+    expect(APPLICATION_STATUS.interview_required.labels).toEqual({ ar: 'مقابلة مطلوبة', en: 'Interview required' })
+  })
+
+  it('carries the four fixed categories word for word, in Arabic and English only', () => {
+    expect(DECLINE_CATEGORIES).toEqual([
+      { code: 'documents_not_verified', label: { ar: 'تعذّر التحقق من الوثائق المقدّمة.', en: 'The documents submitted could not be verified.' } },
+      { code: 'experience_not_confirmed', label: { ar: 'تعذّر تأكيد الخبرة المهنية المذكورة.', en: 'The professional experience stated could not be confirmed.' } },
+      { code: 'interview_not_attended', label: { ar: 'لم تُعقد المقابلة.', en: 'The interview did not take place.' } },
+      { code: 'requirements_not_met', label: { ar: 'الطلب لا يستوفي متطلبات المسار.', en: 'The request does not meet the requirements of the pathway.' } },
+    ])
+  })
+
+  it("prefers the server's list, and falls back to the fixed one when it sends none", () => {
+    const sent = [{ code: 'documents_not_verified', label: { ar: 'نص الخادم', en: 'Server text' } }]
+    expect(readDeclineCategories({ decline_categories: sent })).toEqual(sent)
+    expect(readDeclineCategories({ decline_categories: [] })).toBe(DECLINE_CATEGORIES)
+    expect(readDeclineCategories(null)).toBe(DECLINE_CATEGORIES)
+    expect(declineCategoryLabel('interview_not_attended', 'ar')).toBe('لم تُعقد المقابلة.')
+    expect(declineCategoryLabel('some_future_category', 'en')).toBe('some_future_category')
+  })
+
+  it('shows staff the sentence a declined applicant was given', () => {
+    expect(readApplicationDecline({
+      status: 'rejected',
+      decline_reason_code: 'screening_declined',
+      decline_applicant_category: 'documents_not_verified',
+      reapply_available_at: '2026-10-21T10:00:00+00:00',
+    }, 'en')).toEqual({
+      code: 'screening_declined',
+      reason: 'Declined after document screening',
+      reapplyAvailableAt: '2026-10-21T10:00:00+00:00',
+      reapplyDerived: false,
+      applicantCategory: 'documents_not_verified',
+      applicantCategoryLabel: 'The documents submitted could not be verified.',
     })
   })
 })

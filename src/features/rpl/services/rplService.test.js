@@ -5,6 +5,17 @@ import {
   acknowledgeRplScreening,
   fetchRplScreenings,
   requestRplScreening,
+  cancelRplInterview,
+  completeRplInterview,
+  declineRplApplication,
+  decideRplInterview,
+  fetchRplInterviews,
+  fetchRplScreeningDecisions,
+  markRplInterviewNoShow,
+  offerRplInterview,
+  recordRplScreeningDecision,
+  scheduleRplCaseInterview,
+  updateRplInterview,
   addDynamicAssessmentItem,
   approveAllDynamicAssessmentItems,
   approveDynamicAssessmentItem,
@@ -267,5 +278,68 @@ describe('the RPL settings endpoint the configuration screen writes through', ()
     expect(http.put).toHaveBeenCalledWith('/admin/rpl/settings', {
       rpl_advisory_include_evidence_documents: false,
     })
+  })
+})
+
+/*
+ * THE DECISION, INTERVIEW AND DECLINE ROUTES (owner flow of 12 Oct 2026, P3).
+ *
+ * Transcribed from the P3 contract, not from the service: the case is addressed
+ * by public_id under /admin/rpl/applications, an interview by its numeric id
+ * under /admin/rpl/interviews, and each step has its own POST. The panels mock
+ * this module, so a wrong path here would 404 with every panel test green.
+ */
+describe('the P3 decision, interview and decline endpoints', () => {
+  test('the decisions are read under the case, and one is recorded with its body', async () => {
+    await fetchRplScreeningDecisions('9a1c0d6e-case')
+    expect(http.get).toHaveBeenCalledWith('/admin/rpl/applications/9a1c0d6e-case/screening-decisions')
+
+    const body = { decision: 'pass_to_quiz', rationale: 'All required evidence is verified.' }
+    await recordRplScreeningDecision('9a1c0d6e-case', body)
+    expect(http.post).toHaveBeenCalledWith('/admin/rpl/applications/9a1c0d6e-case/screening-decision', body)
+  })
+
+  test('a decline posts the category and the rationale to the case', async () => {
+    const body = { decline_category: 'documents_not_verified', rationale: 'The employer letter could not be verified.' }
+    await declineRplApplication('9a1c0d6e-case', body)
+
+    expect(http.post).toHaveBeenCalledWith('/admin/rpl/applications/9a1c0d6e-case/decline', body)
+  })
+
+  test('interviews are listed and offered under the case', async () => {
+    await fetchRplInterviews('9a1c0d6e-case')
+    expect(http.get).toHaveBeenCalledWith('/admin/rpl/applications/9a1c0d6e-case/interviews')
+
+    const body = { offered_modes: ['online', 'in_person'], offer_message: 'Please choose.' }
+    await offerRplInterview('9a1c0d6e-case', body)
+    expect(http.post).toHaveBeenCalledWith('/admin/rpl/applications/9a1c0d6e-case/interviews', body)
+  })
+
+  test('each interview step addresses the INTERVIEW, not the case', async () => {
+    const schedule = { scheduled_at: '2030-11-02T08:30:00.000Z', location_or_url: 'https://meet.example.org/rpl', mode: 'online' }
+    await scheduleRplCaseInterview(15, schedule)
+    expect(http.post).toHaveBeenCalledWith('/admin/rpl/interviews/15/schedule', schedule)
+
+    await completeRplInterview(15, { notes: 'Held.', minutes_media_id: 55 })
+    expect(http.post).toHaveBeenCalledWith('/admin/rpl/interviews/15/complete', { notes: 'Held.', minutes_media_id: 55 })
+
+    await cancelRplInterview(15, { reason: 'Withdrawn.' })
+    expect(http.post).toHaveBeenCalledWith('/admin/rpl/interviews/15/cancel', { reason: 'Withdrawn.' })
+
+    await decideRplInterview(15, { decision: 'decline', rationale: 'Did not attend twice.', decline_category: 'interview_not_attended' })
+    expect(http.post).toHaveBeenCalledWith('/admin/rpl/interviews/15/decision', { decision: 'decline', rationale: 'Did not attend twice.', decline_category: 'interview_not_attended' })
+  })
+
+  test('a no-show posts with no body', async () => {
+    await markRplInterviewNoShow(15)
+
+    expect(http.post).toHaveBeenCalledWith('/admin/rpl/interviews/15/no-show')
+    expect(http.post.mock.calls[0]).toHaveLength(1)
+  })
+
+  test("a legacy interview's outcome still goes through the assessment-era update", async () => {
+    await updateRplInterview(4, { status: 'completed', outcome: 'Confirmed.' })
+
+    expect(http.put).toHaveBeenCalledWith('/admin/rpl/interviews/4', { status: 'completed', outcome: 'Confirmed.' })
   })
 })

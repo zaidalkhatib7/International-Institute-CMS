@@ -13,6 +13,7 @@ import {
   LoaderCircle,
   RefreshCw,
   Save,
+  Scale,
   ScanSearch,
   ShieldCheck,
   UserRoundCheck,
@@ -29,7 +30,9 @@ import {
   readApplicationCompleteness,
   readApplicationDecline,
   readApplicationDeclarationAccepted,
+  readDeclineCategories,
 } from '../domain/rpl'
+import { CASE_DECISION_PERMISSIONS, caseDecisionCopy } from '../domain/caseDecision'
 import {
   SCREENING_PERMISSIONS,
   claimedEmployersCopy,
@@ -60,7 +63,10 @@ import {
   transitionRplApplication,
 } from '../services/rplService'
 import CompletenessMeter from '../components/CompletenessMeter'
+import DeclineApplicationAction from '../components/DeclineApplicationAction'
 import DocumentScreeningPanel from '../components/DocumentScreeningPanel'
+import InterviewPanel, { InterviewSummary } from '../components/InterviewPanel'
+import ScreeningDecisionCard, { ScreeningDecisionEntry, ScreeningDecisionHistory } from '../components/ScreeningDecisionCard'
 import EvidenceUploadCenter from '../components/EvidenceUploadCenter'
 import PaymentReconciliationPanel from '../components/PaymentReconciliationPanel'
 import RplPageState from '../components/RplPageState'
@@ -77,6 +83,7 @@ const copyByLanguage = {
     contact: 'بيانات التواصل', email: 'البريد الإلكتروني', phone: 'الهاتف', nationality: 'الجنسية', country: 'بلد الإقامة', profession: 'المجال المهني',
     initialReview: 'المراجعة الإدارية الأولية', accepted: 'مقبول للتحقق', needsInformation: 'معلومات إضافية مطلوبة', rejected: 'مرفوض', subject: 'الموضوع', message: 'الرسالة للمتقدم', dueAt: 'موعد الرد', saveReview: 'حفظ المراجعة', reviewSaved: 'تمت المراجعة الإدارية.', requests: 'طلبات المعلومات الناقصة', createRequest: 'إرسال طلب', requestSaved: 'تم إرسال طلب المعلومات.', closeRequest: 'إغلاق', noRequests: 'لا توجد طلبات مفتوحة.',
     workflow: 'إدارة حالة الطلب', nextStatus: 'الحالة التالية', note: 'ملاحظة انتقال الحالة', saveTransition: 'تحديث الحالة', transitionSaved: 'تم تحديث حالة الطلب.',
+    noTransitions: 'لا توجد حالة أخرى يمكن تعيينها من هنا. استخدم إجراءات القرار أو المقابلة أو الرفض.', applicantCategory: 'ما أُبلغ به المتقدم',
     assessorTitle: 'إسناد ومتابعة المقيّمين', assessorHint: 'لا يجوز للمقيّم اتخاذ قرار الاعتماد أو إصدار الشهادة.', assessor: 'المقيّم', role: 'الدور', assign: 'إسناد المقيّم', assigned: 'تم إسناد المقيّم.', noAssignments: 'لا يوجد مقيّم مسند حاليًا.', acceptAssignment: 'قبول الإسناد', noConflict: 'لا يوجد تعارض', reportConflict: 'إفصاح عن تعارض', conflictDetails: 'تفاصيل تعارض المصالح', startAssessment: 'بدء التقييم', conflictSaved: 'تم حفظ إفصاح تعارض المصالح.',
     assessments: 'تقارير التقييم', noAssessments: 'لا توجد جلسات تقييم لهذا الملف بعد.', openAssessment: 'فتح التقييم',
     adminEvaluation: 'التقييم الإداري بمساعدة Gemini', adminEvaluationHint: 'لا يلزم إسناد مقيّم خارجي. ينشئ Gemini مسودة، وللمدير الذي بدأها وحده صلاحية مراجعتها وتعديلها وإرسالها.', startAdminEvaluation: 'بدء تقييم المدير', adminEvaluationStarted: 'تم بدء تقييم المدير. أنشئ مسودة Gemini ثم راجعها وعدّلها.',
@@ -93,6 +100,7 @@ const copyByLanguage = {
     contact: 'Contact and profile', email: 'Email', phone: 'Phone', nationality: 'Nationality', country: 'Country of residence', profession: 'Professional field',
     initialReview: 'Initial administrative review', accepted: 'Accepted for verification', needsInformation: 'More information required', rejected: 'Rejected', subject: 'Subject', message: 'Message to applicant', dueAt: 'Response due', saveReview: 'Save review', reviewSaved: 'Initial review completed.', requests: 'Missing-information requests', createRequest: 'Send request', requestSaved: 'Information request sent.', closeRequest: 'Close', noRequests: 'No information requests exist.',
     workflow: 'Application workflow', nextStatus: 'Next status', note: 'Transition note', saveTransition: 'Update status', transitionSaved: 'Application status updated.',
+    noTransitions: 'No other status can be set from here. Use the decision, interview or decline actions.', applicantCategory: 'What the applicant was told',
     assessorTitle: 'Assessor assignment and oversight', assessorHint: 'An assessor cannot make the accreditation decision or issue a certificate.', assessor: 'Assessor', role: 'Role', assign: 'Assign assessor', assigned: 'Assessor assigned.', noAssignments: 'No assessor is currently assigned.', acceptAssignment: 'Accept assignment', noConflict: 'Declare no conflict', reportConflict: 'Report conflict', conflictDetails: 'Conflict-of-interest details', startAssessment: 'Start assessment', conflictSaved: 'Conflict declaration saved.',
     assessments: 'Assessment reports', noAssessments: 'No assessment sessions exist for this case yet.', openAssessment: 'Open assessment', adminEvaluation: 'Gemini-assisted administrator evaluation', adminEvaluationHint: 'No external assessor is required. Gemini prepares a draft; only the administrator who starts it can review, edit, and submit it.', startAdminEvaluation: 'Start administrator evaluation', adminEvaluationStarted: 'Administrator evaluation started. Generate the Gemini draft, then review and edit it.',
     primary: 'Primary', secondary: 'Secondary', rejectedQuality: 'Rejected', assessmentReference: 'Assessment', event: 'Event', pendingAssignment: 'Awaiting acceptance', pendingConflict: 'Awaiting conflict declaration', acceptedAssignment: 'Accepted', declinedAssignment: 'Declined', completedAssignment: 'Completed',
@@ -108,6 +116,8 @@ const tabs = [
   { key: 'evidence', icon: FileCheck2 },
   // Document screening (owner flow of 12 Oct 2026, D17(a)): only for rpl.screening.view, and hidden on a 403.
   { key: 'screening', icon: ScanSearch },
+  // The staff decision, the interview and their history (owner flow of 12 Oct 2026, P3).
+  { key: 'decision', icon: Scale },
   { key: 'assessment', icon: ClipboardCheck },
   { key: 'governance', icon: Gavel },
   { key: 'timeline', icon: History },
@@ -156,13 +166,21 @@ export default function RplCaseWorkspacePage() {
   const language = getAdminLanguage()
   const isArabic = language === 'ar'
   const copy = copyByLanguage[language] || copyByLanguage.en
-  const { isAdministrator, hasPermission } = useAuthorization()
+  const { isAdministrator, hasPermission, user } = useAuthorization()
   // New copy is Arabic and English only (owner, 13 Oct 2026); any other language reads English.
   const screenLanguage = isArabic ? 'ar' : 'en'
   const screeningText = screeningCopy(screenLanguage)
   const employersText = claimedEmployersCopy(screenLanguage)
   const canViewScreening = hasPermission(SCREENING_PERMISSIONS.view)
   const canRunScreening = hasPermission(SCREENING_PERMISSIONS.run)
+  // The staff decision and the interview (owner flow of 12 Oct 2026, P3): the same staff as the screening, never assessor- or committee-only roles.
+  const decisionText = caseDecisionCopy(screenLanguage)
+  const canDecide = hasPermission(CASE_DECISION_PERMISSIONS.decide)
+  const canManageInterviews = hasPermission(CASE_DECISION_PERMISSIONS.interviews)
+  const canRecordLegacyInterviews = hasPermission(CASE_DECISION_PERMISSIONS.legacyInterviews)
+  // Who is looking: a legacy interview's outcome is offered only where the server would take it from them.
+  const viewer = { id: user?.id ?? null, isAdministrator }
+  const canReadSettings = hasPermission(CASE_DECISION_PERMISSIONS.settings)
   const adminEvaluationCopy = {
     ar: {
       title: '\u0627\u0644\u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0625\u062f\u0627\u0631\u064a \u0628\u0645\u0633\u0627\u0639\u062f\u0629 Gemini',
@@ -173,11 +191,19 @@ export default function RplCaseWorkspacePage() {
     en: { title: 'Gemini-assisted administrator evaluation', hint: 'No external assessor is required. Gemini prepares a draft; only the administrator who starts it can review, edit, and submit it.', start: 'Start administrator evaluation', open: 'Open administrator evaluation', started: 'Administrator evaluation started. Generate the Gemini draft, then review and edit it.' },
   }[language] || copyByLanguage.en
   const [screening, setScreening] = useState({ loading: false, error: '', forbidden: false, items: [] })
-  const visibleTabs = tabs.filter((tab) => tab.key !== 'screening' || (canViewScreening && !screening.forbidden))
+  const canViewScreeningData = canViewScreening && !screening.forbidden
+  const visibleTabs = tabs.filter((tab) => {
+    if (tab.key === 'screening') return canViewScreeningData
+    if (tab.key === 'decision') return canDecide || canManageInterviews || canViewScreeningData
+    return true
+  })
   const activeTab = visibleTabs.some((tab) => tab.key === searchParams.get('tab')) ? searchParams.get('tab') : 'overview'
-  const [state, setState] = useState({ loading: true, error: '', auxiliaryWarning: false, application: null, evidence: [], categories: EVIDENCE_CATEGORIES, timeline: [], assessments: [], assignments: [], assessors: [], levels: [], committees: [], committeeActions: [], outcomes: [] })
+  const [state, setState] = useState({ loading: true, error: '', auxiliaryWarning: false, application: null, evidence: [], categories: EVIDENCE_CATEGORIES, timeline: [], assessments: [], assignments: [], assessors: [], levels: [], committees: [], committeeActions: [], outcomes: [], declineCategories: readDeclineCategories(null) })
   const [action, setAction] = useState({ busy: false, error: '', success: '' })
-  const [transition, setTransition] = useState({ status: 'administrative_review', reason: '' })
+  // Bumped whenever the decision, the interview or a decline changes the case, so the lists in the decision tab read again.
+  const [caseVersion, setCaseVersion] = useState(0)
+  // No preselected target: the choices are whatever the server says the generic route accepts now.
+  const [transition, setTransition] = useState({ status: '', reason: '' })
   const [assignment, setAssignment] = useState({ expert_profile_id: '', assignment_role: 'primary' })
   const [initialReview, setInitialReview] = useState({ decision: 'accepted', reason: '', subject: '', message: '', due_at: '' })
   const [informationRequest, setInformationRequest] = useState({ subject: '', message: '', due_at: '' })
@@ -219,6 +245,7 @@ export default function RplCaseWorkspacePage() {
       committees: unwrapCollection(reference.committees || []),
       committeeActions: unwrapCollection(reference.committee_actions || []),
       outcomes: unwrapCollection(reference.outcomes || []),
+      declineCategories: readDeclineCategories(reference),
       timeline: unwrapCollection(valueOf(results[3], [])),
       assessments: unwrapCollection(valueOf(results[4], [])),
       assignments: unwrapCollection(valueOf(results[5], [])),
@@ -261,9 +288,49 @@ export default function RplCaseWorkspacePage() {
   const declarationAccepted = readApplicationDeclarationAccepted(application)
   // Frozen on the case when it was rejected (owner, 12 Oct 2026); null on any other case.
   // A case rejected before the stamp existed shows the date the API derives for it, marked as such.
-  const decline = readApplicationDecline(application, language)
+  const decline = readApplicationDecline(application, language, state.declineCategories)
+  /*
+   * The next-status select offers only what the generic route accepts now
+   * (owner flow of 12 Oct 2026). A move that needs a decision, an interview or
+   * a decline record is left out: those have their own controls. An API that
+   * does not send the list yet keeps the old full list; it still refuses.
+   */
+  const nextStatuses = Array.isArray(application.allowed_transitions) ? application.allowed_transitions.filter(Boolean) : Object.keys(APPLICATION_STATUS)
+  const selectedNextStatus = nextStatuses.includes(transition.status) ? transition.status : ''
 
-  const tabLabels = useMemo(() => ({ overview: copy.overview, evidence: copy.evidence, screening: screeningText.tab, assessment: copy.assessment, governance: copy.governance, timeline: copy.timeline }), [copy, screeningText.tab])
+  const tabLabels = useMemo(() => ({ overview: copy.overview, evidence: copy.evidence, screening: screeningText.tab, decision: decisionText.tab, assessment: copy.assessment, governance: copy.governance, timeline: copy.timeline }), [copy, screeningText.tab, decisionText.tab])
+
+  /*
+   * After a decision, an interview step or a decline: the case and its timeline
+   * are read again without the full-page loading state, so the panel that acted
+   * keeps its place and the banner keeps its message.
+   */
+  const refreshCase = useCallback(async () => {
+    const [applicationResult, timelineResult] = await Promise.allSettled([
+      fetchRplApplication(applicationId),
+      fetchRplTimeline(applicationId, { per_page: 100 }),
+    ])
+    setState((current) => ({
+      ...current,
+      application: applicationResult.status === 'fulfilled' ? unwrapApiData(applicationResult.value) : current.application,
+      timeline: timelineResult.status === 'fulfilled' ? unwrapCollection(timelineResult.value) : current.timeline,
+    }))
+  }, [applicationId])
+
+  function caseChanged({ message, failed = false, reloadLists = true } = {}) {
+    setAction({ busy: false, error: failed ? message : '', success: failed ? '' : message })
+    if (reloadLists) setCaseVersion((current) => current + 1)
+    refreshCase()
+  }
+
+  function screeningDecided({ assessment, message, failed }) {
+    // "Pass to quiz and start the assessment": the assessment opens where it is worked on.
+    if (assessment?.id) {
+      navigate(`/rpl/assessments/${assessment.id}`)
+      return
+    }
+    caseChanged({ message, failed })
+  }
 
   async function runAction(request, success, after) {
     setAction({ busy: true, error: '', success: '' })
@@ -279,8 +346,13 @@ export default function RplCaseWorkspacePage() {
   }
 
   async function updateStatus() {
-    const response = await runAction(() => transitionRplApplication(applicationId, transition), copy.transitionSaved)
-    if (response) setState((current) => ({ ...current, application: response.application || response }))
+    if (!selectedNextStatus) return
+    const response = await runAction(() => transitionRplApplication(applicationId, { status: selectedNextStatus, reason: transition.reason }), copy.transitionSaved)
+    if (response) {
+      setTransition({ status: '', reason: '' })
+      // Re-read the case: the next allowed moves depend on the status just set.
+      refreshCase()
+    }
   }
 
   async function assignAssessor() {
@@ -400,6 +472,7 @@ export default function RplCaseWorkspacePage() {
                 <Definition label={copy.experience} value={application.years_of_experience ?? applicant.years_of_experience} />
                 <Definition label={copy.submitted} value={formatLocalizedDateTime(application.submitted_at, language)} />
                 {decline ? <Definition label={copy.declineReason} value={decline.reason} /> : null}
+                {decline?.applicantCategoryLabel ? <Definition label={copy.applicantCategory} value={decline.applicantCategoryLabel} /> : null}
                 {decline ? <Definition label={copy.reapplyFrom} value={decline.reapplyDerived ? `${formatLocalizedDateTime(decline.reapplyAvailableAt, language)} (${copy.reapplyDerived})` : formatLocalizedDateTime(decline.reapplyAvailableAt, language)} /> : null}
               </dl>
             </CardContent>
@@ -421,12 +494,42 @@ export default function RplCaseWorkspacePage() {
           <Card>
             <CardHeader className="border-b border-[var(--color-border)]"><div className="flex items-center justify-between gap-3"><CardTitle>{copy.workflow}</CardTitle><RplStatusBadge status={application.status} language={language} /></div></CardHeader>
             <CardContent className="space-y-4 pt-6">
-              <Select label={copy.nextStatus} value={transition.status} onChange={(event) => setTransition((current) => ({ ...current, status: event.target.value }))}>{Object.entries(APPLICATION_STATUS).map(([value, definition]) => <option key={value} value={value}>{localize(definition.labels, language)}</option>)}</Select>
+              {application.status === 'evidence_verification' && canDecide ? <div className="space-y-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900"><p>{decisionText.awaitingDecision}</p><Button size="sm" onClick={() => setSearchParams({ tab: 'decision' })}><Scale size={16} />{decisionText.goToDecision}</Button></div> : null}
+              {application.status === 'interview_required' && canManageInterviews ? <div className="space-y-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900"><p>{decisionText.awaitingInterview}</p><Button size="sm" onClick={() => setSearchParams({ tab: 'decision' })}><CalendarClock size={16} />{decisionText.goToInterview}</Button></div> : null}
+              <Select label={copy.nextStatus} value={selectedNextStatus} disabled={!nextStatuses.length} hint={!nextStatuses.length ? copy.noTransitions : undefined} onChange={(event) => setTransition((current) => ({ ...current, status: event.target.value }))}><option value="" disabled>—</option>{nextStatuses.map((value) => <option key={value} value={value}>{localize(APPLICATION_STATUS[value]?.labels, language) || value}</option>)}</Select>
               <Textarea label={copy.note} rows={4} value={transition.reason} onChange={(event) => setTransition((current) => ({ ...current, reason: event.target.value }))} />
-              <Button fullWidth onClick={updateStatus} disabled={action.busy}>{action.busy ? <LoaderCircle className="animate-spin" size={17} /> : <Save size={17} />}{copy.saveTransition}</Button>
+              <Button fullWidth onClick={updateStatus} disabled={action.busy || !selectedNextStatus}>{action.busy ? <LoaderCircle className="animate-spin" size={17} /> : <Save size={17} />}{copy.saveTransition}</Button>
+              <DeclineApplicationAction applicationId={applicationId} status={application.status} canDecide={canDecide} declineCategories={state.declineCategories} language={screenLanguage} onDeclined={({ message }) => caseChanged({ message })} />
             </CardContent>
           </Card>
+          {application.latest_screening_decision || application.active_interview ? (
+            <Card>
+              <CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{decisionText.latestDecisionTitle}</CardTitle></CardHeader>
+              <CardContent className="space-y-4 pt-6">
+                {/* The decision and its rationale are for every staff role on the case (D17(a)); the screening figure behind it only for those who may see screens. */}
+                {application.latest_screening_decision ? <ScreeningDecisionEntry decision={application.latest_screening_decision} language={screenLanguage} showSnapshot={canViewScreeningData} /> : <p className="text-sm text-[var(--color-text-muted)]">{decisionText.noDecisionYet}</p>}
+                {application.active_interview ? <InterviewSummary interview={application.active_interview} language={screenLanguage} /> : null}
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
+      </div>
+    )
+  }
+
+  /*
+   * The decision tab (owner flow of 12 Oct 2026, P3): the screening decision
+   * while the evidence is under verification, the interview at case level, and
+   * the decisions recorded so far. Each part shows itself only to the staff
+   * allowed to use it, and the server is the authority on all of them.
+   */
+  function renderDecision() {
+    return (
+      <div className="space-y-6">
+        <ScreeningDecisionCard applicationId={applicationId} status={application.status} canDecide={canDecide} canViewScreening={canViewScreeningData} canStartAssessment={isAdministrator} screenings={screening.items} declineCategories={state.declineCategories} language={screenLanguage} onDecided={screeningDecided} />
+        <InterviewPanel applicationId={applicationId} application={application} canManage={canManageInterviews} canRecordLegacy={canRecordLegacyInterviews} viewer={viewer} canReadSettings={canReadSettings} declineCategories={state.declineCategories} language={screenLanguage} refreshKey={caseVersion} onChanged={({ message }) => caseChanged({ message, reloadLists: false })} />
+        <ScreeningDecisionHistory applicationId={applicationId} canView={canViewScreeningData} refreshKey={caseVersion} language={screenLanguage} />
+        {!canViewScreeningData && application.latest_screening_decision ? <ScreeningDecisionEntry decision={application.latest_screening_decision} language={screenLanguage} /> : null}
       </div>
     )
   }
@@ -488,7 +591,7 @@ export default function RplCaseWorkspacePage() {
 
   return (
     <section dir={isArabic ? 'rtl' : 'ltr'} className="space-y-7">
-      <PageHeader title={`${copy.title} · ${reference}`} description={copy.description} actions={<><Button variant="outline" onClick={() => navigate('/rpl/applications')}>{isArabic ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}{copy.back}</Button><Button variant="outline" onClick={() => { load(); loadScreenings() }}><RefreshCw size={17} />{copy.refresh}</Button></>} />
+      <PageHeader title={`${copy.title} · ${reference}`} description={copy.description} actions={<><Button variant="outline" onClick={() => navigate('/rpl/applications')}>{isArabic ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}{copy.back}</Button><Button variant="outline" onClick={() => { load(); loadScreenings(); setCaseVersion((current) => current + 1) }}><RefreshCw size={17} />{copy.refresh}</Button></>} />
 
       <RplPageState loading={state.loading} error={state.error} onRetry={load} language={language}>
         <>
@@ -511,6 +614,7 @@ export default function RplCaseWorkspacePage() {
           {activeTab === 'overview' ? renderOverview() : null}
           {activeTab === 'evidence' ? <EvidenceUploadCenter applicationId={applicationId} evidence={state.evidence} categories={state.categories} completeness={readApplicationCompleteness(application)} declarationAccepted={declarationAccepted} language={language} canReview onEvidenceChange={(next) => setState((current) => ({ ...current, evidence: next }))} onCompletenessChange={(next) => setState((current) => ({ ...current, application: { ...current.application, completeness: next, completeness_percentage: next?.percentage } }))} onDeclarationChange={(accepted) => setState((current) => ({ ...current, application: { ...current.application, completeness: { ...(current.application?.completeness || {}), declaration: { ...(current.application?.completeness?.declaration || {}), accepted } } } }))} onRefreshRequested={load} /> : null}
           {activeTab === 'screening' ? <DocumentScreeningPanel applicationId={applicationId} screenings={screening.items} loading={screening.loading} error={screening.error} canRun={canRunScreening} categories={state.categories} language={screenLanguage} onReload={loadScreenings} onScreeningAdded={(created) => setScreening((current) => ({ ...current, items: [created, ...current.items.filter((item) => item.public_id !== created.public_id)] }))} onScreeningUpdated={(updated) => setScreening((current) => ({ ...current, items: current.items.map((item) => (item.public_id === updated.public_id ? updated : item)) }))} /> : null}
+          {activeTab === 'decision' ? renderDecision() : null}
           {activeTab === 'assessment' ? renderAssessment() : null}
           {activeTab === 'governance' ? renderGovernance() : null}
           {activeTab === 'timeline' ? renderTimeline() : null}

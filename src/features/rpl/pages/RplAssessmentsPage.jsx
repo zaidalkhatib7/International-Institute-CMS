@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
+  CalendarClock,
   CalendarPlus,
   ClipboardCheck,
   Download,
@@ -49,7 +50,6 @@ import {
   exportRplAiAdvisory,
   saveRplAssessmentFindings,
   saveRplGapAnalysis,
-  scheduleRplInterview,
   submitRplAssessmentReport,
 } from "../services/rplService";
 import {
@@ -113,13 +113,10 @@ const copyByLanguage = {
     noCriteria: "لم تتم إضافة معايير إلى هذا النموذج بعد.",
     evidence: "أدلة الملف",
     noEvidence: "لا توجد أدلة مرتبطة بالتقييم.",
-    interview: "جدولة مقابلة مهنية",
-    interviewAt: "موعد المقابلة",
-    method: "نمط المقابلة",
-    location: "المكان أو رابط الاجتماع",
-    interviewNotes: "تعليمات المقابلة",
-    schedule: "حفظ الموعد",
-    scheduled: "تمت جدولة المقابلة.",
+    interview: "المقابلة المهنية",
+    interviewMoved:
+      "تُعرض المقابلات وتُجدول الآن على ملف الطلب، قبل بدء التقييم (قرار المالك في 12 أكتوبر 2026): يختار المتقدم أن تكون عبر الإنترنت أو في المكتب، ثم يحدد الموظفون الموعد. والمقابلات التي جُدولت هنا سابقًا مدرجة هناك أيضًا، وتُسجَّل نتيجتها من هناك.",
+    openInterviewPanel: "فتح المقابلة في ملف الطلب",
     report: "تقرير المقيّم والتوصية",
     recommendation: "التوصية المهنية المفصلة",
     recommendLevel: "المستوى الموصى به",
@@ -150,9 +147,6 @@ const copyByLanguage = {
     interviewOption: "مقابلة",
     practicalTask: "مهمة عملية",
     experienceOption: "خبرة إضافية",
-    online: "عبر الإنترنت",
-    phone: "هاتفية",
-    inPerson: "حضورية",
     adminNoAuthority:
       "مسودة Gemini استشارية فقط. يراجعها المدير ويعدلها، ولا يمكنها التحقق من الأدلة أو إصدار قرار اعتماد أو شهادة.",
   },
@@ -200,13 +194,10 @@ const copyByLanguage = {
     noCriteria: "No criteria have been added to this rubric yet.",
     evidence: "Case evidence",
     noEvidence: "No evidence is mapped to this assessment.",
-    interview: "Schedule professional interview",
-    interviewAt: "Interview date and time",
-    method: "Interview mode",
-    location: "Location or meeting link",
-    interviewNotes: "Interview instructions",
-    schedule: "Save schedule",
-    scheduled: "Interview scheduled.",
+    interview: "Professional interview",
+    interviewMoved:
+      "Interviews are now offered and scheduled on the case, before the assessment starts (owner decision of 12 Oct 2026): the applicant chooses online or at the office, then staff set the time. Interviews scheduled here earlier are listed there too, and their outcome is recorded there.",
+    openInterviewPanel: "Open the interview on the case",
     report: "Assessor report and recommendation",
     recommendation: "Detailed professional recommendation",
     recommendLevel: "Recommended level",
@@ -238,9 +229,6 @@ const copyByLanguage = {
     interviewOption: "Interview",
     practicalTask: "Practical task",
     experienceOption: "Additional experience",
-    online: "Online",
-    phone: "Phone",
-    inPerson: "In person",
     adminNoAuthority:
       "The Gemini draft is advisory only. The administrator must review and edit it; it cannot verify evidence, issue accreditation, or create a certificate.",
   },
@@ -525,12 +513,6 @@ export default function RplAssessmentsPage() {
     findings_summary: "",
     outcome_id: "",
   });
-  const [interview, setInterview] = useState({
-    scheduled_at: "",
-    mode: "online",
-    location_or_url: "",
-    notes: "",
-  });
   const [gap, setGap] = useState({ summary: "", items: [] });
   const [advisoryQuestion, setAdvisoryQuestion] = useState("");
   const [action, setAction] = useState({ busy: false, error: "", success: "" });
@@ -739,21 +721,6 @@ export default function RplAssessmentsPage() {
       setAiPrefill({ advisoryId: null, criterionIds: [] });
       load();
     }
-  }
-
-  async function saveInterview() {
-    if (
-      await execute(
-        () => scheduleRplInterview(assessmentId, interview),
-        copy.scheduled,
-      )
-    )
-      setInterview({
-        scheduled_at: "",
-        mode: "online",
-        location_or_url: "",
-        notes: "",
-      });
   }
 
   async function submitReport() {
@@ -1784,64 +1751,28 @@ export default function RplAssessmentsPage() {
             </CardContent>
           </Card>
           <div className="grid gap-6 xl:grid-cols-2">
+            {/* Owner flow of 12 Oct 2026 (P3): the interview belongs to the case and comes before the
+                assessment, so it is offered, scheduled and decided in the case workspace. */}
             <Card id="sec-interview" className="scroll-mt-24">
               <CardHeader className="border-b border-[var(--color-border)]">
                 <CardTitle>{copy.interview}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 pt-6">
-                <Input
-                  type="datetime-local"
-                  label={copy.interviewAt}
-                  value={interview.scheduled_at}
-                  onChange={(event) =>
-                    setInterview((current) => ({
-                      ...current,
-                      scheduled_at: event.target.value,
-                    }))
-                  }
-                />
-                <Select
-                  label={copy.method}
-                  value={interview.mode}
-                  onChange={(event) =>
-                    setInterview((current) => ({
-                      ...current,
-                      mode: event.target.value,
-                    }))
-                  }
-                >
-                  <option value="online">{copy.online}</option>
-                  <option value="phone">{copy.phone}</option>
-                  <option value="in_person">{copy.inPerson}</option>
-                </Select>
-                <Input
-                  label={copy.location}
-                  value={interview.location_or_url}
-                  onChange={(event) =>
-                    setInterview((current) => ({
-                      ...current,
-                      location_or_url: event.target.value,
-                    }))
-                  }
-                />
-                <Textarea
-                  rows={4}
-                  label={copy.interviewNotes}
-                  value={interview.notes}
-                  onChange={(event) =>
-                    setInterview((current) => ({
-                      ...current,
-                      notes: event.target.value,
-                    }))
-                  }
-                />
+                <p className="text-sm leading-6 text-[var(--color-text-muted)]">
+                  {copy.interviewMoved}
+                </p>
                 <Button
                   fullWidth
-                  onClick={saveInterview}
-                  disabled={!interview.scheduled_at || action.busy}
+                  variant="outline"
+                  onClick={() =>
+                    navigate(
+                      `/rpl/applications/${assessment.application?.public_id}?tab=decision`,
+                    )
+                  }
+                  disabled={!assessment.application?.public_id}
                 >
-                  <CalendarPlus size={18} />
-                  {copy.schedule}
+                  <CalendarClock size={18} />
+                  {copy.openInterviewPanel}
                 </Button>
               </CardContent>
             </Card>
