@@ -168,80 +168,6 @@ const COPY = {
       generation_failed: 'Generation failed',
     },
   },
-  nl: {
-    title: 'AI-pakketontwikkeling (één keer per pakketversie)',
-    subtitle:
-      'Gemini schrijft één concept onder menselijke review. Een concept is nooit goedgekeurd of gepubliceerd — publiceren blijft een menselijke beslissing.',
-    notGoverned: 'Dit programma is geen CGP-cataloguspakket; AI-ontwikkeling is niet van toepassing.',
-    saveFirst: 'Sla het programma eerst op en keer terug naar dit tabblad.',
-    packageVersion: 'Pakketversie',
-    aiStatus: 'Ontwikkelstatus',
-    published: 'Gepubliceerd (bevroren)',
-    draft: 'In voorbereiding',
-    generate: 'Pakket genereren met AI',
-    generating: 'Genereren…',
-    currentStep: 'Huidige stap',
-    locale: 'Inhoudstaal',
-    validation: 'Structurele validatie',
-    sections: 'Modules',
-    lessons: 'Lessen',
-    activities: 'Opdrachten',
-    questions: 'Vragen',
-    uncovered: 'Niet-gedekte leeruitkomsten',
-    artifacts: 'Generatiegeschiedenis (origineel blijft bewaard)',
-    regenerate: 'Opnieuw genereren',
-    superseded: 'Vervangen',
-    sourceReview: 'Bron vereist menselijke review',
-    sourceVerdict: 'Bronoordeel (expliciet menselijk besluit)',
-    sourceVerdictPlaceholder: '— kies een oordeel —',
-    verdictApproved: 'Geverifieerd en goedgekeurd (VERIFIED_APPROVED)',
-    verdictRejected: 'Afgewezen (REJECTED) — blokkeert publicatie',
-    verdictSuperseded: 'Vervangen door een preciezere bron (SUPERSEDED)',
-    sourceNotes: 'Onderbouwing van het oordeel (verplicht)',
-    sourceNotesHint: 'Wat u precies heeft geverifieerd: titel, uitgever, jaar, identificatie — of wat niet verifieerbaar was.',
-    recordVerdict: 'Oordeel vastleggen',
-    recordedTitle: 'Vastgelegde bronoordelen — herbeoordeling mogelijk',
-    recordedHint: 'Tot 25 juli 2026 keurde de server een bron automatisch goed als er geen expliciet oordeel werd meegestuurd. Herbeoordelen verwijdert het eerdere record niet; het voegt een nieuw besluit toe aan het auditspoor.',
-    previouslyRecorded: 'Eerder vastgelegd',
-    recordedBy: 'Vastgelegd door',
-    previousNotes: 'Eerdere onderbouwing',
-    noPreviousNotes: '— geen onderbouwing vastgelegd —',
-    reReview: 'Oordeel herbeoordelen',
-    supersededWarning: 'Let op: SUPERSEDED heft de publicatieblokkade op, net als goedkeuring. Leg het pas vast nadat de inhoud daadwerkelijk de nieuwere bron citeert.',
-    reject: 'Volledig concept afwijzen',
-    rejectConfirm: 'AI-inhoud van dit concept wordt verwijderd (auditgeschiedenis blijft). Doorgaan?',
-    publish: 'Pakket publiceren (bevroren versie)',
-    newVersion: 'Nieuwe versie openen',
-    newVersionPrompt: 'Nieuw versienummer (bijv. 2.0):',
-    publishedNote: 'Deze versie is gepubliceerd en bevroren — aanbevelingen hergebruiken haar; er wordt nooit opnieuw gegenereerd.',
-    failed: 'Generatie mislukt — opnieuw proberen hervat vanaf het checkpoint.',
-    govTitle: 'Generatiepoorten',
-    govReady: 'Governance-gereedheid: voldaan',
-    govNotReady: 'Governance-gereedheid: niet voldaan — keur eerst een startpakket goed',
-    govCounts: 'Goedgekeurde competentiekoppelingen: {c} · Actieve leeruitkomsten: {o}',
-    govAuthorized: 'Generatietoestemming: vastgelegd',
-    govNotAuthorized: 'Generatietoestemming: niet vastgelegd',
-    govTwoKey: 'Twee sleutels: de governance-laag (rpl.settings.manage) legt vast dat deze versie geschreven mag worden, daarna start programmabeheer de run. Een toestemming geldt voor één versie en wordt bij gebruik verbruikt.',
-    govNote: 'Onderbouwing van de toestemming',
-    govNotePlaceholder: 'Wie dit heeft toegestaan en waarom deze versie gereed is.',
-    govNoteHint: 'Wordt met uw naam in het auditspoor bewaard. Deze poort bestaat omdat generatie twee keer op ongereguleerde programmas is gestart.',
-    govAuthorize: 'Generatietoestemming vastleggen',
-    govRevoke: 'Toestemming intrekken',
-    govRevokeReason: 'Toestemming intrekken',
-    govRevokeePlaceholder: 'Waarom wordt de toestemming ingetrokken? (minimaal 10 tekens)',
-    govRevokeConfirm: 'De generatietoestemming voor deze versie wordt ingetrokken en op uw naam vastgelegd. Doorgaan?',
-    govAuthorizing: 'Bezig met vastleggen…',
-    govConfirm: 'Er wordt een toestemming voor deze versie op uw naam vastgelegd. Doorgaan?',
-    govBy: 'Vastgelegd door',
-    govExpires: 'Verloopt',
-    govConsumed: 'Verbruikt',
-    statuses: {
-      not_generated: 'Nog niet gegenereerd',
-      ai_generating: 'Bezig met genereren',
-      ai_draft: 'AI-concept wacht op review',
-      generation_failed: 'Generatie mislukt',
-    },
-  },
 }
 
 const REGENERATABLE = {
@@ -253,13 +179,11 @@ const REGENERATABLE = {
 const TYPE_LABELS = {
   ar: { outline: 'مخطط الحقيبة', module: 'وحدة تدريبية', lesson: 'درس', activities: 'أنشطة تطبيقية', question_batch: 'بنك أسئلة' },
   en: { outline: 'Package outline', module: 'Module', lesson: 'Lesson', activities: 'Activities', question_batch: 'Question bank' },
-  nl: { outline: 'Pakketoverzicht', module: 'Module', lesson: 'Les', activities: 'Opdrachten', question_batch: 'Vragenbank' },
 }
 
 const STEP_LABELS = {
   ar: { outline: 'المخطط', modules: 'الوحدات', lessons: 'الدروس', activities: 'الأنشطة', question_bank: 'بنك الأسئلة', validate: 'الفحص البنيوي' },
   en: { outline: 'Outline', modules: 'Modules', lessons: 'Lessons', activities: 'Activities', question_bank: 'Question bank', validate: 'Validation' },
-  nl: { outline: 'Overzicht', modules: 'Modules', lessons: 'Lessen', activities: 'Opdrachten', question_bank: 'Vragenbank', validate: 'Validatie' },
 }
 
 const VERDICT_VARIANT = {
@@ -272,13 +196,12 @@ const VERDICT_VARIANT = {
 const TREE_COPY = {
   ar: { title: 'محتوى الحقيبة المولّدة — راجعه درسًا درسًا', hint: 'افتح أي درس من شاشة الأقسام والدروس المعتادة للمراجعة والتحرير؛ ما تعدّله يبقى محفوظًا، وإعادة التوليد الجزئي متاحة أدناه.', questions: 'سؤالًا', progressTitle: 'تقدم التوليد المباشر', rationale: 'تغطية تبرير الإجابة (مؤشر جودة معلوماتي — التبرير اختياري ولا يمنع الاعتماد أو النشر)' },
   en: { title: 'Generated package content — review lesson by lesson', hint: 'Open any lesson in the usual Sections & Lessons screens to review/edit; edits persist, and per-component regeneration is available below.', questions: 'questions', progressTitle: 'Live generation progress', rationale: 'Answer-rationale coverage (informational quality metric — rationale is optional and never blocks approval or publication)' },
-  nl: { title: 'Gegenereerde pakketinhoud — les voor les beoordelen', hint: 'Open elke les in de gebruikelijke schermen om te beoordelen/bewerken.', questions: 'vragen', progressTitle: 'Live generatievoortgang', rationale: 'Dekking van antwoordmotivering (informatief — optioneel, blokkeert nooit)' },
 }
 
 function locText(value, language) {
   if (!value) return ''
   if (typeof value === 'string') return value
-  return value[language] || value.ar || value.en || value.nl || ''
+  return value[language] || value.ar || value.en || ''
 }
 
 function refId(componentRef) {
@@ -631,7 +554,7 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
               }
             >
               <Download className="h-4 w-4" aria-hidden="true" />
-              {language === 'ar' ? 'تنزيل الحقيبة PDF' : language === 'nl' ? 'Pakket als PDF' : 'Download package PDF'}
+              {language === 'ar' ? 'تنزيل الحقيبة PDF' : 'Download package PDF'}
             </Button>
             {!isPublished ? (
               <>
@@ -643,7 +566,6 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
                 >
                   <option value="ar">العربية</option>
                   <option value="en">English</option>
-                  <option value="nl">Nederlands</option>
                 </Select>
                 <Button
                   disabled={busy || !canGenerate}

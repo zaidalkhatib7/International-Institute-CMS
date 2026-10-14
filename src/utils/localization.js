@@ -1,6 +1,6 @@
 import { ADMIN_LANGUAGE_METADATA, getAdminLanguage, normalizeAdminLanguage } from '../services/languageStorage'
 
-const FALLBACK_ORDER = ['en', 'ar', 'nl']
+const FALLBACK_ORDER = ['en', 'ar']
 
 export function getCurrentLanguage() {
   return getAdminLanguage()
@@ -36,11 +36,31 @@ export function readLocalizedValue(value, preferredLanguage = getCurrentLanguage
     if (typeof candidate === 'string' && candidate.trim()) return candidate
   }
 
-  const firstNonEmpty = Object.values(value).find(
-    (candidate) => typeof candidate === 'string' && candidate.trim()
-  )
+  // A stored `nl` is never shown: it was retired on 13 Oct 2026 (Arabic and English only).
+  const firstNonEmpty = Object.entries(value).find(
+    ([key, candidate]) => key !== 'nl' && typeof candidate === 'string' && candidate.trim()
+  )?.[1]
 
   return firstNonEmpty || ''
+}
+
+/**
+ * Stored English only, with no fallback to another language. An editor's EN field
+ * reads this, so text in another language is never pre-filled there and then saved
+ * under `en`. A legacy plain string counts as English.
+ */
+export function readStoredEnglish(value) {
+  if (typeof value === 'string') return value
+  return typeof value?.en === 'string' ? value.en : ''
+}
+
+/**
+ * True when an editor's value has text in English or in Arabic. Either language
+ * alone is a value: content an AI run authored in Arabic has no English, and an
+ * editor must still be able to save it without inventing a translation.
+ */
+export function hasPlatformText(value) {
+  return [value?.en, value?.ar].some((text) => typeof text === 'string' && text.trim() !== '')
 }
 
 export function formatLocalizedNumber(value, language = getCurrentLanguage(), options = {}) {

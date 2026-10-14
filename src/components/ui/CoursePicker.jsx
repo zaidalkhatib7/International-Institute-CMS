@@ -11,7 +11,7 @@ import { getCurrentLanguage } from '../../utils/localization'
  * type "digital" and see the eight that match, and once chosen the box tells you
  * nothing but the title.
  *
- * So: type to narrow, by code or by title, in any of the three languages the
+ * So: type to narrow, by code or by title, in any language the
  * titles are stored in. The match is shown, the count of matches is shown, and
  * the chosen course stays visible as a card you can change in one click rather
  * than a collapsed line of text.
@@ -38,15 +38,6 @@ const COPY = {
     change: 'Change course',
     all: 'All',
     selected: 'Selected course',
-  },
-  nl: {
-    search: 'Zoek een cursus op naam of code',
-    placeholder: 'bijv. cyberbeveiliging of DGT-007',
-    results: 'resultaten',
-    none: 'Geen cursus komt overeen.',
-    change: 'Andere cursus',
-    all: 'Alle',
-    selected: 'Gekozen cursus',
   },
 }
 

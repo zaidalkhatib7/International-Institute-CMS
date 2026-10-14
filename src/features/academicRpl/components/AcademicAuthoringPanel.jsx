@@ -47,9 +47,9 @@ import {
  */
 
 /* eslint-disable-next-line react-refresh/only-export-components -- exported so the
-   test can prove all three language blocks expose the same key set. Copy lookup is
+   test can prove both language blocks expose the same key set. Copy lookup is
    a WHOLE-OBJECT fallback (COPY[language] || COPY.en) with no per-key rescue, so a
-   key present in en and missing in nl renders the string "undefined". */
+   key present in en and missing in ar renders the string "undefined". */
 export const COPY = {
   ar: {
     title: 'تأليف الحقيبة الأكاديمية بالذكاء الاصطناعي',
@@ -375,176 +375,6 @@ export const COPY = {
     },
   },
 
-  nl: {
-    title: 'AI-ontwikkeling voor dit academische pakket',
-    subtitle:
-      'Het model schrijft één concept onder menselijke review, en dat concept komt telkens als concept binnen via de beheerde importer. Hier wordt niets goedgekeurd of gepubliceerd.',
-    saveFirst: 'Sla het pakket eerst op en keer daarna terug naar dit paneel.',
-
-    slotTitle: 'De plek in de schoolspecificatie — de beheerde invoer',
-    slotHint:
-      'Dit is wat het model heeft gekregen. Alles hier is door mensen geschreven, en het model mag er niets aan toevoegen.',
-    slotCode: 'Code',
-    slotVersion: 'Versie',
-    slotStatus: 'Status',
-    slotSchool: 'Kennisschool',
-    slotCompetencies: 'Vereiste competenties en het niveau van elk',
-    slotNoCompetencies:
-      'Dit pakket verklaart geen competenties, dus er is geen beheerde invoer om tegen te schrijven.',
-
-    siblingTitle: 'Zustergrens — wat het model NIET mocht behandelen',
-    siblingHint:
-      'Elk ander pakket in de school reist mee met het verzoek als een expliciet verbod: “behandel dit niet, het hoort bij LD-0NN”. Alleen die tabel voorkomt dat twaalf pakketten hetzelfde gaan lezen, en het is de maatstaf waaraan u beoordeelt of dit concept binnen zijn bereik is gebleven.',
-    siblingNone: 'Er bestaat nog geen ander pakket in deze school, dus het model kreeg geen enkele bereikgrens.',
-    siblingInjected: 'Meegestuurd',
-    siblingMissing: 'Niet meegestuurd',
-    siblingMissingHint:
-      'Pakketten die ná deze run zijn aangemaakt. Het model wist niet dat ze bestaan, dus het concept kan hun bereik hebben overgenomen — en dat is aan het concept zelf niet te zien.',
-    siblingGone: 'Toen meegestuurd, nu afwezig',
-    siblingGoneHint:
-      'Codes die het runmanifest noemt maar die niet meer in deze school zitten — sinds de run verwijderd of verplaatst.',
-
-    govTitle: 'De twee generatiepoorten',
-    govReady: 'Governance-gereedheid: voldaan',
-    govNotReady: 'Governance-gereedheid: niet voldaan — verklaar eerst de vereiste competenties',
-    govDeclared: 'Verklaarde competenties',
-    govPlaceholders: 'Placeholder-competenties (9xx)',
-    govPlaceholderHint:
-      'Een placeholder staat voor kaderinhoud die niemand heeft geschreven. Generatie daartegen toestaan levert een pakket op dat beheerd lijkt en het niet is; de server weigert het.',
-    govAuthorized: 'Generatietoestemming: vastgelegd',
-    govNotAuthorized: 'Generatietoestemming: niet vastgelegd',
-    govTwoKey:
-      'Twee sleutels: catalogusgovernance (rpl.settings.manage) legt vast dat deze versie geschreven mag worden, daarna start programmabeheer de run. Een toestemming geldt voor één versie, wordt bij gebruik verbruikt, en wie haar verleent mag haar niet zelf besteden.',
-    govNote: 'Onderbouwing van de toestemming',
-    govNotePlaceholder: 'Wie dit heeft toegestaan en waarom deze plek gereed is.',
-    govNoteHint: 'Wordt met uw naam in het auditspoor bewaard.',
-    govExpiry: 'Vervaldatum van de toestemming (optioneel)',
-    govExpiryHint:
-      'De server verzint geen standaardtermijn, want een verzonnen termijn is beleid dat niemand heeft vastgesteld. Laat het leeg en de toestemming blijft staan tot zij wordt besteed of ingetrokken.',
-    govAuthorize: 'Generatietoestemming vastleggen',
-    govAuthorizing: 'Bezig met vastleggen…',
-    govConfirm: 'Er wordt een toestemming voor deze versie op uw naam vastgelegd. Doorgaan?',
-    govBy: 'Vastgelegd door',
-    govGrantedAt: 'Vastgelegd op',
-    govExpires: 'Verloopt',
-    govNoExpiry: 'Geen vervaldatum',
-    govConsumed: 'Verbruikt',
-    govRevoked: 'Ingetrokken',
-    govUnusable: 'Waarom zij niet bruikbaar is',
-    govRevoke: 'Toestemming intrekken',
-    govRevokePlaceholder: 'Waarom wordt de toestemming ingetrokken? (minimaal 10 tekens)',
-    govRevokeConfirm: 'De generatietoestemming voor deze versie wordt op uw naam ingetrokken. Doorgaan?',
-
-    runTitle: 'Generatie',
-    moduleCount: 'Aantal leermodules',
-    moduleCountHint:
-      'Verplicht, en het platform kiest geen standaard: de module is de kleinste toetsbare eenheid, dus dit getal bepaalt hoe fijn het pakket wordt getoetst — een academisch oordeel, geen instelknop.',
-    locale: 'Inhoudstaal',
-    localeValue: 'Arabisch',
-    localeHint:
-      'v1 schrijft alleen in het Arabisch. GPS vereist Arabische tekst in elk gelokaliseerd veld, en Engels in het Arabische veld genereren legt een vertaling vast die niet bestaat.',
-    generate: 'Generatie starten',
-    generating: 'Genereren…',
-    currentStep: 'Huidige stap',
-    alreadyDrafted:
-      'Er bestaat al een concept voor deze versie. Beoordeel het, genereer er een component van opnieuw, of wijs het af voordat u opnieuw genereert.',
-    failed: 'Generatie mislukt — opnieuw proberen hervat vanaf het checkpoint in plaats van opnieuw te beginnen.',
-    runError: 'Fouttekst',
-    requestedBy: 'Aangevraagd door',
-    startedAt: 'Gestart',
-    aiRun: 'Beheerd runrecord',
-    model: 'Model',
-    promptVersion: 'Promptversie',
-    fallbackTitle: 'Een ander model dan gevraagd heeft geantwoord',
-    fallbackHint:
-      'Het terugvalmodel heeft ten minste één component beantwoord. Vastgelegd wordt het model dat werkelijk antwoordde, niet het gevraagde — het verschil staat hier omdat een stille vervanging verboden is.',
-
-    progressTitle: 'Generatievoortgang',
-    modulesProgress: 'Aangemaakte modules',
-    mcqProgress: 'Meerkeuzevragen',
-
-    validation: 'Structurele validatie',
-    reviewTitle: 'Wat er nog tussen dit concept en publicatie staat',
-    blockingFlags: 'Bronnen die publicatie blokkeren',
-    mcqItems: 'Meerkeuzevragen (totaal / concept / gepubliceerd)',
-    modulesDraft: 'Modules nog in concept',
-    reviewHint: 'Ter informatie; publicatie heeft haar eigen poort op het bibliotheekscherm.',
-
-    artifacts: 'Generatiegeschiedenis (origineel blijft bewaard)',
-    artifactsHint:
-      'Een component opnieuw genereren maakt een NIEUW artefact en laat het oude ernaar wijzen. Er wordt niets overschreven, dus de geschiedenis blijft leesbaar.',
-    regenerate: 'Opnieuw genereren',
-    superseded: 'Vervangen',
-    provenanceLegacy: 'Geen herkomst vastgelegd',
-    provenanceDerived: 'Afgeleid van origineel',
-
-    sourceReview: 'Bron vereist menselijke review',
-    sourceVerdict: 'Bronoordeel (expliciet menselijk besluit)',
-    sourceVerdictPlaceholder: '— kies een oordeel —',
-    verdictApproved: 'Geverifieerd en goedgekeurd (VERIFIED_APPROVED)',
-    verdictRejected: 'Afgewezen (REJECTED) — blokkeert publicatie',
-    verdictSuperseded: 'Vervangen door een preciezere bron (SUPERSEDED)',
-    supersededWarning:
-      'Let op: SUPERSEDED heft de publicatieblokkade op, net als goedkeuring. Leg het pas vast nadat de inhoud daadwerkelijk de nieuwere bron citeert.',
-    sourceNotes: 'Onderbouwing van het oordeel (verplicht)',
-    sourceNotesHint: 'Wat u precies heeft geverifieerd: titel, uitgever, jaar, identificatie — of wat niet lukte.',
-    recordVerdict: 'Oordeel vastleggen',
-    recordedTitle: 'Vastgelegde bronoordelen — herbeoordeling mogelijk',
-    recordedHint: 'Herbeoordelen verwijdert het eerdere record niet; het voegt een nieuw besluit toe aan het auditspoor.',
-    previouslyRecorded: 'Eerder vastgelegd',
-    recordedBy: 'Vastgelegd door',
-    previousNotes: 'Eerdere onderbouwing',
-    noPreviousNotes: '— geen onderbouwing vastgelegd —',
-    reReview: 'Oordeel herbeoordelen',
-    blocksPublication: 'Blokkeert publicatie',
-
-    reject: 'Volledig concept afwijzen',
-    rejectConfirm:
-      'AI-inhoud wordt verwijderd en de plek keert terug naar wat de academicus schreef. De volledige generatiegeschiedenis blijft bewaard voor audit. Doorgaan?',
-
-    statuses: {
-      draft: 'Concept',
-      approved: 'Goedgekeurd',
-      published: 'Gepubliceerd',
-      archived: 'Gearchiveerd',
-      retired: 'Uitgefaseerd',
-    },
-    runStatuses: {
-      queued: 'In wachtrij',
-      generating: 'Bezig met genereren',
-      ai_draft: 'Concept wacht op review',
-      failed: 'Mislukt',
-      superseded: 'Vervangen',
-      archived: 'Gearchiveerd',
-    },
-    aiStatuses: {
-      not_generated: 'Nog niet gegenereerd',
-      ai_generating: 'Bezig met genereren',
-      ai_draft: 'AI-concept wacht op review',
-      generation_failed: 'Generatie mislukt',
-    },
-    stages: {
-      outline: 'Overzicht',
-      modules: 'Modules',
-      lessons: 'Wetenschappelijke inhoud',
-      question_bank: 'Vragenbank',
-      assessment_policy: 'Toetsbeleid',
-      import: 'Beheerde import',
-      question_bank_ingest: 'Vragenbank inlezen',
-    },
-    types: {
-      outline: 'Pakketoverzicht',
-      module: 'Leermodule',
-      content: 'Wetenschappelijke inhoud',
-      question_batch: 'Vragenreeks',
-      assessment_policy: 'Toetsbeleid',
-    },
-    levels: {
-      professional_diploma: 'Professioneel diploma',
-      professional_master: 'Professionele master',
-      professional_doctorate: 'Professioneel doctoraat',
-    },
-  },
 }
 
 /*
@@ -1066,8 +896,8 @@ export default function AcademicAuthoringPanel({ packageCode, siblings = [], onC
               />
               {/*
                 Not a picker. The server validates `in:ar` and says why, so a
-                three-language dropdown here would offer two choices that can
-                only be refused.
+                language dropdown here would offer a choice that can only be
+                refused.
               */}
               <div className="text-sm">
                 <p className="font-medium text-[var(--color-text)]">{copy.locale}</p>

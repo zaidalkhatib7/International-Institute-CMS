@@ -6,7 +6,6 @@ import { getAdminLanguage } from '../../services/languageStorage'
 const SEARCH_PLACEHOLDER = {
   ar: 'ابحث عن شاشة…',
   en: 'Find a screen…',
-  nl: 'Zoek een scherm…',
 }
 
 const OPEN_GROUP_KEY = 'cms.sidebar.openGroup'

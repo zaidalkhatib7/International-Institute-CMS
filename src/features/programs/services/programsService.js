@@ -3,7 +3,8 @@ import { http } from '../../../services/http'
 function readLocalized(value) {
   if (!value) return ''
   if (typeof value === 'string') return value
-  return value.en || value.ar || value.nl || ''
+  // English only: re-saving a programme must not write its Arabic text under `en`.
+  return value.en || ''
 }
 
 function normalizeProgramPayload(payload) {
@@ -14,7 +15,6 @@ function buildLocalizedField(value) {
   const localized = {
     en: readLocalized(value),
     ar: value?.ar || '',
-    nl: value?.nl || '',
   }
 
   return Object.values(localized).some((entry) => String(entry || '').trim()) ? localized : null
@@ -40,37 +40,30 @@ function buildProgramPayloadForUpdate(program, featuredValue) {
     title: {
       en: readLocalized(program?.title),
       ar: program?.title?.ar || '',
-      nl: program?.title?.nl || '',
     },
     short_description: {
       en: readLocalized(program?.short_description),
       ar: program?.short_description?.ar || '',
-      nl: program?.short_description?.nl || '',
     },
     overview: {
       en: readLocalized(program?.overview),
       ar: program?.overview?.ar || '',
-      nl: program?.overview?.nl || '',
     },
     outcomes: {
       en: readLocalized(program?.outcomes),
       ar: program?.outcomes?.ar || '',
-      nl: program?.outcomes?.nl || '',
     },
     target_audience: {
       en: readLocalized(program?.target_audience),
       ar: program?.target_audience?.ar || '',
-      nl: program?.target_audience?.nl || '',
     },
     entry_requirements: {
       en: readLocalized(program?.entry_requirements),
       ar: program?.entry_requirements?.ar || '',
-      nl: program?.entry_requirements?.nl || '',
     },
     duration: {
       en: readLocalized(program?.duration),
       ar: program?.duration?.ar || '',
-      nl: program?.duration?.nl || '',
     },
     fees: program?.fees === '' || program?.fees == null ? 0 : Number(program.fees),
     currency: program?.currency || 'EUR',
@@ -83,7 +76,6 @@ function buildProgramPayloadForUpdate(program, featuredValue) {
     intro_text: {
       en: readLocalized(program?.intro_text),
       ar: program?.intro_text?.ar || '',
-      nl: program?.intro_text?.nl || '',
     },
     ...(finalQuizTitle ? { final_quiz_title: finalQuizTitle } : {}),
     ...(finalQuizPassPercentage != null

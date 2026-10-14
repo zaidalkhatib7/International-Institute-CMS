@@ -68,27 +68,6 @@ const COPY = {
     amount: 'Amount',
     idempotent: 'Recording is idempotent: the same reference is never counted twice, and a reference already used on another order is refused.',
   },
-  nl: {
-    title: 'Afstemming certificaatkosten',
-    subtitle: 'Leg een buiten het platform ontvangen betaling vast. Uitgifte blijft geblokkeerd tot dat gebeurd is.',
-    paid: 'Betaald',
-    pending: 'Wacht op betaling',
-    noFee: 'Dit dossier heeft geen te betalen kosten.',
-    provider: 'Methode',
-    bank_transfer: 'Bankoverschrijving',
-    cash: 'Contant',
-    external_gateway: 'Externe gateway',
-    manual_reconciliation: 'Handmatige afstemming',
-    reference: 'Referentie',
-    referencePlaceholder: 'Overschrijvings- of bonnummer (minimaal 3 tekens)',
-    paidAt: 'Betaaldatum',
-    notes: 'Notities',
-    record: 'Betaling vastleggen',
-    recording: 'Vastleggen…',
-    recorded: 'Betaling vastgelegd.',
-    amount: 'Bedrag',
-    idempotent: 'Vastleggen is idempotent: dezelfde referentie telt nooit dubbel.',
-  },
 }
 
 const PROVIDERS = ['bank_transfer', 'cash', 'external_gateway', 'manual_reconciliation']

@@ -15,7 +15,7 @@ import {
   fetchAdminSections,
   updateAdminLesson,
 } from '../services/lessonsService'
-import { getCurrentLanguage, readLocalizedValue } from '../../../utils/localization'
+import { getCurrentLanguage, hasPlatformText, readLocalizedValue, readStoredEnglish } from '../../../utils/localization'
 
 function readLocalized(value) {
   return readLocalizedValue(value)
@@ -35,14 +35,12 @@ function mapLessonToFormData(lesson) {
     type: lesson?.type || 'text',
     sort_order: lesson?.sort_order != null ? String(lesson.sort_order) : '1',
     title: {
-      en: readLocalized(lesson?.title),
+      en: readStoredEnglish(lesson?.title),
       ar: lesson?.title?.ar || '',
-      nl: lesson?.title?.nl || '',
     },
     text_content: {
-      en: readLocalized(lesson?.text_content),
+      en: readStoredEnglish(lesson?.text_content),
       ar: lesson?.text_content?.ar || '',
-      nl: lesson?.text_content?.nl || '',
     },
     video_url: lesson?.video_url || '',
     video_duration_minutes:
@@ -56,13 +54,11 @@ function buildLessonPayload(formData) {
     title: {
       en: formData.title?.en || '',
       ar: formData.title?.ar || '',
-      nl: formData.title?.nl || '',
     },
     type: formData.type || 'text',
     text_content: {
       en: formData.text_content?.en || '',
       ar: formData.text_content?.ar || '',
-      nl: formData.text_content?.nl || '',
     },
     video_url: formData.video_url || null,
     video_duration_minutes:
@@ -72,7 +68,7 @@ function buildLessonPayload(formData) {
 }
 
 function LanguageTabs({ activeLanguage, onChange }) {
-  const languages = ['en', 'ar', 'nl']
+  const languages = ['en', 'ar']
   return (
     <div className="inline-flex rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-1">
       {languages.map((lang) => (
@@ -130,52 +126,13 @@ export default function LessonBuilderPage() {
         lessonSnapshot: 'ملخص الدرس',
         type: 'النوع',
         sectionRequired: 'القسم مطلوب.',
-        englishTitleRequired: 'عنوان الدرس (EN) مطلوب.',
+        titleRequired: 'عنوان الدرس مطلوب بالعربية أو بالإنجليزية.',
         lessonTypeRequired: 'نوع الدرس مطلوب.',
         sortOrderRequired: 'ترتيب العرض مطلوب.',
         created: 'تم إنشاء الدرس بنجاح.',
         updated: 'تم تحديث الدرس بنجاح.',
         loadError: 'فشل تحميل الدرس.',
         saveError: 'فشل حفظ الدرس.',
-      }
-    }
-    if (language === 'nl') {
-      return {
-        editLesson: 'Les bewerken',
-        createLesson: 'Les maken',
-        breadcrumbAdmin: 'Beheer',
-        breadcrumbLessons: 'Lessen',
-        subtitle: 'Configureer lesinhoud, type en volgorde binnen de sectie.',
-        backToLessons: 'Terug naar lessen',
-        saveLesson: 'Les opslaan',
-        saving: 'Opslaan...',
-        loadingLesson: 'Les laden...',
-        lessonBasics: 'Lesbasis',
-        section: 'Sectie',
-        selectSection: 'Selecteer sectie',
-        lessonType: 'Lestype',
-        typeText: 'Tekst',
-        typeVideo: 'Video',
-        typeBoth: 'Beide',
-        sortOrder: 'Volgorde',
-        lessonTitle: 'Lestitel',
-        lessonTitlePlaceholder: 'bijv. Foundations of Leadership',
-        textContent: 'Tekstinhoud',
-        lessonBody: 'Lesinhoud',
-        lessonBodyPlaceholder: 'Schrijf lesinhoud...',
-        videoContent: 'Videoinhoud',
-        videoUrl: 'Video-URL',
-        videoDuration: 'Videoduur (minuten)',
-        lessonSnapshot: 'Lesoverzicht',
-        type: 'Type',
-        sectionRequired: 'Sectie is verplicht.',
-        englishTitleRequired: 'Engelse lestitel is verplicht.',
-        lessonTypeRequired: 'Lestype is verplicht.',
-        sortOrderRequired: 'Volgorde is verplicht.',
-        created: 'Les succesvol aangemaakt.',
-        updated: 'Les succesvol bijgewerkt.',
-        loadError: 'Les laden mislukt.',
-        saveError: 'Les opslaan mislukt.',
       }
     }
     return {
@@ -207,7 +164,7 @@ export default function LessonBuilderPage() {
       lessonSnapshot: 'Lesson Snapshot',
       type: 'Type',
       sectionRequired: 'Section is required.',
-      englishTitleRequired: 'English lesson title is required.',
+      titleRequired: 'Lesson title is required in English or Arabic.',
       lessonTypeRequired: 'Lesson type is required.',
       sortOrderRequired: 'Sort order is required.',
       created: 'Lesson created successfully.',
@@ -229,8 +186,8 @@ export default function LessonBuilderPage() {
     section_id: '',
     type: 'text',
     sort_order: '1',
-    title: { en: '', ar: '', nl: '' },
-    text_content: { en: '', ar: '', nl: '' },
+    title: { en: '', ar: '' },
+    text_content: { en: '', ar: '' },
     video_url: '',
     video_duration_minutes: '',
   })
@@ -293,7 +250,7 @@ export default function LessonBuilderPage() {
 
   const validateBeforeSave = () => {
     if (!formData.section_id) return copy.sectionRequired
-    if (!formData.title?.en?.trim()) return copy.englishTitleRequired
+    if (!hasPlatformText(formData.title)) return copy.titleRequired
     if (!formData.type) return copy.lessonTypeRequired
     if (!formData.sort_order) return copy.sortOrderRequired
     return ''

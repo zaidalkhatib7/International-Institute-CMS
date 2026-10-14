@@ -17,13 +17,6 @@ const copyByLanguage = {
     retry: "Reload page",
     home: "Back to dashboard",
   },
-  nl: {
-    title: "Er is iets misgegaan op deze pagina",
-    description:
-      "De rest van het systeem werkt normaal. Herlaad deze pagina of ga terug naar het dashboard.",
-    retry: "Pagina herladen",
-    home: "Terug naar dashboard",
-  },
 };
 
 /**

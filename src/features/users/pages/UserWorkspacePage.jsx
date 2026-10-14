@@ -69,11 +69,11 @@ import {
  * Exported for the locale-parity test.
  *
  * The lookup below is `copyByLanguage[language] || copyByLanguage.en` — a
- * WHOLE-OBJECT fallback. A key present in `en` but missing from `nl` therefore
+ * WHOLE-OBJECT fallback. A key present in `en` but missing from `ar` therefore
  * has no per-key rescue and renders `undefined`, silently. That is exactly how
- * the Professional Academic RPL card shipped blank in Dutch: empty heading,
+ * the Professional Academic RPL card once shipped blank in one locale: empty heading,
  * unlabelled select, and a success message that never appeared after a real
- * governed case had been created. The test asserts all three locales carry the
+ * governed case had been created. The test asserts both locales carry the
  * same keys, because nothing else catches it until somebody switches language.
  */
 export const copyByLanguage = {
@@ -388,172 +388,6 @@ export const copyByLanguage = {
     experienceFailed: "تعذر حفظ الخبرة العملية.",
     confirmDeleteExperience: "هل تريد حذف هذه الخبرة العملية؟",
   },
-  nl: {
-    workspace: "Cliëntwerkruimte",
-    description:
-      "Beheer deze cliënt zonder het account over te nemen. Elke medewerkershandeling is controleerbaar.",
-    back: "Terug naar gebruikers",
-    staffWorkspace: "Medewerkersaccount",
-    staffDescription:
-      "Een account van het instituut. Medewerkers worden niet door het instituut beoordeeld, dus het cliënttraject geldt hier niet.",
-    staffNotice: "Dit is een medewerkersaccount, geen cliënt",
-    staffNoticeHint:
-      "Kwalificatiebewijs, RPL-routering en inschrijving horen bij de mensen die het instituut beoordeelt. Een beheerder, trainer of beoordelaar kan niet het onderwerp van een RPL-dossier zijn — de server weigert dat — dus die secties worden niet getoond. De rollen van dit account beheert u hieronder.",
-    staffGoToRoles: "Beheer en rollen openen",
-    deleteAccount: "Account verwijderen",
-    deleteHint:
-      "Trekt toegang in en vernietigt elke sessietoken. Wat dit account heeft gedaan blijft bewaard, zodat het auditspoor controleerbaar blijft.",
-    deleteConfirm:
-      "Dit account verwijderen? Toegang stopt direct. Geschiedenis blijft.",
-    deleted: "Account verwijderd. Toegang ingetrokken, geschiedenis bewaard.",
-    purge: "Definitief wissen",
-    purgeHint:
-      "Alleen mogelijk voor een account dat nooit iets gereguleerds deed.",
-    purgeConfirm:
-      "Dit account definitief wissen? Dit kan niet ongedaan worden gemaakt.",
-    purged: "Account definitief gewist.",
-    dangerZone: "Dit account verwijderen",
-    account: "Accountgegevens",
-    edit: "Gegevens bewerken",
-    save: "Wijzigingen opslaan",
-    cancel: "Annuleren",
-    name: "Volledige naam",
-    email: "E-mailadres",
-    username: "Gebruikersnaam",
-    phone: "Telefoonnummer",
-    locale: "Voorkeurstaal",
-    timezone: "Tijdzone",
-    channel: "Registratiekanaal",
-    onsite: "Begeleid op locatie",
-    online: "Online zelfservice",
-    identifiers: "Inloggegevens",
-    none: "Geen inloggegevens ingesteld",
-    registrationId: "Registratienummer",
-    created: "Account aangemaakt",
-    academicEvidence: "Bewijs voor academische toelating",
-    academicEvidenceHint:
-      "Registreer en verifieer kwalificaties vóór de routing. Elke cliënt krijgt precies één deur: een diploma van een middelbaar instituut, licence, bachelor of hoger leidt naar het Professioneel Academisch traject; een middelbareschooldiploma of lager leidt naar Professionele erkenning van eerder leren.",
-    addQualification: "Kwalificatie toevoegen",
-    oneQualification:
-      "Een cliënt registreert één kwalificatie: de hoogste. Gebruik Bewerken om die te wijzigen.",
-    severalQualifications:
-      "Deze cliënt heeft meerdere kwalificaties van vóór de regel van één kwalificatie. Houd de hoogste en verwijder de rest.",
-    updateQualification: "Kwalificatie bijwerken",
-    type: "Type kwalificatie",
-    title: "Naam kwalificatie",
-    institution: "Onderwijsinstelling",
-    field: "Vakgebied / specialisatie",
-    startDate: "Startdatum",
-    completionDate: "Einddatum",
-    verified: "Door medewerker geverifieerd",
-    unverified: "Verificatie in afwachting",
-    editQualification: "Bewerken",
-    deleteQualification: "Verwijderen",
-    qualificationSaved: "Kwalificatie opgeslagen en route opnieuw berekend.",
-    qualificationDeleted: "Kwalificatie verwijderd en route opnieuw berekend.",
-    qualificationFailed: "Kwalificatie kan niet worden opgeslagen.",
-    confirmDelete: "Deze kwalificatie verwijderen?",
-    routing: "Beslissing over servicerouting",
-    rplWith: "Professionele erkenning van eerder leren",
-    rplWithout: "Professionele erkenning van eerder leren",
-    rplWithHint:
-      "Ervaring en bewijs worden beoordeeld. Competentiegap-programma’s kunnen vóór accreditatie nodig zijn.",
-    rplWithoutHint:
-      "Ervaring en bewijs worden beoordeeld. Basis- en competentiegap-programma’s kunnen vóór accreditatie nodig zijn.",
-    noRplDegree: "Deze cliënt volgt het Professioneel Academisch traject",
-    noRplDegreeHint:
-      "Een geverifieerd diploma van een middelbaar instituut, licence, bachelor of hoger stuurt deze cliënt alleen door de academische deur. Professionele erkenning van eerder leren wordt niet aangeboden.",
-    /*
-     * These six were added to `en` and `ar` on 6 Aug and missed here, which
-     * rendered the whole Professional Academic RPL card blank in Dutch: the
-     * language fallback at `copyByLanguage[language] || copyByLanguage.en` is
-     * whole-object, so a missing key has no per-key rescue and resolves to
-     * undefined. An empty heading, an unlabelled select, an icon-only button —
-     * and a silent success after the case was actually created.
-     */
-    academicRpl: "Professioneel Academisch RPL",
-    academicRplHint:
-      "Voor houders van een diploma van een middelbaar instituut, licence, bachelor of gelijkwaardig: professioneel diploma, professionele master, professioneel doctoraat. Beoordeeld op bewijs en competenties, niet op het diploma alleen.",
-    academicSelectTrack: "Doelkwalificatie",
-    academicOpen: "Academisch dossier openen",
-    academicOpened: "Professioneel Academisch RPL-dossier geopend.",
-    academicNoTracks: "De academische trajecten zijn nog niet geconfigureerd.",
-    pendingAcademic:
-      "Een diploma van een middelbaar instituut, licence of bachelor wacht op verificatie",
-    pendingAcademicHint:
-      "Nog geen deur gaat open. Na verificatie volgt deze cliënt het academische traject; is het geen zulke kwalificatie, corrigeer dan het type of verwijder haar en Professionele erkenning van eerder leren gaat open.",
-    pendingSecondary: "Middelbareschooldiploma wacht op verificatie",
-    pendingSecondaryHint:
-      "Kies de route zonder diploma niet zolang dit bewijs wordt beoordeeld.",
-    startRpl: "Juiste RPL-dossier aanmaken",
-    openOtherCase: "Deze cliënt heeft een open dossier achter de andere deur",
-    openOtherCaseHint:
-      "Eén deur tegelijk. Sluit of trek het open dossier in voordat u achter de andere deur een dossier opent.",
-    academicRoute: "Toelatingsroute",
-    routeUniversityDegree: "Universitair diploma",
-    routeIntermediateInstitute: "Diploma middelbaar instituut",
-    routeRplExpert: "RPL afgerond op Expert-niveau",
-    noPathway: "Het benodigde RPL-traject is nog niet geconfigureerd.",
-    targetLevel: "Gewenst professioneel accreditatiedoel",
-    targetLevelHint:
-      "Bevestig welk niveau de aanvrager wil nastreven. Gemini beoordeelt bewijs en leerhiaten met de strengheid van dit doel.",
-    selectTargetLevel:
-      "Selecteer Practitioner, Advanced Practitioner of Expert",
-    professional: "Professionele kwalificaties",
-    professionalHint:
-      "Dit is volledig gescheiden van RPL en gebruikt geverifieerde academische toelatingseisen.",
-    selectProgram: "Selecteer een beschikbaar programma",
-    enroll: "Inschrijven en wallet belasten",
-    noPrograms:
-      "Er is momenteel geen passend programma. Verifieer het academisch bewijs of voeg de ontbrekende voorwaarde toe.",
-    diploma: "Professioneel diploma",
-    master: "Professionele master",
-    doctorate: "Professioneel doctoraat",
-    cases: "Bestaande RPL-dossiers",
-    noCases: "Er is geen RPL-dossier voor deze cliënt.",
-    points: "punten",
-    loadFailed: "De cliëntwerkruimte kan niet worden geladen.",
-    createCaseFailed: "Het RPL-dossier kan niet worden aangemaakt.",
-    enrollFailed: "De cliënt kan niet worden ingeschreven.",
-    updateFailed: "Gebruikersgegevens kunnen niet worden bijgewerkt.",
-    updated: "Gebruikersgegevens bijgewerkt.",
-    saving: "Opslaan…",
-    intakeOpenCase: "Deze cliënt heeft al een open RPL-aanvraag",
-    intakeOpenCaseHint:
-      "Een cliënt heeft één open RPL-aanvraag tegelijk. Zet die aanvraag voort of sluit haar voordat u een nieuwe opent. Deze regel kan niet worden overschreven.",
-    intakeOpenCaseReference: "Open aanvraag",
-    intakeCooldown: "De wachttijd na een afgewezen aanvraag loopt nog",
-    intakeCooldownFrom: "De cliënt mag een nieuwe aanvraag openen vanaf",
-    overrideCooldown: "De wachttijd overschrijven",
-    overrideReason: "Reden voor het overschrijven",
-    overrideReasonHint:
-      "Verplicht, 10 tot 2.000 tekens. Wordt met de nieuwe aanvraag in het auditspoor vastgelegd.",
-    experiences: "Werkervaring",
-    experiencesHint:
-      "Er is minstens één werkervaring nodig voordat een RPL-aanvraag kan worden ingediend.",
-    noExperiences: "Voor deze cliënt is nog geen werkervaring vastgelegd.",
-    addExperience: "Werkervaring toevoegen",
-    updateExperience: "Werkervaring bijwerken",
-    editExperience: "Bewerken",
-    deleteExperience: "Verwijderen",
-    jobTitle: "Functietitel",
-    organization: "Organisatie",
-    experienceDescription: "Beschrijving van de functie",
-    experienceStart: "Begonnen op",
-    experienceEnd: "Beëindigd op",
-    isCurrent: "Werkt hier nog",
-    experienceCurrent: "heden",
-    country: "Landcode",
-    countryHint:
-      "Twee letters, ISO 3166-1 alpha-2 (bijvoorbeeld SY, JO, NL).",
-    city: "Plaats",
-    website: "Website van de werkgever",
-    registrationNumber: "Inschrijvingsnummer van de werkgever",
-    experienceSaved: "Werkervaring opgeslagen.",
-    experienceDeleted: "Werkervaring verwijderd.",
-    experienceFailed: "Werkervaring kan niet worden opgeslagen.",
-    confirmDeleteExperience: "Deze werkervaring verwijderen?",
-  },
 };
 
 const qualificationTypes = [
@@ -581,7 +415,8 @@ function formFromUser(user) {
     email: user?.email || "",
     username: user?.username || "",
     phone_number: user?.phone_number || "",
-    preferred_locale: user?.preferred_locale || "en",
+    // Arabic or English only; a stored retired value (`nl`) is shown and saved as English.
+    preferred_locale: user?.preferred_locale === "ar" ? "ar" : "en",
     timezone: user?.timezone || "",
   };
 }
@@ -681,42 +516,34 @@ function qualificationTypeLabel(type, language) {
     below_secondary: {
       en: "Below general secondary",
       ar: "دون الثانوية العامة",
-      nl: "Lager dan middelbareschooldiploma",
     },
     secondary_general: {
       en: "Secondary certificate",
       ar: "شهادة ثانوية عامة",
-      nl: "Middelbareschooldiploma",
     },
     intermediate_diploma: {
       en: "Intermediate institute diploma",
       ar: "شهادة معهد متوسط",
-      nl: "Diploma middelbaar instituut",
     },
     bachelor: {
       en: "Bachelor / licence / equivalent",
       ar: "بكالوريوس / ليسانس / ما يعادله",
-      nl: "Bachelor / licence / gelijkwaardig",
     },
     academic_diploma: {
       en: "Academic diploma",
       ar: "دبلوم أكاديمي",
-      nl: "Academisch diploma",
     },
     academic_master: {
       en: "Academic master",
       ar: "ماجستير أكاديمي",
-      nl: "Academische master",
     },
     academic_doctorate: {
       en: "Doctorate",
       ar: "دكتوراه",
-      nl: "Doctoraat",
     },
     other: {
       en: "Other qualification",
       ar: "مؤهل آخر",
-      nl: "Andere kwalificatie",
     },
   };
   return labels[type]?.[language] || labels.other[language];
@@ -1247,7 +1074,6 @@ export default function UserWorkspacePage() {
                   >
                     <option value="en">English</option>
                     <option value="ar">العربية</option>
-                    <option value="nl">Nederlands</option>
                   </Select>
                   <Input
                     label={copy.timezone}

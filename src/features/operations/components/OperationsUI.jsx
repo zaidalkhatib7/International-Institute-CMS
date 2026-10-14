@@ -8,7 +8,6 @@ import { useModalDialog } from '../../../hooks/useModalDialog'
 const commonCopy = {
   ar: { dismiss: 'إغلاق الرسالة', loading: 'جارٍ التحميل', sections: 'أقسام مساحة العمل', close: 'إغلاق', live: 'مباشر', records: 'سجل' },
   en: { dismiss: 'Dismiss message', loading: 'Loading', sections: 'Workspace sections', close: 'Close', live: 'Live', records: 'records' },
-  nl: { dismiss: 'Bericht sluiten', loading: 'Laden', sections: 'Werkruimtesecties', close: 'Sluiten', live: 'Live', records: 'records' },
 }
 
 function getCommonCopy() {

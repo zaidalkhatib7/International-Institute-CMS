@@ -33,12 +33,6 @@ const copyByLanguage = {
     promptTitle: 'Generation prompt', promptDescription: 'This instruction is applied to every PDF import. Keep {token} where the requested number of questions should appear.', loading: 'Loading settings...', characters: 'characters', saving: 'Saving...', save: 'Save prompt',
     connection: 'Backend connection', status: 'Status', configured: 'Configured', missingKey: 'API key missing', model: 'Model', pdfLimit: 'PDF limit', keySafety: 'Secret-key safety', keySafetyDescription: 'Laravel reads the key only from GEMINI_API_KEY in the backend environment. It is never returned to this CMS. Change or rotate it in the backend environment, then restart Herd.',
   },
-  nl: {
-    title: 'AI-instellingen voor de vragenbank', description: 'Bepaal hoe Gemini onderwijs-pdf’s omzet in controleerbare, meertalige vragenbankconcepten.',
-    loadError: 'De AI-instellingen voor toetsen konden niet worden geladen.', promptMinimum: 'De generatieprompt moet minimaal 50 tekens bevatten.', saved: 'De prompt voor het genereren van vragen uit pdf is opgeslagen.', saveError: 'De AI-instellingen voor toetsen konden niet worden opgeslagen.',
-    promptTitle: 'Generatieprompt', promptDescription: 'Deze instructie geldt voor elke pdf-import. Behoud {token} op de plaats waar het gevraagde aantal vragen moet verschijnen.', loading: 'Instellingen worden geladen...', characters: 'tekens', saving: 'Opslaan...', save: 'Prompt opslaan',
-    connection: 'Backendverbinding', status: 'Status', configured: 'Geconfigureerd', missingKey: 'API-sleutel ontbreekt', model: 'Model', pdfLimit: 'Pdf-limiet', keySafety: 'Beveiliging van de geheime sleutel', keySafetyDescription: 'Laravel leest de sleutel uitsluitend uit GEMINI_API_KEY in de backendomgeving. De sleutel wordt nooit aan dit CMS teruggestuurd. Wijzig of roteer hem in de backendomgeving en start Herd daarna opnieuw.',
-  },
 }
 
 export default function AiQuizSettingsPage() {

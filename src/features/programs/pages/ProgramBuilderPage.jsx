@@ -26,7 +26,7 @@ import {
   toggleAdminProgramActive,
   updateAdminProgram,
 } from '../services/programsService'
-import { getCurrentLanguage, readLocalizedValue } from '../../../utils/localization'
+import { getCurrentLanguage, readLocalizedValue, readStoredEnglish } from '../../../utils/localization'
 import { readApiError } from '../../../services/apiResponse'
 import AiPackagePanel from '../components/AiPackagePanel'
 import SeedPackPanel from '../components/SeedPackPanel'
@@ -98,39 +98,32 @@ function mapProgramToFormData(program) {
       ? String(program.category.id)
       : '',
     title: {
-      en: readLocalized(program?.title),
+      en: readStoredEnglish(program?.title),
       ar: program?.title?.ar || '',
-      nl: program?.title?.nl || '',
     },
     short_description: {
-      en: readLocalized(program?.short_description),
+      en: readStoredEnglish(program?.short_description),
       ar: program?.short_description?.ar || '',
-      nl: program?.short_description?.nl || '',
     },
     overview: {
-      en: readLocalized(program?.overview),
+      en: readStoredEnglish(program?.overview),
       ar: program?.overview?.ar || '',
-      nl: program?.overview?.nl || '',
     },
     outcomes: {
-      en: readLocalized(program?.outcomes),
+      en: readStoredEnglish(program?.outcomes),
       ar: program?.outcomes?.ar || '',
-      nl: program?.outcomes?.nl || '',
     },
     target_audience: {
-      en: readLocalized(program?.target_audience),
+      en: readStoredEnglish(program?.target_audience),
       ar: program?.target_audience?.ar || '',
-      nl: program?.target_audience?.nl || '',
     },
     entry_requirements: {
-      en: readLocalized(program?.entry_requirements),
+      en: readStoredEnglish(program?.entry_requirements),
       ar: program?.entry_requirements?.ar || '',
-      nl: program?.entry_requirements?.nl || '',
     },
     duration: {
-      en: sanitizeLocalizedValue(readLocalized(program?.duration)),
+      en: sanitizeLocalizedValue(readStoredEnglish(program?.duration)),
       ar: sanitizeLocalizedValue(program?.duration?.ar),
-      nl: sanitizeLocalizedValue(program?.duration?.nl),
     },
     fees: program?.fees ?? '',
     currency: program?.currency || 'EUR',
@@ -138,14 +131,12 @@ function mapProgramToFormData(program) {
     featured_image: program?.featured_image || '',
     intro_video_url: program?.intro_video_url || '',
     intro_text: {
-      en: readLocalized(program?.intro_text),
+      en: readStoredEnglish(program?.intro_text),
       ar: program?.intro_text?.ar || '',
-      nl: program?.intro_text?.nl || '',
     },
     final_quiz_title: {
-      en: readLocalized(program?.final_quiz_title),
+      en: readStoredEnglish(program?.final_quiz_title),
       ar: program?.final_quiz_title?.ar || '',
-      nl: program?.final_quiz_title?.nl || '',
     },
     final_quiz_pass_percentage:
       program?.final_quiz_pass_percentage != null ? String(program.final_quiz_pass_percentage) : '',
@@ -162,7 +153,6 @@ function mapProgramToFormData(program) {
     category_name:
       program?.category?.name?.en ||
       program?.category?.name?.ar ||
-      program?.category?.name?.nl ||
       program?.category?.name ||
       titleFromSlug(program?.category?.slug) ||
       '',
@@ -173,7 +163,6 @@ function buildProgramPayload(formData) {
   const finalQuizTitle = {
     en: formData.final_quiz_title?.en || '',
     ar: formData.final_quiz_title?.ar || '',
-    nl: formData.final_quiz_title?.nl || '',
   }
   const finalQuizPassPercentage =
     formData.final_quiz_pass_percentage === ''
@@ -189,37 +178,30 @@ function buildProgramPayload(formData) {
     title: {
       en: formData.title?.en || '',
       ar: formData.title?.ar || '',
-      nl: formData.title?.nl || '',
     },
     short_description: {
       en: formData.short_description?.en || '',
       ar: formData.short_description?.ar || '',
-      nl: formData.short_description?.nl || '',
     },
     overview: {
       en: formData.overview?.en || '',
       ar: formData.overview?.ar || '',
-      nl: formData.overview?.nl || '',
     },
     outcomes: {
       en: formData.outcomes?.en || '',
       ar: formData.outcomes?.ar || '',
-      nl: formData.outcomes?.nl || '',
     },
     target_audience: {
       en: formData.target_audience?.en || '',
       ar: formData.target_audience?.ar || '',
-      nl: formData.target_audience?.nl || '',
     },
     entry_requirements: {
       en: formData.entry_requirements?.en || '',
       ar: formData.entry_requirements?.ar || '',
-      nl: formData.entry_requirements?.nl || '',
     },
     duration: {
       en: sanitizeLocalizedValue(formData.duration?.en),
       ar: sanitizeLocalizedValue(formData.duration?.ar),
-      nl: sanitizeLocalizedValue(formData.duration?.nl),
     },
     fees: formData.fees === '' ? 0 : Number(formData.fees),
     currency: formData.currency || 'EUR',
@@ -229,7 +211,6 @@ function buildProgramPayload(formData) {
     intro_text: {
       en: formData.intro_text?.en || '',
       ar: formData.intro_text?.ar || '',
-      nl: formData.intro_text?.nl || '',
     },
     ...(hasAnyLocalizedValue(finalQuizTitle) ? { final_quiz_title: finalQuizTitle } : {}),
     ...(finalQuizPassPercentage != null
@@ -244,7 +225,7 @@ function buildProgramPayload(formData) {
 }
 
 function LanguageTabs({ activeLanguage, onChange }) {
-  const languages = ['en', 'ar', 'nl']
+  const languages = ['en', 'ar']
 
   return (
     <div className="inline-flex rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-1">
@@ -368,7 +349,7 @@ function SnapshotCard({ copy }) {
 
 function PricingSnapshotCard({ formData, copy }) {
   const finalQuizTitle =
-    formData.final_quiz_title?.en || formData.final_quiz_title?.ar || formData.final_quiz_title?.nl
+    formData.final_quiz_title?.en || formData.final_quiz_title?.ar
 
   return (
     <Card>
@@ -1207,150 +1188,6 @@ export default function ProgramBuilderPage() {
         ],
       }
     }
-    if (language === 'nl') {
-      return {
-        editProgram: 'Programma bewerken',
-        createProgram: 'Programma maken',
-        breadcrumbAdmin: 'Beheer',
-        breadcrumbPrograms: 'Programma\'s',
-        pageSubtitle: 'Beheer trainingsinhoud, prijzen, media en publicatie-instellingen.',
-        backToPrograms: 'Terug naar programma\'s',
-        saving: 'Opslaan...',
-        saveChanges: 'Wijzigingen opslaan',
-        saveAndPublish: 'Opslaan en publiceren',
-        cannotActivate: 'Een governed pakket kan hier niet worden geactiveerd: activering vereist contentstatus "published", en alleen Pakket publiceren op het AI-tabblad zet die.',
-        createAndPublish: 'Maken en publiceren',
-        loadingProgramDetails: 'Programmadata laden...',
-        loadProgramError: 'Programmadata laden mislukt.',
-        createNoIdError: 'Programma is aangemaakt maar er is geen ID teruggekomen.',
-        persistPublicationError: 'Publicatiestatus kon niet worden opgeslagen. Probeer opnieuw.',
-        persistFeaturedError: 'Uitgelichte status kon niet worden opgeslagen. Probeer opnieuw.',
-        saveFailed: 'Programmawijzigingen opslaan mislukt.',
-        savedSuccess: 'Programmawijzigingen succesvol opgeslagen.',
-        createdSuccess: 'Programma succesvol aangemaakt.',
-        publishUpdatedSuccess:
-          'Programma succesvol opgeslagen en gepubliceerd (Actief en Uitgelicht).',
-        publishCreatedSuccess:
-          'Programma succesvol aangemaakt en gepubliceerd (Actief en Uitgelicht).',
-        untitledProgram: 'Programma zonder titel',
-        programCategory: 'Programmacategorie',
-        featured: 'Uitgelicht',
-        standard: 'Standaard',
-        active: 'Actief',
-        inactive: 'Inactief',
-        yes: 'Ja',
-        no: 'Nee',
-        iiPoints: 'II-punten',
-        settingsSnapshot: 'Instellingenoverzicht',
-        stateSnapshot: 'Statusoverzicht',
-        lastEdited: 'Laatst bewerkt',
-        todayTime: 'Vandaag, 14:22',
-        visibility: 'Zichtbaarheid',
-        draft: 'Concept',
-        fees: 'Kosten',
-        currency: 'Valuta',
-        pricePoints: 'Prijspunten',
-        status: 'Status',
-        loaded: 'Geladen',
-        notAvailable: '-',
-        pricing: 'Prijzen',
-        media: 'Media',
-        programIdentity: 'Programma-identiteit',
-        category: 'Categorie',
-        selectCategory: 'Selecteer categorie',
-        admissionRoute: 'Toelatingsroute',
-        diplomaAdmissionRule: 'Professioneel diploma: alleen beschikbaar na verificatie van een bachelor/licentie/gelijkwaardig diploma.',
-        masterAdmissionRule: 'Professionele master: alleen beschikbaar na verificatie van een bachelor/licentie en een academisch diploma.',
-        doctorateAdmissionRule: 'Professioneel doctoraat: alleen beschikbaar na verificatie van een bachelor/licentie, academisch diploma en academische master.',
-        generalCatalogueRule: 'De categorie bepaalt automatisch het programmatype en de doelgroep. De toelatingsroute kan niet handmatig worden gewijzigd.',
-        categoryFallbackPrefix: 'Categorie',
-        programTitleRequired: 'Programmatitel *',
-        programTitlePlaceholder: 'bijv. Master of Advanced Fiqh Studies',
-        shortDescription: 'Korte omschrijving',
-        shortDescriptionPlaceholder: 'Geef een korte samenvatting van de programmalijnen...',
-        introDetails: 'Introductiedetails',
-        duration: 'Duur',
-        durationPlaceholder: 'bijv. 24 maanden / voltijd',
-        introText: 'Introductietekst',
-        introTextPlaceholder: 'Geef meer details over het programma...',
-        programNarrative: 'Programma-inhoud',
-        overviewRequired: 'Overzicht *',
-        overviewPlaceholder: 'Geef een uitgebreid programmaoverzicht...',
-        learningOutcomesRequired: 'Leerdoelen *',
-        learningOutcomesPlaceholder: 'Beschrijf de belangrijkste leerresultaten...',
-        learnerFit: 'Doelgroepfit',
-        targetAudienceRequired: 'Doelgroep *',
-        targetAudiencePlaceholder: 'Beschrijf het ideale profiel van de deelnemer...',
-        entryRequirementsRequired: 'Toelatingseisen *',
-        entryRequirementsPlaceholder: 'Specificeer vereisten en benodigde documenten...',
-        tuitionAndCurrency: 'Collegegeld en valuta',
-        feesRequired: 'Kosten *',
-        feesPlaceholder: '499.00',
-        currencyRequired: 'Valuta *',
-        currencyEuro: 'EUR - Euro',
-        currencyUsd: 'USD - Amerikaanse dollar',
-        currencyGbp: 'GBP - Britse pond',
-        internalPointsPricing: 'Interne puntenprijzen',
-        pricePointsRequired: 'Prijspunten *',
-        pricePointsPlaceholder: '500',
-        pointsPricingHint: 'Programma\'s kunnen geprijsd worden in institutionele punten naast valuta.',
-        finalQuizSettings: 'Eindquizinstellingen',
-        finalQuizTitle: 'Titel eindquiz',
-        finalQuizTitlePlaceholder: 'Strategic Leadership Final Assessment',
-        finalQuizPassPercentage: 'Slaagpercentage eindquiz',
-        finalQuizPassPercentagePlaceholder: '70',
-        finalQuizDurationMinutes: 'Eindquizduur (minuten)',
-        finalQuizDurationMinutesPlaceholder: '30',
-        minutesShort: 'min',
-        finalQuizSettingsHint:
-          'Het programma bepaalt de titel, slaaggrens en duur van de eindquiz. De vraagbanken per sectie bepalen hoeveel vragen per poging worden bijgedragen.',
-        currencyPrice: 'Prijs in valuta',
-        pointsPrice: 'Prijs in punten',
-        pricingGuidance: 'Prijsrichtlijn',
-        pricingGuidanceBody:
-          'Het instituut werkt met een dubbel prijsmodel: betaling via valuta of via institutionele punten (II-punten).',
-        featuredImage: 'Uitgelichte afbeelding',
-        recommended: 'Aanbevolen',
-        imageResolution: '1920×1080',
-        imageUrlSource: 'Afbeelding-URL',
-        imageUrlPlaceholder: 'https://images.unsplash.com/photo-...',
-        replace: 'Vervangen',
-        remove: 'Verwijderen',
-        introVideo: 'Introvideo',
-        previewVideo: 'Videovoorbeeld',
-        introVideoUrl: 'Introvideo-URL',
-        introVideoUrlPlaceholder: 'https://youtube.com/...',
-        videoTip: 'Video verhoogt betrokkenheid. Houd de intro bij voorkeur korter dan 2 minuten.',
-        mediaCurationTips: 'Mediatips',
-        mediaTipOne: 'Gebruik hoge resolutie beelden met een professionele uitstraling.',
-        mediaTipTwo: 'Vermijd generieke of lage kwaliteit stockfoto\'s.',
-        mediaTipThree: 'Zorg waar nodig voor ondertiteling of toelichting bij video.',
-        featuredProgram: 'Uitgelicht programma',
-        featuredProgramDescription:
-          'Uitgelichte programma\'s krijgen voorrang in prominente catalogusblokken.',
-        publicationStatus: 'Publicatiestatus',
-        activeProgram: 'Actief programma',
-        activeProgramDescription:
-          'Inactieve programma\'s blijven zichtbaar in de admin en zijn verborgen voor publieke weergave.',
-        publicationSummary: 'Publicatieoverzicht',
-        loadedFromApi: 'Geladen uit API',
-        readyToPublish: 'Klaar om te publiceren',
-        publishFootnote:
-          'Inactieve programma\'s blijven zichtbaar in de admin en kunnen later opnieuw worden geactiveerd.',
-        documentation: 'Documentatie',
-        support: 'Support',
-        systemStatus: 'Systeemstatus',
-        footerCopyright: '© 2026 International Commission for the Protection of Civilians',
-        tabs: [
-          { key: 'basic-info', label: 'Basisinfo' },
-          { key: 'academic-content', label: 'Trainingsinhoud' },
-          { key: 'pricing', label: 'Prijzen' },
-          { key: 'media', label: 'Media' },
-          { key: 'publish', label: 'Publiceren' },
-          { key: 'ai-package', label: 'AI-pakket' },
-        ],
-      }
-    }
     return {
       editProgram: 'Edit Program',
       createProgram: 'Create Program',
@@ -1519,7 +1356,7 @@ export default function ProgramBuilderPage() {
   }, [copy.tabs, copy.finalQuizSettings])
 
   const [activeLanguage, setActiveLanguage] = useState(
-    language === 'ar' || language === 'nl' ? language : 'en'
+    language === 'ar' ? language : 'en'
   )
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -1534,20 +1371,20 @@ export default function ProgramBuilderPage() {
   const [formData, setFormData] = useState({
     category_id: '',
     category_name: '',
-    title: { en: '', ar: '', nl: '' },
-    short_description: { en: '', ar: '', nl: '' },
-    overview: { en: '', ar: '', nl: '' },
-    outcomes: { en: '', ar: '', nl: '' },
-    target_audience: { en: '', ar: '', nl: '' },
-    entry_requirements: { en: '', ar: '', nl: '' },
-    duration: { en: '', ar: '', nl: '' },
+    title: { en: '', ar: '' },
+    short_description: { en: '', ar: '' },
+    overview: { en: '', ar: '' },
+    outcomes: { en: '', ar: '' },
+    target_audience: { en: '', ar: '' },
+    entry_requirements: { en: '', ar: '' },
+    duration: { en: '', ar: '' },
     fees: '',
     currency: 'EUR',
     price_points: '',
     featured_image: '',
     intro_video_url: '',
-    intro_text: { en: '', ar: '', nl: '' },
-    final_quiz_title: { en: '', ar: '', nl: '' },
+    intro_text: { en: '', ar: '' },
+    final_quiz_title: { en: '', ar: '' },
     final_quiz_pass_percentage: '',
     final_quiz_duration_minutes: '',
     is_featured: false,

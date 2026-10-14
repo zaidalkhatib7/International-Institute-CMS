@@ -28,14 +28,6 @@ const copyByLanguage = {
     reference: 'Reference', applicant: 'Applicant', pathway: 'Pathway and level', status: 'Status', completeness: 'Completeness', updated: 'Last update', actions: 'Action', open: 'Open case',
     empty: 'No applications match the current filters.', emptyHint: 'Clear filters or search by applicant name, email, or case reference.', records: 'applications', page: 'Page', of: 'of', clear: 'Clear filters', priorities: 'Jump to a priority queue', all: 'All applications', loadError: 'Unable to load RPL applications.',
   },
-  nl: {
-    title: 'RPL-aanvragen', description: 'Beheer het RPL-traject van intake en administratieve controle tot beoordeling en besluit.',
-    search: 'Zoek op referentie, aanvrager of e-mail...', allStatuses: 'Alle statussen', refresh: 'Vernieuwen',
-    total: 'Totaal aanvragen', waiting: 'Wacht op beoordeling', verification: 'Verificatie', assessment: 'Beoordeling',
-    queue: 'RPL-werklijst', queueDescription: 'Actuele RPL-dossiers met status en compleetheid.',
-    reference: 'Referentie', applicant: 'Aanvrager', pathway: 'Traject en niveau', status: 'Status', completeness: 'Compleetheid', updated: 'Laatst bijgewerkt', actions: 'Actie', open: 'Dossier openen',
-    empty: 'Geen aanvragen komen overeen met de filters.', emptyHint: 'Wis de filters of zoek op naam, e-mail of dossierreferentie.', records: 'aanvragen', page: 'Pagina', of: 'van', clear: 'Filters wissen', priorities: 'Ga naar een prioriteitslijst', all: 'Alle aanvragen', loadError: 'De RPL-aanvragen konden niet worden geladen.',
-  },
 }
 
 function applicantOf(row) {

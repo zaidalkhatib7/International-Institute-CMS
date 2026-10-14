@@ -77,27 +77,6 @@ const COPY = {
     deleteActivityConfirm: 'Delete this activity? Refused if learners have already submitted to it.',
     newActivityTitle: 'New activity',
   },
-  nl: {
-    title: 'Cursusinhoud',
-    subtitle: 'Kies een cursus om de volledige structuur te zien: eenheden, lessen, opdrachten en de omvang van de vragenbank — alles te openen en te bewerken.',
-    program: 'Cursus',
-    choose: '— kies een cursus —',
-    pickFirst: 'Kies een cursus om de inhoud te zien.',
-    loading: 'Laden…',
-    units: 'Eenheden', lessons: 'Lessen', activities: 'Opdrachten', questions: 'Vragen',
-    editUnit: 'Eenheid bewerken', editLesson: 'Les bewerken', openBank: 'Vragenbank openen',
-    noLessons: 'Deze eenheid heeft geen lessen.',
-    noActivities: 'Geen opdrachten bij deze les.',
-    activityTitle: 'Titel van de opdracht', instructions: 'Instructies',
-    maxScore: 'Maximale score', passScore: 'Slaagscore',
-    save: 'Opdracht opslaan', saving: 'Opslaan…', saved: 'Opgeslagen.',
-    chars: 'tekens', empty: 'leeg', thin: 'dun',
-    activityNote: 'Opdrachten waren tot nu toe niet te bekijken of te bewerken — alleen gegenereerd en geteld. Bewerk ze hier.',
-    addActivity: 'Opdracht toevoegen',
-    deleteActivity: 'Verwijderen',
-    deleteActivityConfirm: 'Deze opdracht verwijderen? Geweigerd als cursisten al hebben ingeleverd.',
-    newActivityTitle: 'Nieuwe opdracht',
-  },
 }
 
 /** Body length is a review signal: a 200-character "lesson" is not a lesson. */
@@ -108,10 +87,19 @@ function lengthBadge(chars, copy) {
   return { variant: 'neutral', label: `${chars} ${copy.chars}` }
 }
 
+/*
+ * The editor holds the two platform languages and nothing else. Loading the stored
+ * object whole re-sent every key it carried on each save, including a Dutch one
+ * (Dutch was removed on 13 Oct 2026).
+ */
+function arEn(value) {
+  return { en: value?.en ?? '', ar: value?.ar ?? '' }
+}
+
 function ActivityEditor({ activity, copy, language, onSaved, onDeleted }) {
   const [form, setForm] = useState({
-    title: activity.title || {},
-    instructions: activity.instructions || {},
+    title: arEn(activity.title),
+    instructions: arEn(activity.instructions),
     max_score: activity.max_score,
     pass_score: activity.pass_score,
   })

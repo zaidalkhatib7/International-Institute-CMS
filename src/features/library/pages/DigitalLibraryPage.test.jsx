@@ -5,6 +5,7 @@ import {
   fetchLibraryCategories,
   fetchLibraryResource,
   fetchLibraryResources,
+  updateLibraryCategory,
 } from '../services/libraryService'
 
 vi.mock('../services/libraryService', () => ({
@@ -65,5 +66,30 @@ describe('DigitalLibraryPage', () => {
     expect(await screen.findByRole('dialog', { name: 'Manage versions: RPL Evidence Verification Guide' })).toBeInTheDocument()
     expect(screen.getByText('rpl-evidence-guide-v2.pdf')).toBeInTheDocument()
     expect(screen.getByText('Published version')).toBeInTheDocument()
+  })
+
+  it('edits a category in Arabic and English only, and never sends a stored nl back', async () => {
+    fetchLibraryCategories.mockResolvedValue({
+      data: [{
+        id: 3,
+        slug: 'rpl-standards',
+        name: { en: 'RPL standards', ar: 'معايير RPL', nl: 'RPL-normen' },
+        description: { en: 'Governed standards', ar: 'معايير معتمدة', nl: 'Beheerde normen' },
+        is_active: true,
+      }],
+    })
+    render(<DigitalLibraryPage />)
+
+    fireEvent.click(await screen.findByRole('tab', { name: /Categories/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }))
+    expect(document.body.textContent).not.toMatch(/Dutch/)
+    fireEvent.submit(document.getElementById('library-category-form'))
+
+    await waitFor(() => expect(updateLibraryCategory).toHaveBeenCalledTimes(1))
+    const [id, payload] = updateLibraryCategory.mock.calls[0]
+    expect(id).toBe(3)
+    expect(payload.name).toEqual({ en: 'RPL standards', ar: 'معايير RPL' })
+    expect(payload.description).toEqual({ en: 'Governed standards', ar: 'معايير معتمدة' })
+    expect(JSON.stringify(payload)).not.toContain('"nl"')
   })
 })

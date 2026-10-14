@@ -163,3 +163,30 @@ describe('ProgramContentPage — activity add and delete', () => {
     expect(mocks.deleteActivity).not.toHaveBeenCalled()
   })
 })
+
+describe('ProgramContentPage — activity save sends Arabic and English only', () => {
+  it('does not send back a Dutch key the stored activity still carries', async () => {
+    mocks.updateActivity.mockResolvedValue({})
+
+    await renderWithCourse(tree([
+      {
+        id: 4,
+        title: { nl: 'Opdracht 1', en: 'Task one' },
+        instructions: { nl: 'Schrijf een verslag.', ar: 'اكتب تقريرًا.' },
+        max_score: 100,
+        pass_score: 60,
+        is_active: true,
+      },
+    ]))
+
+    fireEvent.click(await screen.findByRole('button', { name: /Save activity|حفظ النشاط/ }))
+
+    await waitFor(() => expect(mocks.updateActivity).toHaveBeenCalled())
+    const [id, payload] = mocks.updateActivity.mock.calls[0]
+
+    expect(id).toBe(4)
+    expect(JSON.stringify(payload)).not.toContain('"nl"')
+    expect(payload.title).toEqual({ en: 'Task one', ar: '' })
+    expect(payload.instructions).toEqual({ en: '', ar: 'اكتب تقريرًا.' })
+  })
+})

@@ -25,11 +25,6 @@ const copyByLanguage = {
     application: 'RPL case', chooseApplication: 'Select a case to manage its evidence', allEvidence: 'All evidence (read only)', refresh: 'Refresh',
     total: 'Total evidence', verified: 'Verified', review: 'Under review', clarification: 'Needs clarification', loadError: 'Unable to load the evidence center.',
   },
-  nl: {
-    title: 'Bewijs & Verificatie', description: 'Een centrale werkruimte voor upload, voorbeeld en verificatie van professioneel bewijs in RPL-dossiers.',
-    application: 'RPL-dossier', chooseApplication: 'Selecteer een dossier om bewijs te beheren', allEvidence: 'Al het bewijs (alleen lezen)', refresh: 'Vernieuwen',
-    total: 'Totaal bewijs', verified: 'Geverifieerd', review: 'In beoordeling', clarification: 'Toelichting nodig', loadError: 'Kan het bewijscentrum niet laden.',
-  },
 }
 
 function caseLabel(application) {

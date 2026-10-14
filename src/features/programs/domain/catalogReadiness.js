@@ -51,23 +51,6 @@ export const READINESS_LABELS = {
     competency_mapping: "Competency mapping",
     rpl_pathway_mapping: "RPL pathway mapping",
   },
-  nl: {
-    classification: "Classificatie",
-    title_translations: "Titelvertalingen",
-    summary_translations: "Samenvattingsvertalingen",
-    objective_translations: "Doelvertalingen",
-    knowledge: "Kennis",
-    skills: "Vaardigheden",
-    professional_behaviours: "Professioneel gedrag",
-    abilities: "Vermogens",
-    performance_indicators: "Prestatie-indicatoren",
-    outcomes: "Uitkomsten",
-    scientific_material: "Leermateriaal",
-    question_bank: "Vragenbank",
-    passing_score: "Slaagscore",
-    competency_mapping: "Competentiekoppeling",
-    rpl_pathway_mapping: "RPL-trajectkoppeling",
-  },
 };
 
 /*

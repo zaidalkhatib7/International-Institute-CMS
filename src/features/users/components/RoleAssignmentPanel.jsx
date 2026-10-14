@@ -44,16 +44,6 @@ const COPY = {
     none: 'No roles assigned.',
     permissions: 'permissions',
   },
-  nl: {
-    title: 'Rollen en rechten',
-    subtitle: 'Rollen bepalen wat dit account mag. Elke wijziging wordt op uw naam vastgelegd.',
-    save: 'Rollen opslaan',
-    saving: 'Opslaan…',
-    saved: 'Rollen bijgewerkt.',
-    replaceWarning: 'Opslaan vervangt de rollen volledig: wat niet is aangevinkt, wordt verwijderd.',
-    none: 'Geen rollen toegewezen.',
-    permissions: 'rechten',
-  },
 }
 
 export default function RoleAssignmentPanel({ user, language = 'en', onSaved }) {

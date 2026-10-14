@@ -239,101 +239,9 @@ const copies = {
     resolved: "Resolved",
     closed: "Closed",
   },
-  nl: {
-    title: "Support en communicatie",
-    description:
-      "Eén operationeel centrum voor tickets, SLA-bewaking, FAQ’s en institutionele aankondigingen.",
-    tickets: "Supporttickets",
-    knowledge: "Kennisbank",
-    announcements: "Aankondigingen",
-    newFaq: "Nieuwe FAQ",
-    newAnnouncement: "Nieuwe aankondiging",
-    search: "Zoek nummer, onderwerp of beschrijving…",
-    allStatuses: "Alle statussen",
-    allPriorities: "Alle prioriteiten",
-    overdueOnly: "Alleen te laat",
-    apply: "Toepassen",
-    ticket: "Ticket",
-    requester: "Aanvrager",
-    category: "Categorie",
-    priority: "Prioriteit",
-    sla: "SLA-deadline",
-    status: "Status",
-    actions: "Acties",
-    open: "Openen",
-    total: "Totaal tickets",
-    overdue: "Te laat",
-    unassigned: "Niet toegewezen",
-    firstResponse: "Overschrijding eerste reactie",
-    empty: "Geen supporttickets gevonden.",
-    details: "Ticketwerkruimte",
-    assignment: "Toewijzing en workflow",
-    assignedTo: "Gebruikers-ID medewerker",
-    saveWorkflow: "Workflow opslaan",
-    conversation: "Gesprek",
-    internal: "Interne notitie",
-    reply: "Antwoord",
-    replyPlaceholder: "Schrijf een duidelijk en behulpzaam antwoord…",
-    mediaIds: "Media-ID’s bijlagen (kommagescheiden)",
-    send: "Versturen",
-    close: "Sluiten",
-    saving: "Opslaan…",
-    success: "Supportproces bijgewerkt.",
-    faqCategories: "FAQ-categorieën",
-    addCategory: "Categorie toevoegen",
-    categoryNameEn: "Categorienaam in het Engels",
-    categoryNameAr: "Categorienaam in het Arabisch",
-    slug: "Slug",
-    sortOrder: "Sorteervolgorde",
-    active: "Actief",
-    save: "Opslaan",
-    edit: "Bewerken",
-    delete: "Verwijderen",
-    questionEn: "Vraag in het Engels",
-    questionAr: "Vraag in het Arabisch",
-    answerEn: "Antwoord in het Engels",
-    answerAr: "Antwoord in het Arabisch",
-    publishStatus: "Publicatiestatus",
-    draft: "Concept",
-    published: "Gepubliceerd",
-    archived: "Gearchiveerd",
-    question: "Vraag",
-    announcementTitleEn: "Titel in het Engels",
-    announcementTitleAr: "Titel in het Arabisch",
-    announcementBodyEn: "Tekst in het Engels",
-    announcementBodyAr: "Tekst in het Arabisch",
-    audienceRoles: "Doelgroeprollen (kommagescheiden)",
-    severity: "Ernst",
-    startsAt: "Start op",
-    endsAt: "Eindigt op",
-    info: "Informatie",
-    successSeverity: "Succes",
-    warning: "Waarschuwing",
-    critical: "Kritiek",
-    titleColumn: "Titel",
-    window: "Weergaveperiode",
-    required: "Vul alle verplichte velden in.",
-    confirmDelete: "Verwijderen bevestigen",
-    deleteHint: "Dit record wordt definitief verwijderd.",
-    previous: "Vorige",
-    next: "Volgende",
-    low: "Laag",
-    normal: "Normaal",
-    high: "Hoog",
-    urgent: "Urgent",
-    in_progress: "In behandeling",
-    waiting_on_user: "Wacht op gebruiker",
-    resolved: "Opgelost",
-    closed: "Gesloten",
-  },
 };
 
 Object.assign(copies.ar, {
-  categoryNameNl: "اسم التصنيف بالهولندية",
-  questionNl: "السؤال بالهولندية",
-  answerNl: "الإجابة بالهولندية",
-  announcementTitleNl: "عنوان الإعلان بالهولندية",
-  announcementBodyNl: "النص بالهولندية",
   system: "النظام",
   general: "عام",
   account: "الحساب",
@@ -344,11 +252,6 @@ Object.assign(copies.ar, {
   technical: "تقني",
 });
 Object.assign(copies.en, {
-  categoryNameNl: "Category name in Dutch",
-  questionNl: "Question in Dutch",
-  answerNl: "Answer in Dutch",
-  announcementTitleNl: "Announcement title in Dutch",
-  announcementBodyNl: "Body in Dutch",
   system: "System",
   general: "General",
   account: "Account",
@@ -358,21 +261,6 @@ Object.assign(copies.en, {
   certificate: "Certificates",
   technical: "Technical",
 });
-Object.assign(copies.nl, {
-  categoryNameNl: "Categorienaam in het Nederlands",
-  questionNl: "Vraag in het Nederlands",
-  answerNl: "Antwoord in het Nederlands",
-  announcementTitleNl: "Titel in het Nederlands",
-  announcementBodyNl: "Tekst in het Nederlands",
-  system: "Systeem",
-  general: "Algemeen",
-  account: "Account",
-  learning: "Leren",
-  finance: "Financiën",
-  rpl: "EVC (RPL)",
-  certificate: "Certificaten",
-  technical: "Technisch",
-});
 
 const emptyFaq = {
   id: null,
@@ -380,10 +268,8 @@ const emptyFaq = {
   slug: "",
   question_en: "",
   question_ar: "",
-  question_nl: "",
   answer_en: "",
   answer_ar: "",
-  answer_nl: "",
   status: "draft",
   sort_order: 0,
 };
@@ -392,7 +278,6 @@ const emptyFaqCategory = {
   slug: "",
   name_en: "",
   name_ar: "",
-  name_nl: "",
   sort_order: 0,
   is_active: true,
 };
@@ -400,10 +285,8 @@ const emptyAnnouncement = {
   id: null,
   title_en: "",
   title_ar: "",
-  title_nl: "",
   body_en: "",
   body_ar: "",
-  body_nl: "",
   audience_roles: "",
   severity: "info",
   status: "draft",
@@ -431,10 +314,8 @@ function mapFaq(item = {}) {
     slug: item.slug || "",
     question_en: item.question?.en || "",
     question_ar: item.question?.ar || "",
-    question_nl: item.question?.nl || "",
     answer_en: item.answer?.en || "",
     answer_ar: item.answer?.ar || "",
-    answer_nl: item.answer?.nl || "",
     status: item.status || "draft",
     sort_order: item.sort_order || 0,
   };
@@ -445,7 +326,6 @@ function mapFaqCategory(item = {}) {
     slug: item.slug || "",
     name_en: item.name?.en || "",
     name_ar: item.name?.ar || "",
-    name_nl: item.name?.nl || "",
     sort_order: item.sort_order || 0,
     is_active: item.is_active !== false,
   };
@@ -455,10 +335,8 @@ function mapAnnouncement(item = {}) {
     id: item.id || null,
     title_en: item.title?.en || "",
     title_ar: item.title?.ar || "",
-    title_nl: item.title?.nl || "",
     body_en: item.body?.en || "",
     body_ar: item.body?.ar || "",
-    body_nl: item.body?.nl || "",
     audience_roles: item.audience?.roles?.join(", ") || "",
     severity: item.severity || "info",
     status: item.status || "draft",
@@ -624,7 +502,6 @@ export default function SupportOperationsPage() {
         name: {
           en: faqCategoryForm.name_en,
           ar: faqCategoryForm.name_ar,
-          nl: faqCategoryForm.name_nl,
         },
         sort_order: Number(faqCategoryForm.sort_order),
         is_active: faqCategoryForm.is_active,
@@ -657,12 +534,10 @@ export default function SupportOperationsPage() {
         question: {
           en: faqForm.question_en,
           ar: faqForm.question_ar,
-          nl: faqForm.question_nl,
         },
         answer: {
           en: faqForm.answer_en,
           ar: faqForm.answer_ar,
-          nl: faqForm.answer_nl,
         },
         status: faqForm.status,
         sort_order: Number(faqForm.sort_order),
@@ -690,12 +565,10 @@ export default function SupportOperationsPage() {
         title: {
           en: announcementForm.title_en,
           ar: announcementForm.title_ar,
-          nl: announcementForm.title_nl,
         },
         body: {
           en: announcementForm.body_en,
           ar: announcementForm.body_ar,
-          nl: announcementForm.body_nl,
         },
         audience: {
           roles: announcementForm.audience_roles
@@ -1463,16 +1336,6 @@ export default function SupportOperationsPage() {
               }))
             }
           />
-          <Input
-            label={copy.categoryNameNl}
-            value={faqCategoryForm.name_nl}
-            onChange={(event) =>
-              setFaqCategoryForm((current) => ({
-                ...current,
-                name_nl: event.target.value,
-              }))
-            }
-          />
           <label className="flex items-center gap-2 text-sm font-semibold">
             <input
               type="checkbox"
@@ -1560,16 +1423,6 @@ export default function SupportOperationsPage() {
               }))
             }
           />
-          <Input
-            label={copy.questionNl}
-            value={faqForm.question_nl}
-            onChange={(event) =>
-              setFaqForm((current) => ({
-                ...current,
-                question_nl: event.target.value,
-              }))
-            }
-          />
           <Textarea
             label={copy.answerEn}
             required
@@ -1589,16 +1442,6 @@ export default function SupportOperationsPage() {
               setFaqForm((current) => ({
                 ...current,
                 answer_ar: event.target.value,
-              }))
-            }
-          />
-          <Textarea
-            label={copy.answerNl}
-            value={faqForm.answer_nl}
-            onChange={(event) =>
-              setFaqForm((current) => ({
-                ...current,
-                answer_nl: event.target.value,
               }))
             }
           />
@@ -1678,16 +1521,6 @@ export default function SupportOperationsPage() {
               }))
             }
           />
-          <Input
-            label={copy.announcementTitleNl}
-            value={announcementForm.title_nl}
-            onChange={(event) =>
-              setAnnouncementForm((current) => ({
-                ...current,
-                title_nl: event.target.value,
-              }))
-            }
-          />
           <Textarea
             label={copy.announcementBodyEn}
             required
@@ -1707,16 +1540,6 @@ export default function SupportOperationsPage() {
               setAnnouncementForm((current) => ({
                 ...current,
                 body_ar: event.target.value,
-              }))
-            }
-          />
-          <Textarea
-            label={copy.announcementBodyNl}
-            value={announcementForm.body_nl}
-            onChange={(event) =>
-              setAnnouncementForm((current) => ({
-                ...current,
-                body_nl: event.target.value,
               }))
             }
           />

@@ -73,28 +73,6 @@ const COPY = {
     draftWarning: 'draft — not yet enrollable',
     computedNote: 'This is a computed plan and has not been saved. Approval remains the assessor’s decision through the governed route.',
   },
-  nl: {
-    title: 'Gap Closure Engine',
-    subtitle: 'De pakketten die de gevonden hiaten sluiten. Het aantal volgt de hiaten, nooit het doelniveau.',
-    load: 'Bereken het plan',
-    loading: 'Berekenen…',
-    progress: 'Voortgang naar het doelniveau',
-    ofGaps: 'van de hiaten kan de bibliotheek sluiten',
-    recommended: 'Aanbevolen pakketten',
-    closes: 'sluit',
-    competency: 'competentie',
-    noGaps: 'Nog geen hiaten vastgelegd voor deze zaak.',
-    uncovered: 'Hiaten die geen pakket dekt',
-    uncoveredHint: 'De competentie is bekend, maar niets in de bibliotheek onderwijst haar.',
-    unresolvable: 'Hiaten die niet te matchen zijn',
-    unresolvableHint: 'De standaardcompetentie is niet gekoppeld aan het centrale woordenboek.',
-    readiness: 'Waarom het plan kort kan zijn',
-    declaring: 'pakketten verklaren hun competenties',
-    declaringNone: 'pakketten verklaren er geen — onzichtbaar voor de engine',
-    mapped: 'standaardcompetenties gekoppeld aan het woordenboek',
-    draftWarning: 'concept — nog niet inschrijfbaar',
-    computedNote: 'Dit is een berekend plan en is niet opgeslagen.',
-  },
 }
 
 export default function GapClosurePanel({ applicationPublicId, language }) {

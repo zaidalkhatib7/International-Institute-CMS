@@ -55,19 +55,6 @@ const copyByLanguage = {
     section: 'Section',
     note: 'This map represents the public website information architecture only. Applicant journeys and role dashboards begin after login.',
   },
-  nl: {
-    eyebrow: 'Bezoekerservaring vóór login',
-    title: 'Architectuur van de Publieke Website',
-    description: 'Referentiekaart voor publieke ICPC-pagina’s, van de homepage tot informatie, trainingen, RPL-services en accreditatie.',
-    mainSections: 'hoofdsecties',
-    childPaths: 'subroutes',
-    start: 'Startpunt',
-    home: 'Homepage',
-    homeDescription: 'Het centrale toegangspunt voor publieke website-inhoud en kerndiensten.',
-    branches: 'Onderliggende secties',
-    section: 'Sectie',
-    note: 'Deze kaart beschrijft alleen de informatiearchitectuur van de publieke website. Aanvragerstrajecten en roldashboards beginnen na login.',
-  },
 }
 
 function SectionCard({ section, index, copy, formatNumber }) {

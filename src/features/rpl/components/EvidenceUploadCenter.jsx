@@ -85,26 +85,6 @@ const copyByLanguage = {
     statusHistory: 'Evidence status history', noHistory: 'No status changes are recorded.', loadingHistory: 'Loading history...',
     noCategories: 'No evidence categories are enabled for this standard. Configure the standard before uploading files.',
   },
-  nl: {
-    title: 'Uploadcentrum Bewijs & Verificatie', subtitle: 'Upload meerdere bestanden, vul de metadata in en dien ze in voor beoordeling in het RPL-dossier.',
-    dropTitle: 'Sleep bestanden hierheen', dropHint: 'Of kies bestanden op uw apparaat. Meerdere bestanden worden ondersteund.',
-    choose: 'Bestanden kiezen', formats: 'PDF, JPG, PNG, DOCX, XLSX, PPTX, MP4, MP3 — maximaal 50 MB per bestand.',
-    category: 'Bewijscategorie', examples: 'Voorbeelden', queue: 'Uploadwachtrij', uploadAll: 'Gereedstaande bestanden uploaden', uploading: 'Uploaden',
-    titleField: 'Bewijstitel', issuer: 'Uitgevende organisatie', issuedOn: 'Uitgiftedatum', expiresOn: 'Vervaldatum',
-    documentNumber: 'Documentnummer', verificationUrl: 'Verificatielink', description: 'Korte beschrijving', competency: 'Aangetoond vakgebied of competentie',
-    details: 'Bewijsmetadata', hideDetails: 'Metadata verbergen', remove: 'Verwijderen', retry: 'Opnieuw', pending: 'Gereed voor upload',
-    complete: 'Geüpload', failed: 'Upload mislukt', invalidType: 'Niet-ondersteund bestandstype.', tooLarge: 'Het bestand is groter dan 50 MB.',
-    savedEvidence: 'Opgeslagen bewijs', empty: 'Er is nog geen bewijs aan dit dossier toegevoegd.', preview: 'Voorbeeld', history: 'Geschiedenis', delete: 'Verwijderen',
-    review: 'Bewijs beoordelen', reason: 'Reden of beoordelingsnotitie', saveReview: 'Beoordeling opslaan', reviewSaved: 'Verificatieresultaat opgeslagen.',
-    deleteConfirm: 'Dit bewijs verwijderen? De actie blijft in de auditgeschiedenis.', deleted: 'Bewijs verwijderd.',
-    linkTitle: 'Online bewijs toevoegen', linkHint: 'LinkedIn, ORCID, Google Scholar, GitHub, YouTube of een projectpagina.',
-    link: 'Online link', addLink: 'Link toevoegen', linkSaved: 'Professionele link toegevoegd.',
-    declarationTitle: 'Slotverklaring', declarationText: 'Ik verklaar dat alle bijgevoegde documenten en informatie correct zijn en stem ermee in dat de accreditatie-instantie deze verifieert en indien nodig contact opneemt met uitgevende organisaties.',
-    declarationMethod: 'Methode toestemmingsregistratie', inPerson: 'Persoonlijk', signedDocument: 'Ondertekend document', remoteConfirmation: 'Opgenomen bevestiging op afstand', attestationReference: 'Referentie toestemmingsbewijs',
-    declarationSave: 'Verklaring opslaan', declarationSaved: 'Slotverklaring opgeslagen.', selectApplication: 'Selecteer eerst een RPL-aanvraag om bewijs te uploaden of de verklaring op te slaan.',
-    statusHistory: 'Statusgeschiedenis', noHistory: 'Er zijn geen statuswijzigingen geregistreerd.', loadingHistory: 'Geschiedenis laden...',
-    noCategories: 'Voor deze norm zijn geen bewijscategorieën ingeschakeld. Configureer de norm voordat u bestanden uploadt.',
-  },
 }
 
 function queueId() {

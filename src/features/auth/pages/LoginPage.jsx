@@ -44,29 +44,6 @@ export default function LoginPage() {
         features: ['ملفات أدلة مهنية موثقة', 'تقييم رقمي لكل معيار', 'قرارات وشهادات قابلة للتحقق'],
         levels: 'مستويات الاعتماد',
       }
-      : language === 'nl'
-      ? {
-        eyebrow: 'Beheer- en accreditatieportaal',
-        title: 'Welkom bij het ICPC-systeem',
-        subtitle: 'Log in om RPL- en professionele accreditatietrajecten te beheren.',
-        email: 'E-mailadres',
-        emailPlaceholder: 'frontend-admin@icpc.nl',
-        password: 'Wachtwoord',
-        passwordPlaceholder: 'Voer je wachtwoord in',
-        submit: 'Inloggen',
-        submitting: 'Bezig met controleren...',
-        mfaCode: 'Verificatiecode',
-        mfaCodePlaceholder: 'Voer de ontvangen code in',
-        mfaSubmit: 'Inloggen voltooien',
-        mfaHint: 'Er is een multi-factor verificatiecode naar het beheerdersaccount gestuurd.',
-        error: 'Inloggen mislukt. Controleer je gegevens en probeer het opnieuw.',
-        secure: 'Beveiligde toegang voor geautoriseerde gebruikers',
-        panelTitle: 'Professionele erkenning op basis van competenties',
-        panelText:
-          'Een institutioneel platform voor de volledige RPL-cyclus: aanvraag, bewijsdossier, beoordeling, gap-analyse, accreditatiebesluit en verifieerbare certificering.',
-        features: ['Geverifieerde bewijsdossiers', 'Digitale beoordeling per criterium', 'Verifieerbare besluiten en certificaten'],
-        levels: 'Accreditatieniveaus',
-      }
       : {
         eyebrow: 'Administration & accreditation portal',
         title: 'Welcome to the ICPC system',

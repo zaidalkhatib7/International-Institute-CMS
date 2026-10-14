@@ -331,7 +331,7 @@ describe('the claimed employers on the overview', () => {
     expect(await screen.findByText(CLAIMED_EMPLOYERS_COPY.en.empty)).toBeInTheDocument()
   })
 
-  it('renders in Arabic, and in English for the NL switcher, never "undefined"', async () => {
+  it('renders in Arabic, and in English for any other language, never "undefined"', async () => {
     mocks.fetchRplApplication.mockResolvedValue({ data: application({ profile_snapshot: { work_experiences: [frozenEmployer] } }) })
     language.current = 'ar'
     const { unmount } = renderCase()

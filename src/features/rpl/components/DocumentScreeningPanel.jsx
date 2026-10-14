@@ -347,7 +347,7 @@ function EmployersCard({ screening, copy, language }) {
 }
 
 export default function DocumentScreeningPanel({ applicationId, screenings = [], loading = false, error = '', canRun = false, categories, language = 'en', onReload, onScreeningAdded, onScreeningUpdated }) {
-  // Arabic or English only; any other value (the NL switcher) reads English.
+  // Arabic or English only; any other value reads English.
   const lang = language === 'ar' ? 'ar' : 'en'
   const copy = screeningCopy(lang)
   const [selectedId, setSelectedId] = useState(null)

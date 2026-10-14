@@ -122,46 +122,6 @@ const COPY = {
       "{n} question(s) will be approved in one action. The audit trail will record that they were NOT individually reviewed. Continue?",
     approveAllDone: "{a} approved · {s} skipped as ineligible.",
   },
-  nl: {
-    title: "Vragenbank van het programma",
-    subtitle:
-      "Alle vragen van de cursus in één bank — de eenheid is een filterkolom, geen aparte container.",
-    program: "Cursus",
-    choose: "— kies een cursus —",
-    search: "Zoek in vraagtekst",
-    unit: "Eenheid",
-    allUnits: "Alle eenheden",
-    status: "Reviewstatus",
-    allStatuses: "Alle statussen",
-    total: "Vragen in de bank",
-    showing: "Getoond",
-    empty: "Deze cursus heeft nog geen vragen.",
-    noMatch: "Geen vraag voldoet aan het filter.",
-    loading: "Laden…",
-    demand: "Cognitief niveau",
-    difficulty: "Moeilijkheid",
-    outcome: "Uitkomst",
-    correct: "Juiste antwoord",
-    pickFirst: "Kies een cursus om de vragenbank te zien.",
-    review: "Beoordeling",
-    approve: "Goedkeuren",
-    reject: "Afwijzen",
-    rejectReason: "Reden voor afwijzing (optioneel, wordt vastgelegd):",
-    reviewed: "beoordeeld",
-    awaiting: "wacht op beoordeling",
-    onlyAwaiting: "Toon alleen wat op beoordeling wacht",
-    taxonomyBlocked:
-      "Goedkeuring vereist volledige taxonomie: format, context, cognitief niveau en moeilijkheid.",
-    rateLimited:
-      "Schrijflimiet bereikt (30 per minuut). Pauzeer even en ga verder — er is niets verloren.",
-    allReviewed: "Alle vragen zijn beoordeeld.",
-    approveAll: "Alle vragen goedkeuren",
-    approveAllBasis:
-      "Grondslag voor de bulkgoedkeuring (vastgelegd, minimaal 10 tekens):",
-    approveAllConfirm:
-      "{n} vraag/vragen worden in één actie goedgekeurd. In het auditspoor wordt vastgelegd dat ze NIET individueel zijn beoordeeld. Doorgaan?",
-    approveAllDone: "{a} goedgekeurd · {s} overgeslagen.",
-  },
 };
 
 const STATUS_VARIANT = {

@@ -46,7 +46,7 @@ describe('CompletenessMeter', () => {
     expect(rows).toEqual(['Personal identityAdd 1 more file(s)', 'Work experienceAdd at least one work experience to the profile', 'Final declarationAccept the declaration'])
     unmount()
 
-    for (const [language, label, action] of [['ar', 'الخبرة العملية', 'أضف خبرة عملية واحدة على الأقل إلى الملف الشخصي'], ['nl', 'Werkervaring', 'Voeg ten minste één werkervaring toe aan het profiel']]) {
+    for (const [language, label, action] of [['ar', 'الخبرة العملية', 'أضف خبرة عملية واحدة على الأقل إلى الملف الشخصي']]) {
       const view = render(<CompletenessMeter language={language} value={{ percentage: 83, categories: [], work_experience: { required: 1, provided: 0, complete: false }, declaration: { accepted: true } }} />)
       expect(screen.getAllByText(label)).toHaveLength(2)
       expect(screen.getAllByText(action)).toHaveLength(2)

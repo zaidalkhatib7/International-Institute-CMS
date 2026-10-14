@@ -166,8 +166,8 @@ describe('why the Generate-advisory button is disabled', () => {
     expect(screen.getByRole('button', { name: /Generate Gemini draft/ })).toBeDisabled()
   })
 
-  it('renders the same refusal in Dutch', async () => {
-    language.current = 'nl'
+  it('renders the same refusal in Arabic', async () => {
+    language.current = 'ar'
     renderPage(
       assessment({
         gemini_readiness: {
@@ -179,7 +179,7 @@ describe('why the Generate-advisory button is disabled', () => {
       }),
     )
 
-    expect(await screen.findByText(/nog niet elke verzonden vraag beantwoord/)).toBeInTheDocument()
+    expect(await screen.findByText(/لم يُجب المتقدم بعد عن كل الأسئلة المُرسلة/)).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('undefined')
   })
 
@@ -341,12 +341,12 @@ describe('a legacy advisory generated before the applicant answered', () => {
 })
 
 describe('the copy itself', () => {
-  it('keeps every key in all three language blocks', () => {
+  it('keeps every key in both language blocks', () => {
     const paths = (block) => Object.keys(block).sort()
 
     for (const block of [GEMINI_COPY.advisory, GEMINI_COPY.status]) {
+      expect(Object.keys(block).sort()).toEqual(['ar', 'en'])
       expect(paths(block.ar)).toEqual(paths(block.en))
-      expect(paths(block.nl)).toEqual(paths(block.en))
     }
   })
 

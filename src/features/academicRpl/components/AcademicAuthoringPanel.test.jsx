@@ -555,7 +555,7 @@ describe('provenance the reviewer has to be able to see', () => {
 })
 
 describe('the copy contract', () => {
-  it('exposes the same key set in all three languages', () => {
+  it('exposes the same key set in both languages', () => {
     const shape = (block) =>
       Object.entries(block)
         .flatMap(([key, value]) =>
@@ -564,9 +564,9 @@ describe('the copy contract', () => {
         .sort()
 
     // A whole-object fallback with no per-key rescue renders the string
-    // "undefined" for a key that exists in en and not in nl. This codebase has
-    // already shipped a blank Dutch card that way.
+    // "undefined" for a key that exists in en and not in ar. This codebase has
+    // already shipped a blank card that way.
+    expect(Object.keys(COPY).sort()).toEqual(['ar', 'en'])
     expect(shape(COPY.ar)).toEqual(shape(COPY.en))
-    expect(shape(COPY.nl)).toEqual(shape(COPY.en))
   })
 })

@@ -9,7 +9,6 @@ import { useModalDialog } from '../../../hooks/useModalDialog'
 const copy = {
   ar: { preview: 'معاينة الدليل', close: 'إغلاق المعاينة', open: 'فتح في نافذة جديدة', download: 'تنزيل', unavailable: 'لا تتوفر معاينة داخلية لهذا النوع.' },
   en: { preview: 'Evidence preview', close: 'Close preview', open: 'Open in new window', download: 'Download', unavailable: 'Inline preview is not available for this file type.' },
-  nl: { preview: 'Bewijsvoorbeeld', close: 'Voorbeeld sluiten', open: 'Openen in nieuw venster', download: 'Downloaden', unavailable: 'Voor dit bestandstype is geen ingebouwd voorbeeld beschikbaar.' },
 }
 
 export default function EvidencePreview({ evidence, language = 'en', onClose }) {

@@ -8,6 +8,7 @@ import {
   fetchSupportDashboard,
   fetchSupportTicket,
   fetchSupportTickets,
+  updateFaqCategory,
 } from '../services/supportService'
 
 vi.mock('../services/supportService', () => ({
@@ -78,5 +79,23 @@ describe('SupportOperationsPage', () => {
     await waitFor(() => expect(fetchSupportTicket).toHaveBeenCalledWith(22))
     expect(await screen.findByRole('dialog', { name: 'Ticket workspace: SUP-000022' })).toBeInTheDocument()
     expect(screen.getByText('The evidence team is reviewing the submitted document.')).toBeInTheDocument()
+  })
+
+  it('edits an FAQ category in Arabic and English only, and never sends a stored nl back', async () => {
+    fetchFaqCategories.mockResolvedValue({
+      data: [{ id: 4, slug: 'rpl', name: { en: 'RPL questions', ar: 'أسئلة RPL', nl: 'RPL-vragen' }, sort_order: 1, is_active: true }],
+    })
+    render(<SupportOperationsPage />)
+
+    fireEvent.click(await screen.findByRole('tab', { name: /Knowledge base/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /RPL questions/ }))
+    expect(document.body.textContent).not.toMatch(/Dutch/)
+    fireEvent.submit(document.getElementById('faq-category-form'))
+
+    await waitFor(() => expect(updateFaqCategory).toHaveBeenCalledTimes(1))
+    const [id, payload] = updateFaqCategory.mock.calls[0]
+    expect(id).toBe(4)
+    expect(payload.name).toEqual({ en: 'RPL questions', ar: 'أسئلة RPL' })
+    expect(JSON.stringify(payload)).not.toContain('"nl"')
   })
 })

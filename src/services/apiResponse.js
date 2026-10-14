@@ -50,18 +50,6 @@ const genericErrors = {
     conflict: 'This action conflicts with the record’s current state. Refresh and try again.',
     server: 'An unexpected server error occurred. Please try again later.',
   },
-  nl: {
-    request: 'Het verzoek kon niet worden voltooid.',
-    network: 'Kan geen verbinding maken met de server. Controleer de verbinding en probeer opnieuw.',
-    timeout: 'Het verzoek duurde langer dan verwacht. Probeer het opnieuw.',
-    unavailable: 'De dienst is tijdelijk niet beschikbaar. Probeer het over een ogenblik opnieuw.',
-    unauthorized: 'Uw sessie is verlopen. Meld u opnieuw aan.',
-    forbidden: 'U hebt geen toestemming om deze actie uit te voeren.',
-    notFound: 'Het gevraagde record kon niet worden gevonden.',
-    invalid: 'De actie kon niet worden voltooid. Controleer de gegevens en vereisten en probeer opnieuw.',
-    conflict: 'Deze actie conflicteert met de huidige status van het record. Vernieuw de pagina en probeer opnieuw.',
-    server: 'Er is een onverwachte serverfout opgetreden. Probeer het later opnieuw.',
-  },
 }
 
 /**
@@ -128,7 +116,7 @@ export function readApiError(error, fallback, language = getAdminLanguage()) {
    *
    * `if (fallback) return fallback` used to sit above this block, and since
    * practically every caller passes one, none of these were ever reachable for
-   * ar or nl. A deliberate 403 \u2014 "only the owning administrator may access this
+   * ar. A deliberate 403 \u2014 "only the owning administrator may access this
    * evaluation" \u2014 surfaced as whatever generic sentence the page happened to
    * supply, in this case "could not load assessment data", which reads like a
    * network fault and sends the reader looking in the wrong place.
@@ -151,5 +139,5 @@ export function readLocalized(value, language = 'ar') {
   if (value == null) return ''
   if (typeof value === 'string' || typeof value === 'number') return String(value)
 
-  return value?.[language] || value?.en || value?.ar || value?.nl || ''
+  return value?.[language] || value?.en || value?.ar || ''
 }

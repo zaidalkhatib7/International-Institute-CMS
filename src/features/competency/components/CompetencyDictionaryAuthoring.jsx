@@ -73,27 +73,6 @@ const COPY = {
     empty: 'The dictionary is empty. No package can declare a competency until entries exist here.',
     count: 'competencies in the dictionary',
   },
-  nl: {
-    title: 'Professioneel competentiewoordenboek',
-    subtitle: 'Een competentie aanmaken is de voorwaarde om pakketten eraan te koppelen.',
-    add: 'Competentie toevoegen',
-    code: 'Code',
-    codeHint: 'Hoofdletters en cijfers, bijv. PC-QA-01',
-    name: 'Naam',
-    definition: 'Definitie',
-    family: 'Familie',
-    group: 'Hiatengroep',
-    noGroup: 'Geen groep',
-    save: 'Opslaan',
-    saving: 'Opslaan…',
-    cancel: 'Annuleren',
-    created: 'Competentie aangemaakt.',
-    deleted: 'Competentie verwijderd.',
-    remove: 'Verwijderen',
-    confirmDelete: 'Deze competentie verwijderen? Wordt geweigerd als een programma ernaar verwijst.',
-    empty: 'Het woordenboek is leeg.',
-    count: 'competenties in het woordenboek',
-  },
 }
 
 const FAMILIES = ['general', 'technical', 'leadership', 'ethics', 'digital']

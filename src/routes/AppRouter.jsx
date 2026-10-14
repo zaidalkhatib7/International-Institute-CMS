@@ -51,7 +51,7 @@ const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'))
 
 function RouteLoadingFallback() {
   const language = getAdminLanguage()
-  const label = { ar: 'جارٍ تحميل الصفحة', en: 'Loading page', nl: 'Pagina wordt geladen' }[language]
+  const label = { ar: 'جارٍ تحميل الصفحة', en: 'Loading page' }[language]
   return (
     <div className="flex min-h-48 items-center justify-center" role="status" aria-label={label}>
       <span className="h-9 w-9 animate-spin rounded-full border-4 border-[var(--color-primary-soft)] border-t-[var(--color-primary)]" />

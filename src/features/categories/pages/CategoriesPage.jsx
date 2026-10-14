@@ -178,45 +178,6 @@ export default function CategoriesPage() {
       }
     }
 
-    if (language === 'nl') {
-      return {
-        title: 'Categorieen',
-        description: 'Beheer de catalogusstructuur van categorieen en monitor programmaverdeling.',
-        backToPrograms: 'Terug naar programma\'s',
-        totalCategories: 'Totaal categorieen',
-        activeCategories: 'Actieve categorieen',
-        mappedPrograms: 'Gekoppelde programma\'s',
-        inactiveCategories: 'Inactieve categorieen',
-        searchCategories: 'Zoek categorieen...',
-        allStatus: 'Alle statussen',
-        activeStatus: 'Actief',
-        inactiveStatus: 'Inactief',
-        sortName: 'Sorteren: Naam',
-        sortSlug: 'Sorteren: Slug',
-        sortProgramCount: 'Sorteren: Aantal programma\'s',
-        sortStatus: 'Sorteren: Status',
-        sortCreated: 'Sorteren: Aanmaakdatum',
-        asc: 'Oplopend',
-        desc: 'Aflopend',
-        category: 'Categorie',
-        slug: 'Slug',
-        programs: 'Programma\'s',
-        status: 'Status',
-        created: 'Aangemaakt',
-        actions: 'Acties',
-        loading: 'Categorieen laden...',
-        noResults: 'Geen categorieen gevonden.',
-        showing: 'Toont',
-        of: 'van',
-        filtered: 'gefilterd',
-        totalLoaded: 'Totaal geladen',
-        prev: 'Vorige',
-        next: 'Volgende',
-        programsUnit: 'programma(s)',
-        live: 'Live', rows: 'rijen', page: 'Pagina', loadFailed: 'De categorieën konden niet worden geladen.',
-      }
-    }
-
     return {
       title: 'Categories',
       description: 'Manage category catalog structure and monitor program distribution.',

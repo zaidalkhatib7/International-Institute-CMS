@@ -18,12 +18,6 @@ const footerCopy = {
     administration: 'Central administration',
     system: 'Accreditation system',
   },
-  nl: {
-    closeMenu: 'Menu sluiten',
-    close: 'Sluiten',
-    administration: 'Centraal beheer',
-    system: 'Accreditatiesysteem',
-  },
 }
 
 export default function AppSidebar({ isOpen = false, onClose }) {

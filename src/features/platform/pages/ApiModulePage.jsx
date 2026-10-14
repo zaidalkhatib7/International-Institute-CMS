@@ -108,15 +108,6 @@ const endpointLabels = {
     '/reports': ['Programme applications', 'Experts', 'CPD records', 'Audit log'],
     '/notifications': ['Notifications'],
   },
-  nl: {
-    '/content/pages': ['Pagina’s', 'Menu’s'],
-    '/content/news': ['CMS-pagina’s'],
-    '/content/experts': ['Experts', 'Expertisecategorieën', 'Consultaties'],
-    '/finance': ['Inschrijvingen'],
-    '/ai-settings': ['Auditlog'],
-    '/reports': ['Programma-aanvragen', 'Experts', 'CPD-records', 'Auditlog'],
-    '/notifications': ['Meldingen'],
-  },
 }
 
 const pageCopy = {
@@ -151,22 +142,6 @@ const pageCopy = {
     status: 'Status',
     updatedAt: 'Last update',
     contracts: 'Connected API Contracts',
-  },
-  nl: {
-    connected: 'Verbonden',
-    error: 'Fout',
-    loading: 'Verbinden',
-    apiRatio: (ok, total) => `${ok}/${total} APIs`,
-    recordsFromApi: 'Records uit de API.',
-    latestRecords: 'Laatste Records',
-    latestDescription: 'Live gegevens uit de bronnen die aan deze werkruimte zijn gekoppeld.',
-    empty: 'Er zijn geen records beschikbaar via de gekoppelde endpoints.',
-    loadingRows: 'Gegevens laden...',
-    source: 'Bron',
-    record: 'Record',
-    status: 'Status',
-    updatedAt: 'Laatste update',
-    contracts: 'Gekoppelde API-contracten',
   },
 }
 
@@ -251,88 +226,6 @@ const moduleText = {
       title: 'Messages & Notifications',
       eyebrow: 'Operational Communication',
       description: 'Notifications for the current authenticated user.',
-    },
-  },
-  nl: {
-    '/content/pages': {
-      title: 'Publieke Websitepagina’s',
-      eyebrow: 'Contentbeheer',
-      description: 'CMS-pagina’s en openbare navigatiemenu’s uit de beheer-API.',
-    },
-    '/content/news': {
-      title: 'Nieuws & Publicaties',
-      eyebrow: 'Contentbeheer',
-      description: 'De overdracht bevat nog geen apart nieuws-endpoint, daarom worden CMS-pagina’s getoond als publicatiebron.',
-    },
-    '/content/experts': {
-      title: 'Expert-netwerk',
-      eyebrow: 'Professionele Gids',
-      description: 'Experts, expertisecategorieën en consultatieaanvragen.',
-    },
-    '/rpl/applications': {
-      title: 'RPL-aanvragen',
-      eyebrow: 'RPL',
-      description: 'Programma-aanvragen zijn de huidige operationele bron voor trajectaanvragen.',
-    },
-    '/rpl/evidence': {
-      title: 'Professioneel Bewijs',
-      eyebrow: 'RPL',
-      description: 'Er is nog geen apart bewijs-endpoint; gerelateerde programma-aanvragen worden getoond.',
-    },
-    '/rpl/assessments': {
-      title: 'Professionele Beoordeling',
-      eyebrow: 'RPL',
-      description: 'Er is nog geen apart RPL-beoordelingsendpoint; aanvragen en CPD-records worden getoond.',
-    },
-    '/rpl/accreditation': {
-      title: 'Accreditatie & Certificaten',
-      eyebrow: 'RPL',
-      description: 'Aanvragen en experts worden getoond totdat specifieke RPL-certificaatcontracten beschikbaar zijn.',
-    },
-    '/rpl/appeals': {
-      title: 'Bezwaar',
-      eyebrow: 'Governance',
-      description: 'Er is nog geen apart bezwaar-endpoint; auditlogs worden getoond als governance-referentie.',
-    },
-    '/standards': {
-      title: 'Competentiestandaarden',
-      eyebrow: 'Standaarden',
-      description: 'Expertisecategorieën zijn de dichtstbijzijnde beschikbare taxonomie in de huidige API.',
-    },
-    '/assessors': {
-      title: 'Beoordelaars & Trainers',
-      eyebrow: 'Expert-netwerk',
-      description: 'Expertrecords, classificaties en consultaties.',
-    },
-    '/committees': {
-      title: 'Commissies',
-      eyebrow: 'Governance',
-      description: 'Er is nog geen commissie-endpoint; auditlogs worden getoond als governance-referentie.',
-    },
-    '/quality': {
-      title: 'Kwaliteitsborging',
-      eyebrow: 'Kwaliteit',
-      description: 'CPD-reviews en auditlogs zijn gekoppeld als beschikbare bronnen voor kwaliteitsmonitoring.',
-    },
-    '/finance': {
-      title: 'Financiën & Abonnementen',
-      eyebrow: 'Financiën',
-      description: 'De beschikbare financiële onderdelen zijn inschrijvingen en wallet-acties vanuit gebruikersbeheer.',
-    },
-    '/ai-settings': {
-      title: 'AI-assistent',
-      eyebrow: 'Systeeminstellingen',
-      description: 'Er is nog geen AI-instellingenendpoint; auditlogs worden getoond als controlebron.',
-    },
-    '/reports': {
-      title: 'Rapporten & KPI’s',
-      eyebrow: 'Analytics',
-      description: 'Live samenvattingen uit meerdere beschikbare API-bronnen.',
-    },
-    '/notifications': {
-      title: 'Berichten & Meldingen',
-      eyebrow: 'Operationele Communicatie',
-      description: 'Meldingen voor de huidige ingelogde gebruiker.',
     },
   },
 }

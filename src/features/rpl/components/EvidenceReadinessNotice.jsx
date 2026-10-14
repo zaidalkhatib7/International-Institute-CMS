@@ -16,7 +16,7 @@ import { projectEvidenceReadability } from '../domain/evidenceReadability'
  */
 
 /* eslint-disable-next-line react-refresh/only-export-components -- exported so the
-   test can prove all three language blocks expose the same key set. Copy lookup is
+   test can prove both language blocks expose the same key set. Copy lookup is
    a WHOLE-OBJECT fallback (COPY[language] || COPY.en) with no per-key rescue, so a
    key present in en and missing in ar renders the string "undefined". */
 export const COPY = {
@@ -64,29 +64,6 @@ export const COPY = {
       document_limit_reached: 'the per-request document limit was reached',
       request_size_limit_reached: 'the total request size limit was reached',
       file_unreadable: 'the stored file could not be read',
-    },
-  },
-  nl: {
-    title: 'De documenten van de aanvrager waarop deze vragen worden gebouwd',
-    disabled:
-      'Het lezen van documenten van de aanvrager staat uit in de RPL-instellingen, dus de vragen berusten alleen op de dossiermetadata en het opgegeven profiel. Er is hier niets per ongeluk achtergehouden.',
-    none: 'Er is nog geen bewijs geüpload voor dit dossier, dus de vragen berusten alleen op de dossiermetadata en het opgegeven profiel van de aanvrager.',
-    refused:
-      'Geen van de {total} geüploade documenten kan worden gelezen en het genereren wordt geweigerd. De vragen moeten uit de eigen documenten van de aanvrager komen; genereren zonder ook maar één document levert vragen op die er alleen maar zo uitzien.',
-    refusedRemedy:
-      'Vraag de aanvrager de betrokken documenten opnieuw te uploaden als PDF, PNG, JPEG, WEBP, HEIC, HEIF of platte tekst en genereer daarna.',
-    readable: '{count} van de {total} geüploade documenten worden gelezen.',
-    allReadable: 'Alle {total} geüploade documenten worden gelezen.',
-    withheldTitle: 'Achtergehouden — de analyse-engine ziet deze niet',
-    untitled: 'bewijs zonder titel',
-    note: 'Hier gecontroleerd op basis van de uploadgegevens. De server leest de bestanden en beslist definitief; die kan een bestand alsnog achterhouden dat deze lijst als leesbaar aanmerkt.',
-    reasons: {
-      no_uploaded_file: 'er is geen bestand geüpload (externe link of alleen verklaring)',
-      unsupported_format: 'de indeling kan niet worden gelezen — upload opnieuw als PDF, PNG, JPEG of platte tekst',
-      file_too_large: 'het bestand is groter dan de limiet van 4 MB per document',
-      document_limit_reached: 'de documentlimiet per verzoek is bereikt',
-      request_size_limit_reached: 'de totale groottelimiet van het verzoek is bereikt',
-      file_unreadable: 'het opgeslagen bestand kon niet worden gelezen',
     },
   },
 }

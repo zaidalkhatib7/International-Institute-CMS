@@ -35,19 +35,6 @@ const copyByLanguage = {
     overview: 'Overview',
     interfaceLanguage: 'Interface language',
   },
-  nl: {
-    area: 'CMS voor professionele accreditatie',
-    search: 'Zoek modules, aanvragen en dossiers...',
-    notifications: 'Berichten & meldingen',
-    admin: 'Systeembeheerder',
-    role: 'Centraal beheer',
-    settings: 'Systeeminstellingen',
-    logout: 'Uitloggen',
-    openMenu: 'Menu openen',
-    closeSearch: 'Zoeken sluiten',
-    overview: 'Overzicht',
-    interfaceLanguage: 'Interfacetaal',
-  },
 }
 
 export default function AppTopbar({ onMenuToggle }) {

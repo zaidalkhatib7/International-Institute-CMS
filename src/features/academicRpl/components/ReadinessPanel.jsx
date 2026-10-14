@@ -90,38 +90,6 @@ const COPY = {
     },
     renormalised: 'Unavailable components had their weight redistributed rather than scored zero.',
   },
-  nl: {
-    title: 'Gereedheid voor de professionele academische trajecten',
-    subtitle: 'Het percentage wordt door het platform berekend uit beheerde wegingen. Een meting, geen toelatingsbesluit.',
-    load: 'Bereken gereedheid',
-    loading: 'Berekenen…',
-    recommended: 'Aanbevolen traject',
-    noneReady: 'Nog geen traject gereed. Dat vraagt om een hiatenplan, geen afwijzing.',
-    policy: 'Toelatingsbeleid',
-    version: 'versie',
-    components: 'Scorecomponenten',
-    weightApplied: 'toegepaste weging',
-    notAvailable: 'Niet beschikbaar',
-    blocked: 'Kritieke competentie niet aangetoond',
-    blockedHint: 'De status gereed is onbereikbaar, ongeacht het totaal, tot deze competenties zijn aangetoond.',
-    frameworkMissing: 'Het academische competentiekader is nog niet goedgekeurd.',
-    frameworkAction: 'Keur eerst het kader goed op het competentiekaderscherm.',
-    bands: { ready: 'Gereed', conditional: 'Voorwaardelijk gereed', not_recommended: 'Nog niet aanbevolen' },
-    componentNames: {
-      qualifications: 'Academische kwalificaties',
-      experience_evidence: 'Ervaring en bewijs',
-      diagnostic: 'Diagnostische toets',
-      interview: 'Interview / eindbeoordeling',
-    },
-    reasons: {
-      no_usable_evidence: 'Geen bruikbaar bewijs',
-      framework_not_approved: 'Competentiekader niet goedgekeurd',
-      no_answered_diagnostic: 'Nog geen toets beantwoord',
-      diagnostic_has_no_answers: 'De toets heeft geen antwoorden',
-      interview_not_recorded: 'Geen interview vastgelegd',
-    },
-    renormalised: 'Ontbrekende componenten zijn herverdeeld in plaats van op nul gezet.',
-  },
 }
 
 const BAND_VARIANT = { ready: 'success', conditional: 'warning', not_recommended: 'neutral' }

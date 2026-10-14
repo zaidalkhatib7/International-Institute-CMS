@@ -95,7 +95,7 @@ describe('RPL application evidence contract', () => {
  * cooldown setting as it stands today.
  */
 describe('RPL decline stamp', () => {
-  it('labels every code the API can stamp, in all three languages', () => {
+  it('labels every code the API can stamp, in Arabic and English', () => {
     expect(Object.keys(DECLINE_REASONS).sort()).toEqual([
       'appeal_rejected',
       'committee_rejected',
@@ -106,7 +106,7 @@ describe('RPL decline stamp', () => {
       'screening_declined',
     ])
     for (const { labels } of Object.values(DECLINE_REASONS)) {
-      expect(Object.keys(labels).sort()).toEqual(['ar', 'en', 'nl'])
+      expect(Object.keys(labels).sort()).toEqual(['ar', 'en'])
       expect(Object.values(labels).every((label) => typeof label === 'string' && label.trim() !== '')).toBe(true)
     }
   })
@@ -125,7 +125,6 @@ describe('RPL decline stamp', () => {
       reapplyDerived: false,
     })
     expect(readApplicationDecline(application, 'ar').reason).toBe(DECLINE_REASONS.intake_declined.labels.ar)
-    expect(readApplicationDecline(application, 'nl').reason).toBe(DECLINE_REASONS.intake_declined.labels.nl)
   })
 
   it('shows nothing for a case that carries no stamp and imposes no date', () => {

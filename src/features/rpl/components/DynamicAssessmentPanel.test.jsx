@@ -473,7 +473,7 @@ describe('a withdrawn question set is history, not the current state', () => {
 })
 
 describe('the copy itself', () => {
-  it('keeps every key in all three language blocks', () => {
+  it('keeps every key in both language blocks', () => {
     /*
      * THE MISSING-KEY CLASS OF BUG. Lookup is a whole-object fallback with no
      * per-key rescue, so a key present in en and absent from ar renders the
@@ -486,13 +486,13 @@ describe('the copy itself', () => {
           : [`${prefix}${key}`],
       )
 
+    expect(Object.keys(COPY).sort()).toEqual(['ar', 'en'])
     const en = paths(COPY.en).sort()
     expect(paths(COPY.ar).sort()).toEqual(en)
-    expect(paths(COPY.nl).sort()).toEqual(en)
 
+    expect(Object.keys(EVIDENCE_COPY).sort()).toEqual(['ar', 'en'])
     const evidenceEn = paths(EVIDENCE_COPY.en).sort()
     expect(paths(EVIDENCE_COPY.ar).sort()).toEqual(evidenceEn)
-    expect(paths(EVIDENCE_COPY.nl).sort()).toEqual(evidenceEn)
   })
 
   it('no longer claims the model works from the profile alone', async () => {

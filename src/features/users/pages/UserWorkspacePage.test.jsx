@@ -331,7 +331,7 @@ describe('opening an RPL case: the intake rules', () => {
     expect(document.body.textContent).not.toMatch(/undefined/)
   })
 
-  it.each(['ar', 'nl'])('renders every new label in %s, the open experience form included, with no undefined', async (locale) => {
+  it.each(['ar', 'en'])('renders every new label in %s, the open experience form included, with no undefined', async (locale) => {
     language.current = locale
     world.eligibility = eligibility({
       can_open_case: false,
@@ -493,5 +493,23 @@ describe('the work experiences panel', () => {
     fireEvent.change(card.getByLabelText(en.country), { target: { value: 's1' } })
     expect(card.getByLabelText(en.country)).toHaveValue('S')
     expect(save).toBeDisabled()
+  })
+})
+
+describe('the preferred language', () => {
+  it('offers Arabic and English only, and saves a stored retired nl as English', async () => {
+    world.user = client({ preferred_locale: 'nl' })
+    renderWorkspace()
+
+    fireEvent.click(await screen.findByRole('button', { name: en.edit }))
+    const select = screen.getByLabelText(en.locale)
+    expect([...select.options].map((option) => option.value)).toEqual(['en', 'ar'])
+    expect(select).toHaveValue('en')
+
+    fireEvent.click(screen.getByRole('button', { name: en.save }))
+    await waitFor(() => expect(http.put).toHaveBeenCalledTimes(1))
+    const [url, body] = http.put.mock.calls[0]
+    expect(url).toBe('/admin/users/7')
+    expect(body.preferred_locale).toBe('en')
   })
 })

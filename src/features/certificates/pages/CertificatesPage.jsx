@@ -96,20 +96,16 @@ const copyByLanguage = {
     template: "القالب",
     credentialEn: "اسم المؤهل بالإنجليزية",
     credentialAr: "اسم المؤهل بالعربية",
-    credentialNl: "اسم المؤهل بالهولندية",
     issuanceKey: "مفتاح إصدار اختياري",
     reason: "سبب الإجراء",
     reasonHint: "اكتب سبباً واضحاً وقابلاً للتدقيق.",
     templateCode: "رمز القالب",
     templateNameEn: "اسم القالب بالإنجليزية",
     templateNameAr: "اسم القالب بالعربية",
-    templateNameNl: "اسم القالب بالهولندية",
     titleEn: "عنوان الشهادة بالإنجليزية",
     titleAr: "عنوان الشهادة بالعربية",
-    titleNl: "عنوان الشهادة بالهولندية",
     bodyEn: "نص الشهادة بالإنجليزية",
     bodyAr: "نص الشهادة بالعربية",
-    bodyNl: "نص الشهادة بالهولندية",
     prefix: "بادئة الرقم",
     padding: "عدد الخانات",
     orientation: "الاتجاه",
@@ -168,20 +164,16 @@ const copyByLanguage = {
     template: "Template",
     credentialEn: "Credential name in English",
     credentialAr: "Credential name in Arabic",
-    credentialNl: "Credential name in Dutch",
     issuanceKey: "Optional issuance key",
     reason: "Action reason",
     reasonHint: "Enter a clear, auditable reason.",
     templateCode: "Template code",
     templateNameEn: "Template name in English",
     templateNameAr: "Template name in Arabic",
-    templateNameNl: "Template name in Dutch",
     titleEn: "Certificate title in English",
     titleAr: "Certificate title in Arabic",
-    titleNl: "Certificate title in Dutch",
     bodyEn: "Certificate body in English",
     bodyAr: "Certificate body in Arabic",
-    bodyNl: "Certificate body in Dutch",
     prefix: "Number prefix",
     padding: "Number padding",
     orientation: "Orientation",
@@ -198,78 +190,6 @@ const copyByLanguage = {
     supersededStatus: "Superseded",
     expiredStatus: "Expired",
   },
-  nl: {
-    title: "Certificaatbeheer",
-    description:
-      "Geef professionele certificaten uit, beheer de levenscyclus en onderhoud gecontroleerde sjablonen.",
-    registry: "Certificaatregister",
-    templates: "Certificaatsjablonen",
-    issue: "Certificaat uitgeven",
-    newTemplate: "Nieuw sjabloon",
-    search: "Zoek nummer of ontvanger…",
-    allStatuses: "Alle statussen",
-    apply: "Toepassen",
-    certificate: "Certificaat",
-    recipient: "Ontvanger",
-    credential: "Kwalificatie",
-    issued: "Uitgegeven",
-    status: "Status",
-    actions: "Acties",
-    empty: "Geen certificaten gevonden.",
-    emptyDescription: "Pas de filters aan of geef een nieuw certificaat uit.",
-    loadingError: "Het certificaatregister kon niet worden geladen.",
-    issuedSuccess: "Certificaat succesvol uitgegeven.",
-    templateSuccess: "Certificaatsjabloon opgeslagen.",
-    actionSuccess: "Levenscyclus van certificaat bijgewerkt.",
-    total: "Totaal register",
-    active: "Actieve certificaten",
-    revoked: "Ingetrokken of vervangen",
-    templateCount: "Sjablonen",
-    view: "Bekijken",
-    download: "PDF",
-    revoke: "Intrekken",
-    reissue: "Opnieuw uitgeven",
-    close: "Sluiten",
-    save: "Opslaan",
-    saving: "Opslaan…",
-    details: "Certificaatdetails",
-    verification: "Verificatietoken",
-    noToken: "De verificatietoken verschijnt na het laden van details.",
-    userId: "Gebruikers-ID",
-    programId: "Programma-ID (optioneel)",
-    template: "Sjabloon",
-    credentialEn: "Naam kwalificatie in het Engels",
-    credentialAr: "Naam kwalificatie in het Arabisch",
-    credentialNl: "Naam kwalificatie in het Nederlands",
-    issuanceKey: "Optionele uitgiftesleutel",
-    reason: "Reden",
-    reasonHint: "Voer een duidelijke, controleerbare reden in.",
-    templateCode: "Sjablooncode",
-    templateNameEn: "Sjabloonnaam in het Engels",
-    templateNameAr: "Sjabloonnaam in het Arabisch",
-    templateNameNl: "Sjabloonnaam in het Nederlands",
-    titleEn: "Certificaattitel in het Engels",
-    titleAr: "Certificaattitel in het Arabisch",
-    titleNl: "Certificaattitel in het Nederlands",
-    bodyEn: "Certificaattekst in het Engels",
-    bodyAr: "Certificaattekst in het Arabisch",
-    bodyNl: "Certificaattekst in het Nederlands",
-    prefix: "Nummerprefix",
-    padding: "Aantal cijfers",
-    orientation: "Oriëntatie",
-    landscape: "Liggend",
-    portrait: "Staand",
-    default: "Standaardsjabloon",
-    enabled: "Actief",
-    edit: "Bewerken",
-    previous: "Vorige",
-    next: "Volgende",
-    required: "Vul alle verplichte velden in.",
-    activeStatus: "Actief",
-    revokedStatus: "Ingetrokken",
-    supersededStatus: "Vervangen",
-    expiredStatus: "Verlopen",
-  },
 };
 
 const emptyIssue = {
@@ -278,7 +198,6 @@ const emptyIssue = {
   certificate_template_id: "",
   credential_en: "",
   credential_ar: "",
-  credential_nl: "",
   issuance_key: "",
 };
 const emptyTemplate = {
@@ -286,13 +205,10 @@ const emptyTemplate = {
   code: "",
   name_en: "",
   name_ar: "",
-  name_nl: "",
   title_en: "",
   title_ar: "",
-  title_nl: "",
   body_en: "",
   body_ar: "",
-  body_nl: "",
   number_prefix: "ICPC",
   number_padding: 6,
   orientation: "landscape",
@@ -316,13 +232,10 @@ function toTemplateForm(template = {}) {
     code: template.code || "",
     name_en: template.name?.en || "",
     name_ar: template.name?.ar || "",
-    name_nl: template.name?.nl || "",
     title_en: template.title?.en || "",
     title_ar: template.title?.ar || "",
-    title_nl: template.title?.nl || "",
     body_en: template.body?.en || "",
     body_ar: template.body?.ar || "",
-    body_nl: template.body?.nl || "",
     number_prefix: template.number_prefix || "ICPC",
     number_padding: template.number_padding || 6,
     orientation: template.orientation || "landscape",
@@ -415,7 +328,6 @@ export default function CertificatesPage() {
           title: {
             en: issueForm.credential_en,
             ar: issueForm.credential_ar,
-            nl: issueForm.credential_nl,
           },
         },
       };
@@ -452,17 +364,14 @@ export default function CertificatesPage() {
       name: {
         en: templateForm.name_en,
         ar: templateForm.name_ar,
-        nl: templateForm.name_nl,
       },
       title: {
         en: templateForm.title_en,
         ar: templateForm.title_ar,
-        nl: templateForm.title_nl,
       },
       body: {
         en: templateForm.body_en,
         ar: templateForm.body_ar,
-        nl: templateForm.body_nl,
       },
       number_prefix: templateForm.number_prefix,
       number_padding: Number(templateForm.number_padding),
@@ -939,16 +848,6 @@ export default function CertificatesPage() {
               }))
             }
           />
-          <Input
-            label={copy.credentialNl}
-            value={issueForm.credential_nl}
-            onChange={(event) =>
-              setIssueForm((current) => ({
-                ...current,
-                credential_nl: event.target.value,
-              }))
-            }
-          />
         </form>
       </OperationsModal>
 
@@ -1021,16 +920,6 @@ export default function CertificatesPage() {
             }
           />
           <Input
-            label={copy.templateNameNl}
-            value={templateForm.name_nl}
-            onChange={(event) =>
-              setTemplateForm((current) => ({
-                ...current,
-                name_nl: event.target.value,
-              }))
-            }
-          />
-          <Input
             label={copy.titleEn}
             required
             value={templateForm.title_en}
@@ -1052,16 +941,6 @@ export default function CertificatesPage() {
               }))
             }
           />
-          <Input
-            label={copy.titleNl}
-            value={templateForm.title_nl}
-            onChange={(event) =>
-              setTemplateForm((current) => ({
-                ...current,
-                title_nl: event.target.value,
-              }))
-            }
-          />
           <Textarea
             label={copy.bodyEn}
             value={templateForm.body_en}
@@ -1080,16 +959,6 @@ export default function CertificatesPage() {
               setTemplateForm((current) => ({
                 ...current,
                 body_ar: event.target.value,
-              }))
-            }
-          />
-          <Textarea
-            label={copy.bodyNl}
-            value={templateForm.body_nl}
-            onChange={(event) =>
-              setTemplateForm((current) => ({
-                ...current,
-                body_nl: event.target.value,
               }))
             }
           />

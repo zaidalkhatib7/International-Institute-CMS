@@ -8,7 +8,7 @@ export default function DashboardLayout({ children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const language = getAdminLanguage()
   const isArabic = language === 'ar'
-  const skipLink = { ar: 'انتقل إلى المحتوى الرئيسي', en: 'Skip to main content', nl: 'Ga naar de hoofdinhoud' }[language]
+  const skipLink = { ar: 'انتقل إلى المحتوى الرئيسي', en: 'Skip to main content' }[language]
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), [])
 
   useEffect(() => {

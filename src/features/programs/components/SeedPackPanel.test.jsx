@@ -29,7 +29,7 @@ vi.mock('../../../utils/localization', () => ({
 }))
 
 // The copy each locale shows for the two buttons these tests press.
-const PROPOSE = { en: 'Propose seed pack', ar: 'اقترح حزمة الانطلاق', nl: 'Startpakket voorstellen' }
+const PROPOSE = { en: 'Propose seed pack', ar: 'اقترح حزمة الانطلاق' }
 
 function draftFixture() {
   return {
@@ -143,14 +143,25 @@ describe('SeedPackPanel competency weight', () => {
 
   /*
    * The copy lookup is whole-object: a key added to one locale and not the
-   * others renders as "undefined" for those readers. All three are checked.
+   * others renders as "undefined" for those readers. Both are checked.
    */
-  it.each(['ar', 'en', 'nl'])('labels the weight as a percentage, with its hint, in %s', async (language) => {
+  it.each(['ar', 'en'])('labels the weight as a percentage, with its hint, in %s', async (language) => {
     const weights = await renderWithDraft(language)
 
     expect(weights.length).toBe(2)
     expect(document.body.textContent).not.toMatch(/undefined/)
     // The hint, the per-row refusal for the empty box, and the approve-bar note.
     expect(screen.getAllByText(/100/).length).toBeGreaterThanOrEqual(3)
+  })
+})
+
+describe('SeedPackPanel draft language', () => {
+  it('offers Arabic and English, nothing else', () => {
+    mocks.language.current = 'en'
+    render(<SeedPackPanel programId={240} />)
+
+    const select = screen.getByLabelText('Draft language')
+    expect([...select.options].map((option) => option.value)).toEqual(['ar', 'en'])
+    expect(select).toHaveValue('en')
   })
 })

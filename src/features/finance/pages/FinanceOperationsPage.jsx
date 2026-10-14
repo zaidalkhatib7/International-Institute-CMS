@@ -222,100 +222,13 @@ const copies = {
     certificate: "Certificate",
     other: "Other",
   },
-  nl: {
-    title: "Financiële operaties",
-    description:
-      "Beheer producten, prijzen, kortingen en abonnementen met rapportage per valuta en veilige betaalprocessen.",
-    overview: "Financieel overzicht",
-    products: "Producten en prijzen",
-    coupons: "Kortingscodes",
-    subscriptions: "Abonnementen",
-    newProduct: "Nieuw product",
-    newCoupon: "Nieuwe kortingscode",
-    periodFrom: "Vanaf datum",
-    periodUntil: "Tot datum",
-    refresh: "Rapport vernieuwen",
-    paidOrders: "Betaalde orders",
-    activeSubscriptions: "Actieve abonnementen",
-    renewals: "Verlengingen binnen 30 dagen",
-    paymentFailures: "Mislukte betalingen",
-    gross: "Bruto per valuta",
-    refunds: "Terugbetalingen",
-    discounts: "Kortingen",
-    noData: "Geen financiële gegevens voor de geselecteerde periode.",
-    product: "Product",
-    code: "Code",
-    type: "Type",
-    prices: "Prijzen",
-    status: "Status",
-    actions: "Acties",
-    edit: "Bewerken",
-    managePrices: "Prijzen beheren",
-    search: "Zoek producten…",
-    allTypes: "Alle typen",
-    nameEn: "Naam in het Engels",
-    nameAr: "Naam in het Arabisch",
-    descriptionEn: "Beschrijving in het Engels",
-    active: "Actief",
-    archived: "Gearchiveerd",
-    save: "Opslaan",
-    saving: "Opslaan…",
-    close: "Sluiten",
-    required: "Vul alle verplichte velden in.",
-    success: "Financiële gegevens bijgewerkt.",
-    addPrice: "Prijs toevoegen",
-    currency: "Valuta",
-    amount: "Bedrag",
-    billingInterval: "Factureringsinterval",
-    oneTime: "Eenmalig",
-    monthly: "Maandelijks",
-    quarterly: "Per kwartaal",
-    yearly: "Jaarlijks",
-    validFrom: "Geldig vanaf",
-    validUntil: "Geldig tot",
-    coupon: "Kortingscode",
-    discountType: "Kortingstype",
-    percent: "Percentage",
-    fixed: "Vast bedrag",
-    value: "Waarde",
-    minimumOrder: "Minimumorder",
-    maximumDiscount: "Maximale korting",
-    redemptionLimit: "Totale gebruikslimiet",
-    perUserLimit: "Limiet per gebruiker",
-    startsAt: "Start op",
-    endsAt: "Eindigt op",
-    redemptions: "Gebruik",
-    user: "Gebruiker",
-    renewal: "Verlenging",
-    updateStatus: "Status bijwerken",
-    pending: "In afwachting",
-    past_due: "Achterstallig",
-    paused: "Gepauzeerd",
-    cancelled: "Geannuleerd",
-    expired: "Verlopen",
-    program: "Programma",
-    rpl_fee: "RPL-kosten",
-    subscription: "Abonnement",
-    assessment: "Beoordeling",
-    certificate: "Certificaat",
-    other: "Overig",
-  },
 };
 
 Object.assign(copies.ar, {
-  nameNl: "الاسم بالهولندية",
   descriptionAr: "الوصف بالعربية",
-  descriptionNl: "الوصف بالهولندية",
 });
 Object.assign(copies.en, {
-  nameNl: "Name in Dutch",
   descriptionAr: "Description in Arabic",
-  descriptionNl: "Description in Dutch",
-});
-Object.assign(copies.nl, {
-  nameNl: "Naam in het Nederlands",
-  descriptionAr: "Beschrijving in het Arabisch",
-  descriptionNl: "Beschrijving in het Nederlands",
 });
 
 const productTypes = [
@@ -332,10 +245,8 @@ const emptyProduct = {
   type: "other",
   name_en: "",
   name_ar: "",
-  name_nl: "",
   description_en: "",
   description_ar: "",
-  description_nl: "",
   is_active: true,
 };
 const emptyPrice = {
@@ -372,10 +283,8 @@ function mapProduct(item = {}) {
     type: item.type || "other",
     name_en: item.name?.en || "",
     name_ar: item.name?.ar || "",
-    name_nl: item.name?.nl || "",
     description_en: item.description?.en || "",
     description_ar: item.description?.ar || "",
-    description_nl: item.description?.nl || "",
     is_active: item.is_active !== false,
   };
 }
@@ -484,7 +393,6 @@ export default function FinanceOperationsPage() {
         product.code,
         readLocalized(product.name, "en"),
         readLocalized(product.name, "ar"),
-        readLocalized(product.name, "nl"),
       ]
         .filter(Boolean)
         .join(" ")
@@ -506,12 +414,10 @@ export default function FinanceOperationsPage() {
         name: {
           en: productForm.name_en,
           ar: productForm.name_ar,
-          nl: productForm.name_nl,
         },
         description: {
           en: productForm.description_en,
           ar: productForm.description_ar,
-          nl: productForm.description_nl,
         },
         is_active: productForm.is_active,
       };
@@ -1144,16 +1050,6 @@ export default function FinanceOperationsPage() {
               }))
             }
           />
-          <Input
-            label={copy.nameNl}
-            value={productForm.name_nl}
-            onChange={(event) =>
-              setProductForm((current) => ({
-                ...current,
-                name_nl: event.target.value,
-              }))
-            }
-          />
           <Textarea
             label={copy.descriptionEn}
             value={productForm.description_en}
@@ -1172,16 +1068,6 @@ export default function FinanceOperationsPage() {
               setProductForm((current) => ({
                 ...current,
                 description_ar: event.target.value,
-              }))
-            }
-          />
-          <Textarea
-            label={copy.descriptionNl}
-            value={productForm.description_nl}
-            onChange={(event) =>
-              setProductForm((current) => ({
-                ...current,
-                description_nl: event.target.value,
               }))
             }
           />

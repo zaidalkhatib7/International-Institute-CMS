@@ -122,7 +122,6 @@ describe('the evidence-documents kill switch', () => {
     // Non-enumerating lead-in, so a fifth call site cannot make this a lie.
     expect(hint).toHaveTextContent(/every path that reads them/)
     expect(COPY.ar.evidenceDocumentsHint).toContain('RPL الأكاديمي')
-    expect(COPY.nl.evidenceDocumentsHint).toContain('Academic RPL')
   })
 
   it('saves the new value without disturbing the other controls', async () => {
@@ -268,7 +267,7 @@ describe('the reapply cooldown controls', () => {
 })
 
 describe('the copy itself', () => {
-  it('keeps every key in all three language blocks', () => {
+  it('keeps every key in both language blocks', () => {
     const paths = (block, prefix = '') =>
       Object.entries(block).flatMap(([key, value]) =>
         value && typeof value === 'object' && !Array.isArray(value)
@@ -276,9 +275,9 @@ describe('the copy itself', () => {
           : [`${prefix}${key}`],
       )
 
+    expect(Object.keys(COPY).sort()).toEqual(['ar', 'en'])
     const en = paths(COPY.en).sort()
     expect(paths(COPY.ar).sort()).toEqual(en)
-    expect(paths(COPY.nl).sort()).toEqual(en)
   })
 })
 
@@ -472,7 +471,7 @@ describe('the document screening controls', () => {
     expect(SCREENING_SETTINGS_COPY.ar.webSearchHint).toMatch(/بلدها ومدينتها فقط/)
   })
 
-  it('renders in Arabic, and in English for the NL switcher, never "undefined"', async () => {
+  it('renders in Arabic and in English, never "undefined"', async () => {
     language.current = 'ar'
     const { unmount } = render(<RplConfigurationPage />)
     fireEvent.click(await screen.findByRole('button', { name: COPY.ar.workflow }))
@@ -482,9 +481,9 @@ describe('the document screening controls', () => {
     expect(document.body.textContent).not.toContain('undefined')
     unmount()
 
-    language.current = 'nl'
+    language.current = 'en'
     render(<RplConfigurationPage />)
-    fireEvent.click(await screen.findByRole('button', { name: COPY.nl.workflow }))
+    fireEvent.click(await screen.findByRole('button', { name: COPY.en.workflow }))
 
     expect(await screen.findByText(SC.title)).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('undefined')

@@ -20,12 +20,6 @@ const copyByLanguage = {
     assessor: 'Assessor', expertise: 'Expertise', languages: 'Languages', verification: 'Verification', availability: 'Availability', workload: 'Workload', empty: 'No assessors match the filters.', verified: 'Verified', pending: 'Pending verification', activeCases: 'active cases',
     warning: 'Conflict of interest must be checked before every assignment. Assessors only submit recommendations and cannot issue an accreditation decision or certificate.',
   },
-  nl: {
-    title: 'Beoordelaars & Trainers', description: 'Professionele lijst van bevoegde beoordelaars met verificatie, beschikbaarheid, werklast en conflictcontrole.',
-    total: 'Totaal beoordelaars', available: 'Beschikbaar', assigned: 'Actieve toewijzingen', conflicts: 'Open conflicten', search: 'Zoek naam of expertise...', allAvailability: 'Alle beschikbaarheid', availableOnly: 'Alleen beschikbaar', unavailable: 'Niet beschikbaar',
-    assessor: 'Beoordelaar', expertise: 'Expertise', languages: 'Talen', verification: 'Verificatie', availability: 'Beschikbaarheid', workload: 'Werklast', empty: 'Geen beoordelaars komen overeen.', verified: 'Geverifieerd', pending: 'Verificatie in behandeling', activeCases: 'actieve dossiers',
-    warning: 'Belangenconflict moet vóór elke toewijzing worden gecontroleerd. Beoordelaars geven alleen aanbevelingen en kunnen geen besluit of certificaat uitgeven.',
-  },
 }
 
 export default function RplAssessorsPage() {

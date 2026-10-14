@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import FinanceOperationsPage from './FinanceOperationsPage'
 import {
@@ -6,6 +6,7 @@ import {
   fetchFinanceDashboard,
   fetchFinanceProducts,
   fetchFinanceSubscriptions,
+  updateFinanceProduct,
 } from '../services/financeService'
 
 vi.mock('../services/financeService', () => ({
@@ -67,5 +68,30 @@ describe('FinanceOperationsPage', () => {
 
     expect(await screen.findByRole('dialog', { name: 'Manage prices: RPL Assessment Fee' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /EUR 120/ })).toBeInTheDocument()
+  })
+
+  it('edits a product in Arabic and English only, and never sends a stored nl back', async () => {
+    fetchFinanceProducts.mockResolvedValue({
+      data: [{
+        ...product,
+        name: { en: 'RPL Assessment Fee', ar: 'رسوم تقييم RPL', nl: 'RPL-beoordelingskosten' },
+        description: { en: 'One assessment', ar: 'تقييم واحد', nl: 'Eén beoordeling' },
+      }],
+    })
+    render(<FinanceOperationsPage />)
+
+    fireEvent.click(await screen.findByRole('tab', { name: /Products & prices/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }))
+
+    expect(await screen.findByLabelText('Name in Arabic')).toHaveValue('رسوم تقييم RPL')
+    expect(document.body.textContent).not.toMatch(/Dutch/)
+    fireEvent.submit(document.getElementById('finance-product-form'))
+
+    await waitFor(() => expect(updateFinanceProduct).toHaveBeenCalledTimes(1))
+    const [id, payload] = updateFinanceProduct.mock.calls[0]
+    expect(id).toBe(8)
+    expect(payload.name).toEqual({ en: 'RPL Assessment Fee', ar: 'رسوم تقييم RPL' })
+    expect(payload.description).toEqual({ en: 'One assessment', ar: 'تقييم واحد' })
+    expect(JSON.stringify(payload)).not.toContain('"nl"')
   })
 })

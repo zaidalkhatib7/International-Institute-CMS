@@ -20,7 +20,7 @@ import { getLocaleForLanguage } from '../../../utils/localization'
  *     applicant never does.
  *
  * Arabic and English only (owner, 13 Oct 2026). Every lookup falls back to
- * English, so the remaining NL switcher renders English rather than "undefined".
+ * English, so any other value renders English rather than "undefined".
  */
 
 export const SCREENING_PERMISSIONS = Object.freeze({ view: 'rpl.screening.view', run: 'rpl.screening.run' })

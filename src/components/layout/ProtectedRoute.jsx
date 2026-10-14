@@ -17,7 +17,6 @@ export default function ProtectedRoute({ children }) {
   const copy = {
     ar: { loading: 'جارٍ التحقق من الجلسة الآمنة', title: 'تعذر التحقق من الجلسة', description: 'لم نتمكن من تحميل صلاحيات حسابك. تحقق من اتصال الخادم ثم أعد المحاولة.', retry: 'إعادة المحاولة' },
     en: { loading: 'Verifying the secure session', title: 'Session verification failed', description: 'We could not load your account permissions. Check the server connection and try again.', retry: 'Try again' },
-    nl: { loading: 'Beveiligde sessie wordt gecontroleerd', title: 'Sessiecontrole mislukt', description: 'We konden je accountrechten niet laden. Controleer de serververbinding en probeer opnieuw.', retry: 'Opnieuw proberen' },
   }[language]
 
   if (!hasAdminToken()) {

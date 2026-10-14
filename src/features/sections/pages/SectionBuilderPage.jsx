@@ -8,7 +8,7 @@ import {
   fetchAdminSectionById,
   updateAdminSection,
 } from '../services/sectionsService'
-import { getCurrentLanguage, readLocalizedValue } from '../../../utils/localization'
+import { getCurrentLanguage, hasPlatformText, readLocalizedValue, readStoredEnglish } from '../../../utils/localization'
 
 function readLocalized(value) {
   return readLocalizedValue(value)
@@ -27,14 +27,12 @@ function mapSectionToFormData(section) {
     program_id: section?.program_id ? String(section.program_id) : '',
     sort_order: section?.sort_order != null ? String(section.sort_order) : '1',
     title: {
-      en: readLocalized(section?.title),
+      en: readStoredEnglish(section?.title),
       ar: section?.title?.ar || '',
-      nl: section?.title?.nl || '',
     },
     description: {
-      en: readLocalized(section?.description),
+      en: readStoredEnglish(section?.description),
       ar: section?.description?.ar || '',
-      nl: section?.description?.nl || '',
     },
   }
 }
@@ -45,19 +43,17 @@ function buildSectionPayload(formData) {
     title: {
       en: formData.title?.en || '',
       ar: formData.title?.ar || '',
-      nl: formData.title?.nl || '',
     },
     description: {
       en: formData.description?.en || '',
       ar: formData.description?.ar || '',
-      nl: formData.description?.nl || '',
     },
     sort_order: formData.sort_order === '' ? 1 : Number(formData.sort_order),
   }
 }
 
 function LanguageTabs({ activeLanguage, onChange }) {
-  const languages = ['en', 'ar', 'nl']
+  const languages = ['en', 'ar']
   return (
     <div className="inline-flex rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-1">
       {languages.map((lang) => (
@@ -107,44 +103,13 @@ export default function SectionBuilderPage() {
         descriptionPlaceholder: 'اكتب ما يغطيه هذا القسم...',
         sectionSnapshot: 'ملخص القسم',
         programRequired: 'البرنامج مطلوب.',
-        englishTitleRequired: 'عنوان القسم (EN) مطلوب.',
-        englishDescriptionRequired: 'وصف القسم (EN) مطلوب.',
+        titleRequired: 'عنوان القسم مطلوب بالعربية أو بالإنجليزية.',
+        descriptionRequired: 'وصف القسم مطلوب بالعربية أو بالإنجليزية.',
         sortOrderRequired: 'ترتيب العرض مطلوب.',
         updated: 'تم تحديث القسم بنجاح.',
         created: 'تم إنشاء القسم بنجاح.',
         loadError: 'فشل تحميل القسم.',
         saveError: 'فشل حفظ القسم.',
-      }
-    }
-    if (language === 'nl') {
-      return {
-        editSection: 'Sectie bewerken',
-        createSection: 'Sectie maken',
-        breadcrumbAdmin: 'Beheer',
-        breadcrumbSections: 'Secties',
-        subtitle: 'Configureer sectiemetadata en volgorde binnen een programma.',
-        backToSections: 'Terug naar secties',
-        saveSection: 'Sectie opslaan',
-        saving: 'Opslaan...',
-        loadingSection: 'Sectie laden...',
-        sectionIdentity: 'Sectie-identiteit',
-        program: 'Programma',
-        selectProgram: 'Selecteer programma',
-        sortOrder: 'Volgorde',
-        sectionTitle: 'Sectietitel',
-        sectionTitlePlaceholder: 'bijv. Foundations of Leadership',
-        sectionDescription: 'Sectiebeschrijving',
-        description: 'Beschrijving',
-        descriptionPlaceholder: 'Beschrijf wat deze sectie behandelt...',
-        sectionSnapshot: 'Sectie-overzicht',
-        programRequired: 'Programma is verplicht.',
-        englishTitleRequired: 'Engelse sectietitel is verplicht.',
-        englishDescriptionRequired: 'Engelse sectiebeschrijving is verplicht.',
-        sortOrderRequired: 'Volgorde is verplicht.',
-        updated: 'Sectie succesvol bijgewerkt.',
-        created: 'Sectie succesvol aangemaakt.',
-        loadError: 'Sectie laden mislukt.',
-        saveError: 'Sectie opslaan mislukt.',
       }
     }
     return {
@@ -168,8 +133,8 @@ export default function SectionBuilderPage() {
       descriptionPlaceholder: 'Describe what this section covers...',
       sectionSnapshot: 'Section Snapshot',
       programRequired: 'Program is required.',
-      englishTitleRequired: 'English section title is required.',
-      englishDescriptionRequired: 'English section description is required.',
+      titleRequired: 'Section title is required in English or Arabic.',
+      descriptionRequired: 'Section description is required in English or Arabic.',
       sortOrderRequired: 'Sort order is required.',
       updated: 'Section updated successfully.',
       created: 'Section created successfully.',
@@ -189,8 +154,8 @@ export default function SectionBuilderPage() {
   const [formData, setFormData] = useState({
     program_id: '',
     sort_order: '1',
-    title: { en: '', ar: '', nl: '' },
-    description: { en: '', ar: '', nl: '' },
+    title: { en: '', ar: '' },
+    description: { en: '', ar: '' },
   })
 
   useEffect(() => {
@@ -251,8 +216,8 @@ export default function SectionBuilderPage() {
 
   const validateBeforeSave = () => {
     if (!formData.program_id) return copy.programRequired
-    if (!formData.title?.en?.trim()) return copy.englishTitleRequired
-    if (!formData.description?.en?.trim()) return copy.englishDescriptionRequired
+    if (!hasPlatformText(formData.title)) return copy.titleRequired
+    if (!hasPlatformText(formData.description)) return copy.descriptionRequired
     if (!formData.sort_order) return copy.sortOrderRequired
     return ''
   }

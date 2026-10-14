@@ -107,33 +107,6 @@ const copyByLanguage = {
     optional: 'Optional',
     available: 'Available',
   },
-  nl: {
-    badge: 'Platform Commandocentrum',
-    subtitle: 'ICPC · Erkenning van eerder leren en ervaring',
-    title: 'Hub voor professionele accreditatie',
-    description: 'Een overzicht van live API-koppelingen, werkruimtes, de RPL-route en beheermodules.',
-    managePrograms: 'Programma’s & pakketten beheren',
-    manageUsers: 'Gebruikers & rechten openen',
-    apiTitle: 'API-connectiviteit',
-    apiDescription: 'Live reads uit /api/v1 volgens het overdrachtsbestand.',
-    loading: 'Laden',
-    authenticated: 'Geauthenticeerde sessie',
-    limited: 'Beperkte gegevens',
-    currentAccount: 'Huidig account',
-    apiConnected: 'API verbonden',
-    apiFailed: 'Verbinding mislukt',
-    apiTotal: 'Totaal aantal records beschikbaar via het endpoint.',
-    architecture: 'Architectuurmetrics',
-    architectureHint: 'Statische structurele samenvatting van de platformarchitectuur.',
-    structural: 'Structureel',
-    rplTitle: 'RPL-erkenningsroute',
-    rplHint: 'Van aanvraag tot besluit en accreditatie.',
-    quickActions: 'Snelle Toegang',
-    workspaces: 'Werkruimtes',
-    modules: 'modules',
-    optional: 'Optioneel',
-    available: 'Beschikbaar',
-  },
 }
 
 async function settleApi(label, request) {
@@ -232,7 +205,6 @@ export default function WorkspaceOverviewPage() {
       const labels = {
         ar: ['التنبيهات', 'طلبات RPL', 'الأدلة المهنية', 'التقييمات'],
         en: ['Notifications', 'RPL applications', 'Professional evidence', 'Assessments'],
-        nl: ['Meldingen', 'RPL-aanvragen', 'Professioneel bewijs', 'Beoordelingen'],
       }[language] || ['Notifications', 'RPL applications', 'Professional evidence', 'Assessments']
 
       const summaryRequests = [settleApi(labels[0], () => fetchNotifications({ per_page: 10 }))]

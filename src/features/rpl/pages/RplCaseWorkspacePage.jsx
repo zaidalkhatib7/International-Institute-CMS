@@ -101,21 +101,6 @@ const copyByLanguage = {
     events: 'Event and audit history', emptyTimeline: 'No events have been recorded.', actor: 'By',
     loadError: 'Unable to load the RPL case.', auxiliaryWarning: 'The case loaded, but some supporting data is temporarily unavailable.',
   },
-  nl: {
-    eyebrow: 'RPL-dossierwerkruimte', title: 'Dossier Erkenning Eerder Leren', description: 'Eén operationeel dossier met gescheiden verificatie, beoordeling en commissiebevoegdheid.', back: 'Terug naar aanvragen', refresh: 'Vernieuwen',
-    overview: 'Overzicht', evidence: 'Bewijs & verificatie', assessment: 'Beoordeling & beoordelaars', governance: 'Commissie & kwaliteit', timeline: 'Tijdlijn',
-    caseSummary: 'Dossiersamenvatting', applicant: 'Aanvrager', reference: 'Referentie', pathway: 'Traject', requestedLevel: 'Aangevraagd niveau', experience: 'Jaren ervaring', submitted: 'Ingediend', declineReason: 'Reden van afwijzing', reapplyFrom: 'Mag een nieuwe aanvraag indienen vanaf', reapplyDerived: 'afgeleid van de afwijzingsdatum en de huidige wachttijdinstelling',
-    contact: 'Contact en profiel', email: 'E-mail', phone: 'Telefoon', nationality: 'Nationaliteit', country: 'Woonland', profession: 'Vakgebied',
-    initialReview: 'Eerste administratieve beoordeling', accepted: 'Geaccepteerd voor verificatie', needsInformation: 'Meer informatie vereist', rejected: 'Afgewezen', subject: 'Onderwerp', message: 'Bericht aan aanvrager', dueAt: 'Reactietermijn', saveReview: 'Beoordeling opslaan', reviewSaved: 'Eerste beoordeling voltooid.', requests: 'Verzoeken om ontbrekende informatie', createRequest: 'Verzoek verzenden', requestSaved: 'Informatieverzoek verzonden.', closeRequest: 'Sluiten', noRequests: 'Geen informatieverzoeken.',
-    workflow: 'Aanvraagworkflow', nextStatus: 'Volgende status', note: 'Overgangsnotitie', saveTransition: 'Status bijwerken', transitionSaved: 'Aanvraagstatus bijgewerkt.',
-    assessorTitle: 'Toewijzing en toezicht beoordelaars', assessorHint: 'Een beoordelaar kan geen accreditatiebesluit nemen of certificaat uitgeven.', assessor: 'Beoordelaar', role: 'Rol', assign: 'Beoordelaar toewijzen', assigned: 'Beoordelaar toegewezen.', noAssignments: 'Er is nog geen beoordelaar toegewezen.', acceptAssignment: 'Toewijzing accepteren', noConflict: 'Geen conflict verklaren', reportConflict: 'Conflict melden', conflictDetails: 'Details belangenconflict', startAssessment: 'Beoordeling starten', conflictSaved: 'Conflictverklaring opgeslagen.',
-    assessments: 'Beoordelingsrapporten', noAssessments: 'Er zijn nog geen beoordelingen voor dit dossier.', openAssessment: 'Beoordeling openen', adminEvaluation: 'Gemini-ondersteunde beheerdersbeoordeling', adminEvaluationHint: 'Er is geen externe beoordelaar nodig. Gemini maakt een concept; alleen de beheerder die het start kan dit beoordelen, bewerken en indienen.', startAdminEvaluation: 'Beheerdersbeoordeling starten', adminEvaluationStarted: 'Beheerdersbeoordeling gestart. Genereer het Gemini-concept en beoordeel en bewerk het daarna.',
-    primary: 'Primair', secondary: 'Secundair', rejectedQuality: 'Afgewezen', assessmentReference: 'Beoordeling', event: 'Gebeurtenis', pendingAssignment: 'Wacht op acceptatie', pendingConflict: 'Wacht op conflictverklaring', acceptedAssignment: 'Geaccepteerd', declinedAssignment: 'Geweigerd', completedAssignment: 'Voltooid',
-    committeeTitle: 'Besluit accreditatiecommissie', committeeHint: 'Het besluit blijft gescheiden van de aanbeveling van de beoordelaar.', decision: 'Besluit', recommendedLevel: 'Definitief niveau', rationale: 'Motivering', submitDecision: 'Commissiebesluit opslaan', decisionSaved: 'Commissiebesluit opgeslagen.',
-    qualityTitle: 'Kwaliteitsbeoordeling', qualityResult: 'Beoordelingsresultaat', approve: 'Kwaliteit goedgekeurd', return: 'Terug voor aanpassing', qualityNotes: 'Kwaliteitsnotities', saveQuality: 'Kwaliteitsreview opslaan', qualitySaved: 'Kwaliteitsreview opgeslagen.',
-    events: 'Gebeurtenissen en audit', emptyTimeline: 'Er zijn nog geen gebeurtenissen vastgelegd.', actor: 'Door',
-    loadError: 'Kan het RPL-dossier niet laden.', auxiliaryWarning: 'Het dossier is geladen, maar sommige aanvullende gegevens zijn tijdelijk niet beschikbaar.',
-  },
 }
 
 const tabs = [
@@ -186,7 +171,6 @@ export default function RplCaseWorkspacePage() {
       started: '\u062a\u0645 \u0628\u062f\u0621 \u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0645\u062f\u064a\u0631. \u0623\u0646\u0634\u0626 \u0645\u0633\u0648\u062f\u0629 Gemini \u062b\u0645 \u0631\u0627\u062c\u0639\u0647\u0627 \u0648\u0639\u062f\u0651\u0644\u0647\u0627.',
     },
     en: { title: 'Gemini-assisted administrator evaluation', hint: 'No external assessor is required. Gemini prepares a draft; only the administrator who starts it can review, edit, and submit it.', start: 'Start administrator evaluation', open: 'Open administrator evaluation', started: 'Administrator evaluation started. Generate the Gemini draft, then review and edit it.' },
-    nl: { title: 'Gemini-ondersteunde beheerdersbeoordeling', hint: 'Er is geen externe beoordelaar nodig. Gemini maakt een concept; alleen de beheerder die het start kan dit beoordelen, bewerken en indienen.', start: 'Beheerdersbeoordeling starten', open: 'Beheerdersbeoordeling openen', started: 'Beheerdersbeoordeling gestart. Genereer het Gemini-concept en beoordeel en bewerk het daarna.' },
   }[language] || copyByLanguage.en
   const [screening, setScreening] = useState({ loading: false, error: '', forbidden: false, items: [] })
   const visibleTabs = tabs.filter((tab) => tab.key !== 'screening' || (canViewScreening && !screening.forbidden))

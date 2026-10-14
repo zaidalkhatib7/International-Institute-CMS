@@ -23,83 +23,74 @@ export const EVIDENCE_UPLOAD_POLICY = Object.freeze({
 const categoryDefinitions = [
   {
     code: 'identity',
-    labels: { ar: 'الهوية الشخصية', en: 'Personal identity', nl: 'Persoonlijke identiteit' },
+    labels: { ar: 'الهوية الشخصية', en: 'Personal identity' },
     examples: {
       ar: ['جواز السفر', 'الهوية الوطنية', 'رخصة القيادة', 'صورة شخصية'],
       en: ['Passport', 'National ID', 'Driving licence', 'Portrait photo'],
-      nl: ['Paspoort', 'Identiteitskaart', 'Rijbewijs', 'Profielfoto'],
     },
   },
   {
     code: 'academic_qualification',
-    labels: { ar: 'المؤهلات العلمية', en: 'Academic qualifications', nl: 'Opleidingskwalificaties' },
+    labels: { ar: 'المؤهلات العلمية', en: 'Academic qualifications' },
     examples: {
       ar: ['شهادة الثانوية', 'البكالوريوس', 'الماجستير', 'الدكتوراه', 'كشف العلامات'],
       en: ['Secondary certificate', 'Bachelor degree', 'Master degree', 'Doctorate', 'Transcript'],
-      nl: ['Middelbaar diploma', 'Bachelor', 'Master', 'Doctoraat', 'Cijferlijst'],
     },
   },
   {
     code: 'professional_experience',
-    labels: { ar: 'الخبرة المهنية', en: 'Professional experience', nl: 'Werkervaring' },
+    labels: { ar: 'الخبرة المهنية', en: 'Professional experience' },
     examples: {
       ar: ['عقد عمل', 'كتاب خبرة', 'قرار تعيين', 'قرار ترقية', 'بطاقة موظف'],
       en: ['Employment contract', 'Experience letter', 'Appointment', 'Promotion', 'Employee card'],
-      nl: ['Arbeidscontract', 'Ervaringsverklaring', 'Benoeming', 'Promotie', 'Werknemerskaart'],
     },
   },
   {
     code: 'training_certification',
-    labels: { ar: 'الدورات والشهادات المهنية', en: 'Training and certifications', nl: 'Trainingen en certificaten' },
+    labels: { ar: 'الدورات والشهادات المهنية', en: 'Training and certifications' },
     examples: {
       ar: ['إسعافات أولية', 'إدارة مشاريع', 'تدريب المدربين', 'ISO', 'شهادات ICPC Academy'],
       en: ['First aid', 'Project management', 'Training of Trainers', 'ISO', 'ICPC Academy certificate'],
-      nl: ['Eerste hulp', 'Projectmanagement', 'Train-de-trainer', 'ISO', 'ICPC Academy-certificaat'],
     },
   },
   {
     code: 'portfolio',
-    labels: { ar: 'نماذج الأعمال', en: 'Portfolio', nl: 'Portfolio' },
+    labels: { ar: 'نماذج الأعمال', en: 'Portfolio' },
     examples: {
       ar: ['تقرير رسمي', 'دراسة قانونية', 'خطة مشروع', 'عرض تقديمي', 'تطبيق مطور'],
       en: ['Official report', 'Legal study', 'Project plan', 'Presentation', 'Developed application'],
-      nl: ['Officieel rapport', 'Juridische studie', 'Projectplan', 'Presentatie', 'Ontwikkelde app'],
     },
   },
   {
     code: 'photo_video',
-    labels: { ar: 'الصور والفيديوهات', en: 'Photos and videos', nl: "Foto's en video's" },
+    labels: { ar: 'الصور والفيديوهات', en: 'Photos and videos' },
     examples: {
       ar: ['صورة تنفيذ مشروع', 'صورة أثناء التدريب', 'فيديو تقديم دورة', 'فيديو مهمة ميدانية'],
       en: ['Project photo', 'Training photo', 'Course delivery video', 'Field-work video'],
-      nl: ['Projectfoto', 'Trainingsfoto', 'Cursusvideo', 'Veldwerkvideo'],
     },
   },
   {
     code: 'recommendation',
-    labels: { ar: 'خطابات التوصية', en: 'Recommendation letters', nl: 'Aanbevelingsbrieven' },
+    labels: { ar: 'خطابات التوصية', en: 'Recommendation letters' },
     examples: {
       ar: ['رسالة توصية', 'كتاب تزكية', 'خطاب شكر', 'شهادة حسن أداء'],
       en: ['Recommendation', 'Endorsement', 'Appreciation letter', 'Good-performance certificate'],
-      nl: ['Aanbeveling', 'Referentie', 'Dankbrief', 'Prestatieverklaring'],
     },
   },
   {
     code: 'award_accreditation',
-    labels: { ar: 'الجوائز والاعتمادات', en: 'Awards and accreditations', nl: 'Prijzen en accreditaties' },
+    labels: { ar: 'الجوائز والاعتمادات', en: 'Awards and accreditations' },
     examples: {
       ar: ['أفضل موظف', 'جائزة ابتكار', 'وسام تكريم', 'اعتماد مهني', 'عضوية مهنية'],
       en: ['Employee award', 'Innovation award', 'Honour', 'Professional accreditation', 'Membership'],
-      nl: ['Werknemersprijs', 'Innovatieprijs', 'Ereteken', 'Beroepsaccreditatie', 'Lidmaatschap'],
     },
   },
   {
     code: 'electronic_link',
-    labels: { ar: 'الروابط الإلكترونية', en: 'Electronic links', nl: 'Online links' },
+    labels: { ar: 'الروابط الإلكترونية', en: 'Electronic links' },
     examples: {
       ar: ['LinkedIn', 'ORCID', 'Google Scholar', 'GitHub', 'YouTube', 'صفحة مشروع'],
       en: ['LinkedIn', 'ORCID', 'Google Scholar', 'GitHub', 'YouTube', 'Project page'],
-      nl: ['LinkedIn', 'ORCID', 'Google Scholar', 'GitHub', 'YouTube', 'Projectpagina'],
     },
   },
 ]
@@ -107,33 +98,33 @@ const categoryDefinitions = [
 export const EVIDENCE_CATEGORIES = categoryDefinitions
 
 export const EVIDENCE_STATUS = {
-  new: { variant: 'info', labels: { ar: 'جديد', en: 'New', nl: 'Nieuw' } },
-  under_review: { variant: 'warning', labels: { ar: 'قيد المراجعة', en: 'Under review', nl: 'In beoordeling' } },
-  verified: { variant: 'success', labels: { ar: 'تم التحقق', en: 'Verified', nl: 'Geverifieerd' } },
-  clarification_required: { variant: 'warning', labels: { ar: 'يحتاج توضيحًا', en: 'Needs clarification', nl: 'Toelichting nodig' } },
-  rejected: { variant: 'danger', labels: { ar: 'مرفوض', en: 'Rejected', nl: 'Afgewezen' } },
-  unverifiable: { variant: 'danger', labels: { ar: 'غير قابل للتحقق', en: 'Unverifiable', nl: 'Niet verifieerbaar' } },
+  new: { variant: 'info', labels: { ar: 'جديد', en: 'New' } },
+  under_review: { variant: 'warning', labels: { ar: 'قيد المراجعة', en: 'Under review' } },
+  verified: { variant: 'success', labels: { ar: 'تم التحقق', en: 'Verified' } },
+  clarification_required: { variant: 'warning', labels: { ar: 'يحتاج توضيحًا', en: 'Needs clarification' } },
+  rejected: { variant: 'danger', labels: { ar: 'مرفوض', en: 'Rejected' } },
+  unverifiable: { variant: 'danger', labels: { ar: 'غير قابل للتحقق', en: 'Unverifiable' } },
 }
 
 export const APPLICATION_STATUS = {
-  draft: { variant: 'neutral', labels: { ar: 'مسودة', en: 'Draft', nl: 'Concept' } },
-  submitted: { variant: 'info', labels: { ar: 'تم الإرسال', en: 'Submitted', nl: 'Ingediend' } },
-  administrative_review: { variant: 'warning', labels: { ar: 'مراجعة إدارية', en: 'Administrative review', nl: 'Administratieve beoordeling' } },
-  awaiting_applicant: { variant: 'warning', labels: { ar: 'بانتظار المتقدم', en: 'Awaiting applicant', nl: 'Wacht op aanvrager' } },
-  evidence_verification: { variant: 'warning', labels: { ar: 'قيد التحقق', en: 'Evidence verification', nl: 'Bewijsverificatie' } },
-  ready_for_assessment: { variant: 'info', labels: { ar: 'جاهز للتقييم', en: 'Ready for assessment', nl: 'Gereed voor beoordeling' } },
-  assessment_in_progress: { variant: 'warning', labels: { ar: 'قيد التقييم', en: 'Assessment in progress', nl: 'Beoordeling loopt' } },
-  remediation_required: { variant: 'danger', labels: { ar: 'يحتاج استكمال', en: 'Remediation required', nl: 'Aanvulling nodig' } },
-  committee_review: { variant: 'info', labels: { ar: 'لجنة الاعتماد', en: 'Committee review', nl: 'Commissiebeoordeling' } },
-  quality_review: { variant: 'info', labels: { ar: 'مراجعة الجودة', en: 'Quality review', nl: 'Kwaliteitsbeoordeling' } },
-  decision_issued: { variant: 'success', labels: { ar: 'صدر القرار', en: 'Decision issued', nl: 'Besluit genomen' } },
-  appeal_open: { variant: 'warning', labels: { ar: 'تظلم مفتوح', en: 'Appeal open', nl: 'Bezwaar geopend' } },
-  under_appeal: { variant: 'warning', labels: { ar: 'قيد التظلم', en: 'Under appeal', nl: 'Onder bezwaar' } },
-  credential_pending: { variant: 'info', labels: { ar: 'بانتظار إصدار الاعتماد', en: 'Credential pending', nl: 'Certificaat in afwachting' } },
-  returned_for_rework: { variant: 'warning', labels: { ar: 'معاد للاستكمال', en: 'Returned for rework', nl: 'Teruggestuurd' } },
-  withdrawn: { variant: 'neutral', labels: { ar: 'مسحوب', en: 'Withdrawn', nl: 'Ingetrokken' } },
-  completed: { variant: 'success', labels: { ar: 'مكتمل', en: 'Completed', nl: 'Voltooid' } },
-  rejected: { variant: 'danger', labels: { ar: 'مرفوض', en: 'Rejected', nl: 'Afgewezen' } },
+  draft: { variant: 'neutral', labels: { ar: 'مسودة', en: 'Draft' } },
+  submitted: { variant: 'info', labels: { ar: 'تم الإرسال', en: 'Submitted' } },
+  administrative_review: { variant: 'warning', labels: { ar: 'مراجعة إدارية', en: 'Administrative review' } },
+  awaiting_applicant: { variant: 'warning', labels: { ar: 'بانتظار المتقدم', en: 'Awaiting applicant' } },
+  evidence_verification: { variant: 'warning', labels: { ar: 'قيد التحقق', en: 'Evidence verification' } },
+  ready_for_assessment: { variant: 'info', labels: { ar: 'جاهز للتقييم', en: 'Ready for assessment' } },
+  assessment_in_progress: { variant: 'warning', labels: { ar: 'قيد التقييم', en: 'Assessment in progress' } },
+  remediation_required: { variant: 'danger', labels: { ar: 'يحتاج استكمال', en: 'Remediation required' } },
+  committee_review: { variant: 'info', labels: { ar: 'لجنة الاعتماد', en: 'Committee review' } },
+  quality_review: { variant: 'info', labels: { ar: 'مراجعة الجودة', en: 'Quality review' } },
+  decision_issued: { variant: 'success', labels: { ar: 'صدر القرار', en: 'Decision issued' } },
+  appeal_open: { variant: 'warning', labels: { ar: 'تظلم مفتوح', en: 'Appeal open' } },
+  under_appeal: { variant: 'warning', labels: { ar: 'قيد التظلم', en: 'Under appeal' } },
+  credential_pending: { variant: 'info', labels: { ar: 'بانتظار إصدار الاعتماد', en: 'Credential pending' } },
+  returned_for_rework: { variant: 'warning', labels: { ar: 'معاد للاستكمال', en: 'Returned for rework' } },
+  withdrawn: { variant: 'neutral', labels: { ar: 'مسحوب', en: 'Withdrawn' } },
+  completed: { variant: 'success', labels: { ar: 'مكتمل', en: 'Completed' } },
+  rejected: { variant: 'danger', labels: { ar: 'مرفوض', en: 'Rejected' } },
 }
 
 /*
@@ -146,25 +137,25 @@ export const APPLICATION_STATUS = {
  * screening, interview and quiz declines.
  */
 export const DECLINE_REASONS = {
-  intake_declined: { labels: { ar: 'رُفض في المراجعة الإدارية الأولية', en: 'Declined at the initial review', nl: 'Afgewezen bij de eerste beoordeling' } },
-  screening_declined: { labels: { ar: 'رُفض بعد فرز الوثائق', en: 'Declined after document screening', nl: 'Afgewezen na documentscreening' } },
-  interview_declined: { labels: { ar: 'رُفض بعد المقابلة', en: 'Declined after the interview', nl: 'Afgewezen na het interview' } },
-  interview_no_show: { labels: { ar: 'لم يحضر المقابلة', en: 'Did not attend the interview', nl: 'Niet verschenen bij het interview' } },
-  quiz_below_pass_mark: { labels: { ar: 'دون علامة النجاح في الاختبار', en: 'Below the quiz pass mark', nl: 'Onder de cesuur van de toets' } },
-  committee_rejected: { labels: { ar: 'رفض لجنة الاعتماد', en: 'Rejected by the accreditation committee', nl: 'Afgewezen door de accreditatiecommissie' } },
-  appeal_rejected: { labels: { ar: 'رُفض بعد التظلم', en: 'Rejected on appeal', nl: 'Afgewezen na bezwaar' } },
+  intake_declined: { labels: { ar: 'رُفض في المراجعة الإدارية الأولية', en: 'Declined at the initial review' } },
+  screening_declined: { labels: { ar: 'رُفض بعد فرز الوثائق', en: 'Declined after document screening' } },
+  interview_declined: { labels: { ar: 'رُفض بعد المقابلة', en: 'Declined after the interview' } },
+  interview_no_show: { labels: { ar: 'لم يحضر المقابلة', en: 'Did not attend the interview' } },
+  quiz_below_pass_mark: { labels: { ar: 'دون علامة النجاح في الاختبار', en: 'Below the quiz pass mark' } },
+  committee_rejected: { labels: { ar: 'رفض لجنة الاعتماد', en: 'Rejected by the accreditation committee' } },
+  appeal_rejected: { labels: { ar: 'رُفض بعد التظلم', en: 'Rejected on appeal' } },
 }
 
 export const PROFESSIONAL_LEVELS = [
-  { code: 'practitioner', labels: { ar: 'ممارس مهني', en: 'Professional Practitioner', nl: 'Professioneel beoefenaar' } },
-  { code: 'advanced_practitioner', labels: { ar: 'ممارس مهني متقدم', en: 'Advanced Professional Practitioner', nl: 'Gevorderd professional' } },
-  { code: 'expert', labels: { ar: 'خبير مهني', en: 'Professional Expert', nl: 'Professioneel expert' } },
+  { code: 'practitioner', labels: { ar: 'ممارس مهني', en: 'Professional Practitioner' } },
+  { code: 'advanced_practitioner', labels: { ar: 'ممارس مهني متقدم', en: 'Advanced Professional Practitioner' } },
+  { code: 'expert', labels: { ar: 'خبير مهني', en: 'Professional Expert' } },
 ]
 
 export function localize(value, language = 'en') {
   if (value == null) return ''
   if (typeof value === 'string' || typeof value === 'number') return String(value)
-  return value?.[language] || value?.en || value?.ar || value?.nl || ''
+  return value?.[language] || value?.en || value?.ar || ''
 }
 
 export function getCategory(code, categories = EVIDENCE_CATEGORIES) {
@@ -248,7 +239,7 @@ export function isEvidenceEligibleForAssessment(evidence, requireVerified = true
 
 export function getStatusDefinition(status, domain = 'application') {
   const source = domain === 'evidence' ? EVIDENCE_STATUS : APPLICATION_STATUS
-  return source[status] || { variant: 'neutral', labels: { ar: status || '—', en: status || '—', nl: status || '—' } }
+  return source[status] || { variant: 'neutral', labels: { ar: status || '—', en: status || '—' } }
 }
 
 export function validateEvidenceFile(file) {

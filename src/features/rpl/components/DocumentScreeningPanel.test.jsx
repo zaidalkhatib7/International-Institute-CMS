@@ -164,7 +164,7 @@ describe('the case figure', () => {
     }
   })
 
-  it('renders English for the NL switcher, never "undefined"', () => {
+  it('renders English for any language but Arabic, never "undefined"', () => {
     renderPanel({ language: 'nl' })
 
     expect(screen.getByText('Authenticity risk 30% (3/10)')).toBeInTheDocument()

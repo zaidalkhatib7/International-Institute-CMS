@@ -7,6 +7,8 @@ import {
   fetchCertificate,
   fetchCertificates,
   fetchCertificateTemplates,
+  issueCertificate,
+  updateCertificateTemplate,
 } from '../services/certificatesService'
 
 vi.mock('../services/certificatesService', () => ({
@@ -84,5 +86,48 @@ describe('CertificatesPage', () => {
     expect(screen.queryByRole('button', { name: 'Reissue' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Certificate templates' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'View' })).toBeInTheDocument()
+  })
+
+  it('issues a credential named in Arabic and English only', async () => {
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Issue certificate' }))
+    expect(document.body.textContent).not.toMatch(/Dutch/)
+    fireEvent.change(screen.getByLabelText('User ID'), { target: { value: '12' } })
+    fireEvent.change(screen.getByLabelText('Credential name in English'), { target: { value: 'RPL Professional Assessor' } })
+    fireEvent.change(screen.getByLabelText('Credential name in Arabic'), { target: { value: 'مقيّم RPL مهني' } })
+    fireEvent.submit(document.getElementById('certificate-issue-form'))
+
+    await waitFor(() => expect(issueCertificate).toHaveBeenCalledTimes(1))
+    const [payload] = issueCertificate.mock.calls[0]
+    expect(payload.credential.title).toEqual({ en: 'RPL Professional Assessor', ar: 'مقيّم RPL مهني' })
+    expect(JSON.stringify(payload)).not.toContain('"nl"')
+  })
+
+  it('edits a template in Arabic and English only, and never sends a stored nl back', async () => {
+    fetchCertificateTemplates.mockResolvedValue({
+      data: [{
+        id: 7,
+        code: 'RPL-PRO',
+        name: { en: 'RPL certificate', ar: 'شهادة RPL', nl: 'RPL-certificaat' },
+        title: { en: 'Certificate of recognition', ar: 'شهادة اعتراف', nl: 'Erkenningscertificaat' },
+        body: { en: 'Awarded to', ar: 'تُمنح إلى', nl: 'Toegekend aan' },
+        is_active: true,
+      }],
+    })
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('tab', { name: /Certificate templates/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /RPL certificate/ }))
+    expect(document.body.textContent).not.toMatch(/Dutch/)
+    fireEvent.submit(document.getElementById('certificate-template-form'))
+
+    await waitFor(() => expect(updateCertificateTemplate).toHaveBeenCalledTimes(1))
+    const [id, payload] = updateCertificateTemplate.mock.calls[0]
+    expect(id).toBe(7)
+    expect(payload.name).toEqual({ en: 'RPL certificate', ar: 'شهادة RPL' })
+    expect(payload.title).toEqual({ en: 'Certificate of recognition', ar: 'شهادة اعتراف' })
+    expect(payload.body).toEqual({ en: 'Awarded to', ar: 'تُمنح إلى' })
+    expect(JSON.stringify(payload)).not.toContain('"nl"')
   })
 })

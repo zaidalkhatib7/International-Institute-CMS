@@ -56,10 +56,10 @@ import {
  */
 
 /* eslint-disable-next-line react-refresh/only-export-components -- exported so the
-   test can prove all three language blocks expose the same key set. Copy lookup
+   test can prove both language blocks expose the same key set. Copy lookup
    here is a WHOLE-OBJECT fallback (COPY[language] || COPY.en), with no per-key
-   rescue, so a key present in en and missing in nl renders the string
-   "undefined" — this codebase has already shipped a blank Dutch card that way. */
+   rescue, so a key present in en and missing in ar renders the string
+   "undefined" — this codebase has already shipped a blank card that way. */
 export const COPY = {
   ar: {
     title: 'مكتبة سد الفجوات الأكاديمية',
@@ -95,7 +95,6 @@ export const COPY = {
     competencyPrefixHint: 'مثال: LC — كفاءات هذه المدرسة هي LC-001 و LC-002… وهي فريدة بين كل المدارس.',
     nameAr: 'الاسم (بالعربية)',
     nameEn: 'الاسم (بالإنجليزية)',
-    nameNl: 'الاسم (بالهولندية)',
     packagesCount: 'حقيبة',
     noSchools: 'لم تُنشأ أي مدرسة معرفية بعد.',
     basis: 'مسوّغ الاعتماد',
@@ -253,7 +252,6 @@ export const COPY = {
       'Example: LC — this school’s competencies are LC-001, LC-002… Unique across every school.',
     nameAr: 'Name (Arabic)',
     nameEn: 'Name (English)',
-    nameNl: 'Name (Dutch)',
     packagesCount: 'packages',
     noSchools: 'No knowledge school has been created yet.',
     basis: 'Basis for approval',
@@ -377,168 +375,6 @@ export const COPY = {
     importDone: 'Imported as a draft. Publishing it is a separate, governed step.',
   },
 
-  nl: {
-    title: 'Academische hiatenbibliotheek',
-    subtitle:
-      'De pakketten die elk academisch hiatenplan kan aanbevelen. Wat een pakket niet verklaart, ziet de engine niet — en wordt nooit aan een kandidaat aangeboden.',
-
-    readiness: 'Gereedheid van de bibliotheek',
-    schoolsApproved: 'kennisscholen goedgekeurd van',
-    packagesPublished: 'pakketten gepubliceerd van',
-    modulesPublished: 'leermodules gepubliceerd van',
-    packagesDeclaringNone: 'pakketten verklaren geen enkele competentie',
-    orphanCompetencies: 'Competenties die geen enkel pakket vereist',
-    workNoSchools: 'Er bestaat nog geen kennisschool. Maak er hieronder een — elk pakket hoort bij één school.',
-    workNoSchoolApproved:
-      'Geen enkele school is goedgekeurd, dus geen enkel pakket kan worden gepubliceerd. Keur er hieronder een goed met een schriftelijke grondslag.',
-    workNoPackages:
-      'De bibliotheek is leeg. Importeer hieronder een GPS-pakketbestand of maak handmatig een conceptpakket.',
-    workNoPublished:
-      'Er is niets gepubliceerd, dus de engine ziet niets. Een pakket publiceert alleen met een goedgekeurde school, een competentiekoppeling en ten minste één module.',
-    workDeclaringNone:
-      'Deze pakketten zijn onzichtbaar voor de engine totdat zij verklaren welke competenties zij vereisen. Koppel ze hieronder.',
-    workNoModules:
-      'Er bestaan geen leermodules. Modules komen mee met de pakket-JSON — een pakket zonder modules kan niet worden gepubliceerd.',
-    workOrphans:
-      'Niets in de catalogus kan deze sluiten. Ofwel moet een pakket ze vereisen, ofwel horen ze niet actief te zijn.',
-
-    schools: 'Kennisscholen',
-    schoolsHint: 'Elk pakket hoort bij precies één kennisschool (artikel 7).',
-    twoCodesTitle: 'Een school heeft twee codes, en dat is niet dezelfde code',
-    twoCodesBody:
-      'De schoolcode gaat vooraf aan haar PAKKETcodes: LD geeft LD-001. Het competentievoorvoegsel gaat vooraf aan haar COMPETENTIEcodes: dezelfde school is LC. Zij verschillen in zeven van de twaalf scholen, dus de een wordt nooit uit de ander afgeleid — voer beide in.',
-    addSchool: 'Kennisschool toevoegen',
-    schoolCode: 'Schoolcode (gaat vooraf aan pakketcodes)',
-    schoolCodeHint: 'Voorbeeld: LD — de pakketten van deze school zijn LD-001, LD-002…',
-    competencyPrefix: 'Competentievoorvoegsel (gaat vooraf aan competentiecodes)',
-    competencyPrefixHint:
-      'Voorbeeld: LC — de competenties van deze school zijn LC-001, LC-002… Uniek over alle scholen.',
-    nameAr: 'Naam (Arabisch)',
-    nameEn: 'Naam (Engels)',
-    nameNl: 'Naam (Nederlands)',
-    packagesCount: 'pakketten',
-    noSchools: 'Er is nog geen kennisschool aangemaakt.',
-    basis: 'Grondslag voor goedkeuring',
-    basisPlaceholder:
-      'Op welke grondslag wordt deze kennisschool goedgekeurd, en wie heeft haar beoordeeld? (minimaal 20 tekens)',
-    basisHint:
-      'Wordt op uw naam vastgelegd in het audittraject. Een goedgekeurde school is wat publicatie van haar pakketten mogelijk maakt.',
-    approve: 'School goedkeuren',
-
-    packages: 'Pakketten',
-    packagesHint:
-      'Bulk-JSON-import is de officiële invoerweg. Modulinhoud wordt hier niet geschreven; dit scherm beheert identiteit, competentiekoppeling en publicatie.',
-    addPackage: 'Pakket toevoegen',
-    editPackage: 'Identiteit bewerken',
-    packageCode: 'Pakketcode',
-    packageCodeHint: 'Moet beginnen met de code van de school, bijv. LD-001 voor school LD.',
-    school: 'Kennisschool',
-    chooseSchool: '— kies een school —',
-    qualificationLevel: 'Kwalificatieniveau',
-    academicPath: 'Academisch traject',
-    notSet: '— niet ingesteld —',
-    version: 'Versie',
-    creditHours: 'Studiepunturen',
-    learningHours: 'Leeruren',
-    sortOrder: 'Sorteervolgorde',
-    serves: 'Bedient',
-    noPackages: 'Er is nog geen pakket geschreven.',
-    declaresNothing: 'Verklaart geen competenties — onzichtbaar voor de engine',
-    requires: 'Vereist',
-    mapCompetencies: 'Competenties koppelen',
-    hideMapping: 'Koppeling sluiten',
-    requiredLevel: 'Vereist niveau',
-    classification: 'Classificatie',
-    weight: 'Weging',
-    notRequired: '— niet vereist —',
-    saveMapping: 'Koppeling opslaan',
-    mappingHint:
-      'Een vereist niveau is verplicht voor elke competentie die het pakket vereist: dezelfde competentie is een andere lat bij diploma en bij doctoraat. Dekking wordt hier niet meer ingesteld — die hoort bij de module, en modules komen binnen via JSON-import.',
-    modulesLabel: 'Leermodules',
-    modulesHint:
-      'Alleen-lezen. Modules worden in de pakket-JSON geschreven en komen binnen via import, nooit via een formulier.',
-    showModules: 'Modules tonen',
-    hideModules: 'Modules verbergen',
-    showAuthoring: 'AI-ontwikkeling',
-    hideAuthoring: 'Ontwikkelpaneel sluiten',
-    noModules: 'Geen modules. Dit pakket kan niet worden gepubliceerd tot de JSON er ten minste één bevat.',
-    publish: 'Publiceren',
-    publishedOk: 'Pakket gepubliceerd en nu zichtbaar voor de hiatenengine.',
-    schoolApprovedOk: 'Kennisschool goedgekeurd. Haar pakketten kunnen nu worden gepubliceerd.',
-    publishedLocked: 'Gepubliceerd, en mogelijk al onderdeel van een plan waaraan een kandidaat werkt.',
-    remove: 'Verwijderen',
-    removeConfirm: 'Dit pakket en elke module erin verwijderen? Dit kan niet ongedaan worden gemaakt.',
-    save: 'Opslaan',
-    cancel: 'Annuleren',
-
-    levels: {
-      professional_diploma: 'Professioneel diploma',
-      professional_master: 'Professionele master',
-      professional_doctorate: 'Professioneel doctoraat',
-    },
-    classifications: {
-      core: 'Kern',
-      supporting: 'Ondersteunend',
-      advanced: 'Gevorderd',
-      elective: 'Keuze',
-    },
-    statuses: {
-      draft: 'Concept',
-      approved: 'Goedgekeurd',
-      published: 'Gepubliceerd',
-      archived: 'Gearchiveerd',
-    },
-    publishErrors: {
-      ACADEMIC_PACKAGE_NO_SCHOOL:
-        'Dit pakket heeft geen kennisschool. Wijs er een toe vóór publicatie — artikel 7 vereist dat elk pakket bij een school hoort.',
-      ACADEMIC_PACKAGE_SCHOOL_NOT_APPROVED:
-        'De kennisschool is nog een concept. Keur de school hierboven goed met een schriftelijke grondslag en publiceer daarna.',
-      ACADEMIC_PACKAGE_DECLARES_NOTHING:
-        'Dit pakket verklaart geen competenties, dus geen enkel hiatenplan zou het ooit bereiken. Leg eerst de competentiekoppeling vast.',
-      ACADEMIC_PACKAGE_PLACEHOLDER_COMPETENCY:
-        'Het steunt op een placeholder of een niet-goedgekeurde competentie. Een gereserveerde 9xx-placeholder staat voor kaderinhoud die niemand heeft geschreven — keur de echte competentie goed, of koppel dit pakket aan een goedgekeurde.',
-      ACADEMIC_SCHOOL_ALREADY_APPROVED:
-        'Deze school is al goedgekeurd. Herlaad de pagina — dit scherm toont een verouderde staat.',
-      ACADEMIC_PACKAGE_HAS_NO_MODULES:
-        'Dit pakket bevat geen leermodules. Importeer de JSON met ten minste één module — de module is de kleinste toetsbare eenheid.',
-    },
-
-    competencies: 'Competenties',
-    competenciesHint:
-      'Hier alleen-lezen. Het kader wordt geschreven op het competentiekaderscherm en via import van een competentiebundel.',
-    placeholder: 'Placeholder',
-    placeholderNote:
-      'Een placeholder staat voor kaderinhoud die niemand heeft geschreven. Gereedheid mag ertegen scoren, maar een pakket dat er een vereist kan nooit worden gepubliceerd.',
-    noCompetencies: 'Er bestaat nog geen actieve competentie.',
-
-    importTitle: 'Bulk-JSON-import',
-    importHint:
-      'De officiële invoerweg (eigenaarsbesluit 4). Inspecteer eerst: de proefrun schrijft niets en meldt alle problemen in het bestand tegelijk.',
-    importKind: 'Bestandstype',
-    kindPackage: 'GPS-pakketbestand',
-    kindCompetency: 'GCS-competentiebundel',
-    uploadLabel: 'Kies een JSON-bestand',
-    pasteLabel: 'Of plak de JSON',
-    pastePlaceholder: 'Plak hier de inhoud van het pakket- of competentiebundelbestand.',
-    inspect: 'Inspecteren (schrijft niets)',
-    inspecting: 'Inspecteren…',
-    runImport: 'Importeren',
-    importing: 'Importeren…',
-    inspectFirst: 'Inspecteer het bestand eerst. Import wordt pas aangeboden na een schone inspectie.',
-    invalidJson: 'Dit is geen geldige JSON, dus er valt nog niets te inspecteren. Controleer het bestand en plak het opnieuw.',
-    emptyFile: 'Niets te inspecteren — plak de JSON of kies eerst een bestand.',
-    reportTitle: 'Inspectierapport',
-    reportValid: 'Geen blokkerende problemen. Dit bestand kan worden geïmporteerd.',
-    reportInvalid: 'Dit bestand kan niet worden geïmporteerd tot de problemen hieronder zijn opgelost.',
-    schemaErrors: 'Schemafouten — het bestand voldoet niet aan het gepubliceerde contract',
-    referentialErrors: 'Referentiefouten — het bestand is welgevormd maar verwijst naar iets dat er niet is',
-    warnings: 'Waarschuwingen — importeerbaar, maar de moeite van het lezen waard',
-    warningsNote:
-      'Waarschuwingen blokkeren een import nooit. Ze staan er zodat niets ongemerkt passeert, niet om u tegen te houden.',
-    summary: 'Samenvatting',
-    importRefused: 'De import is geweigerd en er is niets weggeschreven. Het volledige rapport staat hieronder.',
-    importDone: 'Geïmporteerd als concept. Publiceren is een aparte, beheerde stap.',
-  },
 }
 
 const LEVEL_CODES = ['professional_diploma', 'professional_master', 'professional_doctorate']
@@ -548,7 +384,7 @@ const EMPTY_PACKAGE = {
   editingCode: null,
   code: '',
   academic_rpl_school_id: '',
-  name: { ar: '', en: '', nl: '' },
+  name: { ar: '', en: '' },
   qualification_level: '',
   academic_path: '',
   version: '',
@@ -653,8 +489,8 @@ export default function AcademicLibraryPage() {
    *
    * The server names its refusal — ACADEMIC_PACKAGE_HAS_NO_MODULES and the four
    * others — so the author can be told which of five different things to fix.
-   * readApiError would flatten all five into one sentence, and in Arabic or
-   * Dutch into a generic one.
+   * readApiError would flatten all five into one sentence, and in Arabic
+   * into a generic one.
    */
   async function publish(pkg) {
     setBusy(true)
@@ -680,8 +516,8 @@ export default function AcademicLibraryPage() {
    *
    * It refuses with ACADEMIC_SCHOOL_ALREADY_APPROVED, which is a 422 carrying an
    * `error` code and no `errors` bag — the shape readApiError degrades to the
-   * raw English message in English and to a generic sentence in Arabic and
-   * Dutch. Naming it here keeps the two governed actions on this screen
+   * raw English message in English and to a generic sentence in Arabic.
+   * Naming it here keeps the two governed actions on this screen
    * consistent; fixing publish and leaving this one is how the next reader
    * concludes the named-refusal pattern was optional.
    *
@@ -941,7 +777,7 @@ export default function AcademicLibraryPage() {
               variant="outline"
               disabled={busy}
               onClick={() =>
-                setSchoolDraft({ code: '', competency_prefix: '', name: { ar: '', en: '', nl: '' } })
+                setSchoolDraft({ code: '', competency_prefix: '', name: { ar: '', en: '' } })
               }
             >
               <Plus size={16} /> {copy.addSchool}
@@ -999,13 +835,6 @@ export default function AcademicLibraryPage() {
                   value={schoolDraft.name.en}
                   onChange={(event) =>
                     setSchoolDraft((c) => ({ ...c, name: { ...c.name, en: event.target.value } }))
-                  }
-                />
-                <Input
-                  label={copy.nameNl}
-                  value={schoolDraft.name.nl}
-                  onChange={(event) =>
-                    setSchoolDraft((c) => ({ ...c, name: { ...c.name, nl: event.target.value } }))
                   }
                 />
               </div>
@@ -1106,7 +935,7 @@ export default function AcademicLibraryPage() {
               size="sm"
               variant="outline"
               disabled={busy}
-              onClick={() => setPackageDraft({ ...EMPTY_PACKAGE, name: { ar: '', en: '', nl: '' } })}
+              onClick={() => setPackageDraft({ ...EMPTY_PACKAGE, name: { ar: '', en: '' } })}
             >
               <Plus size={16} /> {copy.addPackage}
             </Button>
@@ -1154,13 +983,6 @@ export default function AcademicLibraryPage() {
                   value={packageDraft.name.en}
                   onChange={(event) =>
                     setPackageDraft((c) => ({ ...c, name: { ...c.name, en: event.target.value } }))
-                  }
-                />
-                <Input
-                  label={copy.nameNl}
-                  value={packageDraft.name.nl}
-                  onChange={(event) =>
-                    setPackageDraft((c) => ({ ...c, name: { ...c.name, nl: event.target.value } }))
                   }
                 />
               </div>
@@ -1495,7 +1317,6 @@ export default function AcademicLibraryPage() {
                             name: {
                               ar: pkg.name?.ar || '',
                               en: pkg.name?.en || '',
-                              nl: pkg.name?.nl || '',
                             },
                             qualification_level: pkg.qualification_level || '',
                             academic_path: pkg.academic_path || '',

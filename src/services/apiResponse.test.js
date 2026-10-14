@@ -23,9 +23,9 @@ describe('localized API error contract', () => {
     expect(message).not.toContain('SQLSTATE')
   })
 
-  it('returns a safe Dutch authorization message', () => {
-    expect(readApiError(responseError(403, 'Forbidden'), undefined, 'nl')).toBe(
-      'U hebt geen toestemming om deze actie uit te voeren.',
+  it('returns a safe Arabic authorization message', () => {
+    expect(readApiError(responseError(403, 'Forbidden'), undefined, 'ar')).toBe(
+      'ليست لديك صلاحية تنفيذ هذا الإجراء.',
     )
   })
 
@@ -40,7 +40,7 @@ describe('localized API error contract', () => {
      * This asserted the opposite until the fallback was deliberately moved
      * BELOW the status branches — see the comment in readApiError. Practically
      * every caller passes a fallback, so while it came first none of the
-     * status sentences were ever reachable in ar or nl, and a precise 403 or
+     * status sentences were ever reachable in ar, and a precise 403 or
      * 409 surfaced as whatever generic line the page happened to supply.
      *
      * A 409 now says what a conflict IS. The caller's fallback still wins when
@@ -56,8 +56,11 @@ describe('localized API error contract', () => {
   })
 
   it('localizes network failures independently of backend content', () => {
-    expect(readApiError({ message: 'Network Error' }, undefined, 'nl')).toContain(
-      'Kan geen verbinding maken',
+    expect(readApiError({ message: 'Network Error' }, undefined, 'ar')).toContain(
+      'تعذر الاتصال بالخادم',
+    )
+    expect(readApiError({ message: 'Network Error' }, undefined, 'en')).toContain(
+      'Could not connect to the server',
     )
   })
 
@@ -69,6 +72,6 @@ describe('localized API error contract', () => {
     })
 
     expect(readApiError(error, undefined, 'ar')).toBe('البيانات غير مكتملة.')
-    expect(readApiError(error, undefined, 'nl')).toBe('De gegevens zijn onvolledig.')
+    expect(readApiError(error, undefined, 'en')).toBe('The data is incomplete.')
   })
 })

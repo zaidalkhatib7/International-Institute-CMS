@@ -96,7 +96,6 @@ const copies = {
     slug: "الرابط المختصر",
     titleEn: "العنوان بالإنجليزية",
     titleAr: "العنوان بالعربية",
-    titleNl: "العنوان بالهولندية",
     descriptionEn: "الوصف بالإنجليزية",
     descriptionAr: "الوصف بالعربية",
     authors: "المؤلفون (مفصولون بفواصل)",
@@ -175,7 +174,6 @@ const copies = {
     slug: "Slug",
     titleEn: "Title in English",
     titleAr: "Title in Arabic",
-    titleNl: "Title in Dutch",
     descriptionEn: "Description in English",
     descriptionAr: "Description in Arabic",
     authors: "Authors (comma separated)",
@@ -213,109 +211,15 @@ const copies = {
     previous: "Previous",
     next: "Next",
   },
-  nl: {
-    title: "Digitale bibliotheek",
-    description:
-      "Beheer beleid, handleidingen, sjablonen en onderzoek met gecontroleerde versies en toegangsniveaus.",
-    resources: "Bronnen",
-    categories: "Categorieën",
-    newResource: "Nieuwe bron",
-    newCategory: "Nieuwe categorie",
-    search: "Zoek titel, beschrijving of trefwoorden…",
-    allStatuses: "Alle statussen",
-    allTypes: "Alle typen",
-    allAccess: "Alle toegangsniveaus",
-    apply: "Toepassen",
-    resource: "Bron",
-    category: "Categorie",
-    type: "Type",
-    access: "Toegang",
-    version: "Versie",
-    status: "Status",
-    actions: "Acties",
-    versions: "Versies beheren",
-    edit: "Bewerken",
-    archive: "Archiveren",
-    total: "Totaal bronnen",
-    published: "Gepubliceerd",
-    draft: "Concept",
-    restricted: "Beperkte toegang",
-    empty: "Geen bronnen gevonden.",
-    emptyCategories: "Er zijn nog geen categorieën.",
-    save: "Opslaan",
-    saving: "Opslaan…",
-    close: "Sluiten",
-    required: "Vul alle verplichte velden in.",
-    success: "Bibliotheekgegevens opgeslagen.",
-    archived: "Bron gearchiveerd.",
-    versionAdded: "Versie toegevoegd.",
-    versionPublished: "Geselecteerde versie gepubliceerd.",
-    deleted: "Categorie verwijderd.",
-    slug: "Slug",
-    titleEn: "Titel in het Engels",
-    titleAr: "Titel in het Arabisch",
-    titleNl: "Titel in het Nederlands",
-    descriptionEn: "Beschrijving in het Engels",
-    descriptionAr: "Beschrijving in het Arabisch",
-    authors: "Auteurs (kommagescheiden)",
-    keywords: "Trefwoorden (kommagescheiden)",
-    language: "Brontaal",
-    publisher: "Uitgever",
-    publishedOn: "Publicatiedatum",
-    public: "Openbaar",
-    authenticated: "Ingelogde gebruikers",
-    resourceRestricted: "Beperkt",
-    guide: "Handleiding",
-    policy: "Beleid",
-    form: "Formulier",
-    template: "Sjabloon",
-    book: "Boek",
-    study: "Studie",
-    video: "Video",
-    research_paper: "Onderzoeksartikel",
-    parent: "Bovenliggende categorie",
-    nameEn: "Naam in het Engels",
-    nameAr: "Naam in het Arabisch",
-    sortOrder: "Sorteervolgorde",
-    active: "Actief",
-    mediaId: "Media-bestands-ID",
-    externalUrl: "Of externe URL",
-    changeNotes: "Versienotities",
-    addVersion: "Versie toevoegen",
-    publishVersion: "Deze versie publiceren",
-    current: "Gepubliceerde versie",
-    confirmArchive: "Deze bron archiveren?",
-    archiveHint:
-      "De bron is daarna niet meer zichtbaar in de openbare bibliotheek.",
-    confirmDelete: "Deze categorie verwijderen?",
-    deleteHint:
-      "Categorieën met bronnen of kinderen kunnen niet worden verwijderd.",
-    delete: "Verwijderen",
-    previous: "Vorige",
-    next: "Volgende",
-  },
 };
 
 Object.assign(copies.ar, {
-  descriptionNl: "الوصف بالهولندية",
-  nameNl: "الاسم بالهولندية",
   categoryDescriptionEn: "وصف التصنيف بالإنجليزية",
   categoryDescriptionAr: "وصف التصنيف بالعربية",
-  categoryDescriptionNl: "وصف التصنيف بالهولندية",
 });
 Object.assign(copies.en, {
-  descriptionNl: "Description in Dutch",
-  nameNl: "Name in Dutch",
   categoryDescriptionEn: "Category description in English",
   categoryDescriptionAr: "Category description in Arabic",
-  categoryDescriptionNl: "Category description in Dutch",
-});
-Object.assign(copies.nl, {
-  descriptionNl: "Beschrijving in het Nederlands",
-  nameNl: "Naam in het Nederlands",
-  categoryDescriptionEn: "Categoriebeschrijving in het Engels",
-  categoryDescriptionAr: "Categoriebeschrijving in het Arabisch",
-  categoryDescriptionNl: "Categoriebeschrijving in het Nederlands",
 });
 
 const resourceTypes = [
@@ -335,10 +239,8 @@ const emptyResource = {
   type: "guide",
   title_en: "",
   title_ar: "",
-  title_nl: "",
   description_en: "",
   description_ar: "",
-  description_nl: "",
   authors: "",
   keywords: "",
   language: "en",
@@ -352,10 +254,8 @@ const emptyCategory = {
   slug: "",
   name_en: "",
   name_ar: "",
-  name_nl: "",
   description_en: "",
   description_ar: "",
-  description_nl: "",
   sort_order: 0,
   is_active: true,
 };
@@ -369,10 +269,8 @@ function mapResource(resource = {}) {
     type: resource.type || "guide",
     title_en: resource.title?.en || "",
     title_ar: resource.title?.ar || "",
-    title_nl: resource.title?.nl || "",
     description_en: resource.description?.en || "",
     description_ar: resource.description?.ar || "",
-    description_nl: resource.description?.nl || "",
     authors: Array.isArray(resource.authors) ? resource.authors.join(", ") : "",
     keywords: Array.isArray(resource.keywords)
       ? resource.keywords.join(", ")
@@ -391,10 +289,8 @@ function mapCategory(category = {}) {
     slug: category.slug || "",
     name_en: category.name?.en || "",
     name_ar: category.name?.ar || "",
-    name_nl: category.name?.nl || "",
     description_en: category.description?.en || "",
     description_ar: category.description?.ar || "",
-    description_nl: category.description?.nl || "",
     sort_order: category.sort_order || 0,
     is_active: category.is_active !== false,
   };
@@ -477,12 +373,10 @@ export default function DigitalLibraryPage() {
       title: {
         en: resourceForm.title_en,
         ar: resourceForm.title_ar,
-        nl: resourceForm.title_nl,
       },
       description: {
         en: resourceForm.description_en,
         ar: resourceForm.description_ar,
-        nl: resourceForm.description_nl,
       },
       authors: resourceForm.authors
         .split(",")
@@ -525,12 +419,10 @@ export default function DigitalLibraryPage() {
       name: {
         en: categoryForm.name_en,
         ar: categoryForm.name_ar,
-        nl: categoryForm.name_nl,
       },
       description: {
         en: categoryForm.description_en,
         ar: categoryForm.description_ar,
-        nl: categoryForm.description_nl,
       },
       sort_order: Number(categoryForm.sort_order),
       is_active: categoryForm.is_active,
@@ -1061,16 +953,6 @@ export default function DigitalLibraryPage() {
             }
           />
           <Input
-            label={copy.titleNl}
-            value={resourceForm.title_nl}
-            onChange={(event) =>
-              setResourceForm((current) => ({
-                ...current,
-                title_nl: event.target.value,
-              }))
-            }
-          />
-          <Input
             label={copy.language}
             value={resourceForm.language}
             onChange={(event) =>
@@ -1098,16 +980,6 @@ export default function DigitalLibraryPage() {
               setResourceForm((current) => ({
                 ...current,
                 description_ar: event.target.value,
-              }))
-            }
-          />
-          <Textarea
-            label={copy.descriptionNl}
-            value={resourceForm.description_nl}
-            onChange={(event) =>
-              setResourceForm((current) => ({
-                ...current,
-                description_nl: event.target.value,
               }))
             }
           />
@@ -1231,16 +1103,6 @@ export default function DigitalLibraryPage() {
               }))
             }
           />
-          <Input
-            label={copy.nameNl}
-            value={categoryForm.name_nl}
-            onChange={(event) =>
-              setCategoryForm((current) => ({
-                ...current,
-                name_nl: event.target.value,
-              }))
-            }
-          />
           <Textarea
             label={copy.categoryDescriptionEn}
             value={categoryForm.description_en}
@@ -1259,16 +1121,6 @@ export default function DigitalLibraryPage() {
               setCategoryForm((current) => ({
                 ...current,
                 description_ar: event.target.value,
-              }))
-            }
-          />
-          <Textarea
-            label={copy.categoryDescriptionNl}
-            value={categoryForm.description_nl}
-            onChange={(event) =>
-              setCategoryForm((current) => ({
-                ...current,
-                description_nl: event.target.value,
               }))
             }
           />

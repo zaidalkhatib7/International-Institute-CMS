@@ -48,13 +48,6 @@ function formatRoleLabel(role, language) {
     return 'مستخدم'
   }
 
-  if (language === 'nl') {
-    if (roleKey === 'admin') return 'Beheerder'
-    if (roleKey === 'trainer') return 'Trainer'
-    if (roleKey === 'student') return 'Aanvrager'
-    return 'Gebruiker'
-  }
-
   if (roleKey === 'admin') return 'Admin'
   if (roleKey === 'trainer') return 'Trainer'
   if (roleKey === 'student') return 'Applicant'
@@ -89,7 +82,7 @@ function formatDate(value, language) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '-'
   const locale =
-    language === 'ar' ? 'ar-EG' : language === 'nl' ? 'nl-NL' : 'en-GB'
+    language === 'ar' ? 'ar-EG' : 'en-GB'
   return date.toLocaleDateString(locale, {
     day: '2-digit',
     month: 'short',
@@ -123,7 +116,7 @@ function getUsersPage(result) {
 
 function formatNumber(value, language) {
   const locale =
-    language === 'ar' ? 'ar-EG' : language === 'nl' ? 'nl-NL' : 'en-US'
+    language === 'ar' ? 'ar-EG' : 'en-US'
   return Number(value || 0).toLocaleString(locale)
 }
 
@@ -161,9 +154,7 @@ function buildUsersCsv(users, language) {
   const headers =
     language === 'ar'
       ? ['المعرف', 'الاسم', 'البريد الإلكتروني', 'الدور', 'تاريخ التسجيل', 'رصيد المحفظة']
-      : language === 'nl'
-        ? ['ID', 'Naam', 'E-mail', 'Rol', 'Registratiedatum', 'Wallet-saldo']
-        : ['ID', 'Name', 'Email', 'Role', 'Registration Date', 'Wallet Balance']
+      : ['ID', 'Name', 'Email', 'Role', 'Registration Date', 'Wallet Balance']
 
   const rows = users.map((user) => [
     `ICPC-${user.id}`,
@@ -272,9 +263,9 @@ export default function UsersPage() {
   const language = getCurrentLanguage()
   const audience = location.pathname === '/users/website' ? 'website' : location.pathname === '/users/onsite' ? 'onsite' : 'administration'
   const audienceMeta = {
-    administration: language === 'ar' ? { title: 'الإدارة والأدوار', description: 'إدارة الموظفين والمديرين والمقيّمين والمدربين وصلاحياتهم التشغيلية.', add: true } : language === 'nl' ? { title: 'Beheer en rollen', description: 'Beheer medewerkers, beheerders, beoordelaars, trainers en hun bevoegdheden.', add: true } : { title: 'Administration & roles', description: 'Manage staff, administrators, assessors, trainers, and their operational permissions.', add: true },
-    website: language === 'ar' ? { title: 'عملاء الموقع', description: 'الحسابات التي سجلت ذاتياً عبر الموقع وتدير خدماتها إلكترونياً.', add: false } : language === 'nl' ? { title: 'Websitecliënten', description: 'Zelfservicecliënten die zich online hebben geregistreerd.', add: false } : { title: 'Website clients', description: 'Self-service clients who registered online and manage their own website accounts.', add: false },
-    onsite: language === 'ar' ? { title: 'عملاء المكتب', description: 'العملاء الذين تم تسجيلهم أو خدمتهم داخل مكتب ICPC.', add: true } : language === 'nl' ? { title: 'Kantoorcliënten', description: 'Cliënten die op een ICPC-kantoor zijn geregistreerd of geholpen.', add: true } : { title: 'On-site clients', description: 'Clients registered and assisted at an ICPC office. Staff manage their service journey here.', add: true },
+    administration: language === 'ar' ? { title: 'الإدارة والأدوار', description: 'إدارة الموظفين والمديرين والمقيّمين والمدربين وصلاحياتهم التشغيلية.', add: true } : { title: 'Administration & roles', description: 'Manage staff, administrators, assessors, trainers, and their operational permissions.', add: true },
+    website: language === 'ar' ? { title: 'عملاء الموقع', description: 'الحسابات التي سجلت ذاتياً عبر الموقع وتدير خدماتها إلكترونياً.', add: false } : { title: 'Website clients', description: 'Self-service clients who registered online and manage their own website accounts.', add: false },
+    onsite: language === 'ar' ? { title: 'عملاء المكتب', description: 'العملاء الذين تم تسجيلهم أو خدمتهم داخل مكتب ICPC.', add: true } : { title: 'On-site clients', description: 'Clients registered and assisted at an ICPC office. Staff manage their service journey here.', add: true },
   }[audience]
   const copy = useMemo(() => {
     if (language === 'ar') {
@@ -358,90 +349,6 @@ export default function UsersPage() {
         loadFailed: 'تعذر تحميل المستخدمين.',
         exportFailed: 'تعذر تصدير ملف CSV.',
         viewEdit: 'عرض / تعديل البيانات',
-      }
-    }
-
-    if (language === 'nl') {
-      return {
-        title: 'Gebruikers',
-        userAudience: 'Gebruikersgroep',
-        description: 'Bekijk institutionele accounts, wallet-saldi en roltoewijzingen.',
-        searchPlaceholder: 'Zoek op naam, e-mail of telefoon',
-        allRoles: 'Alle rollen',
-        sortName: 'Sorteren: Naam',
-        sortEmail: 'Sorteren: E-mail',
-        sortRole: 'Sorteren: Rol',
-        sortDate: 'Sorteren: Datum',
-        sortWallet: 'Sorteren: Wallet',
-        asc: 'Oplopend',
-        desc: 'Aflopend',
-        addUser: 'Gebruiker toevoegen',
-        createUserTitle: 'Nieuwe gebruiker toevoegen',
-        userName: 'Naam',
-        email: 'E-mail',
-        phoneNumber: 'Telefoonnummer',
-        password: 'Wachtwoord',
-        roleLabel: 'Rol',
-        save: 'Opslaan',
-        cancel: 'Annuleren',
-        creating: 'Aanmaken...',
-        createdSuccess: 'Gebruiker succesvol aangemaakt.',
-        createFailed: 'Gebruiker aanmaken mislukt.',
-        walletTopupTitle: 'Wallet-punten toevoegen',
-        amount: 'Bedrag',
-        descriptionLabel: 'Beschrijving',
-        descriptionPlaceholder: 'Reden voor bijschrijving (optioneel)',
-        addPoints: 'Punten toevoegen',
-        decreasePoints: 'Punten verlagen',
-        crediting: 'Bijschrijven...',
-        creditedSuccess: 'Punten succesvol toegevoegd.',
-        creditFailed: 'Punten toevoegen mislukt.',
-        invalidAmount: 'Voer een bedrag groter dan 0 in.',
-        totalFilteredUsers: 'Totaal gefilterde gebruikers',
-        adminAccounts: 'Beheerdersaccounts',
-        totalWalletBalance: 'Totaal wallet-saldo',
-        points: 'II Punten',
-        allUsers: 'Alle gebruikers',
-        liveData: 'Live gepagineerde data van de admin API',
-        exportCsv: 'CSV exporteren',
-        exporting: 'Exporteren...',
-        filters: 'Filters',
-        walletFilter: 'Walletfilter',
-        walletAll: 'Alle saldi',
-        walletPositive: 'Saldo groter dan 0',
-        walletZero: 'Saldo 0',
-        registrationFilter: 'Registratiefilter',
-        registrationAll: 'Alle datums',
-        registrationLast30: 'Laatste 30 dagen',
-        registrationThisYear: 'Dit jaar',
-        clearFilters: 'Filters wissen',
-        noCsvData: 'Geen gegevens om te exporteren.',
-        nameIdentity: 'Naam en identiteit',
-        institutionalEmail: 'Institutionele e-mail',
-        role: 'Rol',
-        registrationDate: 'Registratiedatum',
-        walletBalance: 'Wallet-saldo',
-        loadingUsers: 'Gebruikers laden...',
-        noUsersFound: 'Geen gebruikers gevonden.',
-        showing: 'Toont',
-        of: 'van',
-        total: 'totaal',
-        rows: 'Rijen',
-        prev: 'Vorige',
-        next: 'Volgende',
-        onsiteNoEmail: 'Op kantoor geregistreerd · geen e-mail',
-        tabAdministration: 'Beheer en rollen',
-        tabWebsite: 'Websitecliënten',
-        tabOnsite: 'Kantoorcliënten',
-        registrationChannel: 'Registratiekanaal',
-        onlineSelfService: 'Online zelfservice (e-mail vereist)',
-        onsiteAssisted: 'Begeleid op kantoor (e-mail optioneel)',
-        username: 'Gebruikersnaam',
-        generatedRegistrationId: 'Het systeem maakt automatisch een willekeurig, uniek registratienummer aan met jaar en drie cijfers, bijvoorbeeld 2026-482.',
-        page: 'Pagina',
-        loadFailed: 'Gebruikers laden mislukt.',
-        exportFailed: 'CSV exporteren mislukt.',
-        viewEdit: 'Gegevens bekijken / bewerken',
       }
     }
 

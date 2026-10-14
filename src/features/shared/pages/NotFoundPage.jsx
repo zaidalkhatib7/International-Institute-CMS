@@ -9,7 +9,6 @@ export default function NotFoundPage() {
   const copy = {
     ar: { title: 'الصفحة غير موجودة', description: 'الرابط الذي طلبته غير متاح ضمن نظام ICPC الحالي.', back: 'العودة إلى النظرة العامة' },
     en: { title: 'Page not found', description: 'The requested link is not available in the current ICPC system.', back: 'Back to overview' },
-    nl: { title: 'Pagina niet gevonden', description: 'De gevraagde koppeling is niet beschikbaar in het huidige ICPC-systeem.', back: 'Terug naar overzicht' },
   }[language]
   const BackIcon = isArabic ? ArrowRight : ArrowLeft
 

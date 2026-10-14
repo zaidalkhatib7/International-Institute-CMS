@@ -19,7 +19,7 @@ import { COPY as AUTHORING_COPY } from '../components/AcademicAuthoringPanel'
  *   - a competency mapping carries a required_level per competency
  *   - a publish refusal renders the sentence for ITS error code, not a toast
  *   - an inspection that finds errors is a SUCCESS, and warnings are not errors
- *   - every key exists in all three language blocks
+ *   - every key exists in both language blocks
  */
 
 const mocks = vi.hoisted(() => ({
@@ -436,7 +436,7 @@ describe('AcademicLibraryPage', () => {
     mocks.inspectAcademicPackageFile.mockResolvedValue({
       data: report({
         valid: true,
-        warnings: ['3 text field(s) have no nl translation; the package is importable'],
+        warnings: ['3 text field(s) have no en translation; the package is importable and will render in Arabic'],
       }),
     })
     render(<AcademicLibraryPage />)
@@ -445,7 +445,7 @@ describe('AcademicLibraryPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Inspect/ }))
 
     expect(await screen.findByText(/Warnings — importable, but worth seeing/)).toBeInTheDocument()
-    expect(screen.getByText(/no nl translation/)).toBeInTheDocument()
+    expect(screen.getByText(/no en translation/)).toBeInTheDocument()
     // Painting a warning as a failure teaches authors to ignore the report, and
     // then they ignore the errors in it too.
     expect(screen.getByText(/Warnings never block an import/)).toBeInTheDocument()
@@ -597,14 +597,14 @@ describe('AcademicLibraryPage', () => {
     expect(within(boundary).queryByText('RI-001')).not.toBeInTheDocument()
   })
 
-  it('keeps every key in all three language blocks', () => {
+  it('keeps every key in both language blocks', () => {
     /*
      * THE GUARD FOR THE MISSING-KEY CLASS OF BUG.
      *
      * Copy lookup on these pages is a whole-object fallback —
      * COPY[language] || COPY.en — with no per-key rescue. A key present in en
-     * and absent from nl renders the literal string "undefined", which reviews
-     * fine in English and ships a blank card in Dutch. This repo has done
+     * and absent from ar renders the literal string "undefined", which reviews
+     * fine in English and ships a blank card in Arabic. This repo has done
      * exactly that before.
      */
     const paths = (block, prefix = '') =>
@@ -616,8 +616,7 @@ describe('AcademicLibraryPage', () => {
 
     const en = paths(COPY.en).sort()
     expect(paths(COPY.ar).sort()).toEqual(en)
-    expect(paths(COPY.nl).sort()).toEqual(en)
-    expect(Object.keys(COPY).sort()).toEqual(['ar', 'en', 'nl'])
+    expect(Object.keys(COPY).sort()).toEqual(['ar', 'en'])
   })
 
   it('has no empty string anywhere in any language block', () => {

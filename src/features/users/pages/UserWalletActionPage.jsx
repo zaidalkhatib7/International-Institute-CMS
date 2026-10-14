@@ -28,28 +28,6 @@ function getCopy(language) {
     }
   }
 
-  if (language === 'nl') {
-    return {
-      creditTitle: 'Walletpunten toevoegen',
-      debitTitle: 'Walletpunten verlagen',
-      subtitlePrefix: 'Gebruiker',
-      amount: 'Bedrag',
-      description: 'Beschrijving',
-      creditPlaceholder: 'Reden voor bijschrijving (optioneel)',
-      debitPlaceholder: 'Reden voor afschrijving (optioneel)',
-      addPoints: 'Punten toevoegen',
-      decreasePoints: 'Punten verlagen',
-      processing: 'Verwerken...',
-      backToUsers: 'Terug naar gebruikers',
-      invalidAmount: 'Voer een bedrag groter dan 0 in.',
-      missingUser: 'Kan niet opslaan: geen gebruiker geselecteerd.',
-      creditSuccess: 'Punten succesvol toegevoegd.',
-      debitSuccess: 'Punten succesvol verlaagd.',
-      creditFailed: 'Punten toevoegen mislukt.',
-      debitFailed: 'Punten verlagen mislukt.',
-    }
-  }
-
   return {
     creditTitle: 'Add Wallet Points',
     debitTitle: 'Decrease Wallet Points',

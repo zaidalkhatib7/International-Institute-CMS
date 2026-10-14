@@ -244,94 +244,6 @@ const copyByLanguage = {
     adminNoAuthority:
       "The Gemini draft is advisory only. The administrator must review and edit it; it cannot verify evidence, issue accreditation, or create a certificate.",
   },
-  nl: {
-    title: "Werkruimte beoordelaar",
-    description:
-      "Beheer toegewezen dossiers, bewijs, criteria, interviews en aanbevelingen.",
-    assigned: "Toegewezen dossiers",
-    inProgress: "In beoordeling",
-    dueSoon: "Binnenkort vervallen",
-    completed: "Rapporten voltooid",
-    search: "Zoek toegewezen dossiers...",
-    all: "Alle statussen",
-    case: "Dossier",
-    applicant: "Aanvrager",
-    assessor: "Beoordelaar",
-    due: "Deadline",
-    status: "Status",
-    action: "Actie",
-    open: "Beoordeling openen",
-    empty: "Geen beoordelingen komen overeen met de filters.",
-    back: "Terug naar beoordelaarswerkruimte",
-    assessment: "Digitaal beoordelingsformulier",
-    noAuthority:
-      "De bevoegdheid van de beoordelaar eindigt bij het rapport en de aanbeveling. De beoordelaar kan geen accreditatiebesluit nemen of certificaat uitgeven.",
-    criteria: "Beoordelingscriteria",
-    criterion: "Criterium",
-    weight: "Maximum",
-    score: "Score",
-    notes: "Professionele onderbouwing",
-    outcome: "Uitkomst criterium",
-    evidenceMapping: "Ondersteunend bewijs",
-    saveRubric: "Bevindingen opslaan",
-    saved: "Bevindingen opgeslagen.",
-    fillFromAi: "Vullen vanuit het Gemini-concept",
-    fillNoDraft: "Nog geen Gemini-concept. Genereer eerst de analyse.",
-    fillDone:
-      "{filled} criteria gevuld vanuit het Gemini-concept. Beoordeel, bewerk en sla op.",
-    fillKept:
-      "{filled} criteria gevuld. {kept} overgeslagen omdat u daar al had geschreven.",
-    fillNothing: "Alle velden zijn al ingevuld. Er is niets gewijzigd.",
-    aiDrafted: "Gemini-concept — nog niet goedgekeurd",
-    aiDraftNote:
-      "Dit is een machineconcept dat alleen in het formulier staat; er is niets opgeslagen. Opslaan is uw goedkeuring en wordt op uw naam vastgelegd.",
-    noCriteria: "Er zijn nog geen criteria aan deze rubric toegevoegd.",
-    evidence: "Dossierbewijs",
-    noEvidence: "Er is geen bewijs gekoppeld.",
-    interview: "Professioneel gesprek plannen",
-    interviewAt: "Datum en tijd",
-    method: "Gespreksvorm",
-    location: "Locatie of vergaderlink",
-    interviewNotes: "Instructies",
-    schedule: "Planning opslaan",
-    scheduled: "Gesprek gepland.",
-    report: "Rapport en aanbeveling",
-    recommendation: "Uitgebreide professionele aanbeveling",
-    recommendLevel: "Aanbevolen niveau",
-    findings: "Samenvatting professionele bevindingen",
-    gap: "Analyse competentiegaten",
-    gapSummary: "Samenvatting hiaten",
-    addGap: "Hiaat toevoegen",
-    remediationType: "Type aanvulling",
-    completion: "Aanvullingsprogramma of plan",
-    saveGap: "Definitieve analyse opslaan",
-    gapSaved: "Analyse opgeslagen.",
-    submit: "Rapport naar kwaliteitsbeoordeling sturen",
-    submitted: "Rapport naar onafhankelijke kwaliteitsbeoordeling gestuurd.",
-    completionDescription: "Beschrijving aanvullingsplan",
-    remove: "Verwijderen",
-    achieved: "Accreditatie aanbevelen",
-    partial: "Gedeeltelijk behaald; aanvulling nodig",
-    notAchieved: "Competentie niet behaald",
-    loadError: "Kan beoordelingsgegevens niet laden.",
-    ineligibleEvidence:
-      "Niet geschikt voor koppeling volgens het huidige verificatiebeleid",
-    assessmentReference: "Beoordeling",
-    statusAssigned: "Toegewezen",
-    statusInProgress: "In behandeling",
-    statusSubmitted: "Ingediend",
-    statusCompleted: "Voltooid",
-    training: "Training",
-    additionalEvidence: "Aanvullend bewijs",
-    interviewOption: "Gesprek",
-    practicalTask: "Praktijkopdracht",
-    experienceOption: "Aanvullende ervaring",
-    online: "Online",
-    phone: "Telefonisch",
-    inPerson: "Op locatie",
-    adminNoAuthority:
-      "Het Gemini-concept is uitsluitend adviserend. De beheerder moet het beoordelen en bewerken; het kan geen bewijs verifiëren, accreditatie verlenen of certificaat maken.",
-  },
 };
 
 function applicantOf(row) {
@@ -465,57 +377,6 @@ const geminiCopyByLanguage = {
     conditional: "Conditional — needs the governed assessment to confirm it",
     demonstrated: "Demonstrated gap",
   },
-  nl: {
-    title: "Gemini-adviesbeoordeling",
-    notice:
-      "Gemini maakt in de huidige interfacetaal een nieuw adviesconcept op basis van de rubric, bewijsmetadata en verificatiestatus, en van de eigen geüploade documenten van de aanvrager wanneer de governance dat toestaat. Het draait pas nadat de aanvrager elke verzonden vraag heeft beantwoord en kan geen accreditatiebesluit nemen.",
-    answersTitle: "Ontvangen antwoorden",
-    answersAssessments: "toetsen verzonden",
-    answersSubmitted: "ingediend",
-    answersOutstanding: "vragen open",
-    answersCaseScope:
-      "Deze telling omvat elke verzonden vragenset in het dossier van deze aanvrager, niet alleen deze toets. De regel gaat over de persoon: Gemini evalueert pas als de aanvrager elke gestelde vraag heeft beantwoord.",
-    preAnswerAdvisory: "Gemaakt vóór de antwoorden — uitsluitend adviserend",
-    preAnswerAdvisoryNote:
-      "Dit concept is opgesteld voordat de aanvrager de competentietoets beantwoordde. Het blijft als registratie bewaard en wordt nooit verwijderd, het is uitsluitend adviserend en het is geen bewijs van beoordeelde competentie. Exports dragen dezelfde vermelding.",
-    question: "Vraag of richting voor de beheerder",
-    placeholder:
-      "Bijvoorbeeld: identificeer bewijshiaten ten opzichte van de gepubliceerde rubric.",
-    generate: "Gemini-concept genereren",
-    generatedSuccess:
-      "Het Gemini-concept is in de gevraagde taal gegenereerd. Beoordeel en bewerk het vóór gebruik.",
-    acknowledged: "Beoordeeld",
-    acknowledge: "Beheerdersbeoordeling bevestigen",
-    acknowledgeSuccess:
-      "De beheerdersbeoordeling van het Gemini-concept is vastgelegd.",
-    criterion: "Criteriumadvies",
-    gaps: "Bewijshiaten",
-    courses:
-      "Aanbevolen programma’s uit de leerbibliotheek voor competentiekloven",
-    targetLevel: "Door de aanvrager gekozen accreditatiedoel",
-    targetMethod:
-      "Gemini past de strengheid van dit doel toe en kiest uitsluitend programma’s die door aantoonbare hiaten worden gerechtvaardigd, zonder vaste aantallen.",
-    currentReadiness: "Huidige gereedheid op basis van bewijs",
-    readinessReady: "Gereed voor het doelniveau",
-    readinessPartiallyReady:
-      "Gedeeltelijk gereed; er blijven competentiehiaten",
-    readinessNotReady: "Momenteel niet gereed voor het doelniveau",
-    inputsUsed: "Waarop deze analyse berust",
-    documentsRead: "documenten van de aanvrager gelezen",
-    documentsWithheld: "achtergehouden",
-    documentsOff:
-      "Het lezen van documenten staat uit — de analyse gebruikte alleen metadata",
-    answersRead: "beantwoorde toetsen",
-    noInputs:
-      "Er zijn geen documenten gelezen en geen toets beantwoord, dus elke aanbeveling blijft voorwaardelijk.",
-    groundedIn: "Gebaseerd op",
-    ground_evidence_documents: "documenten van de aanvrager",
-    ground_answered_assessment: "toetsantwoorden",
-    ground_assessor_findings: "bevindingen van de assessor",
-    ground_evidence_metadata: "bewijsmetadata",
-    conditional: "Voorwaardelijk — de beheerde toets moet dit bevestigen",
-    demonstrated: "Aangetoond hiaat",
-  },
 };
 
 const geminiStatusCopyByLanguage = {
@@ -579,40 +440,10 @@ const geminiStatusCopyByLanguage = {
     ai_prefill_advisory_mismatch:
       "That Gemini draft belongs to a different assessment and cannot be recorded as the source of a finding here.",
   },
-  nl: {
-    gemini_disabled:
-      "Het genereren van Gemini-beoordelingen is uitgeschakeld in de RPL-instellingen. Schakel dit eerst in.",
-    gemini_not_configured:
-      "De Gemini API-sleutel is niet op de server geconfigureerd. Een systeembeheerder moet de verbinding voltooien.",
-    route_mismatch:
-      "De aanvrager voldoet niet langer aan een RPL-route (bijvoorbeeld: verificatie van het middelbareschooldiploma is in behandeling). Controleer eerst de kwalificaties en aanvraagroute.",
-    gemini_connection:
-      "De server kon geen verbinding maken met Gemini. Controleer de serververbinding en probeer opnieuw.",
-    gemini_unavailable:
-      "Gemini of het gekozen model is tijdelijk niet beschikbaar. Controleer het ingestelde model of probeer later opnieuw.",
-    gemini_unexpected:
-      "Gemini kon het beoordelingsconcept niet maken. Probeer opnieuw en controleer het serverlogboek als dit aanhoudt.",
-    gemini_invalid_response:
-      "Gemini gaf een ongeldig antwoord. Genereer het concept opnieuw.",
-    gemini_incomplete_response:
-      "Gemini gaf een onvolledig concept dat niet aan het goedgekeurde RPL-schema voldoet. Genereer het opnieuw.",
-    target_level_required:
-      "Selecteer vóór Gemini het gewenste accreditatiedoel: Practitioner, Advanced Practitioner of Expert.",
-    no_assessment_issued:
-      "Er is nog geen competentietoets naar deze aanvrager verzonden. Genereer de vragen uit de documenten van de aanvrager, keur ze goed, verstuur ze en laat de aanvrager eerst antwoorden.",
-    assessment_not_answered:
-      "De aanvrager heeft nog niet elke verzonden vraag beantwoord. Gemini beoordeelt pas als alle antwoorden binnen zijn — heropen de toets als de aanvrager meer tijd nodig heeft.",
-    evidence_documents_unreadable:
-      "Geen van de geüploade documenten van de aanvrager kon worden gelezen, dus het genereren van vragen is geweigerd in plaats van vragen te maken die alleen op de bestanden lijken te berusten. Vraag de betrokken documenten opnieuw op als PDF, PNG, JPEG of platte tekst.",
-    ai_prefill_advisory_not_answered:
-      "Dit Gemini-concept is gemaakt voordat de aanvrager de toets beantwoordde en kan niet als bron van een bevinding worden vastgelegd. Genereer een nieuw concept nu de antwoorden binnen zijn.",
-    ai_prefill_advisory_mismatch:
-      "Dit Gemini-concept hoort bij een andere beoordeling en kan hier niet als bron van een bevinding worden vastgelegd.",
-  },
 };
 
 /* eslint-disable-next-line react-refresh/only-export-components -- exported so the
-   test can prove all three language blocks expose the same key set. Copy lookup is
+   test can prove both language blocks expose the same key set. Copy lookup is
    a WHOLE-OBJECT fallback (block[language] || block.en) with no per-key rescue, so a
    reason code present in en and missing in ar renders the string "undefined" on a
    live case, in the language this CMS defaults to. */

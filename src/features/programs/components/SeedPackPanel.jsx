@@ -129,57 +129,6 @@ const COPY = {
     derived: 'derived',
     saveFirst: 'Save the programme first, then come back here.',
   },
-  nl: {
-    title: 'Startpakket — Gemini stelt voor, een mens keurt goed',
-    subtitle:
-      'Schrijf alleen de cursusnaam en -omschrijving. Gemini stelt de competentiekoppelingen uit de goedgekeurde woordenlijst en de leeruitkomsten voor; elk veld is bewerkbaar vóór goedkeuring.',
-    propose: 'Startpakket voorstellen',
-    reproposeLabel: 'Opnieuw voorstellen',
-    proposing: 'Bezig met voorstellen…',
-    locale: 'Concepttaal',
-    draftedBy: 'Opgesteld door',
-    nothingWritten: 'Alleen een concept — er is nog niets naar het programma geschreven.',
-    competencies: 'Competentiekoppelingen (alleen goedgekeurde woordenlijst)',
-    competenciesHint:
-      'Gemini maakt geen competenties aan; het koppelt de cursus aan de goedgekeurde woordenlijst. Ontbreekt er een, voeg die dan eerst toe aan het competentiekader.',
-    outcomes: 'Leeruitkomsten',
-    outcomesHint: 'Waarneembare, toetsbare uitkomsten — de norm waaraan vragen en toetsing worden gemeten.',
-    competency: 'Competentie',
-    targetLevel: 'Streefniveau',
-    entryLevel: 'Instapniveau (optioneel)',
-    weight: 'Gewicht (%)',
-    weightHint:
-      'Een gewicht is een geheel getal van 1 tot 100: het aandeel van deze competentie in de nadruk van de cursus, ten opzichte van de andere gekoppelde competenties. De gewichten hoeven samen geen 100 te zijn.',
-    weightInvalid: 'Voer een geheel getal van 1 tot 100 in.',
-    weightsIncomplete: 'Elke gekoppelde competentie heeft een gewicht van 1 tot 100 nodig voordat het startpakket kan worden goedgekeurd.',
-    primary: 'Primair',
-    rationale: 'Onderbouwing van de koppeling (van Gemini)',
-    code: 'Code',
-    outcomeTitle: 'Uitkomst',
-    outcomeDescription: 'Toelichting',
-    linkedCompetency: 'Gekoppelde competentie',
-    none: '— geen —',
-    addCompetency: 'Competentiekoppeling toevoegen',
-    addOutcome: 'Leeruitkomst toevoegen',
-    remove: 'Verwijderen',
-    approve: 'Startpakket goedkeuren',
-    approving: 'Bezig met goedkeuren…',
-    approveHint:
-      'Goedkeuren schrijft de koppelingen en uitkomsten naar het programma, vastgelegd op uw naam in het auditspoor.',
-    approveConfirm:
-      'Dit wordt naar het programma geschreven en op uw naam vastgelegd. Klopt elke koppeling en uitkomst?',
-    emptyDraft: 'Het model stelde niets bruikbaars voor. Probeer opnieuw of voeg de rijen zelf toe.',
-    identity: 'Gereguleerde academische identiteit',
-    identityHint: 'Gemini schrijft de eerste vier. Indicatoren en uitkomsten worden afgeleid uit de goedgekeurde competenties en leeruitkomsten — het model verzint ze niet.',
-    knowledge: 'Kennis',
-    skills: 'Vaardigheden',
-    professional_behaviours: 'Professioneel gedrag',
-    abilities: 'Vermogens',
-    performance_indicators: 'Prestatie-indicatoren',
-    identityOutcomes: 'Uitkomsten',
-    derived: 'afgeleid',
-    saveFirst: 'Sla het programma eerst op en kom dan terug.',
-  },
 }
 
 /*
@@ -203,7 +152,7 @@ function isValidWeight(value) {
 function locText(value, language) {
   if (!value) return ''
   if (typeof value === 'string') return value
-  return value[language] || value.en || value.ar || value.nl || ''
+  return value[language] || value.en || value.ar || ''
 }
 
 export default function SeedPackPanel({ programId, onApproved }) {
@@ -353,7 +302,6 @@ export default function SeedPackPanel({ programId, onApproved }) {
             >
               <option value="ar">العربية</option>
               <option value="en">English</option>
-              <option value="nl">Nederlands</option>
             </Select>
             <Button disabled={busy} onClick={propose}>
               {busy && !draft ? (

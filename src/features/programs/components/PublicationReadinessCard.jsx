@@ -57,17 +57,6 @@ const COPY = {
     hint: 'Activation needs every check passed and a content status of "published". Missing items are listed first.',
     published: "published",
   },
-  nl: {
-    title: "Publicatiegereedheid",
-    ready: "Compleet — het programma kan worden geactiveerd",
-    notReady: "Kan nog niet worden geactiveerd",
-    of: "van",
-    statusLabel: "Contentstatus",
-    statusBlocked: "wordt alleen gepubliceerd via Pakket publiceren op het AI-tabblad",
-    fix: "Herstellen",
-    hint: 'Activering vereist dat alle checks slagen en de contentstatus "published" is. Ontbrekende items staan bovenaan.',
-    published: "published",
-  },
 };
 
 export default function PublicationReadinessCard({

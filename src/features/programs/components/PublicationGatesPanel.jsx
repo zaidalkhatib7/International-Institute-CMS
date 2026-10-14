@@ -82,32 +82,6 @@ const COPY = {
     reviseBpHint: 'Revising opens a NEW blueprint version and needs approving again. The approved version stays in the record.',
     questions: 'questions',
   },
-  nl: {
-    title: 'De twee publicatiepoorten',
-    hint: 'Pakket publiceren weigert zonder goedgekeurde leertijdverdeling en goedgekeurde toetsmatrijs. De waarden zijn academische oordelen — er wordt niets voorgesteld.',
-    ltTitle: 'Leertijdverdeling',
-    ltHint: 'In minuten. Het totaal moet exact gelijk zijn aan de geaccrediteerde uren.',
-    ltTotal: 'Totaal',
-    ltRequired: 'Vereist',
-    ltNoHours: 'Dit programma heeft geen geaccrediteerde uren, dus het totaal kan niet worden gecontroleerd.',
-    bpTitle: 'Toetsmatrijs',
-    bpHint: 'Totaal aantal vragen en de verdeling over leeruitkomsten. De dekking moet exact optellen tot het totaal.',
-    bpTotal: 'Totaal aantal examenvragen',
-    bpSum: 'Som van de dekking',
-    bpNoOutcomes: 'Geen actieve leeruitkomsten. Keur eerst het startpakket goed.',
-    available: 'beschikbaar',
-    overAvailable: 'De dekking overschrijdt het aantal goedgekeurde vragen — de matrijs wordt goedgekeurd maar kan geen examen samenstellen.',
-    save: 'Voorstel opslaan',
-    approve: 'Goedkeuren',
-    approved: 'Goedgekeurd',
-    proposed: 'Voorgesteld — wacht op goedkeuring',
-    none: 'Niet ingevuld',
-    saving: 'Opslaan…',
-    mustMatch: 'Het totaal komt niet overeen — goedkeuring wordt geweigerd.',
-    revise: 'Herzien na goedkeuring',
-    reviseBpHint: 'Herzien opent een NIEUWE versie van de matrijs en moet opnieuw worden goedgekeurd. De goedgekeurde versie blijft bewaard.',
-    questions: 'vragen',
-  },
 }
 
 const CATEGORY_LABELS = {
@@ -128,15 +102,6 @@ const CATEGORY_LABELS = {
     practice: 'Practice',
     formative_assessment: 'Formative assessment',
     summative_assessment: 'Summative assessment',
-  },
-  nl: {
-    instruction: 'Instructie',
-    guided_examples: 'Begeleide voorbeelden',
-    activities: 'Activiteiten',
-    case_work: 'Casuswerk',
-    practice: 'Oefening',
-    formative_assessment: 'Formatieve toetsing',
-    summative_assessment: 'Summatieve toetsing',
   },
 }
 

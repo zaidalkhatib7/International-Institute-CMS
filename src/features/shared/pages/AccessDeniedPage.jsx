@@ -18,13 +18,6 @@ const copyByLanguage = {
     back: 'Go back',
     dashboard: 'Go to dashboard',
   },
-  nl: {
-    eyebrow: 'Statuscode 403',
-    title: 'Je hebt geen toegang',
-    description: 'Je sessie is geverifieerd, maar je huidige rol heeft niet de vereiste rechten voor deze werkruimte. Neem contact op met een systeembeheerder als je toegang nodig hebt.',
-    back: 'Ga terug',
-    dashboard: 'Naar dashboard',
-  },
 }
 export default function AccessDeniedPage() {
   const navigate = useNavigate()

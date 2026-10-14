@@ -36,7 +36,7 @@ const REVIEW_STATUS_META = {
   rejected: { label: 'مرفوض', variant: 'danger' },
   superseded: { label: 'استُبدل', variant: 'neutral' },
 }
-import { getCurrentLanguage, readLocalizedValue } from '../../../utils/localization'
+import { getCurrentLanguage, hasPlatformText, readLocalizedValue, readStoredEnglish } from '../../../utils/localization'
 import { readApiError } from '../../../services/apiResponse'
 
 function readLocalized(value) {
@@ -57,7 +57,7 @@ function getQuizSectionId(quiz) {
 
 function createEmptyOption(sortOrder) {
   return {
-    option_text: { en: '', ar: '', nl: '' },
+    option_text: { en: '', ar: '' },
     is_correct: false,
     sort_order: sortOrder,
   }
@@ -65,7 +65,7 @@ function createEmptyOption(sortOrder) {
 
 function createEmptyQuestion(sortOrder) {
   return {
-    question_text: { en: '', ar: '', nl: '' },
+    question_text: { en: '', ar: '' },
     sort_order: sortOrder,
     options: [
       createEmptyOption(1),
@@ -82,17 +82,15 @@ function mapQuizToFormData(quiz) {
     questions_per_attempt:
       quiz?.questions_per_attempt != null ? String(quiz.questions_per_attempt) : '0',
     title: {
-      en: readLocalized(quiz?.title),
+      en: readStoredEnglish(quiz?.title),
       ar: quiz?.title?.ar || '',
-      nl: quiz?.title?.nl || '',
     },
     questions: Array.isArray(quiz?.questions) && quiz.questions.length
       ? quiz.questions.map((question, questionIndex) => ({
           id: question?.id,
           question_text: {
-            en: readLocalized(question?.question_text),
+            en: readStoredEnglish(question?.question_text),
             ar: question?.question_text?.ar || '',
-            nl: question?.question_text?.nl || '',
           },
           sort_order: question?.sort_order ?? questionIndex + 1,
           // Read-only AI-authoring review metadata (preserved server-side on save).
@@ -109,9 +107,8 @@ function mapQuizToFormData(quiz) {
               ? question.options.map((option, optionIndex) => ({
                   id: option?.id,
                   option_text: {
-                    en: readLocalized(option?.option_text),
+                    en: readStoredEnglish(option?.option_text),
                     ar: option?.option_text?.ar || '',
-                    nl: option?.option_text?.nl || '',
                   },
                   is_correct: Boolean(option?.is_correct),
                   sort_order: option?.sort_order ?? optionIndex + 1,
@@ -133,7 +130,6 @@ function buildQuizPayload(formData) {
     title: {
       en: formData.title?.en || '',
       ar: formData.title?.ar || '',
-      nl: formData.title?.nl || '',
     },
     questions_per_attempt:
       formData.questions_per_attempt === '' ? 0 : Number(formData.questions_per_attempt),
@@ -142,7 +138,6 @@ function buildQuizPayload(formData) {
       question_text: {
         en: question?.question_text?.en || '',
         ar: question?.question_text?.ar || '',
-        nl: question?.question_text?.nl || '',
       },
       sort_order: question?.sort_order ?? questionIndex + 1,
       options: (question?.options || []).map((option, optionIndex) => ({
@@ -150,7 +145,6 @@ function buildQuizPayload(formData) {
         option_text: {
           en: option?.option_text?.en || '',
           ar: option?.option_text?.ar || '',
-          nl: option?.option_text?.nl || '',
         },
         is_correct: Boolean(option?.is_correct),
         sort_order: option?.sort_order ?? optionIndex + 1,
@@ -160,7 +154,7 @@ function buildQuizPayload(formData) {
 }
 
 function LanguageTabs({ activeLanguage, onChange }) {
-  const languages = ['en', 'ar', 'nl']
+  const languages = ['en', 'ar']
   return (
     <div className="inline-flex rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-1">
       {languages.map((lang) => (
@@ -214,54 +208,16 @@ export default function QuizBuilderPage() {
         markCorrectTitle: 'تحديد كإجابة صحيحة',
         addQuestion: 'إضافة سؤال',
         sectionRequired: 'القسم مطلوب.',
-        englishTitleRequired: 'عنوان الاختبار (EN) مطلوب.',
+        titleRequired: 'عنوان الاختبار مطلوب بالعربية أو بالإنجليزية.',
         passRequired: 'نسبة النجاح مطلوبة.',
         atLeastOneQuestion: 'يجب إضافة سؤال واحد على الأقل.',
         atLeastTwoOptions: 'المعيار سؤال اختيار من متعدد بإجابة واحدة صحيحة: ثلاثة خيارات على الأقل.',
         exactlyOneCorrect: 'يجب تحديد إجابة صحيحة واحدة فقط.',
-        englishTextRequired: 'النص الإنجليزي مطلوب.',
+        textRequired: 'النص مطلوب بالعربية أو بالإنجليزية.',
         updated: 'تم تحديث الاختبار بنجاح.',
         created: 'تم إنشاء الاختبار بنجاح.',
         loadError: 'فشل تحميل الاختبار.',
         saveError: 'فشل حفظ الاختبار.',
-      }
-    }
-    if (language === 'nl') {
-      return {
-        editQuiz: 'Vraagbank bewerken',
-        createQuiz: 'Vraagbank maken',
-        breadcrumbAdmin: 'Beheer',
-        breadcrumbQuizzes: 'Vraagbanken',
-        subtitle: 'Beheer de vraagbank van een sectie en hoeveel vragen die per poging bijdraagt.',
-        backToQuizzes: 'Terug naar vraagbanken',
-        saveQuiz: 'Vraagbank opslaan',
-        saving: 'Opslaan...',
-        loadingQuiz: 'Vraagbank laden...',
-        quizBasics: 'Vraagbankbasis',
-        section: 'Sectie',
-        selectSection: 'Selecteer sectie',
-        passPercentage: 'Vragen per poging',
-        quizTitle: 'Titel vraagbank',
-        quizTitlePlaceholder: 'bijv. Leadership Foundations Question Bank',
-        question: 'Vraag',
-        remove: 'Verwijderen',
-        questionText: 'Vraagtekst',
-        questionPlaceholder: 'Schrijf de vraag...',
-        option: 'Optie',
-        optionPlaceholder: 'Optietekst...',
-        markCorrectTitle: 'Markeer als correct',
-        addQuestion: 'Vraag toevoegen',
-        sectionRequired: 'Sectie is verplicht.',
-        englishTitleRequired: 'Engelse quiztitel is verplicht.',
-        passRequired: 'Vragen per poging is verplicht.',
-        atLeastOneQuestion: 'Minimaal een vraag is verplicht.',
-        atLeastTwoOptions: 'De standaard is meerkeuze met een juist antwoord: minimaal drie opties.',
-        exactlyOneCorrect: 'Precies een correcte optie is verplicht.',
-        englishTextRequired: 'Engelse tekst is verplicht.',
-        updated: 'Vraagbank succesvol bijgewerkt.',
-        created: 'Vraagbank succesvol aangemaakt.',
-        loadError: 'Vraagbank laden mislukt.',
-        saveError: 'Vraagbank opslaan mislukt.',
       }
     }
     return {
@@ -289,12 +245,12 @@ export default function QuizBuilderPage() {
       markCorrectTitle: 'Mark as correct option',
       addQuestion: 'Add Question',
       sectionRequired: 'Section is required.',
-      englishTitleRequired: 'English quiz title is required.',
+      titleRequired: 'Quiz title is required in English or Arabic.',
       passRequired: 'Questions per attempt is required.',
       atLeastOneQuestion: 'At least one question is required.',
       atLeastTwoOptions: 'The standard is single-best-answer multiple choice: at least three options.',
       exactlyOneCorrect: 'Exactly one correct option is required.',
-      englishTextRequired: 'English text is required.',
+      textRequired: 'Text is required in English or Arabic.',
       updated: 'Question bank updated successfully.',
       created: 'Question bank created successfully.',
       loadError: 'Failed to load question bank.',
@@ -341,25 +297,6 @@ export default function QuizBuilderPage() {
       success: 'أنشأ Gemini عدد {count} من الأسئلة. راجع كل إجابة قبل الحفظ.',
       error: 'تعذر إنشاء الأسئلة من هذا الملف.',
     },
-    nl: {
-      title: 'Vragen genereren uit PDF',
-      description: 'Gemini leest het document en voegt een controleerbaar concept toe. Vragen worden pas opgeslagen wanneer u deze bank opslaat.',
-      file: 'PDF-document',
-      count: 'Aantal vragen',
-      mode: 'Importgedrag',
-      replace: 'Huidig concept vervangen',
-      append: 'Aan huidige vragen toevoegen',
-      action: 'Concept genereren',
-      working: 'PDF wordt gelezen...',
-      required: 'Kies eerst een PDF-document.',
-      invalidCount: 'Kies tussen 1 en 1.000 vragen.',
-      progress: '{processed} van {total} vragen gegenereerd',
-      page: 'Pagina {current} van {total}',
-      previous: 'Vorige',
-      next: 'Volgende',
-      success: 'Gemini heeft {count} vragen gegenereerd. Controleer elk antwoord voordat u opslaat.',
-      error: 'Kon geen vragen uit deze PDF genereren.',
-    },
   })[language] || null, [language])
 
   const [sections, setSections] = useState([])
@@ -382,7 +319,7 @@ export default function QuizBuilderPage() {
   const [formData, setFormData] = useState({
     section_id: '',
     questions_per_attempt: '0',
-    title: { en: '', ar: '', nl: '' },
+    title: { en: '', ar: '' },
     questions: [createEmptyQuestion(1)],
   })
 
@@ -558,7 +495,7 @@ export default function QuizBuilderPage() {
 
   const validateBeforeSave = () => {
     if (!formData.section_id) return copy.sectionRequired
-    if (!formData.title?.en?.trim()) return copy.englishTitleRequired
+    if (!hasPlatformText(formData.title)) return copy.titleRequired
     if (formData.questions_per_attempt === '') return copy.passRequired
     if (!formData.questions.length) return copy.atLeastOneQuestion
 
@@ -572,8 +509,8 @@ export default function QuizBuilderPage() {
 
     for (let q = 0; q < formData.questions.length; q += 1) {
       const question = formData.questions[q]
-      if (!question?.question_text?.en?.trim()) {
-        return `${copy.question} ${q + 1}: ${copy.englishTextRequired}`
+      if (!hasPlatformText(question?.question_text)) {
+        return `${copy.question} ${q + 1}: ${copy.textRequired}`
       }
       if (!Array.isArray(question.options) || question.options.length < 3) {
         return `${copy.question} ${q + 1}: ${copy.atLeastTwoOptions}`
@@ -583,8 +520,8 @@ export default function QuizBuilderPage() {
         return `${copy.question} ${q + 1}: ${copy.exactlyOneCorrect}`
       }
       for (let o = 0; o < question.options.length; o += 1) {
-        if (!question.options[o]?.option_text?.en?.trim()) {
-          return `${copy.question} ${q + 1}, ${copy.option} ${o + 1}: ${copy.englishTextRequired}`
+        if (!hasPlatformText(question.options[o]?.option_text)) {
+          return `${copy.question} ${q + 1}, ${copy.option} ${o + 1}: ${copy.textRequired}`
         }
       }
     }
@@ -639,13 +576,11 @@ export default function QuizBuilderPage() {
         question_text: {
           en: question?.question_text?.en || '',
           ar: question?.question_text?.ar || '',
-          nl: question?.question_text?.nl || '',
         },
         options: (question?.options || []).map((option, optionIndex) => ({
           option_text: {
             en: option?.option_text?.en || '',
             ar: option?.option_text?.ar || '',
-            nl: option?.option_text?.nl || '',
           },
           is_correct: Boolean(option?.is_correct),
           sort_order: optionIndex + 1,

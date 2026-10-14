@@ -38,15 +38,6 @@ const copyByLanguage = {
     decision: 'Decision', committeeSelect: 'Accreditation committee', actionSelect: 'Committee action', outcome: 'Decision outcome', level: 'Final level', rationale: 'Rationale and reasons', notes: 'Review notes', approve: 'Approve', return: 'Return for completion', reject: 'Reject', submit: 'Save decision', close: 'Close', viewCase: 'Open RPL case',
     optionLabels: { submitted: 'Submitted', under_review: 'Under review', committee_review: 'Committee review', approved: 'Approved', returned: 'Returned for completion', rejected: 'Rejected', upheld: 'Decision upheld', modified: 'Decision modified', remanded: 'Remanded for review' },
   },
-  nl: {
-    committee: { title: 'Accreditatiecommissie', description: 'Beoordeel rapporten en neem het definitieve, gemotiveerde besluit.', queue: 'Dossiers voor commissie', action: 'Besluit nemen', saved: 'Commissiebesluit vastgelegd.' },
-    quality: { title: 'Kwaliteitsbeoordeling', description: 'Controleer onafhankelijk de procedure en normen voordat het besluit wordt bevestigd.', queue: 'Kwaliteitswachtrij', action: 'Kwaliteitsreview', saved: 'Kwaliteitsreview vastgelegd.' },
-    appeals: { title: 'Bezwaar & Heroverweging', description: 'Beheer bezwaar, verlenging en doorgroei met volledige auditgeschiedenis.', queue: 'Bezwaarwachtrij', action: 'Bezwaar beslissen', saved: 'Bezwaarbesluit opgeslagen.' },
-    search: 'Zoek dossier of aanvrager...', all: 'Alle statussen', refresh: 'Vernieuwen', total: 'Totaal dossiers', pending: 'In afwachting', overdue: 'Te laat', decided: 'Voltooid',
-    reference: 'Dossier', applicant: 'Aanvrager', recommendation: 'Aanbeveling', status: 'Status', received: 'Ontvangen', actions: 'Actie', reviewCase: 'Dossier beoordelen', empty: 'Geen dossiers komen overeen.',
-    decision: 'Besluit', committeeSelect: 'Accreditatiecommissie', actionSelect: 'Commissieactie', outcome: 'Uitkomst besluit', level: 'Definitief niveau', rationale: 'Motivering', notes: 'Reviewnotities', approve: 'Goedkeuren', return: 'Terug voor aanvulling', reject: 'Afwijzen', submit: 'Besluit opslaan', close: 'Sluiten', viewCase: 'RPL-dossier openen',
-    optionLabels: { submitted: 'Ingediend', under_review: 'In beoordeling', committee_review: 'Commissiebeoordeling', approved: 'Goedgekeurd', returned: 'Teruggestuurd voor aanvulling', rejected: 'Afgewezen', upheld: 'Besluit bevestigd', modified: 'Besluit gewijzigd', remanded: 'Terugverwezen voor beoordeling' },
-  },
 }
 
 const qualityOptions = ['approved', 'returned', 'rejected']

@@ -12,7 +12,7 @@ const copyByLanguage = {
     title: 'إعدادات النظام',
     subtitle: 'إدارة لغة واجهة ICPC والجلسة وهوية منصة الاعتماد المهني.',
     language: 'لغة الواجهة',
-    languageHint: 'تدعم الواجهة العربية والإنجليزية والهولندية، ويتم إرسال نفس اللغة إلى API عبر Accept-Language.',
+    languageHint: 'تدعم الواجهة العربية والإنجليزية، ويتم إرسال نفس اللغة إلى API عبر Accept-Language.',
     apply: 'تطبيق اللغة',
     saved: 'تم حفظ تفضيل اللغة. ستُعاد الواجهة لتطبيقه.',
     session: 'الجلسة والأمان',
@@ -29,7 +29,7 @@ const copyByLanguage = {
     title: 'System Settings',
     subtitle: 'Manage the ICPC interface language, session, and accreditation platform identity.',
     language: 'Interface Language',
-    languageHint: 'The interface supports Arabic, English, and Dutch, and sends the same value to the API using Accept-Language.',
+    languageHint: 'The interface supports Arabic and English, and sends the same value to the API using Accept-Language.',
     apply: 'Apply language',
     saved: 'Language preference saved. The interface will reload to apply it.',
     session: 'Session & Security',
@@ -41,23 +41,6 @@ const copyByLanguage = {
     integrationText:
       'The frontend is connected to the API contracts available in the handoff. Some RPL modules still need dedicated backend endpoints.',
     rplStages: 'RPL stages',
-  },
-  nl: {
-    title: 'Systeeminstellingen',
-    subtitle: 'Beheer de ICPC-interfacetaal, sessie en identiteit van het accreditatieplatform.',
-    language: 'Interfacetaal',
-    languageHint: 'De interface ondersteunt Arabisch, Engels en Nederlands en stuurt dezelfde waarde naar de API via Accept-Language.',
-    apply: 'Taal toepassen',
-    saved: 'Taalvoorkeur opgeslagen. De interface wordt opnieuw geladen.',
-    session: 'Sessie & beveiliging',
-    active: 'Beheersessie is actief',
-    inactive: 'Geen actieve sessie',
-    signOut: 'Uitloggen',
-    identity: 'Platformidentiteit',
-    integration: 'Integratiestatus',
-    integrationText:
-      'De frontend is gekoppeld aan de API-contracten uit de overdracht. Sommige RPL-modules hebben nog specifieke backend-endpoints nodig.',
-    rplStages: 'RPL-fasen',
   },
 }
 

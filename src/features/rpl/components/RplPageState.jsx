@@ -4,7 +4,6 @@ import { Button, Card, CardContent, Skeleton } from '../../../components/ui'
 const copy = {
   ar: { loading: 'جارٍ تحميل بيانات RPL...', retry: 'إعادة المحاولة' },
   en: { loading: 'Loading RPL data...', retry: 'Try again' },
-  nl: { loading: 'RPL-gegevens laden...', retry: 'Opnieuw proberen' },
 }
 
 export default function RplPageState({ loading, error, onRetry, language = 'en', children }) {

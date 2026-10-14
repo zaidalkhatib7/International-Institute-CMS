@@ -7,12 +7,11 @@ const copy = {
     next: 'الخطوة التالية الموصى بها', defaultRequirement: 'متطلب دليل', workExperience: 'الخبرة العملية', addExperience: 'أضف خبرة عملية واحدة على الأقل إلى الملف الشخصي',
   },
   en: { title: 'Portfolio completeness', complete: 'complete', remaining: 'Still required for 100%', declaration: 'Final declaration', acceptDeclaration: 'Accept the declaration', addFiles: 'Add {count} more file(s)', completeMessage: 'The portfolio is complete and ready for the next step.', next: 'Recommended next step', defaultRequirement: 'Evidence requirement', workExperience: 'Work experience', addExperience: 'Add at least one work experience to the profile' },
-  nl: { title: 'Dossiercompleetheid', complete: 'voltooid', remaining: 'Nog nodig voor 100%', declaration: 'Definitieve verklaring', acceptDeclaration: 'Accepteer de verklaring', addFiles: 'Voeg nog {count} bestand(en) toe', completeMessage: 'Het dossier is volledig en klaar voor de volgende stap.', next: 'Aanbevolen volgende stap', defaultRequirement: 'Bewijsvereiste', workExperience: 'Werkervaring', addExperience: 'Voeg ten minste één werkervaring toe aan het profiel' },
 }
 
 function localize(value, language) {
   if (!value || typeof value !== 'object') return value
-  return value[language] || value.en || value.ar || value.nl || ''
+  return value[language] || value.en || value.ar || ''
 }
 
 function readableCode(code, fallback) {

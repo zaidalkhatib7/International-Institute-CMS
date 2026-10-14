@@ -6,26 +6,27 @@ import { copyByLanguage } from './UserWorkspacePage'
  *
  * The client workspace resolves copy with `copyByLanguage[language] ||
  * copyByLanguage.en` — a whole-object fallback, not a per-key one. So a key
- * added to `en` and forgotten in `nl` does not fall back to English; it
+ * added to `en` and forgotten in `ar` does not fall back to English; it
  * resolves to `undefined` and renders as nothing.
  *
  * That shipped. The Professional Academic RPL card was added on 6 Aug with six
- * new keys in `en` and `ar` and none in `nl`, and in Dutch the card rendered an
- * empty heading, an unlabelled dropdown, an icon-only button, and — after
- * creating a real governed case — a success message that never appeared. No
- * test failed, no console error, no build warning. It was only visible to
- * somebody using the CMS in Dutch.
+ * new keys in two locales and none in a third (since removed), and in that
+ * locale the card rendered an empty heading, an unlabelled dropdown, an
+ * icon-only button, and — after creating a real governed case — a success
+ * message that never appeared. No test failed, no console error, no build
+ * warning. It was only visible to somebody using the CMS in that language.
  *
  * These tests are cheap and they close that hole permanently.
  */
 
-const LOCALES = ['en', 'ar', 'nl']
+const LOCALES = ['en', 'ar']
 
 describe('client workspace copy', () => {
-  it('defines every supported locale', () => {
+  it('defines every supported locale, and only those', () => {
     LOCALES.forEach((locale) => {
       expect(copyByLanguage[locale], `missing locale: ${locale}`).toBeTypeOf('object')
     })
+    expect(Object.keys(copyByLanguage).sort()).toEqual(['ar', 'en'])
   })
 
   it('carries identical keys in every locale', () => {
@@ -57,12 +58,11 @@ describe('client workspace copy', () => {
     /*
      * A degree ROUTES an applicant to the Professional Academic RPL pathway; it
      * does not exclude them from recognition. The English and Arabic strings
-     * were corrected on 6 Aug and the Dutch one was missed, so a Dutch assessor
-     * was told the opposite of what the platform does — directly above the
+     * were corrected on 6 Aug and a third locale's was missed, so its assessors
+     * were told the opposite of what the platform does — directly above the
      * table where they record the degree.
      */
     const forbidden = [
-      /sluit RPL uit/i,          // nl — "excludes RPL"
       /excludes RPL/i,           // en
       /blocks the RPL/i,         // en
       /يمنع مسار RPL/,           // ar — "blocks the RPL route"

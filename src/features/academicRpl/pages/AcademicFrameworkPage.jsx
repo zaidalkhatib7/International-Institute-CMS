@@ -82,31 +82,6 @@ const COPY = {
       professional_doctorate: 'Professional Doctorate',
     },
   },
-  nl: {
-    title: 'Professioneel academisch competentiekader',
-    subtitle: 'Waaraan gereedheid voor diploma, master en doctoraat wordt gemeten. Niets telt vóór goedkeuring.',
-    status: 'Status van het kader',
-    approvedOf: 'competenties goedgekeurd van',
-    blocked: 'Het traject staat stil: er wordt niets gescoord tot het kader is goedgekeurd.',
-    ready: 'Het kader is goedgekeurd. Het traject is operationeel.',
-    draft: 'Concept',
-    approved: 'Goedgekeurd',
-    depth: 'Vereiste diepgang per traject',
-    critical: 'Kritiek',
-    weight: 'Weging',
-    approve: 'Competentie goedkeuren',
-    approving: 'Goedkeuren…',
-    basis: 'Grondslag voor goedkeuring',
-    basisPlaceholder: 'Vermeld op welke grondslag deze competentie wordt goedgekeurd (minimaal 20 tekens).',
-    basisTooShort: 'De grondslag is te kort. Schrijf minimaal 20 tekens.',
-    approvedNote: 'Goedkeuring is een beheerde handeling en wordt op uw naam vastgelegd.',
-    noApproveAll: 'Er is bewust geen bulkgoedkeuring.',
-    tracks: {
-      professional_diploma: 'Professioneel diploma',
-      professional_master: 'Professionele master',
-      professional_doctorate: 'Professioneel doctoraat',
-    },
-  },
 }
 
 export default function AcademicFrameworkPage() {

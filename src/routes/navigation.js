@@ -30,57 +30,57 @@ import { getRouteAccess } from './routeAccess'
 
 const groups = [
   {
-    label: { ar: 'الموقع العام', en: 'Public website', nl: 'Publieke website' },
+    label: { ar: 'الموقع العام', en: 'Public website' },
     items: [
       {
-        label: { ar: 'هيكل الموقع العام', en: 'Website architecture', nl: 'Website-architectuur' },
+        label: { ar: 'هيكل الموقع العام', en: 'Website architecture' },
         href: '/content/architecture',
         icon: PanelsTopLeft,
       },
       {
-        label: { ar: 'الصفحات والمحتوى', en: 'Pages & content', nl: "Pagina's & inhoud" },
+        label: { ar: 'الصفحات والمحتوى', en: 'Pages & content' },
         href: '/content/pages',
         icon: FileText,
       },
-      { label: { ar: 'الأخبار', en: 'News', nl: 'Nieuws' }, href: '/content/news', icon: Newspaper },
+      { label: { ar: 'الأخبار', en: 'News' }, href: '/content/news', icon: Newspaper },
       {
-        label: { ar: 'شبكة الخبراء', en: 'Expert network', nl: 'Expert-netwerk' },
+        label: { ar: 'شبكة الخبراء', en: 'Expert network' },
         href: '/content/experts',
         icon: UsersRound,
       },
     ],
   },
   {
-    label: { ar: 'رحلة الاعتماد RPL', en: 'RPL accreditation', nl: 'RPL-accreditatie' },
+    label: { ar: 'رحلة الاعتماد RPL', en: 'RPL accreditation' },
     items: [
       {
-        label: { ar: 'طلبات الاعتراف', en: 'RPL applications', nl: 'RPL-aanvragen' },
+        label: { ar: 'طلبات الاعتراف', en: 'RPL applications' },
         href: '/rpl/applications',
         icon: ClipboardList,
       },
       {
-        label: { ar: 'التحقق والأدلة', en: 'Evidence & verification', nl: 'Bewijs & verificatie' },
+        label: { ar: 'التحقق والأدلة', en: 'Evidence & verification' },
         href: '/rpl/evidence',
         icon: FolderOpen,
       },
-      { label: { ar: 'لوحة المقيّم', en: 'Assessor workbench', nl: 'Beoordelaarswerkruimte' }, href: '/rpl/assessments', icon: ClipboardCheck },
+      { label: { ar: 'لوحة المقيّم', en: 'Assessor workbench' }, href: '/rpl/assessments', icon: ClipboardCheck },
       {
-        label: { ar: 'قرارات الاعتماد', en: 'Accreditation decisions', nl: 'Accreditatiebesluiten' },
+        label: { ar: 'قرارات الاعتماد', en: 'Accreditation decisions' },
         href: '/rpl/accreditation',
         icon: BadgeCheck,
       },
       {
-        label: { ar: 'التظلمات والتجديد', en: 'Appeals & renewal', nl: 'Bezwaar & verlenging' },
+        label: { ar: 'التظلمات والتجديد', en: 'Appeals & renewal' },
         href: '/rpl/appeals',
         icon: Gavel,
       },
       {
-        label: { ar: 'إعدادات RPL', en: 'RPL configuration', nl: 'RPL-configuratie' },
+        label: { ar: 'إعدادات RPL', en: 'RPL configuration' },
         href: '/rpl/configuration',
         icon: Settings,
       },
       {
-        label: { ar: 'مرجع RPL المعتمد', en: 'RPL source of truth', nl: 'RPL-bron van waarheid' },
+        label: { ar: 'مرجع RPL المعتمد', en: 'RPL source of truth' },
         href: '/rpl/source-of-truth',
         icon: BookOpenCheck,
       },
@@ -98,45 +98,44 @@ const groups = [
     label: {
       ar: 'المسار الأكاديمي المهني',
       en: 'Professional Academic RPL',
-      nl: 'Professioneel Academisch RPL',
     },
     items: [
       {
-        label: { ar: 'طلبات المسار الأكاديمي', en: 'Academic applications', nl: 'Academische aanvragen' },
+        label: { ar: 'طلبات المسار الأكاديمي', en: 'Academic applications' },
         href: '/academic-rpl/applications',
         icon: GraduationCap,
       },
       {
         // Listed second but it gates everything: nothing scores until the
         // framework is approved.
-        label: { ar: 'إطار الكفاءات الأكاديمية', en: 'Academic competency framework', nl: 'Academisch competentiekader' },
+        label: { ar: 'إطار الكفاءات الأكاديمية', en: 'Academic competency framework' },
         href: '/academic-rpl/framework',
         icon: BookOpenCheck,
       },
       {
         // The second gap library — the academic counterpart of مكتبة سد
         // الفجوات. What every academic gap plan can recommend from.
-        label: { ar: 'مكتبة سد الفجوات الأكاديمية', en: 'Academic gap library', nl: 'Academische hiatenbibliotheek' },
+        label: { ar: 'مكتبة سد الفجوات الأكاديمية', en: 'Academic gap library' },
         href: '/academic-rpl/library',
         icon: LibraryBig,
       },
     ],
   },
   {
-    label: { ar: 'التعلم والمعايير', en: 'Learning & standards', nl: 'Leren & standaarden' },
+    label: { ar: 'التعلم والمعايير', en: 'Learning & standards' },
     items: [
       {
-        label: { ar: 'مكتبة سد فجوات الكفاءات', en: 'Competency gap library', nl: 'Bibliotheek competentiekloven' },
+        label: { ar: 'مكتبة سد فجوات الكفاءات', en: 'Competency gap library' },
         href: '/competency-gap-library',
         icon: LibraryBig,
       },
       {
-        label: { ar: 'البرامج والحقائب', en: 'Programs & packages', nl: "Programma's & pakketten" },
+        label: { ar: 'البرامج والحقائب', en: 'Programs & packages' },
         href: '/programs',
         icon: GraduationCap,
       },
       {
-        label: { ar: 'المحتوى التعليمي', en: 'Learning content', nl: 'Leerinhoud' },
+        label: { ar: 'المحتوى التعليمي', en: 'Learning content' },
         // Course-first. The flat /sections list still exists, but reaching
         // content through the course is how anyone actually works on it — and
         // that list reported every unit as empty because it never counted.
@@ -144,74 +143,74 @@ const groups = [
         icon: Layers3,
       },
       {
-        label: { ar: 'أدوات التقييم والأسئلة', en: 'Assessment tools', nl: 'Beoordelingsinstrumenten' },
+        label: { ar: 'أدوات التقييم والأسئلة', en: 'Assessment tools' },
         href: '/quizzes',
         icon: FileQuestion,
       },
     ],
   },
   {
-    label: { ar: 'العمليات والخدمات', en: 'Operations & services', nl: 'Operaties & diensten' },
+    label: { ar: 'العمليات والخدمات', en: 'Operations & services' },
     items: [
       {
-        label: { ar: 'إدارة الشهادات', en: 'Certificate administration', nl: 'Certificaatbeheer' },
+        label: { ar: 'إدارة الشهادات', en: 'Certificate administration' },
         href: '/certificates',
         icon: Award,
       },
       {
-        label: { ar: 'المكتبة الرقمية', en: 'Digital library', nl: 'Digitale bibliotheek' },
+        label: { ar: 'المكتبة الرقمية', en: 'Digital library' },
         href: '/library',
         icon: LibraryBig,
       },
       {
-        label: { ar: 'الدعم والاتصالات', en: 'Support & communications', nl: 'Support en communicatie' },
+        label: { ar: 'الدعم والاتصالات', en: 'Support & communications' },
         href: '/support',
         icon: Headphones,
       },
-      { label: { ar: 'النظام المالي', en: 'Finance', nl: 'Financiën' }, href: '/finance', icon: WalletCards },
+      { label: { ar: 'النظام المالي', en: 'Finance' }, href: '/finance', icon: WalletCards },
     ],
   },
   {
-    label: { ar: 'الحوكمة والإدارة', en: 'Governance & administration', nl: 'Governance & beheer' },
+    label: { ar: 'الحوكمة والإدارة', en: 'Governance & administration' },
     items: [
       {
-        label: { ar: 'المستخدمون والصلاحيات', en: 'Users & permissions', nl: 'Gebruikers & rechten' },
+        label: { ar: 'المستخدمون والصلاحيات', en: 'Users & permissions' },
         href: '/users',
         icon: Users,
       },
       {
-        label: { ar: 'عملاء الموقع', en: 'Website clients', nl: 'Websitecliënten' },
+        label: { ar: 'عملاء الموقع', en: 'Website clients' },
         href: '/users/website',
         icon: Users,
       },
       {
-        label: { ar: 'عملاء المكتب', en: 'On-site clients', nl: 'Kantoorcliënten' },
+        label: { ar: 'عملاء المكتب', en: 'On-site clients' },
         href: '/users/onsite',
         icon: Users,
       },
       {
-        label: { ar: 'المقيّمون والمدربون', en: 'Assessors & trainers', nl: 'Beoordelaars & trainers' },
+        label: { ar: 'المقيّمون والمدربون', en: 'Assessors & trainers' },
         href: '/assessors',
         icon: UserCheck,
       },
-      { label: { ar: 'اللجان', en: 'Committees', nl: 'Commissies' }, href: '/rpl/configuration', icon: Landmark },
+      { label: { ar: 'اللجان', en: 'Committees' }, href: '/rpl/configuration', icon: Landmark },
       {
-        label: { ar: 'الجودة والتدقيق', en: 'Quality & audit', nl: 'Kwaliteit & audit' },
+        label: { ar: 'الجودة والتدقيق', en: 'Quality & audit' },
         href: '/quality',
         icon: ShieldCheck,
       },
       {
-        label: { ar: 'إعدادات الذكاء الاصطناعي', en: 'AI settings', nl: 'AI-instellingen' },
+        label: { ar: 'إعدادات الذكاء الاصطناعي', en: 'AI settings' },
         href: '/ai-settings',
         icon: Bot,
       },
       {
-        label: { ar: 'التقارير والمؤشرات', en: 'Reports & KPIs', nl: "Rapporten & KPI's" },
+        label: { ar: 'التقارير والمؤشرات', en: 'Reports & KPIs' },
         href: '/reports',
         icon: ChartColumn,
       },
       {
-        label: { ar: 'إعدادات النظام', en: 'System settings', nl: 'Systeeminstellingen' },
+        label: { ar: 'إعدادات النظام', en: 'System settings' },
         href: '/settings',
         icon: Settings,
       },
@@ -220,7 +219,7 @@ const groups = [
 ]
 
 function pickLabel(label, language) {
-  return label?.[language] || label?.en || label?.ar || label?.nl || ''
+  return label?.[language] || label?.en || label?.ar || ''
 }
 
 export function getSidebarNavigation(canAccess = () => true) {
@@ -231,7 +230,7 @@ export function getSidebarNavigation(canAccess = () => true) {
       label: '',
       items: [
         {
-          name: pickLabel({ ar: 'نظرة عامة', en: 'Overview', nl: 'Overzicht' }, language),
+          name: pickLabel({ ar: 'نظرة عامة', en: 'Overview' }, language),
           href: '/dashboard',
           icon: LayoutDashboard,
           access: getRouteAccess('/dashboard'),
