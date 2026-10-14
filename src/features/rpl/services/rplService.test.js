@@ -31,6 +31,7 @@ import {
   regenerateDynamicAssessmentItem,
   reissueDynamicAssessment,
   rejectDynamicAssessmentItem,
+  rescoreDynamicAssessment,
   saveRplAssessmentFindings,
   sendDynamicAssessment,
   updateDynamicAssessmentItem,
@@ -126,6 +127,30 @@ describe('the dynamic assessment endpoints, as declared by the server', () => {
 
     expect(http.post).toHaveBeenCalledWith('/admin/rpl/dynamic-assessments/7/reissue', {
       reason: 'The applicant lost connection mid-window.',
+    })
+  })
+
+  test('reissue of an opened set carries the technical failure reason beside the reason (owner, 12 Oct 2026)', async () => {
+    // One attempt only: the server refuses to reopen an opened set (422 errors.set)
+    // unless the body carries technical_failure_reason, which it audits.
+    await reissueDynamicAssessment(7, {
+      reason: 'Platform outage.',
+      technical_failure_reason: 'The platform was unavailable from 10:05 to 10:40.',
+    })
+
+    expect(http.post).toHaveBeenCalledWith('/admin/rpl/dynamic-assessments/7/reissue', {
+      reason: 'Platform outage.',
+      technical_failure_reason: 'The platform was unavailable from 10:05 to 10:40.',
+    })
+  })
+
+  test('marking a referred entry quiz again posts the reason to its own set-level action (P4)', async () => {
+    // routes/api.php: POST dynamic-assessments/{verification}/rescore. It is not
+    // reissue: the applicant's frozen answers are marked again, nothing reopens.
+    await rescoreDynamicAssessment(7, { reason: 'The pass mark setting was restored.' })
+
+    expect(http.post).toHaveBeenCalledWith('/admin/rpl/dynamic-assessments/7/rescore', {
+      reason: 'The pass mark setting was restored.',
     })
   })
 

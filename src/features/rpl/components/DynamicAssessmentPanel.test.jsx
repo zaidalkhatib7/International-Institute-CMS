@@ -273,6 +273,10 @@ describe('reopening the answering window', () => {
   })
 
   it('requires a reason, and sends it', async () => {
+    // An opened set with no scoring policy (sent before the pass mark) keeps
+    // today's rule, the reason alone (D21(a)). An opened entry quiz sent under
+    // the pass mark also needs a technical failure reason (owner decision of
+    // 12 Oct 2026, one attempt only), pinned in DynamicAssessmentPanel.entryQuiz.test.jsx.
     renderPanel(expired())
     mocks.reissueDynamicAssessment.mockResolvedValue({ data: {} })
 

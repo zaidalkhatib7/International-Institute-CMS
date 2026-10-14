@@ -37,11 +37,29 @@ import {
   regenerateDynamicAssessmentItem,
   reissueDynamicAssessment,
   rejectDynamicAssessmentItem,
+  rescoreDynamicAssessment,
   sendDynamicAssessment,
   updateDynamicAssessmentItem,
 } from "../services/rplService";
 import { formatLocalizedDateTime } from "../../../utils/localization";
 import { answerProgress } from "../domain/answerCompleteness";
+import { fill } from "../domain/documentScreening";
+import {
+  RESCORE_REASON_MAX,
+  RESCORE_REASON_MIN,
+  TECHNICAL_FAILURE_REASON_MAX,
+  TECHNICAL_FAILURE_REASON_MIN,
+  canRescoreEntryQuiz,
+  entryQuizCopy,
+  entryQuizItemMarks,
+  hasQuizResult,
+  isHeardAtExpiry,
+  isRescoreReasonValid,
+  isTechnicalFailureReasonValid,
+  reopenNeedsTechnicalFailure,
+  withdrawBlockedByAttempt,
+} from "../domain/entryQuiz";
+import EntryQuizResultCard, { EntryQuizItemMark } from "./EntryQuizResultCard";
 import EvidenceReadinessNotice from "./EvidenceReadinessNotice";
 
 const copyByLanguage = {
@@ -307,6 +325,8 @@ export default function DynamicAssessmentPanel({
   evidenceDocumentsEnabled = true,
 }) {
   const copy = copyByLanguage[language] || copyByLanguage.en;
+  // The entry-quiz copy (owner, 12 Oct 2026, P4) is Arabic and English only and falls back to English.
+  const quizCopy = entryQuizCopy(language);
   const isArabic = language === "ar";
   const [state, setState] = useState({
     loading: true,
@@ -318,8 +338,9 @@ export default function DynamicAssessmentPanel({
   const [notice, setNotice] = useState({ error: "", success: "" });
   const [editing, setEditing] = useState({ id: null, text: "" });
   const [manualText, setManualText] = useState("");
-  const [reissueDraft, setReissueDraft] = useState({ open: false, reason: "" });
+  const [reissueDraft, setReissueDraft] = useState({ open: false, reason: "", technicalFailure: "" });
   const [withdrawDraft, setWithdrawDraft] = useState({ open: false, reason: "" });
+  const [rescoreDraft, setRescoreDraft] = useState({ open: false, reason: "" });
 
   const load = useCallback(async () => {
     try {
@@ -415,11 +436,30 @@ export default function DynamicAssessmentPanel({
   const neverOpened = assessment?.status === "issued" && !assessment.due_at;
   const answeredIncomplete =
     ["answered", "assessed"].includes(assessment?.status) && !progress.isComplete;
-  const canReissue = windowClosed || neverOpened || answeredIncomplete;
+  /*
+   * ONE ATTEMPT (owner, 12 Oct 2026, D11). A set the platform has marked never
+   * reopens, so the control is not offered on it; and a set the applicant has
+   * already opened reopens only for a documented technical failure, which the
+   * server requires as `technical_failure_reason` and audits. The server
+   * re-checks both under its lock and answers 422 otherwise.
+   */
+  const canReissue = (windowClosed || neverOpened || answeredIncomplete) && !hasQuizResult(assessment);
+  const reissueNeedsTechnicalFailure = reopenNeedsTechnicalFailure(assessment);
+  const quizMarks = entryQuizItemMarks(assessment);
+  // Timer expiry closes the quiz as heard (plan R8 exception; D11(i), on the plan
+  // recommendation under the owner flow of 12 Oct 2026); the server's gates agree.
+  const heardAtExpiry = isHeardAtExpiry(assessment);
   // Withdrawal applies only to a delivered set still awaiting answers. An
   // applicant who HAS answered has been heard, and withdrawing that would
   // discard the very thing the ordering rule protects.
-  const canWithdraw = assessment?.status === "issued" && !progress.isComplete;
+  const awaitingAnswers = assessment?.status === "issued" && !progress.isComplete;
+  // An entry quiz the applicant has opened is the one attempt (owner, 12 Oct
+  // 2026, D11): the server refuses to withdraw it, so the control is not offered;
+  // the timer or the last answer closes and marks it instead.
+  const withdrawBlocked = awaitingAnswers && withdrawBlockedByAttempt(assessment);
+  const canWithdraw = awaitingAnswers && !withdrawBlocked;
+  // A quiz the platform referred is marked again once staff fix the cause (P4).
+  const canRescore = canRescoreEntryQuiz(assessment);
   const reissueWhy = windowClosed
     ? copy.reissueWhyExpired
     : neverOpened
@@ -614,12 +654,78 @@ export default function DynamicAssessmentPanel({
                   />
                 </div>
                 <p className="mt-2 leading-6 text-[var(--color-text-muted)]">
-                  {progress.isComplete
-                    ? progress.reasonCode === "answers_not_submitted"
-                      ? copy.progressNotSubmitted
-                      : copy.progressComplete
-                    : copy.progressIncomplete}
+                  {heardAtExpiry
+                    ? quizCopy.heardAtExpiry
+                    : progress.isComplete
+                      ? progress.reasonCode === "answers_not_submitted"
+                        ? copy.progressNotSubmitted
+                        : copy.progressComplete
+                      : copy.progressIncomplete}
                 </p>
+              </section>
+            ) : null}
+
+            {/* The platform's mark of an entry quiz (owner, 12 Oct 2026, P4); nothing for any other set. */}
+            <EntryQuizResultCard assessment={assessment} items={items} language={language} />
+
+            {canRescore ? (
+              <section
+                aria-label={quizCopy.rescoreTitle}
+                className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"
+              >
+                <strong className="block">{quizCopy.rescoreTitle}</strong>
+                <p className="mt-1 leading-6">{quizCopy.rescoreWhy}</p>
+                {rescoreDraft.open ? (
+                  <div className="mt-3 space-y-2">
+                    <Textarea
+                      rows={2}
+                      maxLength={RESCORE_REASON_MAX}
+                      label={quizCopy.rescoreReason}
+                      placeholder={quizCopy.rescorePlaceholder}
+                      hint={fill(quizCopy.rescoreHint, { min: RESCORE_REASON_MIN, max: RESCORE_REASON_MAX })}
+                      value={rescoreDraft.reason}
+                      onChange={(event) => setRescoreDraft({ open: true, reason: event.target.value })}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          run(
+                            "rescore",
+                            async () => {
+                              await rescoreDynamicAssessment(assessment.id, { reason: rescoreDraft.reason.trim() });
+                              setRescoreDraft({ open: false, reason: "" });
+                            },
+                            quizCopy.rescoreDone,
+                          )
+                        }
+                        disabled={busy !== "" || !isRescoreReasonValid(rescoreDraft.reason)}
+                      >
+                        <RefreshCw size={15} />
+                        {quizCopy.rescoreConfirm}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setRescoreDraft({ open: false, reason: "" })}
+                        disabled={busy !== ""}
+                      >
+                        {quizCopy.rescoreCancel}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    className="mt-3"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setRescoreDraft({ open: true, reason: "" })}
+                    disabled={busy !== ""}
+                  >
+                    <RefreshCw size={15} />
+                    {quizCopy.rescore}
+                  </Button>
+                )}
               </section>
             ) : null}
 
@@ -631,6 +737,9 @@ export default function DynamicAssessmentPanel({
                 <strong className="block">{copy.reissueTitle}</strong>
                 <p className="mt-1 leading-6">{reissueWhy}</p>
                 <p className="mt-1 leading-6">{copy.reissueNote}</p>
+                {reissueNeedsTechnicalFailure ? (
+                  <p className="mt-1 font-semibold leading-6">{quizCopy.reopenOpenedRule}</p>
+                ) : null}
                 {reissueDraft.open ? (
                   <div className="mt-3 space-y-2">
                     <Textarea
@@ -639,9 +748,25 @@ export default function DynamicAssessmentPanel({
                       placeholder={copy.reissuePlaceholder}
                       value={reissueDraft.reason}
                       onChange={(event) =>
-                        setReissueDraft({ open: true, reason: event.target.value })
+                        setReissueDraft((current) => ({ ...current, reason: event.target.value }))
                       }
                     />
+                    {reissueNeedsTechnicalFailure ? (
+                      <Textarea
+                        rows={3}
+                        maxLength={TECHNICAL_FAILURE_REASON_MAX}
+                        label={quizCopy.technicalFailureReason}
+                        placeholder={quizCopy.technicalFailurePlaceholder}
+                        hint={fill(quizCopy.technicalFailureHint, {
+                          min: TECHNICAL_FAILURE_REASON_MIN,
+                          max: TECHNICAL_FAILURE_REASON_MAX,
+                        })}
+                        value={reissueDraft.technicalFailure}
+                        onChange={(event) =>
+                          setReissueDraft((current) => ({ ...current, technicalFailure: event.target.value }))
+                        }
+                      />
+                    ) : null}
                     <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
@@ -651,13 +776,21 @@ export default function DynamicAssessmentPanel({
                             async () => {
                               await reissueDynamicAssessment(assessment.id, {
                                 reason: reissueDraft.reason.trim(),
+                                ...(reissueNeedsTechnicalFailure
+                                  ? { technical_failure_reason: reissueDraft.technicalFailure.trim() }
+                                  : {}),
                               });
-                              setReissueDraft({ open: false, reason: "" });
+                              setReissueDraft({ open: false, reason: "", technicalFailure: "" });
                             },
                             copy.reissueDone,
                           )
                         }
-                        disabled={busy !== "" || reissueDraft.reason.trim() === ""}
+                        disabled={
+                          busy !== "" ||
+                          reissueDraft.reason.trim() === "" ||
+                          (reissueNeedsTechnicalFailure &&
+                            !isTechnicalFailureReasonValid(reissueDraft.technicalFailure))
+                        }
                       >
                         <RotateCcw size={15} />
                         {copy.reissueConfirm}
@@ -665,7 +798,7 @@ export default function DynamicAssessmentPanel({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setReissueDraft({ open: false, reason: "" })}
+                        onClick={() => setReissueDraft({ open: false, reason: "", technicalFailure: "" })}
                         disabled={busy !== ""}
                       >
                         {copy.reissueCancel}
@@ -677,7 +810,7 @@ export default function DynamicAssessmentPanel({
                     className="mt-3"
                     size="sm"
                     variant="outline"
-                    onClick={() => setReissueDraft({ open: true, reason: "" })}
+                    onClick={() => setReissueDraft({ open: true, reason: "", technicalFailure: "" })}
                     disabled={busy !== ""}
                   >
                     <RotateCcw size={15} />
@@ -685,6 +818,12 @@ export default function DynamicAssessmentPanel({
                   </Button>
                 )}
               </section>
+            ) : null}
+
+            {withdrawBlocked ? (
+              <p className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4 text-sm leading-6 text-[var(--color-text-muted)]">
+                {quizCopy.withdrawBlockedOpened}
+              </p>
             ) : null}
 
             {canWithdraw ? (
@@ -762,12 +901,12 @@ export default function DynamicAssessmentPanel({
                    * button refuses to offer it, so nobody spends two minutes
                    * waiting for a governed refusal.
                    */
-                  disabled={busy !== "" || !progress.isComplete}
+                  disabled={busy !== "" || !(progress.isComplete || heardAtExpiry)}
                 >
                   <Sparkles size={17} />
                   {busy === "final" ? copy.generating : copy.finalEvaluate}
                 </Button>
-                {!progress.isComplete ? (
+                {!progress.isComplete && !heardAtExpiry ? (
                   <p className="text-sm leading-6 text-amber-800">{copy.finalBlocked}</p>
                 ) : null}
               </div>
@@ -841,6 +980,7 @@ export default function DynamicAssessmentPanel({
                       {copy.statusLabels[item.status] || item.status}
                     </Badge>
                     {item.is_ai_generated ? <Badge variant="outline">AI</Badge> : null}
+                    <EntryQuizItemMark mark={quizMarks.get(String(item.id))} language={language} />
                   </div>
 
                   {editing.id === item.id ? (
