@@ -10,7 +10,7 @@ import LanguageSlider from '../ui/LanguageSlider'
 
 const copyByLanguage = {
   ar: {
-    area: 'لوحة إدارة الاعتماد المهني',
+    area: 'منصة الاعتماد المهني',
     search: 'ابحث في الوحدات والطلبات والسجلات...',
     notifications: 'الرسائل والتنبيهات',
     admin: 'مدير النظام',
@@ -23,7 +23,7 @@ const copyByLanguage = {
     interfaceLanguage: 'لغة الواجهة',
   },
   en: {
-    area: 'Professional Accreditation CMS',
+    area: 'Professional Accreditation Platform',
     search: 'Search modules, applications, and records...',
     notifications: 'Messages & notifications',
     admin: 'System administrator',
