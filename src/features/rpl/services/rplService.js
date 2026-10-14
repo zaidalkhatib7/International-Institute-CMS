@@ -251,6 +251,17 @@ export async function cancelDynamicAssessment(id, payload) {
   return read(await http.post(`/admin/rpl/dynamic-assessments/${id}/cancel`, payload))
 }
 
+/*
+ * Mark a REFERRED entry quiz again once staff have fixed its cause (in practice
+ * the pass mark setting), from the same frozen answers (owner flow of 12 Oct
+ * 2026, P4). The server requires `reason` (10 to 2000 characters) and audits it;
+ * it answers 422 errors.set while the cause is still there, and for any result
+ * that is not referred: a passed or failed result is never marked again.
+ */
+export async function rescoreDynamicAssessment(id, payload) {
+  return read(await http.post(`/admin/rpl/dynamic-assessments/${id}/rescore`, payload))
+}
+
 export async function finalEvaluateDynamicAssessment(id) {
   return read(await http.post(`/admin/rpl/dynamic-assessments/${id}/final-evaluation`, {}, AI_TIMEOUT))
 }
