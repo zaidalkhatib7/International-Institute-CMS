@@ -32,4 +32,4 @@ Local backend seed accounts are documented in the backend handoff. Production te
 - Accent: `#1699D6`
 - Primary CTA: `#F0A32A`
 - Default locale: Arabic (`rtl`)
-- Supported locales: Arabic, English, and Dutch
+- Supported locales: Arabic and English

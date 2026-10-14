@@ -46,12 +46,13 @@ Any human-readable field is an object keyed by language code, never a string:
 { "title": { "ar": "أسس حل المشكلات", "en": "Foundations of Problem Solving" } }
 ```
 
-Supported keys are `ar`, `en`, `nl`. **Not every key is always present.** Resolve
+Supported keys are `ar` and `en`; ignore any other key (older records may still carry one).
+**Not every key is always present.** Resolve
 with a fallback chain rather than indexing directly:
 
 ```js
 const text = (v, lang) =>
-  typeof v === 'string' ? v : (v?.[lang] ?? v?.en ?? v?.ar ?? v?.nl ?? '')
+  typeof v === 'string' ? v : (v?.[lang] ?? v?.en ?? v?.ar ?? '')
 ```
 
 Send the same shape back on write. Sending a bare string where an object is
