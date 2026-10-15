@@ -12,9 +12,13 @@ import { PROFESSIONAL_LEVELS, localize } from './rpl'
  *     advanced practitioner 7, expert 10, editable) is a FLOOR for Gemini, never
  *     a target or a cap (D13(b)). Staff may approve fewer only with a written
  *     reason, so a shortage in the library never blocks a case.
- *   - It binds only a client whose entry quiz PASSED. A failed client gets a
- *     gap-closing plan with no minimum and no certificate from that quiz (7.1
- *     D11; F1 of the build spec).
+ *   - A client whose entry quiz FAILED is held to a separate minimum,
+ *     rpl_course_plan_minimums_failed (owner, 15 Oct 2026, "hybrid"; seeded
+ *     5 / 7 / 10, editable per level, 0 meaning the gap-closing courses only):
+ *     the courses that close the gaps come first, then top-ups bring the plan to
+ *     that minimum. A failed client never gets the Experience Confirmation
+ *     Certificate; after the courses one final exam leads to the level
+ *     certificate (P6). Plans made before that answer keep P5's F1 (no minimum).
  *   - Every plan version freezes the minimum it used; editing the setting changes
  *     only plans generated after it.
  *   - The count is distinct programmes proposed or approved on the plan. Whether
@@ -35,6 +39,8 @@ export const COURSE_PLAN_PERMISSIONS = Object.freeze({ view: 'rpl.applications.v
 export const COURSE_PLAN_LIMITS = Object.freeze({ reasonMin: 10, reasonMax: 2000 })
 
 export const COURSE_PLAN_MINIMUMS_KEY = 'rpl_course_plan_minimums'
+// The minimum for a client whose entry quiz failed (owner, 15 Oct 2026): same shape and bounds, its own key.
+export const COURSE_PLAN_FAILED_MINIMUMS_KEY = 'rpl_course_plan_minimums_failed'
 export const COURSE_PLAN_MINIMUM_MIN = 0
 export const COURSE_PLAN_MINIMUM_MAX = 50
 
@@ -48,8 +54,8 @@ export const COURSE_PLAN_LEVEL_ORDER = Object.freeze(['practitioner', 'advanced_
  */
 export const COURSE_PLAN_LIVE_STATUSES = Object.freeze(['assessment_in_progress', 'course_plan_review', 'course_plan_active'])
 
-/** Item statuses that count towards the plan. P6 adds purchased and completed. */
-export const COURSE_PLAN_ACTIVE_ITEM_STATUSES = Object.freeze(['proposed', 'approved', 'purchased', 'completed'])
+/** Item statuses that count towards the plan: P6 adds refunded, which the client may buy again. */
+export const COURSE_PLAN_ACTIVE_ITEM_STATUSES = Object.freeze(['proposed', 'approved', 'purchased', 'completed', 'refunded'])
 
 export const COURSE_PLAN_COPY = {
   ar: {
@@ -61,7 +67,7 @@ export const COURSE_PLAN_COPY = {
     retry: 'إعادة المحاولة',
     none: 'لا توجد خطة دورات لهذا الطلب بعد.',
     generate: 'إنشاء خطة الدورات بواسطة Gemini',
-    generateHint: 'يقرأ Gemini الإجابات والوثائق والمستوى المستهدف ويقترح الدورات: الحد الأدنى لهذا المستوى على الأقل بعد اجتياز اختبار الدخول، ودورات سد الفجوات فقط بعد عدم اجتيازه. قد يستغرق ذلك بضع دقائق، وينتقل الطلب إلى مراجعة خطة الدورات.',
+    generateHint: 'يقرأ Gemini الإجابات والوثائق والمستوى المستهدف ويقترح الدورات: الحد الأدنى لهذا المستوى على الأقل بعد اجتياز اختبار الدخول؛ وبعد عدم اجتيازه دورات سد الفجوات أولًا، ثم دورات حتى الحد الأدنى المضبوط لمن لم يجتز الاختبار. قد يستغرق ذلك بضع دقائق، وينتقل الطلب إلى مراجعة خطة الدورات.',
     regenerate: 'إنشاء اقتراح جديد',
     regenerateConfirm: 'سيُنشئ Gemini اقتراحًا جديدًا بالإصدار {next} بالحد الأدنى المضبوط الآن. تُنقل الدورات التي أضافها الموظفون، وتبقى التعديلات الأخرى في سجل الإصدار {version}.',
     regenerateSubmit: 'أنشئ الاقتراح الجديد',
@@ -77,15 +83,17 @@ export const COURSE_PLAN_COPY = {
       entry_quiz_ambiguous: 'لهذا الطلب أكثر من اختبار دخول؛ يجب أن يحسم الموظفون ذلك أولًا.',
       minimum_setting_missing: 'الحد الأدنى لعدد الدورات غير مضبوط في الإعدادات.',
     },
-    quizPassed: 'اجتاز العميل اختبار الدخول: {percent}٪ (حد النجاح: أكثر من {mark}٪). بعد الدورات المعتمدة ينتقل الطلب إلى شهادة المستوى المستهدف عبر المراجعة المعتادة (قرار المالك، 12 أكتوبر 2026).',
-    quizFailed: 'لم يجتز العميل اختبار الدخول: {percent}٪ (حد النجاح: أكثر من {mark}٪). محاولة واحدة فقط، ولا شهادة من هذا الطلب؛ تسد الخطة الفجوات التي وجدها Gemini دون حد أدنى لعدد الدورات (قرار المالك، 12 أكتوبر 2026).',
-    noMinimum: 'لا يسري حد أدنى: لم يجتز العميل اختبار الدخول، فتقتصر الخطة على سد الفجوات (قرار المالك، 12 أكتوبر 2026).',
+    quizPassed: 'اجتاز العميل اختبار الدخول: {percent}٪ (حد النجاح: أكثر من {mark}٪). يمكن للعميل شراء شهادة تثبيت الخبرة. وبعد الدورات المعتمدة يُصدر اختبار نهائي واحد شهادة مستوى {level} تلقائيًا (قرار المالك، 15 أكتوبر 2026).',
+    quizFailed: 'لم يجتز العميل اختبار الدخول: {percent}٪ (حد النجاح: أكثر من {mark}٪). محاولة واحدة فقط، ولا شهادة تثبيت خبرة. تسد الخطة أولًا الفجوات التي وجدها Gemini، ثم تُستكمل إلى الحد الأدنى المضبوط لمن لم يجتز الاختبار، وبعد الدورات يُصدر اختبار نهائي واحد شهادة مستوى {level} تلقائيًا (قرارا المالك، 12 و15 أكتوبر 2026).',
+    noMinimum: 'لا يسري حد أدنى: تقتصر هذه الخطة على سد الفجوات (حد أدنى 0، أو خطة أُنشئت قبل الحد الأدنى لمن لم يجتز الاختبار في 15 أكتوبر 2026).',
+    failedMinimum: 'لم يجتز العميل اختبار الدخول: تأتي أولًا الدورات التي تسد الفجوات، ثم تُستكمل الخطة إلى الحد الأدنى لمن لم يجتز الاختبار ({minimum}؛ قرار المالك، 15 أكتوبر 2026). لا تَعِد الخطة بأي شهادة.',
     version: 'الإصدار {version}',
     planStatus: {
       draft: 'مسودة',
       approved: 'معتمدة',
       superseded: 'مستبدلة',
       discarded: 'ملغاة',
+      closed: 'مغلقة',
     },
     planSource: {
       final_evaluation: 'اقتراح Gemini من تقييم الإجابات المسجَّل',
@@ -114,6 +122,7 @@ export const COURSE_PLAN_COPY = {
     purposeInferred: 'لم يذكر Gemini الغرض، فعُدّت دورة تسد فجوة.',
     claimsNoGap: 'لا تدّعي وجود فجوة',
     topUpWithoutMinimum: 'وُسمت {count} من هذه الدورات بأنها لاستكمال الحد الأدنى، لكن لا يسري حد أدنى على هذه الخطة: أبقِ كل دورة منها فقط إن كانت تسد فجوة لدى العميل، واحذف الباقي مع ذكر السبب.',
+    topUpBeyondMinimum: 'وُسمت {count} من هذه الدورات بأنها لاستكمال الحد الأدنى، لكن الخطة تبلغ حدها الأدنى {minimum} من دونها: أبقِ كل دورة منها فقط إن كانت تسد فجوة لدى العميل، واحذف الباقي مع ذكر السبب.',
     origin: {
       gemini: 'اقترحها Gemini',
       staff: 'أضافها الموظفون',
@@ -151,6 +160,22 @@ export const COURSE_PLAN_COPY = {
     removedBy: 'حذفها {name} في {at}: {reason}',
     lockedPurchased: 'اشتراها العميل: تبقى في كل تعديل.',
     lockedCompleted: 'أكملها العميل: تبقى في كل تعديل.',
+    purchasedOn: 'اشتُريت في {at}',
+    completedOn: 'اكتملت في {at}',
+    enrolment: 'التسجيل رقم {id} · إصدار الحقيبة {version}',
+    lessonsProgress: 'أُكمل {done} من {total} درسًا',
+    courseQuizPassed: 'اجتاز اختبار الدورة',
+    courseQuizNotPassed: 'لم يجتز اختبار الدورة بعد',
+    onHold: 'موقوفة بقرار حوكمة',
+    itemOnHold: 'موقوفة بقرار حوكمة: لا يمكن شراؤها ولا اختبارها. عدّل الخطة أو انتظر رفع الإيقاف.',
+    holdBlocks: 'الموقوف: {blocks}',
+    holdLabels: {
+      new_enrolment: 'التسجيل الجديد',
+      new_assessment: 'التقييمات الجديدة',
+      credential_issuance: 'إصدار الشهادات',
+    },
+    approveHeld: 'تخضع {count} من هذه الدورات لإيقاف حوكمة ({codes}). يمكن الاعتماد، لكن لا يستطيع العميل شراءها أو الاختبار فيها حتى يُرفع الإيقاف.',
+    learningComplete: 'اكتملت جميع الدورات، وأُغلقت الخطة، وفُتح الاختبار النهائي.',
     cancel: 'إلغاء',
     approve: 'اعتماد الخطة',
     approveTitle: 'اعتماد الإصدار {version}',
@@ -214,7 +239,7 @@ export const COURSE_PLAN_COPY = {
     retry: 'Try again',
     none: 'No course plan exists for this case yet.',
     generate: 'Generate the course plan with Gemini',
-    generateHint: 'Gemini reads the answers, the documents and the target level and proposes the courses: at least the minimum for this level after a passed entry quiz, the gap-closing courses only after a failed one. This can take a few minutes. The case moves to course plan review.',
+    generateHint: 'Gemini reads the answers, the documents and the target level and proposes the courses: at least the minimum for this level after a passed entry quiz; after a failed one, the gap-closing courses first, then courses up to the minimum set for clients who did not pass. This can take a few minutes. The case moves to course plan review.',
     regenerate: 'Generate a new proposal',
     regenerateConfirm: 'Gemini makes a new proposal as version {next}, using the minimum set now. Courses staff added are carried over; every other edit stays in version {version}\'s history.',
     regenerateSubmit: 'Make the new proposal',
@@ -230,15 +255,17 @@ export const COURSE_PLAN_COPY = {
       entry_quiz_ambiguous: 'This case has more than one entry quiz; staff must resolve it first.',
       minimum_setting_missing: 'The minimum number of courses is not set in the settings.',
     },
-    quizPassed: 'Entry quiz passed: {percent}% (pass mark: more than {mark}%). After the approved courses, the case goes on to the certificate at the target level through the usual review (owner decision, 12 Oct 2026).',
-    quizFailed: 'Entry quiz not passed: {percent}% (pass mark: more than {mark}%). One attempt only, and no certificate follows this request; the plan closes the gaps Gemini found, with no minimum number of courses (owner decision, 12 Oct 2026).',
-    noMinimum: 'No minimum applies: the entry quiz was not passed, so the plan closes the gaps only (owner decision, 12 Oct 2026).',
+    quizPassed: 'Entry quiz passed: {percent}% (pass mark: more than {mark}%). The client may buy the Experience Confirmation Certificate. After the approved courses, one final exam issues the {level} certificate automatically (owner decision, 15 Oct 2026).',
+    quizFailed: 'Entry quiz not passed: {percent}% (pass mark: more than {mark}%). One attempt only, and no Experience Confirmation Certificate. The plan closes the gaps Gemini found first, then tops up to the minimum set for clients who did not pass; after the courses, one final exam issues the {level} certificate automatically (owner decisions, 12 and 15 Oct 2026).',
+    noMinimum: 'No minimum applies: this plan closes the gaps only (a minimum of 0, or a plan made before the failed-client minimum of 15 Oct 2026).',
+    failedMinimum: 'Entry quiz not passed: the courses that close the gaps come first, then top-ups bring the plan to the minimum for a client who did not pass ({minimum}; owner decision, 15 Oct 2026). The plan promises no certificate.',
     version: 'Version {version}',
     planStatus: {
       draft: 'Draft',
       approved: 'Approved',
       superseded: 'Superseded',
       discarded: 'Discarded',
+      closed: 'Closed',
     },
     planSource: {
       final_evaluation: 'Gemini proposal, from the recorded answer evaluation',
@@ -267,6 +294,7 @@ export const COURSE_PLAN_COPY = {
     purposeInferred: 'Gemini gave no purpose, so it is read as closing a gap.',
     claimsNoGap: 'Claims no gap',
     topUpWithoutMinimum: '{count} of these courses are labelled as bringing the plan to a minimum, but no minimum applies to this plan: keep each one only if it closes a gap the client has, and remove the rest with a reason.',
+    topUpBeyondMinimum: '{count} of these courses are labelled as bringing the plan to the minimum, but the plan reaches its minimum of {minimum} without them: keep each one only if it closes a gap the client has, and remove the rest with a reason.',
     origin: {
       gemini: 'Proposed by Gemini',
       staff: 'Added by staff',
@@ -304,6 +332,22 @@ export const COURSE_PLAN_COPY = {
     removedBy: 'Removed by {name} on {at}: {reason}',
     lockedPurchased: 'Bought by the client: kept in every amendment.',
     lockedCompleted: 'Completed by the client: kept in every amendment.',
+    purchasedOn: 'Bought on {at}',
+    completedOn: 'Completed on {at}',
+    enrolment: 'Enrolment #{id} · package version {version}',
+    lessonsProgress: '{done} of {total} lessons completed',
+    courseQuizPassed: 'Course quiz passed',
+    courseQuizNotPassed: 'Course quiz not passed yet',
+    onHold: 'On governance hold',
+    itemOnHold: 'On governance hold: it cannot be bought or examined. Amend the plan, or wait until the hold is lifted.',
+    holdBlocks: 'Blocked: {blocks}',
+    holdLabels: {
+      new_enrolment: 'New enrolments',
+      new_assessment: 'New assessments',
+      credential_issuance: 'Certificate issue',
+    },
+    approveHeld: '{count} of these courses are on a governance hold ({codes}). Approving is allowed, but the client cannot buy or be examined on them until the hold is lifted.',
+    learningComplete: 'Every course is completed. The plan is closed and the final exam is open.',
     cancel: 'Cancel',
     approve: 'Approve the plan',
     approveTitle: 'Approve version {version}',
@@ -362,7 +406,7 @@ export const COURSE_PLAN_COPY = {
 export const COURSE_PLAN_MINIMUMS_COPY = {
   ar: {
     title: 'الحد الأدنى لعدد الدورات لكل مستوى',
-    hint: 'إعداد محكوم يقرره المالك (12 أكتوبر 2026)، ولا قيمة افتراضية له في الشيفرة. بعد اجتياز اختبار الدخول يجب أن يقترح Gemini هذا العدد من الدورات على الأقل للعميل الذي يستهدف هذا المستوى، ويُكتب العدد في التعليمات المرسلة إليه عند كل إنشاء. تحتفظ كل خطة بالحد الأدنى الذي أُنشئت به، فيسري التعديل على الخطط التي تُنشأ بعده. ولا يعتمد الموظفون عددًا أقل إلا بسبب مكتوب، فلا يوقف نقصُ الدورات في المكتبة أي طلب. أما العميل الذي لم يجتز الاختبار فيحصل على دورات سد الفجوات فقط.',
+    hint: 'إعداد محكوم يقرره المالك (12 أكتوبر 2026)، ولا قيمة افتراضية له في الشيفرة. بعد اجتياز اختبار الدخول يجب أن يقترح Gemini هذا العدد من الدورات على الأقل للعميل الذي يستهدف هذا المستوى، ويُكتب العدد في التعليمات المرسلة إليه عند كل إنشاء. تحتفظ كل خطة بالحد الأدنى الذي أُنشئت به، فيسري التعديل على الخطط التي تُنشأ بعده. ولا يعتمد الموظفون عددًا أقل إلا بسبب مكتوب، فلا يوقف نقصُ الدورات في المكتبة أي طلب. أما العميل الذي لم يجتز الاختبار فله حد أدنى مستقل أدناه.',
     label: '{level} (من 0 إلى 50)',
     ownerValues: 'قيم المالك: ممارس 5، ممارس متقدم 7، خبير 10. وكل منها حد أدنى، لا عدد ثابت.',
     invalid: 'أدخل عددًا صحيحًا من 0 إلى 50.',
@@ -372,11 +416,42 @@ export const COURSE_PLAN_MINIMUMS_COPY = {
   },
   en: {
     title: 'Minimum number of courses per level',
-    hint: 'A governed setting the owner decides (12 Oct 2026); the code holds no default. After a passed entry quiz Gemini must propose at least this many courses for a client aiming at that level, and the number is written into the prompt on every generation. Each plan keeps the minimum it was generated with, so a change applies to plans generated after it. Staff may approve fewer only with a written reason, so a shortage in the library never blocks a case. A client who did not pass gets the gap-closing courses only.',
+    hint: 'A governed setting the owner decides (12 Oct 2026); the code holds no default. After a passed entry quiz Gemini must propose at least this many courses for a client aiming at that level, and the number is written into the prompt on every generation. Each plan keeps the minimum it was generated with, so a change applies to plans generated after it. Staff may approve fewer only with a written reason, so a shortage in the library never blocks a case. A client who did not pass has a separate minimum, below.',
     label: '{level} (0 to 50)',
     ownerValues: 'The owner\'s values: practitioner 5, advanced practitioner 7, expert 10. Each is a minimum, not an exact count.',
     invalid: 'Enter a whole number from 0 to 50.',
     missing: 'Not set: course plans cannot be generated until every level has a minimum.',
+    reasonRule: 'Approving a plan below the minimum always needs a written reason.',
+    noLevels: 'No active professional level exists to set a minimum for.',
+  },
+}
+
+/*
+ * THE MINIMUM AFTER A FAILED ENTRY QUIZ (owner, 15 Oct 2026, "hybrid"):
+ * rpl_course_plan_minimums_failed, the same shape and bounds as the minimums
+ * above, saved with the same save and under the same rule (written only once the
+ * server holds it or someone types). The gap-closing courses come first, then
+ * top-ups bring the plan to this number; 0 means the gap-closing courses only.
+ * Its labels name the failed result, so no label repeats the passed row's.
+ */
+export const COURSE_PLAN_FAILED_MINIMUMS_COPY = {
+  ar: {
+    title: 'الحد الأدنى لعدد الدورات لكل مستوى بعد عدم اجتياز اختبار الدخول',
+    hint: 'إعداد محكوم يقرره المالك (15 أكتوبر 2026)، ولا قيمة افتراضية له في الشيفرة. للعميل الذي لم يجتز اختبار الدخول يقترح Gemini أولًا الدورات التي تسد الفجوات، ثم يستكمل الخطة بدورات حتى هذا العدد. القيمة 0 تعني دورات سد الفجوات فقط. لا تَعِد الخطة بأي شهادة، ولا يحصل هذا العميل على شهادة تثبيت الخبرة؛ وبعد الدورات يقود اختبار نهائي واحد إلى شهادة المستوى. تحتفظ كل خطة بالحد الأدنى الذي أُنشئت به.',
+    label: '{level}، بعد عدم الاجتياز (من 0 إلى 50)',
+    ownerValues: 'القيم الأولية للمالك: ممارس 5، ممارس متقدم 7، خبير 10. وكل منها حد أدنى، لا عدد ثابت.',
+    invalid: 'أدخل عددًا صحيحًا من 0 إلى 50 لهذا المستوى.',
+    missing: 'غير مضبوط: لا يمكن إنشاء خطة دورات لعميل لم يجتز الاختبار حتى يُحدَّد حد أدنى لكل مستوى.',
+    reasonRule: 'اعتماد خطة أقل من الحد الأدنى يتطلب دائمًا سببًا مكتوبًا.',
+    noLevels: 'لا توجد مستويات مهنية مفعّلة لضبط حد أدنى لها.',
+  },
+  en: {
+    title: 'Minimum number of courses per level after a failed entry quiz',
+    hint: 'A governed setting the owner decides (15 Oct 2026); the code holds no default. For a client who did not pass the entry quiz, Gemini proposes the courses that close the gaps first, then tops the plan up to this number. 0 means the gap-closing courses only. The plan promises no certificate, and this client never gets the Experience Confirmation Certificate; after the courses one final exam leads to the level certificate. Each plan keeps the minimum it was generated with.',
+    label: '{level}, entry quiz not passed (0 to 50)',
+    ownerValues: 'The owner\'s seeded values: practitioner 5, advanced practitioner 7, expert 10. Each is a minimum, not an exact count.',
+    invalid: 'Enter a whole number from 0 to 50 for this level.',
+    missing: 'Not set: no course plan can be generated for a client who did not pass until every level has a minimum.',
     reasonRule: 'Approving a plan below the minimum always needs a written reason.',
     noLevels: 'No active professional level exists to set a minimum for.',
   },
@@ -392,6 +467,10 @@ export function coursePlanCopy(language) {
 
 export function coursePlanMinimumsCopy(language) {
   return pick(COURSE_PLAN_MINIMUMS_COPY, language)
+}
+
+export function coursePlanFailedMinimumsCopy(language) {
+  return pick(COURSE_PLAN_FAILED_MINIMUMS_COPY, language)
 }
 
 /** A staff reason the API accepts: 10 to 2000 characters after trimming. */
@@ -466,6 +545,38 @@ export function topUpsWithoutMinimum(plan) {
   return activePlanItems(plan).filter((item) => item?.purpose === 'minimum_completion').length
 }
 
+/*
+ * The "hybrid" rule for a FAILED entry quiz (owner, 15 Oct 2026): the gap-closing
+ * courses first, then top-ups only until the plan reaches its frozen minimum. A
+ * top-up the plan does not need to reach that minimum has no place on it, so the
+ * editor counts those for staff to judge (it never removes or relabels one). A
+ * minimum of 0 is topUpsWithoutMinimum's case, and a passed plan keeps P5's rule.
+ */
+export function topUpsBeyondMinimum(plan) {
+  if (plan?.entry_quiz_result !== 'failed' || plan?.minimum_applies === false) return 0
+  const minimum = Number(plan?.minimum_required)
+  if (plan?.minimum_required == null || !Number.isFinite(minimum) || minimum <= 0) return 0
+  const items = activePlanItems(plan)
+  const topUps = items.filter((item) => item?.purpose === 'minimum_completion').length
+  const needed = Math.max(0, minimum - (items.length - topUps))
+  return Math.max(0, topUps - needed)
+}
+
+/** The governance blocks active on an item's programme (staff payload `holds`), as an array of codes. */
+export function itemHolds(item) {
+  return (Array.isArray(item?.holds) ? item.holds : []).map((hold) => (typeof hold === 'string' ? hold : hold?.block || hold?.code)).filter(Boolean)
+}
+
+/** Active items on a governance hold: shown on each card, and listed as a warning (never a block) on approval. */
+export function heldPlanItems(plan) {
+  return activePlanItems(plan).filter((item) => itemHolds(item).length > 0)
+}
+
+/** A plan the completion service closed: every course completed, the final exam open (P6). */
+export function isPlanLearningComplete(plan) {
+  return plan?.status === 'closed' && plan?.closed_reason === 'learning_complete'
+}
+
 /**
  * The overview after a write: the plan the server sent back takes its slot, and
  * the case status is the one the server reports. The `can` flags and the
@@ -530,8 +641,8 @@ export function minimumLevelLabel(level, language) {
   return localize(known?.labels, language) || code || ''
 }
 
-function storedMinimums(raw) {
-  let stored = raw?.[COURSE_PLAN_MINIMUMS_KEY]
+function storedMinimums(raw, key = COURSE_PLAN_MINIMUMS_KEY) {
+  let stored = raw?.[key]
   if (typeof stored === 'string') {
     try {
       stored = JSON.parse(stored)
@@ -549,17 +660,19 @@ function orderedStoredCodes(stored) {
 }
 
 /**
- * The form state: { codes, values: {code: string}, include, errors: {general, levels} }.
+ * The form state: { key, codes, values: {code: string}, include, errors: {general, levels} }.
  * `include` is true only when the server holds the key; typing sets it.
  * The codes are the reference levels; with none loaded, the stored codes.
+ * `key` is rpl_course_plan_minimums, or rpl_course_plan_minimums_failed for the
+ * failed-quiz row (owner, 15 Oct 2026): the same rules for both.
  */
-export function readCoursePlanMinimumsSetting(raw, levels) {
-  const held = raw?.[COURSE_PLAN_MINIMUMS_KEY] != null && raw?.[COURSE_PLAN_MINIMUMS_KEY] !== ''
-  const stored = storedMinimums(raw)
+export function readCoursePlanMinimumsSetting(raw, levels, key = COURSE_PLAN_MINIMUMS_KEY) {
+  const held = raw?.[key] != null && raw?.[key] !== ''
+  const stored = storedMinimums(raw, key)
   const levelCodes = (Array.isArray(levels) ? levels : []).map((level) => (typeof level === 'string' ? level : level?.code)).filter(Boolean)
   const codes = levelCodes.length ? [...new Set(levelCodes)] : orderedStoredCodes(stored)
   const values = Object.fromEntries(codes.map((code) => [code, stored?.[code] != null && stored[code] !== '' ? String(stored[code]) : '']))
-  return { codes, values, include: held, errors: { general: '', levels: {} } }
+  return { key, codes, values, include: held, errors: { general: '', levels: {} } }
 }
 
 /** One level typed: the key is now written, and that level's server line is cleared. */
@@ -591,22 +704,22 @@ export function isCoursePlanMinimumsReady(state) {
 export function coursePlanMinimumsPayload(state) {
   if (!state?.include) return {}
   const codes = Array.isArray(state.codes) ? state.codes : []
-  return { [COURSE_PLAN_MINIMUMS_KEY]: Object.fromEntries(codes.map((code) => [code, Number(String(state.values?.[code] ?? '').trim())])) }
+  return { [state.key || COURSE_PLAN_MINIMUMS_KEY]: Object.fromEntries(codes.map((code) => [code, Number(String(state.values?.[code] ?? '').trim())])) }
 }
 
 /**
  * The server's 422 lines: `rpl_course_plan_minimums` (a missing or unknown level,
  * or a list) as the general line, `rpl_course_plan_minimums.{code}` under that level.
  */
-export function coursePlanMinimumsFieldErrors(error) {
+export function coursePlanMinimumsFieldErrors(error, key = COURSE_PLAN_MINIMUMS_KEY) {
   const errors = error?.response?.data?.errors
   const collected = { general: [], levels: {} }
   if (errors && typeof errors === 'object') {
     for (const [field, messages] of Object.entries(errors)) {
       const lines = [].concat(messages).filter((line) => typeof line === 'string' && line.trim() !== '')
-      if (field === COURSE_PLAN_MINIMUMS_KEY) collected.general.push(...lines)
-      else if (field.startsWith(`${COURSE_PLAN_MINIMUMS_KEY}.`)) {
-        const code = field.slice(COURSE_PLAN_MINIMUMS_KEY.length + 1).split('.')[0]
+      if (field === key) collected.general.push(...lines)
+      else if (field.startsWith(`${key}.`)) {
+        const code = field.slice(key.length + 1).split('.')[0]
         collected.levels[code] = [...(collected.levels[code] || []), ...lines]
       }
     }

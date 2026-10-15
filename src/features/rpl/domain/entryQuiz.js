@@ -12,9 +12,12 @@ import { humanizeCode } from './documentScreening'
  *     a competency finding (R24): the assessor and the committee still judge
  *     every competency.
  *   - At or below the mark (D11, owner): one attempt only, no retake; NO
- *     certificate route; and the client is not turned away: Gemini still
- *     proposes a gap-closing course plan for them (P5). The failed wording never
- *     calls it a decline.
+ *     Experience Confirmation Certificate (owner, 15 Oct 2026); and the client is
+ *     not turned away: Gemini still proposes a course plan for them (P5), and
+ *     after it one final exam leads to the level certificate (P6). The failed
+ *     wording never calls it a decline.
+ *   - Above the mark the client may also buy the Experience Confirmation
+ *     Certificate (owner, 15 Oct 2026, P6).
  *   - Referred: the platform could not mark the quiz (a question without an
  *     answer key, or no pass mark set). Nothing is decided automatically (R15).
  *   - Quizzes sent before the pass mark carry no scoring policy and are never
@@ -68,8 +71,9 @@ export const ENTRY_QUIZ_COPY = {
       referred: 'محال إلى الموظفين',
     },
     resultExplanation: {
-      passed: 'اجتاز العميل بوابة الدخول، ويستمر الملف.',
-      failed: 'لا مسار شهادة لهذا العميل من هذا الطلب. محاولة واحدة فقط دون إعادة (قرار المالك، 12 أكتوبر 2026): ينتقل العميل بدلًا من ذلك إلى خطة دورات، ويقترح Gemini الدورات التي تسد الفجوات. لا يمكن نقل الملف إلى مراجعة الجودة.',
+      // Owner model of 15 Oct 2026 (P6). The failed sentence never uses the word for a decline: the client stays on the pathway.
+      passed: 'ناجح. يمكن للعميل شراء شهادة تثبيت الخبرة، وتقود خطة الدورات إلى اختبار نهائي واحد وشهادة المستوى.',
+      failed: 'غير ناجح. محاولة واحدة فقط دون إعادة: لا شهادة تثبيت خبرة لهذا العميل. ويبقى العميل في المسار: تقود خطة الدورات ثم اختبار نهائي واحد إلى شهادة المستوى (قرارا المالك، 12 و15 أكتوبر 2026).',
       referred: 'تعذّر على المنصة تصحيح هذا الاختبار، فلم يُتخذ أي قرار تلقائيًا. يجب أن يعالج موظف السبب ثم يعيد التصحيح، ولا يمكن نقل الملف إلى مراجعة الجودة قبل ذلك.',
     },
     referralReason: 'السبب: {reason}',
@@ -125,8 +129,8 @@ export const ENTRY_QUIZ_COPY = {
       referred: 'Referred to staff',
     },
     resultExplanation: {
-      passed: 'The client passed the entry gate, and the case carries on.',
-      failed: 'No certificate route for this client from this request. One attempt only, with no retake (owner decision, 12 Oct 2026): the client goes to a course plan instead, and Gemini proposes the gap-closing courses. The case cannot move to quality review.',
+      passed: 'Passed. The client may buy the Experience Confirmation Certificate, and the course plan leads to one final exam and the level certificate.',
+      failed: 'Not passed. One attempt only, with no retake: no Experience Confirmation Certificate for this client. The client stays on the pathway: the course plan and then one final exam lead to the level certificate (owner decisions, 12 and 15 Oct 2026).',
       referred: 'The platform could not mark this quiz, so nothing was decided automatically. A member of staff must fix the cause and mark it again, and the case cannot move to quality review until then.',
     },
     referralReason: 'Why: {reason}',

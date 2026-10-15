@@ -14,6 +14,8 @@ import {
   readApplicationDeclarationAccepted,
   readDeclineCategories,
   declineCategoryLabel,
+  TIMELINE_EVENT_LABELS,
+  timelineEventLabel,
   validateEvidenceFile,
 } from './rpl'
 
@@ -227,5 +229,43 @@ describe('RPL course plan statuses', () => {
     const order = Object.keys(APPLICATION_STATUS)
     const start = order.indexOf('assessment_in_progress')
     expect(order.slice(start, start + 3)).toEqual(['assessment_in_progress', 'course_plan_review', 'course_plan_active'])
+  })
+})
+
+/*
+ * THE FINAL EXAM STATUS AND THE P6 TIMELINE (owner model of 15 Oct 2026). The
+ * one new case status sits right after the course plan, labelled in Arabic and
+ * English, and every status event of the contract (2.8) has a label in both.
+ */
+describe('the P6 status and timeline labels', () => {
+  it('labels final_exam in Arabic and English, right after course_plan_active', () => {
+    expect(APPLICATION_STATUS.final_exam).toEqual({ variant: 'info', labels: { ar: 'الاختبار النهائي', en: 'Final exam' } })
+    const order = Object.keys(APPLICATION_STATUS)
+    expect(order[order.indexOf('course_plan_active') + 1]).toBe('final_exam')
+  })
+
+  it('labels every P6 status event in Arabic and English only', () => {
+    expect(Object.keys(TIMELINE_EVENT_LABELS).sort()).toEqual([
+      'charge.cancelled',
+      'charge.paid',
+      'charge.refunded',
+      'course_plan.completed',
+      'credential.issued',
+      'experience_certificate.choice_changed',
+      'experience_certificate.issued',
+      'experience_certificate.refused',
+      'experience_certificate.requested',
+      'final_exam.passed',
+      'final_exam.round_opened',
+      'final_exam.try_scored',
+    ])
+    for (const labels of Object.values(TIMELINE_EVENT_LABELS)) {
+      expect(Object.keys(labels).sort()).toEqual(['ar', 'en'])
+      expect(labels.ar.trim()).not.toBe('')
+      expect(labels.en.trim()).not.toBe('')
+    }
+    expect(timelineEventLabel('course_plan.completed', 'en')).toBe('Course plan completed; the final exam is open')
+    expect(timelineEventLabel('final_exam.passed', 'nl')).toBe('Final exam passed')
+    expect(timelineEventLabel('something.else', 'en')).toBe('')
   })
 })

@@ -2,6 +2,23 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 import {
   acknowledgeRplAiAdvisory,
+  approveRplCertificateWording,
+  approveRplExperienceCertificate,
+  cancelRplCharge,
+  confirmRplChargePayment,
+  draftRplCertificateWording,
+  fetchRplAfterQuizAttention,
+  fetchRplCertificateWordings,
+  fetchRplChargeQueue,
+  fetchRplCharges,
+  fetchRplExperienceCertificate,
+  fetchRplExperienceCertificateQueue,
+  fetchRplFinalExam,
+  refundRplCharge,
+  refuseRplExperienceCertificate,
+  reopenRplFinalExamTry,
+  updateRplCertificateWording,
+  voidRplFinalExamTry,
   addRplCoursePlanItem,
   amendRplCoursePlan,
   approveRplCoursePlan,
@@ -440,5 +457,78 @@ describe('the course plan endpoints', () => {
     expect(http.delete).toHaveBeenCalledWith('/admin/rpl/course-plans/plan-1/items/11', {
       data: { lock_version: 3, reason: 'Already certified elsewhere.' },
     })
+  })
+})
+
+/*
+ * AFTER THE ENTRY QUIZ (owner model of 15 Oct 2026, P6). Transcribed from the
+ * P6 contract (S1-S17 under /api/v1/admin/rpl), not from the service: a charge
+ * and an experience certificate by public_id, a wording by id, a final-exam try
+ * by its verification id, the case by public_id. Nothing here calls Gemini, so
+ * nothing takes the AI timeout.
+ */
+describe('the P6 endpoints', () => {
+  test('the charges: the case list, the queue with its filters, and the three writes', async () => {
+    await fetchRplCharges('case-41')
+    await fetchRplChargeQueue({ status: 'pending', type: 'final_exam_retake' })
+    await confirmRplChargePayment('charge-1', { lock_version: 2, method: 'bank_transfer', reference: 'TRX-1', paid_at: '2026-10-14', amount_received: '150.00', currency_received: 'EUR' })
+    await cancelRplCharge('charge-1', { lock_version: 3, reason: 'No transfer arrived.', category: 'payment_not_found' })
+    await refundRplCharge('charge-2', { lock_version: 1, reason: 'Paid twice by mistake.' })
+
+    expect(http.get.mock.calls).toEqual([
+      ['/admin/rpl/applications/case-41/charges'],
+      ['/admin/rpl/charges', { params: { status: 'pending', type: 'final_exam_retake' } }],
+    ])
+    expect(http.post.mock.calls).toEqual([
+      ['/admin/rpl/charges/charge-1/confirm-payment', { lock_version: 2, method: 'bank_transfer', reference: 'TRX-1', paid_at: '2026-10-14', amount_received: '150.00', currency_received: 'EUR' }],
+      ['/admin/rpl/charges/charge-1/cancel', { lock_version: 3, reason: 'No transfer arrived.', category: 'payment_not_found' }],
+      ['/admin/rpl/charges/charge-2/refund', { lock_version: 1, reason: 'Paid twice by mistake.' }],
+    ])
+  })
+
+  test('the experience certificate: the case overview, the queue, approve and refuse', async () => {
+    await fetchRplExperienceCertificate('case-41')
+    await fetchRplExperienceCertificateQueue({ status: 'requested' })
+    await approveRplExperienceCertificate('cert-1', { lock_version: 4 })
+    await refuseRplExperienceCertificate('cert-1', { lock_version: 5, reason: 'The transfer was reversed.', category: 'payment_not_verified' })
+
+    expect(http.get.mock.calls).toEqual([
+      ['/admin/rpl/applications/case-41/experience-certificate'],
+      ['/admin/rpl/experience-certificates', { params: { status: 'requested' } }],
+    ])
+    expect(http.post.mock.calls).toEqual([
+      ['/admin/rpl/experience-certificates/cert-1/approve', { lock_version: 4 }],
+      ['/admin/rpl/experience-certificates/cert-1/refuse', { lock_version: 5, reason: 'The transfer was reversed.', category: 'payment_not_verified' }],
+    ])
+  })
+
+  test('the wording: listed by code, drafted, a draft updated with PUT, and approved', async () => {
+    await fetchRplCertificateWordings('rpl_experience_confirmation')
+    await draftRplCertificateWording({ code: 'rpl_experience_confirmation', title: { ar: 'ع', en: 'T' }, body: { ar: 'ن', en: 'B' } })
+    await updateRplCertificateWording(7, { lock_version: 2, title: { ar: 'ع', en: 'T' }, body: { ar: 'ن', en: 'B' } })
+    await approveRplCertificateWording(7, { lock_version: 3, approval_note: 'Approved by the owner.' })
+
+    expect(http.get).toHaveBeenCalledWith('/admin/rpl/certificate-wordings', { params: { code: 'rpl_experience_confirmation' } })
+    expect(http.post.mock.calls).toEqual([
+      ['/admin/rpl/certificate-wordings', { code: 'rpl_experience_confirmation', title: { ar: 'ع', en: 'T' }, body: { ar: 'ن', en: 'B' } }],
+      ['/admin/rpl/certificate-wordings/7/approve', { lock_version: 3, approval_note: 'Approved by the owner.' }],
+    ])
+    expect(http.put).toHaveBeenCalledWith('/admin/rpl/certificate-wordings/7', { lock_version: 2, title: { ar: 'ع', en: 'T' }, body: { ar: 'ن', en: 'B' } })
+  })
+
+  test('the final exam: the case view, void and reopen a try by verification id, and the attention list', async () => {
+    await fetchRplFinalExam('case-41')
+    await voidRplFinalExamTry(88, { reason: 'Snapshot hash mismatch after a deploy.' })
+    await reopenRplFinalExamTry(89, { reason: 'The client lost the connection at 10:05.' })
+    await fetchRplAfterQuizAttention()
+
+    expect(http.get.mock.calls).toEqual([
+      ['/admin/rpl/applications/case-41/final-exam'],
+      ['/admin/rpl/after-quiz/attention'],
+    ])
+    expect(http.post.mock.calls).toEqual([
+      ['/admin/rpl/final-exam/tries/88/void', { reason: 'Snapshot hash mismatch after a deploy.' }],
+      ['/admin/rpl/final-exam/tries/89/reopen', { reason: 'The client lost the connection at 10:05.' }],
+    ])
   })
 })

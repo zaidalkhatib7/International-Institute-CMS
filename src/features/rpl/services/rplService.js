@@ -503,6 +503,90 @@ export async function discardRplCoursePlan(planId, payload) {
   return read(await http.post(`/admin/rpl/course-plans/${planId}/discard`, payload))
 }
 
+/*
+ * AFTER THE ENTRY QUIZ (owner model of 15 Oct 2026, P6): the payments, the
+ * Experience Confirmation Certificate, its wording, and the final exam.
+ *
+ * A charge is addressed by its public_id, an experience certificate by its
+ * public_id, a wording by its id and a final-exam try by its verification id;
+ * the case by public_id as everywhere. Every staff write sends the row's
+ * lock_version (a try's void and reopen send only their reason) and gets 409
+ * with the row's own code when someone else changed it first. Permissions:
+ * reading needs rpl.applications.view; confirming and cancelling a payment
+ * rpl.payments.reconcile; refunding finance.manage; approving or refusing a
+ * certificate rpl.experience_certificates.approve; drafting the wording
+ * rpl.settings.manage, and approving it rpl.certificate_wording.approve (the
+ * owner's role only); voiding or reopening a try rpl.applications.manage.
+ * Nothing here calls Gemini, so nothing takes the AI timeout.
+ */
+export async function fetchRplCharges(applicationId) {
+  return read(await http.get(`/admin/rpl/applications/${applicationId}/charges`))
+}
+
+export async function fetchRplChargeQueue(params = {}) {
+  return read(await http.get('/admin/rpl/charges', { params }))
+}
+
+export async function confirmRplChargePayment(chargeId, body) {
+  return read(await http.post(`/admin/rpl/charges/${chargeId}/confirm-payment`, body))
+}
+
+export async function cancelRplCharge(chargeId, body) {
+  return read(await http.post(`/admin/rpl/charges/${chargeId}/cancel`, body))
+}
+
+export async function refundRplCharge(chargeId, body) {
+  return read(await http.post(`/admin/rpl/charges/${chargeId}/refund`, body))
+}
+
+export async function fetchRplExperienceCertificate(applicationId) {
+  return read(await http.get(`/admin/rpl/applications/${applicationId}/experience-certificate`))
+}
+
+export async function fetchRplExperienceCertificateQueue(params = {}) {
+  return read(await http.get('/admin/rpl/experience-certificates', { params }))
+}
+
+export async function approveRplExperienceCertificate(id, body) {
+  return read(await http.post(`/admin/rpl/experience-certificates/${id}/approve`, body))
+}
+
+export async function refuseRplExperienceCertificate(id, body) {
+  return read(await http.post(`/admin/rpl/experience-certificates/${id}/refuse`, body))
+}
+
+export async function fetchRplCertificateWordings(code) {
+  return read(await http.get('/admin/rpl/certificate-wordings', { params: { code } }))
+}
+
+export async function draftRplCertificateWording(body) {
+  return read(await http.post('/admin/rpl/certificate-wordings', body))
+}
+
+export async function updateRplCertificateWording(id, body) {
+  return read(await http.put(`/admin/rpl/certificate-wordings/${id}`, body))
+}
+
+export async function approveRplCertificateWording(id, body) {
+  return read(await http.post(`/admin/rpl/certificate-wordings/${id}/approve`, body))
+}
+
+export async function fetchRplFinalExam(applicationId) {
+  return read(await http.get(`/admin/rpl/applications/${applicationId}/final-exam`))
+}
+
+export async function voidRplFinalExamTry(id, body) {
+  return read(await http.post(`/admin/rpl/final-exam/tries/${id}/void`, body))
+}
+
+export async function reopenRplFinalExamTry(id, body) {
+  return read(await http.post(`/admin/rpl/final-exam/tries/${id}/reopen`, body))
+}
+
+export async function fetchRplAfterQuizAttention() {
+  return read(await http.get('/admin/rpl/after-quiz/attention'))
+}
+
 /**
  * Record a certificate fee received outside the platform.
  *

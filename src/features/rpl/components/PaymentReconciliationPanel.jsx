@@ -23,12 +23,18 @@ import { formatLocalizedDateTime } from '../../../utils/localization'
  * reference already used on another order. So this panel stays thin: collect
  * the four fields, show the refusal verbatim when it comes, and never try to
  * decide anything itself.
+ *
+ * Owner model of 15 Oct 2026 (P6): this is the COMMITTEE PATH's certification
+ * fee only, so it is titled that way and never mistaken for the payments after
+ * the entry quiz (the Experience Confirmation Certificate, a final-exam retake
+ * and the level certification fee on the final-exam path), which are charges in
+ * their own panel.
  */
 
 const COPY = {
   ar: {
-    title: 'تسوية رسوم الشهادة',
-    subtitle: 'سجّل الدفعة المستلمة خارج المنصة. إصدار الشهادة يبقى موقوفًا حتى تُسجَّل.',
+    title: 'رسوم الشهادة (مسار اللجنة)',
+    subtitle: 'سجّل الدفعة المستلمة خارج المنصة. إصدار الشهادة يبقى موقوفًا حتى تُسجَّل. لمسار اللجنة فقط: مدفوعات ما بعد اختبار الدخول، ومنها رسوم شهادة المستوى في مسار الاختبار النهائي، تُؤكَّد في لوحة المدفوعات.',
     paid: 'مدفوعة',
     pending: 'بانتظار الدفع',
     noFee: 'لا توجد رسوم مستحقة على هذه الحالة.',
@@ -48,8 +54,8 @@ const COPY = {
     idempotent: 'التسجيل غير قابل للتكرار: المرجع نفسه لا يُحتسب مرتين، ومرجع مستخدَم في طلب آخر يُرفض.',
   },
   en: {
-    title: 'Certificate fee reconciliation',
-    subtitle: 'Record a payment received outside the platform. Credential issuance stays blocked until it is recorded.',
+    title: 'Certification fee (committee path)',
+    subtitle: 'Record a payment received outside the platform. Credential issuance stays blocked until it is recorded. Committee path only: the payments after the entry quiz, the level certification fee of the final-exam path included, are confirmed in the payments panel.',
     paid: 'Paid',
     pending: 'Awaiting payment',
     noFee: 'This case has no payable fee.',

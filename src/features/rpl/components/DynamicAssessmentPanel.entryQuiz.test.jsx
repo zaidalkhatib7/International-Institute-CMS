@@ -161,13 +161,13 @@ describe('the result card of a marked entry quiz', () => {
     expect(within(first).getByText(EN.marks.correct)).toBeInTheDocument()
   })
 
-  it('says plainly what a failed quiz means: no certificate route, a course plan, never a decline', async () => {
+  it('says plainly what a failed quiz means: no Experience Confirmation Certificate, a course plan, never a decline', async () => {
     renderPanel(entryQuiz({ quiz_result: quizResult({ correct: 12, percent: 48, result: 'failed', marks: marksFor(12) }) }))
 
     const result = await card()
     expect(result.getByText(EN.resultLabels.failed)).toBeInTheDocument()
     expect(result.getByText(EN.resultExplanation.failed)).toBeInTheDocument()
-    expect(result.getByText(/No certificate route/)).toBeInTheDocument()
+    expect(result.getByText(/no Experience Confirmation Certificate/)).toBeInTheDocument()
     expect(result.getByText(/course plan/)).toBeInTheDocument()
     expect(screen.getByRole('region', { name: EN.title }).textContent).not.toMatch(/declin|reject/i)
   })

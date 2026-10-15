@@ -52,6 +52,12 @@ import {
   revokeCertificate,
   updateCertificateTemplate,
 } from "../services/certificatesService";
+import {
+  CERTIFICATE_KINDS,
+  RESERVED_TEMPLATE_CODES,
+  certificateKind,
+  certificateKindLabel,
+} from "../../rpl/domain/afterQuiz";
 
 const copyByLanguage = {
   ar: {
@@ -121,6 +127,9 @@ const copyByLanguage = {
     revokedStatus: "ملغى",
     supersededStatus: "مستبدل",
     expiredStatus: "منتهي",
+    kind: "النوع",
+    allKinds: "كل الأنواع",
+    reservedTemplate: "تُدار من صيغة شهادة RPL",
   },
   en: {
     title: "Certificate administration",
@@ -189,8 +198,21 @@ const copyByLanguage = {
     revokedStatus: "Revoked",
     supersededStatus: "Superseded",
     expiredStatus: "Expired",
+    kind: "Kind",
+    allKinds: "All kinds",
+    reservedTemplate: "Managed by the RPL certificate wording",
   },
 };
+
+/*
+ * The RPL experience-confirmation template is reserved (owner model of 15 Oct
+ * 2026, P6): its text comes from the approved RPL certificate wording, so the
+ * generic editor shows it read-only and never offers it for a manual issue. The
+ * API refuses both anyway (422 template).
+ */
+function isReservedTemplate(template) {
+  return RESERVED_TEMPLATE_CODES.includes(template?.code);
+}
 
 const emptyIssue = {
   user_id: "",
@@ -256,6 +278,9 @@ export default function CertificatesPage() {
   const [templates, setTemplates] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [filters, setFilters] = useState({ q: "", status: "" });
+  // The certificate kind (P6) is read from each row's snapshot, so it filters the loaded page on the screen.
+  const [kindFilter, setKindFilter] = useState("");
+  const [templateErrors, setTemplateErrors] = useState({});
   const [appliedFilters, setAppliedFilters] = useState(filters);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -306,6 +331,9 @@ export default function CertificatesPage() {
     }),
     [certificates, pagination],
   );
+  const visibleCertificates = kindFilter
+    ? certificates.filter((row) => certificateKind(row) === kindFilter)
+    : certificates;
   const statuses = {
     active: copy.activeStatus,
     revoked: copy.revokedStatus,
@@ -359,6 +387,7 @@ export default function CertificatesPage() {
     }
     setIsSubmitting(true);
     setError("");
+    setTemplateErrors({});
     const payload = {
       code: templateForm.code,
       name: {
@@ -388,6 +417,16 @@ export default function CertificatesPage() {
       setSuccess(copy.templateSuccess);
       await loadRegistry(pagination?.currentPage || 1);
     } catch (requestError) {
+      // A prefix another template already uses (P6, X1) is shown on the prefix field too.
+      const fieldErrors = requestError?.response?.data?.errors;
+      if (fieldErrors?.number_prefix) {
+        setTemplateErrors({
+          number_prefix: []
+            .concat(fieldErrors.number_prefix)
+            .filter((line) => typeof line === "string")
+            .join("\n"),
+        });
+      }
       setError(readApiError(requestError));
     } finally {
       setIsSubmitting(false);
@@ -478,6 +517,11 @@ export default function CertificatesPage() {
       key: "credential",
       label: copy.credential,
       render: (row) => localizedCredential(row, language),
+    },
+    {
+      key: "kind",
+      label: copy.kind,
+      render: (row) => certificateKindLabel(certificateKind(row), language),
     },
     {
       key: "issued_at",
@@ -615,7 +659,7 @@ export default function CertificatesPage() {
           <Card>
             <CardContent className="pt-6">
               <form
-                className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px_auto]"
+                className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px_220px_auto]"
                 onSubmit={(event) => {
                   event.preventDefault();
                   setAppliedFilters(filters);
@@ -652,16 +696,28 @@ export default function CertificatesPage() {
                     ),
                   )}
                 </Select>
+                <Select
+                  aria-label={copy.kind}
+                  value={kindFilter}
+                  onChange={(event) => setKindFilter(event.target.value)}
+                >
+                  <option value="">{copy.allKinds}</option>
+                  {CERTIFICATE_KINDS.map((kind) => (
+                    <option key={kind} value={kind}>
+                      {certificateKindLabel(kind, language)}
+                    </option>
+                  ))}
+                </Select>
                 <Button type="submit">{copy.apply}</Button>
               </form>
             </CardContent>
           </Card>
-          {certificates.length ? (
+          {visibleCertificates.length ? (
             <>
               <DataTableShell
                 title={copy.registry}
                 columns={columns}
-                rows={certificates}
+                rows={visibleCertificates}
               />
               <PaginationControls
                 pagination={pagination}
@@ -694,6 +750,7 @@ export default function CertificatesPage() {
               <Button
                 onClick={() => {
                   setTemplateForm(emptyTemplate);
+                  setTemplateErrors({});
                   setModal("template");
                 }}
               >
@@ -702,12 +759,41 @@ export default function CertificatesPage() {
               </Button>
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
-              {templates.map((template) => (
+              {templates.map((template) =>
+                isReservedTemplate(template) ? (
+                  <div
+                    key={template.id}
+                    aria-label={readLocalized(template.name, language) || template.code}
+                    className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-muted)] p-5 text-start"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-bold text-[var(--color-primary)]">
+                          {readLocalized(template.name, language)}
+                        </p>
+                        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                          {template.code} · {template.number_prefix}
+                        </p>
+                      </div>
+                      <StatusBadge
+                        value={template.is_active ? "active" : "archived"}
+                        labels={statuses}
+                      />
+                    </div>
+                    <p className="mt-4 text-sm">
+                      {readLocalized(template.title, language)}
+                    </p>
+                    <p className="mt-3 text-xs font-semibold text-[var(--color-text-muted)]">
+                      {copy.reservedTemplate}
+                    </p>
+                  </div>
+                ) : (
                 <button
                   type="button"
                   key={template.id}
                   onClick={() => {
                     setTemplateForm(toTemplateForm(template));
+                    setTemplateErrors({});
                     setModal("template");
                   }}
                   className="rounded-2xl border border-[var(--color-border)] p-5 text-start transition hover:border-[var(--color-primary)]"
@@ -738,7 +824,8 @@ export default function CertificatesPage() {
                     {copy.edit}
                   </p>
                 </button>
-              ))}
+                ),
+              )}
               {templates.length === 0 ? (
                 <EmptyState icon={FileBadge} title={copy.empty} />
               ) : null}
@@ -808,7 +895,10 @@ export default function CertificatesPage() {
           >
             <option value="">—</option>
             {templates
-              .filter((template) => template.is_active)
+              .filter(
+                (template) =>
+                  template.is_active && !isReservedTemplate(template),
+              )
               .map((template) => (
                 <option key={template.id} value={template.id}>
                   {readLocalized(template.name, language)}
@@ -890,12 +980,17 @@ export default function CertificatesPage() {
             label={copy.prefix}
             required
             value={templateForm.number_prefix}
-            onChange={(event) =>
+            error={templateErrors.number_prefix || undefined}
+            onChange={(event) => {
+              setTemplateErrors((current) => ({
+                ...current,
+                number_prefix: "",
+              }));
               setTemplateForm((current) => ({
                 ...current,
                 number_prefix: event.target.value,
-              }))
-            }
+              }));
+            }}
           />
           <Input
             label={copy.templateNameEn}

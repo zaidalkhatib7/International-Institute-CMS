@@ -7,6 +7,8 @@ import {
   ClipboardCheck,
   ClipboardList,
   FileQuestion,
+  Banknote,
+  BellRing,
   FileText,
   FolderOpen,
   Gavel,
@@ -73,6 +75,23 @@ const groups = [
         label: { ar: 'التظلمات والتجديد', en: 'Appeals & renewal' },
         href: '/rpl/appeals',
         icon: Gavel,
+      },
+      // After the entry quiz (owner model of 15 Oct 2026, P6): the payments to confirm, the
+      // Experience Confirmation Certificates to approve, and what needs staff attention.
+      {
+        label: { ar: 'مدفوعات بانتظار التأكيد', en: 'Payments to confirm' },
+        href: '/rpl/payments',
+        icon: Banknote,
+      },
+      {
+        label: { ar: 'شهادات تثبيت الخبرة', en: 'Experience certificates' },
+        href: '/rpl/experience-certificates',
+        icon: Award,
+      },
+      {
+        label: { ar: 'متابعة ما بعد اختبار الدخول', en: 'After-quiz attention' },
+        href: '/rpl/attention',
+        icon: BellRing,
       },
       {
         label: { ar: 'إعدادات RPL', en: 'RPL configuration' },

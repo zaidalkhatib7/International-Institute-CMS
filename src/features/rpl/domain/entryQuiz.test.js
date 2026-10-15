@@ -60,14 +60,22 @@ describe('the copy', () => {
     expect(entryQuizCopy('ar')).toBe(ENTRY_QUIZ_COPY.ar)
   })
 
-  it('never calls a failed quiz a decline: no certificate route, a course plan instead (owner D11)', () => {
+  // Owner model of 15 Oct 2026 (P6): a failed client never gets the Experience Confirmation Certificate, and the course plan then one final exam lead to the level certificate.
+  it('never calls a failed quiz a decline: no Experience Confirmation Certificate, the course plan and the final exam instead (owner D11, 15 Oct 2026)', () => {
     expect(ENTRY_QUIZ_COPY.en.resultExplanation.failed).not.toMatch(/declin|reject/i)
     expect(ENTRY_QUIZ_COPY.en.resultLabels.failed).not.toMatch(/declin|reject/i)
-    expect(ENTRY_QUIZ_COPY.en.resultExplanation.failed).toMatch(/No certificate route/)
+    expect(ENTRY_QUIZ_COPY.en.resultExplanation.failed).toMatch(/no Experience Confirmation Certificate/)
+    expect(ENTRY_QUIZ_COPY.en.resultExplanation.failed).toMatch(/level certificate/)
     expect(ENTRY_QUIZ_COPY.en.resultExplanation.failed).toMatch(/course plan/)
     expect(ENTRY_QUIZ_COPY.ar.resultExplanation.failed).not.toMatch(/رفض/)
     expect(ENTRY_QUIZ_COPY.ar.resultLabels.failed).not.toMatch(/رفض/)
-    expect(ENTRY_QUIZ_COPY.ar.resultExplanation.failed).toMatch(/لا مسار شهادة/)
+    expect(ENTRY_QUIZ_COPY.ar.resultExplanation.failed).toMatch(/لا شهادة تثبيت خبرة/)
+  })
+
+  it('tells staff a passed client may buy the Experience Confirmation Certificate and goes on to the final exam (owner, 15 Oct 2026)', () => {
+    expect(ENTRY_QUIZ_COPY.en.resultExplanation.passed).toMatch(/may buy the Experience Confirmation Certificate/)
+    expect(ENTRY_QUIZ_COPY.en.resultExplanation.passed).toMatch(/one final exam and the level certificate/)
+    expect(ENTRY_QUIZ_COPY.ar.resultExplanation.passed).toMatch(/شهادة تثبيت الخبرة/)
   })
 
   it('frames the mark as an entry gate, never a competency finding (R24)', () => {

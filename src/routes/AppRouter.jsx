@@ -36,6 +36,7 @@ const RplGovernancePage = lazy(() => import('../features/rpl/pages/RplGovernance
 const RplAssessorsPage = lazy(() => import('../features/rpl/pages/RplAssessorsPage'))
 const RplConfigurationPage = lazy(() => import('../features/rpl/pages/RplConfigurationPage'))
 const RplSourceOfTruthPage = lazy(() => import('../features/rpl/pages/RplSourceOfTruthPage'))
+const RplAfterQuizQueuePage = lazy(() => import('../features/rpl/pages/RplAfterQuizQueuePage'))
 // Professional Academic RPL — a separate pathway, not a section of RPL.
 const AcademicApplicationsPage = lazy(() => import('../features/academicRpl/pages/AcademicApplicationsPage'))
 const AcademicCasePage = lazy(() => import('../features/academicRpl/pages/AcademicCasePage'))
@@ -312,6 +313,9 @@ export default function AppRouter() {
         <Route path="/rpl/assessments/:assessmentId" element={<AdminRoute><RplAssessmentsPage /></AdminRoute>} />
         <Route path="/rpl/accreditation" element={<AdminRoute><RplGovernancePage mode="committee" /></AdminRoute>} />
         <Route path="/rpl/appeals" element={<AdminRoute><RplGovernancePage mode="appeals" /></AdminRoute>} />
+        <Route path="/rpl/payments" element={<AdminRoute><RplAfterQuizQueuePage mode="payments" /></AdminRoute>} />
+        <Route path="/rpl/experience-certificates" element={<AdminRoute><RplAfterQuizQueuePage mode="experience_certificates" /></AdminRoute>} />
+        <Route path="/rpl/attention" element={<AdminRoute><RplAfterQuizQueuePage mode="attention" /></AdminRoute>} />
         <Route path="/rpl/configuration" element={<AdminRoute><RplConfigurationPage /></AdminRoute>} />
         <Route path="/rpl/source-of-truth" element={<AdminRoute><RplSourceOfTruthPage /></AdminRoute>} />
         <Route path="/assessors" element={<AdminRoute><RplAssessorsPage /></AdminRoute>} />

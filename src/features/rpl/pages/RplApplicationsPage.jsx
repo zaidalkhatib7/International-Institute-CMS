@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ClipboardCheck, Clock3, FileCheck2, FilterX, FolderSearch, RefreshCw, Search } from 'lucide-react'
+import { Award, Banknote, BookOpenCheck, ClipboardCheck, Clock3, FileCheck2, FilterX, FolderSearch, GraduationCap, RefreshCw, Search, Stamp } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, CardContent, DataTableShell, Input, PageHeader, Select, StatCard } from '../../../components/ui'
 import { readApiError, readPagination, unwrapApiData, unwrapCollection } from '../../../services/apiResponse'
@@ -19,6 +19,7 @@ const copyByLanguage = {
     queue: 'طابور عمليات RPL', queueDescription: 'طلبات حقيقية من محرك RPL مع حالة الملف ونسبة اكتماله.',
     reference: 'رقم الطلب', applicant: 'المتقدم', pathway: 'المسار والمستوى', status: 'الحالة', completeness: 'الاكتمال', updated: 'آخر تحديث', actions: 'الإجراء', open: 'فتح الملف',
     empty: 'لا توجد طلبات مطابقة للفلاتر الحالية.', emptyHint: 'جرّب إزالة الفلاتر أو البحث باسم المتقدم أو الرقم المرجعي.', records: 'طلب', page: 'صفحة', of: 'من', clear: 'مسح الفلاتر', priorities: 'انتقل إلى طابور الأولوية', all: 'كل الطلبات', loadError: 'تعذر تحميل طلبات RPL.',
+    afterQuiz: 'بعد اختبار الدخول', chargesAwaiting: 'مدفوعات بانتظار التأكيد', certificatesAwaiting: 'شهادات تثبيت خبرة بانتظار الاعتماد', inLearning: 'في مرحلة التعلم', inFinalExam: 'في الاختبار النهائي', levelPending: 'شهادات مستوى قيد الإصدار',
   },
   en: {
     title: 'Recognition of Prior Learning Applications', description: 'Operate the RPL journey from intake and administrative review through assessment and decision.',
@@ -27,6 +28,7 @@ const copyByLanguage = {
     queue: 'RPL Operations Queue', queueDescription: 'Live RPL cases with portfolio status and completeness.',
     reference: 'Reference', applicant: 'Applicant', pathway: 'Pathway and level', status: 'Status', completeness: 'Completeness', updated: 'Last update', actions: 'Action', open: 'Open case',
     empty: 'No applications match the current filters.', emptyHint: 'Clear filters or search by applicant name, email, or case reference.', records: 'applications', page: 'Page', of: 'of', clear: 'Clear filters', priorities: 'Jump to a priority queue', all: 'All applications', loadError: 'Unable to load RPL applications.',
+    afterQuiz: 'After the entry quiz', chargesAwaiting: 'Payments awaiting confirmation', certificatesAwaiting: 'Experience certificates awaiting approval', inLearning: 'In learning', inFinalExam: 'In the final exam', levelPending: 'Level certificates being issued',
   },
 }
 
@@ -73,11 +75,26 @@ export default function RplApplicationsPage() {
     { key: 'assessment', title: copy.assessment, value: formatLocalizedNumber(state.summary.applications?.by_status?.assessment_in_progress ?? state.summary.assessment_in_progress ?? 0, language), icon: <ClipboardCheck size={21} /> },
   ], [copy, language, state.pagination.total, state.rows.length, state.summary])
 
+  /*
+   * After the entry quiz (owner model of 15 Oct 2026, P6): the dashboard's five
+   * new counts. A dashboard from before P6 sends none of them, and the row then
+   * reads 0 rather than inventing anything.
+   */
+  const afterQuizCards = useMemo(() => [
+    { key: 'charges', title: copy.chargesAwaiting, value: formatLocalizedNumber(state.summary.charges_awaiting_confirmation ?? 0, language), icon: <Banknote size={21} /> },
+    { key: 'certificates', title: copy.certificatesAwaiting, value: formatLocalizedNumber(state.summary.experience_certificates_awaiting_approval ?? 0, language), icon: <Stamp size={21} /> },
+    { key: 'learning', title: copy.inLearning, value: formatLocalizedNumber(state.summary.cases_in_learning ?? state.summary.applications?.by_status?.course_plan_active ?? 0, language), icon: <BookOpenCheck size={21} /> },
+    { key: 'final_exam', title: copy.inFinalExam, value: formatLocalizedNumber(state.summary.cases_in_final_exam ?? state.summary.applications?.by_status?.final_exam ?? 0, language), icon: <GraduationCap size={21} /> },
+    { key: 'level', title: copy.levelPending, value: formatLocalizedNumber(state.summary.level_certificates_pending ?? 0, language), icon: <Award size={21} /> },
+  ], [copy, language, state.summary])
+
   const priorityFilters = useMemo(() => [
     { label: copy.all, value: '', count: state.summary.applications?.total ?? state.pagination.total ?? state.rows.length },
     { label: copy.waiting, value: 'submitted', count: state.summary.applications?.by_status?.submitted ?? state.summary.awaiting_review ?? state.summary.submitted ?? 0 },
     { label: copy.verification, value: 'evidence_verification', count: state.summary.applications?.by_status?.evidence_verification ?? state.summary.evidence_verification ?? 0 },
     { label: copy.assessment, value: 'assessment_in_progress', count: state.summary.applications?.by_status?.assessment_in_progress ?? state.summary.assessment_in_progress ?? 0 },
+    { label: copy.inLearning, value: 'course_plan_active', count: state.summary.cases_in_learning ?? state.summary.applications?.by_status?.course_plan_active ?? 0 },
+    { label: copy.inFinalExam, value: 'final_exam', count: state.summary.cases_in_final_exam ?? state.summary.applications?.by_status?.final_exam ?? 0 },
   ], [copy, state.pagination.total, state.rows.length, state.summary])
 
   const clearFilters = () => setFilters({ search: '', status: '', page: 1 })
@@ -118,6 +135,10 @@ export default function RplApplicationsPage() {
       <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
         {summaryCards.map((card) => <StatCard key={card.key} title={card.title} value={state.loading ? '…' : card.value} icon={card.icon} />)}
       </div>
+
+      <section aria-label={copy.afterQuiz} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {afterQuizCards.map((card) => <StatCard key={card.key} title={card.title} value={state.loading ? '…' : card.value} icon={card.icon} />)}
+      </section>
 
       <section aria-label={copy.priorities} className="rounded-2xl border border-[var(--color-border)] bg-white p-3 shadow-[var(--shadow-card)]">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

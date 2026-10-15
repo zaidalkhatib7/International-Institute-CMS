@@ -9,6 +9,7 @@ import {
   ClipboardCheck,
   FileCheck2,
   Gavel,
+  GraduationCap,
   History,
   ListChecks,
   LoaderCircle,
@@ -32,6 +33,7 @@ import {
   readApplicationDecline,
   readApplicationDeclarationAccepted,
   readDeclineCategories,
+  timelineEventLabel,
 } from '../domain/rpl'
 import { CASE_DECISION_PERMISSIONS, caseDecisionCopy } from '../domain/caseDecision'
 import {
@@ -44,6 +46,7 @@ import {
   screeningCopy,
 } from '../domain/documentScreening'
 import { COURSE_PLAN_LIVE_STATUSES, COURSE_PLAN_PERMISSIONS, coursePlanCopy } from '../domain/coursePlan'
+import { AFTER_QUIZ_PERMISSIONS, afterQuizCopy } from '../domain/afterQuiz'
 import {
   assignRplAssessor,
   acceptRplAssignment,
@@ -66,12 +69,15 @@ import {
   transitionRplApplication,
 } from '../services/rplService'
 import CompletenessMeter from '../components/CompletenessMeter'
+import ChargesPanel from '../components/ChargesPanel'
 import CoursePlanEditor from '../components/CoursePlanEditor'
 import DeclineApplicationAction from '../components/DeclineApplicationAction'
 import DocumentScreeningPanel from '../components/DocumentScreeningPanel'
 import InterviewPanel, { InterviewSummary } from '../components/InterviewPanel'
 import ScreeningDecisionCard, { ScreeningDecisionEntry, ScreeningDecisionHistory } from '../components/ScreeningDecisionCard'
 import EvidenceUploadCenter from '../components/EvidenceUploadCenter'
+import ExperienceCertificatePanel from '../components/ExperienceCertificatePanel'
+import FinalExamPanel from '../components/FinalExamPanel'
 import GapClosurePanel from '../components/GapClosurePanel'
 import PaymentReconciliationPanel from '../components/PaymentReconciliationPanel'
 import RplPageState from '../components/RplPageState'
@@ -126,6 +132,8 @@ const tabs = [
   { key: 'assessment', icon: ClipboardCheck },
   // The governed course plan (owner flow of 12 Oct 2026, P5): from the assessment stage, or once the case has a plan.
   { key: 'course_plan', icon: ListChecks },
+  // The one final exam after the learning plan (owner model of 15 Oct 2026, P6): from final_exam, or once the case has had one.
+  { key: 'final_exam', icon: GraduationCap },
   { key: 'governance', icon: Gavel },
   { key: 'timeline', icon: History },
 ]
@@ -189,6 +197,7 @@ export default function RplCaseWorkspacePage() {
   const viewer = { id: user?.id ?? null, isAdministrator }
   const canReadSettings = hasPermission(CASE_DECISION_PERMISSIONS.settings)
   const coursePlanText = coursePlanCopy(screenLanguage)
+  const afterQuizText = afterQuizCopy(screenLanguage)
   const adminEvaluationCopy = {
     ar: {
       title: '\u0627\u0644\u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0625\u062f\u0627\u0631\u064a \u0628\u0645\u0633\u0627\u0639\u062f\u0629 Gemini',
@@ -202,14 +211,22 @@ export default function RplCaseWorkspacePage() {
   const [state, setState] = useState({ loading: true, error: '', auxiliaryWarning: false, application: null, evidence: [], categories: EVIDENCE_CATEGORIES, timeline: [], assessments: [], assignments: [], assessors: [], levels: [], committees: [], committeeActions: [], outcomes: [], declineCategories: readDeclineCategories(null) })
   // The course plan tab (P5): needs rpl.applications.view, and a 403 from the server removes it.
   const [coursePlanForbidden, setCoursePlanForbidden] = useState(false)
+  // The final exam tab (P6): the same rule, and a 403 from the server removes it.
+  const [finalExamForbidden, setFinalExamForbidden] = useState(false)
+  // Bumped when one after-quiz panel acts, so the others read again (a confirmed payment moves the certificate on).
+  const [afterQuizVersion, setAfterQuizVersion] = useState(0)
   // These read `state` and `coursePlanForbidden`, so they stay below both declarations: above
   // them the filter would run during render before they exist and every case would crash.
   const canViewScreeningData = canViewScreening && !screening.forbidden
   const showCoursePlan = hasPermission(COURSE_PLAN_PERMISSIONS.view) && !coursePlanForbidden && (COURSE_PLAN_LIVE_STATUSES.includes(state.application?.status) || state.application?.course_plan?.has_plan === true)
+  // after_quiz.final_exam_state 'not_yet' means the case has never been in the final exam, so it adds no tab.
+  const finalExamState = state.application?.after_quiz?.final_exam_state
+  const showFinalExam = hasPermission(AFTER_QUIZ_PERMISSIONS.view) && !finalExamForbidden && (state.application?.status === 'final_exam' || (finalExamState != null && finalExamState !== 'not_yet'))
   const visibleTabs = tabs.filter((tab) => {
     if (tab.key === 'screening') return canViewScreeningData
     if (tab.key === 'decision') return canDecide || canManageInterviews || canViewScreeningData
     if (tab.key === 'course_plan') return showCoursePlan
+    if (tab.key === 'final_exam') return showFinalExam
     return true
   })
   const activeTab = visibleTabs.some((tab) => tab.key === searchParams.get('tab')) ? searchParams.get('tab') : 'overview'
@@ -296,6 +313,7 @@ export default function RplCaseWorkspacePage() {
   }, [loadScreenings])
 
   const onCoursePlanForbidden = useCallback(() => setCoursePlanForbidden(true), [])
+  const onFinalExamForbidden = useCallback(() => setFinalExamForbidden(true), [])
 
   const application = state.application || {}
   const administratorAssessment = state.assessments.find((assessment) => assessment.rpl_assessor_assignment_id === null)
@@ -315,9 +333,9 @@ export default function RplCaseWorkspacePage() {
   const selectedNextStatus = nextStatuses.includes(transition.status) ? transition.status : ''
   // With nothing to set: a course-plan status points to the course plan tab, where its acts are (P5);
   // there no decision, interview or decline applies. Every other status keeps P3's sentence.
-  const noTransitionsHint = { course_plan_review: coursePlanText.noTransitionsReview, course_plan_active: coursePlanText.noTransitionsActive }[application.status] || copy.noTransitions
+  const noTransitionsHint = { course_plan_review: coursePlanText.noTransitionsReview, course_plan_active: coursePlanText.noTransitionsActive, final_exam: afterQuizText.finalExam.noTransitions }[application.status] || copy.noTransitions
 
-  const tabLabels = useMemo(() => ({ overview: copy.overview, evidence: copy.evidence, screening: screeningText.tab, decision: decisionText.tab, assessment: copy.assessment, course_plan: coursePlanText.tab, governance: copy.governance, timeline: copy.timeline }), [copy, screeningText.tab, decisionText.tab, coursePlanText.tab])
+  const tabLabels = useMemo(() => ({ overview: copy.overview, evidence: copy.evidence, screening: screeningText.tab, decision: decisionText.tab, assessment: copy.assessment, course_plan: coursePlanText.tab, final_exam: afterQuizText.finalExam.tab, governance: copy.governance, timeline: copy.timeline }), [copy, screeningText.tab, decisionText.tab, coursePlanText.tab, afterQuizText.finalExam.tab])
 
   /*
    * After a decision, an interview step or a decline: the case and its timeline
@@ -510,6 +528,37 @@ export default function RplCaseWorkspacePage() {
     )
   }
 
+  /*
+   * After the entry quiz (owner model of 15 Oct 2026, P6): the case's payments
+   * and the Experience Confirmation Certificate, each loading itself (never in
+   * load()). Shown once the case detail carries its after_quiz summary AND the
+   * case has reached the entry quiz's result (or already holds a charge or a
+   * completion route), so a case still in intake never shows two empty panels.
+   * An act re-reads the case and its timeline and tells the other panel to read
+   * again.
+   */
+  const afterQuizChanged = useCallback(() => {
+    setAfterQuizVersion((current) => current + 1)
+    refreshCase()
+  }, [refreshCase])
+
+  function renderAfterQuiz() {
+    const summary = application.after_quiz
+    if (!summary || typeof summary !== 'object' || !hasPermission(AFTER_QUIZ_PERMISSIONS.view)) return null
+    const reached = ['passed', 'failed'].includes(application.course_plan?.entry_quiz_result) || Number(summary.charges_pending) > 0 || Boolean(summary.completion_route) || ['final_exam', 'credential_pending'].includes(application.status)
+    if (!reached) return null
+    return (
+      <>
+        <ChargesPanel applicationId={applicationId} language={screenLanguage} canReconcile={hasPermission(AFTER_QUIZ_PERMISSIONS.reconcile)} canRefund={hasPermission(AFTER_QUIZ_PERMISSIONS.refund)} refreshKey={afterQuizVersion} onChanged={afterQuizChanged} />
+        <ExperienceCertificatePanel applicationId={applicationId} language={screenLanguage} canApprove={hasPermission(AFTER_QUIZ_PERMISSIONS.approve)} refreshKey={afterQuizVersion} onChanged={afterQuizChanged} />
+      </>
+    )
+  }
+
+  function renderFinalExam() {
+    return <FinalExamPanel applicationId={applicationId} language={screenLanguage} canManage={hasPermission(AFTER_QUIZ_PERMISSIONS.manage)} refreshKey={afterQuizVersion} onChanged={afterQuizChanged} onForbidden={onFinalExamForbidden} />
+  }
+
   function renderCoursePlan() {
     return (
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
@@ -575,6 +624,7 @@ export default function RplCaseWorkspacePage() {
             </Card>
           ) : null}
           {renderCoursePlanNotice()}
+          {renderAfterQuiz()}
         </div>
       </div>
     )
@@ -649,7 +699,7 @@ export default function RplCaseWorkspacePage() {
   }
 
   function renderTimeline() {
-    return <Card><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.events}</CardTitle></CardHeader><CardContent className="pt-7">{state.timeline.length ? <ol className="relative space-y-6 before:absolute before:bottom-2 before:start-[17px] before:top-2 before:w-px before:bg-[var(--color-border)]">{state.timeline.map((event, index) => <li key={event.id || index} className="relative flex gap-4"><span className="relative z-10 mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-white"><CheckCircle2 size={17} /></span><div className="min-w-0 flex-1 rounded-2xl border border-[var(--color-border)] p-4"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-bold text-[var(--color-text)]">{localize(event.title || event.event, language) || String(event.type || event.event || copy.event).replaceAll('_', ' ')}</h3><time className="text-xs text-[var(--color-text-muted)]">{formatLocalizedDateTime(event.created_at, language)}</time></div>{event.description || event.notes ? <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{localize(event.description || event.notes, language)}</p> : null}{event.actor ? <p className="mt-2 text-xs text-[var(--color-text-muted)]">{copy.actor}: {event.actor.name || event.actor.email}</p> : null}</div></li>)}</ol> : <p className="py-12 text-center text-[var(--color-text-muted)]">{copy.emptyTimeline}</p>}</CardContent></Card>
+    return <Card><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.events}</CardTitle></CardHeader><CardContent className="pt-7">{state.timeline.length ? <ol className="relative space-y-6 before:absolute before:bottom-2 before:start-[17px] before:top-2 before:w-px before:bg-[var(--color-border)]">{state.timeline.map((event, index) => <li key={event.id || index} className="relative flex gap-4"><span className="relative z-10 mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-white"><CheckCircle2 size={17} /></span><div className="min-w-0 flex-1 rounded-2xl border border-[var(--color-border)] p-4"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-bold text-[var(--color-text)]">{localize(event.title, language) || timelineEventLabel(event.event || event.type, language) || localize(event.event, language) || String(event.type || event.event || copy.event).replaceAll('_', ' ')}</h3><time className="text-xs text-[var(--color-text-muted)]">{formatLocalizedDateTime(event.created_at, language)}</time></div>{event.description || event.notes ? <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{localize(event.description || event.notes, language)}</p> : null}{event.actor ? <p className="mt-2 text-xs text-[var(--color-text-muted)]">{copy.actor}: {event.actor.name || event.actor.email}</p> : null}</div></li>)}</ol> : <p className="py-12 text-center text-[var(--color-text-muted)]">{copy.emptyTimeline}</p>}</CardContent></Card>
   }
 
   return (
@@ -680,6 +730,7 @@ export default function RplCaseWorkspacePage() {
           {activeTab === 'decision' ? renderDecision() : null}
           {activeTab === 'assessment' ? renderAssessment() : null}
           {activeTab === 'course_plan' ? renderCoursePlan() : null}
+          {activeTab === 'final_exam' ? renderFinalExam() : null}
           {activeTab === 'governance' ? renderGovernance() : null}
           {activeTab === 'timeline' ? renderTimeline() : null}
         </>

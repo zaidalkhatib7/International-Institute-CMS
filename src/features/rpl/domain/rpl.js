@@ -119,6 +119,8 @@ export const APPLICATION_STATUS = {
   // Owner flow of 12 Oct 2026 (P5): the course plan is drafted, then in force.
   course_plan_review: { variant: 'info', labels: { ar: 'مراجعة خطة الدورات', en: 'Course plan review' } },
   course_plan_active: { variant: 'success', labels: { ar: 'خطة الدورات سارية', en: 'Course plan active' } },
+  // Owner model of 15 Oct 2026 (P6): the one final exam after the learning plan.
+  final_exam: { variant: 'info', labels: { ar: 'الاختبار النهائي', en: 'Final exam' } },
   remediation_required: { variant: 'danger', labels: { ar: 'يحتاج استكمال', en: 'Remediation required' } },
   committee_review: { variant: 'info', labels: { ar: 'لجنة الاعتماد', en: 'Committee review' } },
   quality_review: { variant: 'info', labels: { ar: 'مراجعة الجودة', en: 'Quality review' } },
@@ -178,6 +180,34 @@ export function declineCategoryLabel(code, language = 'en', categories = DECLINE
   if (!code) return ''
   const found = categories.find((item) => item.code === code) || DECLINE_CATEGORIES.find((item) => item.code === code)
   return localize(found?.label, language) || code
+}
+
+/*
+ * THE STATUS EVENTS AFTER THE ENTRY QUIZ (owner model of 15 Oct 2026, P6).
+ *
+ * The case timeline names each event in Arabic and English. An event this list
+ * does not know keeps the old fallback (its title, else its code), so a label is
+ * never hidden. credential.issued is shared with the committee path.
+ */
+export const TIMELINE_EVENT_LABELS = {
+  'experience_certificate.requested': { ar: 'طُلبت شهادة تثبيت الخبرة', en: 'Experience Confirmation Certificate requested' },
+  'experience_certificate.choice_changed': { ar: 'غيّر العميل اختياره بعد الشهادة', en: 'The client changed the choice after the certificate' },
+  'experience_certificate.refused': { ar: 'رُفض إصدار شهادة تثبيت الخبرة وأُعيد المبلغ', en: 'Experience Confirmation Certificate refused; the payment was returned' },
+  'experience_certificate.issued': { ar: 'صدرت شهادة تثبيت الخبرة', en: 'Experience Confirmation Certificate issued' },
+  'charge.paid': { ar: 'دُفع المبلغ', en: 'Payment received' },
+  'charge.cancelled': { ar: 'أُلغي طلب الدفع', en: 'Payment request cancelled' },
+  'charge.refunded': { ar: 'أُعيد المبلغ', en: 'Payment refunded' },
+  'course_plan.completed': { ar: 'اكتملت خطة الدورات وفُتح الاختبار النهائي', en: 'Course plan completed; the final exam is open' },
+  'final_exam.try_scored': { ar: 'صُحّحت محاولة في الاختبار النهائي', en: 'Final-exam try marked' },
+  'final_exam.round_opened': { ar: 'فُتحت جولة جديدة من محاولات الاختبار النهائي', en: 'A new round of final-exam tries opened' },
+  'final_exam.passed': { ar: 'اجتاز العميل الاختبار النهائي', en: 'Final exam passed' },
+  'credential.issued': { ar: 'صدرت الشهادة', en: 'Certificate issued' },
+}
+
+/** An event's label in the screen language, or '' when the list does not know it. */
+export function timelineEventLabel(code, language = 'en') {
+  if (!code || typeof code !== 'string') return ''
+  return localize(TIMELINE_EVENT_LABELS[code], language === 'ar' ? 'ar' : 'en')
 }
 
 export const PROFESSIONAL_LEVELS = [

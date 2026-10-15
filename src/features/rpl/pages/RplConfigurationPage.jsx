@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { BookOpenCheck, Check, FileCog, Gavel, Layers3, LoaderCircle, Pencil, Plus, Save, Settings2, ShieldCheck, Trash2, X } from 'lucide-react'
+import { BookOpenCheck, Check, FileCog, Gavel, Layers3, LoaderCircle, Pencil, Plus, Save, Settings2, ShieldCheck, Stamp, Trash2, X } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, DataTableShell, Input, PageHeader, Select, Textarea } from '../../../components/ui'
 import { readApiError, unwrapApiData, unwrapCollection } from '../../../services/apiResponse'
 import { getAdminLanguage } from '../../../services/languageStorage'
@@ -19,8 +19,11 @@ import {
 import RplPageState from '../components/RplPageState'
 import QuizPassMarkSetting from '../components/QuizPassMarkSetting'
 import CoursePlanMinimumsSetting from '../components/CoursePlanMinimumsSetting'
+import AfterQuizSettings from '../components/AfterQuizSettings'
+import CertificateWordingPanel from '../components/CertificateWordingPanel'
 import { isQuizPassMarkReady, quizPassMarkFieldError, quizPassMarkPayload, readQuizPassMarkSetting } from '../domain/entryQuiz'
-import { changeCoursePlanMinimum, coursePlanMinimumsFieldErrors, coursePlanMinimumsPayload, isCoursePlanMinimumsReady, minimumLevels, readCoursePlanMinimumsSetting } from '../domain/coursePlan'
+import { COURSE_PLAN_FAILED_MINIMUMS_KEY, changeCoursePlanMinimum, coursePlanMinimumsFieldErrors, coursePlanMinimumsPayload, isCoursePlanMinimumsReady, minimumLevels, readCoursePlanMinimumsSetting } from '../domain/coursePlan'
+import { FEE_POINTS_CURRENCY, afterQuizSettingsFieldErrors, afterQuizSettingsPayload, changeAfterQuizSetting, feeScheduleFormError, formatChargeAmount, isAfterQuizSettingsReady, isPointsFee, readAfterQuizSettings } from '../domain/afterQuiz'
 import RplStatusBadge from '../components/RplStatusBadge'
 import { useModalDialog } from '../../../hooks/useModalDialog'
 
@@ -37,6 +40,8 @@ const tabs = [
   { key: 'fees', resource: 'fee-schedules', icon: Settings2 },
   { key: 'committees', resource: 'committees', icon: Gavel },
   { key: 'workflow', settings: true, icon: Settings2 },
+  // The Experience Confirmation Certificate wording (owner, 15 Oct 2026): versions, approved by the owner's role only. The panel loads itself.
+  { key: 'certificate_wording', wording: true, icon: Stamp },
 ]
 
 /** The API's bounds for the governed reapply cooldown (RplConfigurationController::updateSettings). */
@@ -89,7 +94,9 @@ function readOfficeAddress(value) {
 const copyByLanguage = {
   ar: {
     title: 'إعدادات ومعايير RPL', description: 'إدارة مرجعيات محرك RPL التشغيلية بنماذج مطابقة للواجهات البرمجية.',
-    pathways: 'المسارات', levels: 'المستويات', standards: 'المعايير', competencies: 'الكفاءات', categories: 'فئات الأدلة', rubrics: 'نماذج التقييم', declarations: 'الإقرارات', outcomes: 'النتائج', actions: 'إجراءات اللجنة', fees: 'الرسوم', committees: 'اللجان', workflow: 'الضوابط',
+    pathways: 'المسارات', levels: 'المستويات', standards: 'المعايير', competencies: 'الكفاءات', categories: 'فئات الأدلة', rubrics: 'نماذج التقييم', declarations: 'الإقرارات', outcomes: 'النتائج', actions: 'إجراءات اللجنة', fees: 'الرسوم', committees: 'اللجان', workflow: 'الضوابط', certificate_wording: 'صيغة الشهادة',
+    feesFinalExamHint: 'تسري رسوم الشهادة لكل مسار ومستوى أيضًا في مسار الاختبار النهائي (قرار المالك، 15 أكتوبر 2026): عند صفر تصدر شهادة المستوى تلقائيًا عند اجتياز الاختبار النهائي، وفوق الصفر يدفع العميل الرسوم أولًا، ثم تصدر الشهادة تلقائيًا بعد الدفع. في مسار الاختبار النهائي تُدخَل الرسوم الأكبر من صفر بنقاط II (POINTS) وبعدد صحيح: الرسوم بعملة نقدية لا تُحوَّل أبدًا، وتبقى شهادة المستوى معلّقة حتى تُصحَّح.',
+    feeChargedIn: 'تُحصَّل الرسوم بـ', feePoints: 'نقاط II (POINTS)', feeMoney: 'عملة نقدية (رمز من ثلاثة أحرف)', feeCurrencyCode: 'رمز العملة', feeWholePoints: 'الرسوم بنقاط II عدد صحيح.', feeCurrencyInvalid: 'أدخل رمز عملة من ثلاثة أحرف.', feeMoneyWarning: 'رسوم نقدية أكبر من صفر لا تصلح لمسار الاختبار النهائي: تبقى شهادة المستوى معلّقة حتى تُدخَل بنقاط II أو تُجعل صفرًا.',
     add: 'إضافة سجل', edit: 'تعديل', delete: 'حذف', save: 'حفظ', cancel: 'إلغاء', active: 'فعال', inactive: 'غير فعال', code: 'الرمز', name: 'الاسم', descriptionField: 'الوصف', status: 'الحالة', actionsLabel: 'الإجراءات', empty: 'لا توجد سجلات.',
     pathway: 'المسار', standard: 'المعيار', level: 'المستوى', slug: 'المعرف', rank: 'الرتبة', version: 'النسخة', order: 'الترتيب', behavior: 'السلوك', quorum: 'النصاب', quorumSingleOnly: 'النصاب مثبت على 1: النصاب الأكبر يتطلب تسجيل أصوات متعددة، وشاشة التصويت غير مبنية بعد، ولا يوجد إلغاء — فتُحبس الحالة نهائيًا.', amount: 'المبلغ', currency: 'العملة', effectiveFrom: 'ساري من', effectiveUntil: 'ساري حتى',
     examples: 'أمثلة، كل مثال في سطر', extensions: 'الامتدادات', maxSize: 'الحد الأقصى (MB)', minimum: 'الحد الأدنى', maximum: 'الحد الأقصى', files: 'يقبل ملفات', urls: 'يقبل روابط', requiredDefault: 'مطلوب افتراضيًا',
@@ -105,7 +112,9 @@ const copyByLanguage = {
   },
   en: {
     title: 'RPL Standards & Configuration', description: 'Manage every operational RPL reference with forms that match the backend contract.',
-    pathways: 'Pathways', levels: 'Levels', standards: 'Standards', competencies: 'Competencies', categories: 'Evidence categories', rubrics: 'Rubrics', declarations: 'Declarations', outcomes: 'Outcomes', actions: 'Committee actions', fees: 'Fee schedules', committees: 'Committees', workflow: 'Controls',
+    pathways: 'Pathways', levels: 'Levels', standards: 'Standards', competencies: 'Competencies', categories: 'Evidence categories', rubrics: 'Rubrics', declarations: 'Declarations', outcomes: 'Outcomes', actions: 'Committee actions', fees: 'Fee schedules', committees: 'Committees', workflow: 'Controls', certificate_wording: 'Certificate wording',
+    feesFinalExamHint: 'The certification fee per pathway and level also applies on the final-exam path (owner decision, 15 Oct 2026): at 0 the level certificate is issued automatically when the final exam is passed; above 0 the client pays the fee first, and the certificate is then issued automatically on payment. On the final-exam path a fee above 0 is entered in II Points (POINTS), as a whole number: a fee in money is never converted, and the level certificate waits until it is corrected.',
+    feeChargedIn: 'Charged in', feePoints: 'II Points (POINTS)', feeMoney: 'A money currency (three-letter code)', feeCurrencyCode: 'Currency code', feeWholePoints: 'A fee in II Points is a whole number.', feeCurrencyInvalid: 'Enter a three-letter currency code.', feeMoneyWarning: 'A money fee above 0 cannot be charged on the final-exam path: the level certificate waits until the fee is entered in II Points or set to 0.',
     add: 'Add record', edit: 'Edit', delete: 'Delete', save: 'Save', cancel: 'Cancel', active: 'Active', inactive: 'Inactive', code: 'System code', name: 'Name', descriptionField: 'Description', status: 'Status', actionsLabel: 'Actions', empty: 'No records have been configured.',
     pathway: 'Pathway', standard: 'Standard', level: 'Level', slug: 'Slug', rank: 'Rank', version: 'Version', order: 'Sort order', behavior: 'Behaviour', quorum: 'Quorum', quorumSingleOnly: 'Quorum is fixed at 1: a higher quorum needs multiple recorded votes, the vote panel is not built yet, and there is no cancel — the case would be stuck permanently.', amount: 'Amount', currency: 'Currency', effectiveFrom: 'Effective from', effectiveUntil: 'Effective until',
     examples: 'Examples, one per line', extensions: 'Allowed extensions', maxSize: 'Maximum size (MB)', minimum: 'Minimum items', maximum: 'Maximum items', files: 'Accept files', urls: 'Accept URLs', requiredDefault: 'Required by default',
@@ -138,7 +147,7 @@ function emptyForm(resource) {
     rpl_pathway_id: '', rpl_standard_id: '', rpl_level_id: '', parent_id: '', rank: 1, version: 1, sort_order: 0,
     status: 'draft', behavior: resource === 'outcomes' ? 'achieved' : 'approve', is_active: true,
     accepts_files: true, accepts_urls: false, is_required_by_default: false, accepted_extensions: [...EVIDENCE_EXTENSIONS], max_size_kb: 51200, minimum_items: 1, maximum_items: '',
-    requires_gap_plan: false, is_credential_eligible: false, amount: '', currency: 'USD', effective_from: '', effective_until: '', quorum: 1,
+    requires_gap_plan: false, is_credential_eligible: false, amount: '', currency: FEE_POINTS_CURRENCY, effective_from: '', effective_until: '', quorum: 1,
     evidence_categories: [], criteria: [], members: [],
   }
 }
@@ -214,6 +223,10 @@ export default function RplConfigurationPage() {
   const [quizPassMark, setQuizPassMark] = useState(() => readQuizPassMarkSetting({}))
   // Per-level course minimums (owner, 12 Oct 2026, P5): the same rule, the whole map with every level once written.
   const [coursePlanMinimums, setCoursePlanMinimums] = useState(() => readCoursePlanMinimumsSetting({}, []))
+  // The minimum after a FAILED entry quiz (owner, 15 Oct 2026, "hybrid"): its own key, the same rule.
+  const [failedMinimums, setFailedMinimums] = useState(() => readCoursePlanMinimumsSetting({}, [], COURSE_PLAN_FAILED_MINIMUMS_KEY))
+  // The five settings after the entry quiz (owner model of 15 Oct 2026, P6): written only once held or typed.
+  const [afterQuiz, setAfterQuiz] = useState(() => readAfterQuizSettings({}))
   // New copy is Arabic and English only (owner, 13 Oct 2026); any other language reads English.
   const screenLanguage = isArabic ? 'ar' : 'en'
   const screeningText = screeningSettingsCopy(screenLanguage)
@@ -227,6 +240,10 @@ export default function RplConfigurationPage() {
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: '' }))
     try {
+      if (tab.wording) {
+        setState({ loading: false, error: '', rows: [], reference: {}, users: [] })
+        return
+      }
       if (tab.settings) {
         // The reference data only lists the categories for the screening controls; the controls still load without it.
         const [settingsResponse, referenceResponse] = await Promise.all([fetchRplSettings(), fetchRplReferenceData().catch(() => ({}))])
@@ -259,6 +276,8 @@ export default function RplConfigurationPage() {
         setInterviewErrors({})
         setQuizPassMark(readQuizPassMarkSetting(raw))
         setCoursePlanMinimums(readCoursePlanMinimumsSetting(raw, minimumLevels(unwrapCollection(unwrapApiData(referenceResponse)?.pathways || []).flatMap((pathway) => pathway.levels || []))))
+        setFailedMinimums(readCoursePlanMinimumsSetting(raw, minimumLevels(unwrapCollection(unwrapApiData(referenceResponse)?.pathways || []).flatMap((pathway) => pathway.levels || [])), COURSE_PLAN_FAILED_MINIMUMS_KEY))
+        setAfterQuiz(readAfterQuizSettings(raw))
         setState({ loading: false, error: '', rows: [], reference: unwrapApiData(referenceResponse) || {}, users: [] })
         return
       }
@@ -269,7 +288,7 @@ export default function RplConfigurationPage() {
       ])
       setState({ loading: false, error: '', rows: unwrapCollection(records), reference: unwrapApiData(referenceResponse) || {}, users: unwrapCollection(usersResponse) })
     } catch (error) { setState((current) => ({ ...current, loading: false, error: readApiError(error) })) }
-  }, [tab.resource, tab.settings])
+  }, [tab.resource, tab.settings, tab.wording])
 
   useEffect(() => { load() }, [load])
 
@@ -293,7 +312,8 @@ export default function RplConfigurationPage() {
   }
 
   function isValid() {
-    if (tab.resource === 'fee-schedules') return form.rpl_pathway_id && Number(form.amount) >= 0 && form.currency.length === 3
+    // POINTS (II Points, whole) or a three-letter money code, as the API checks (owner answer O2).
+    if (tab.resource === 'fee-schedules') return Boolean(form.rpl_pathway_id) && feeScheduleFormError(form) === null
     if (tab.resource === 'declarations') return form.content.en && form.content.ar && Number(form.version) >= 1
     if (!form.code || !form.name.en || !form.name.ar) return false
     if (tab.resource === 'pathways') return Boolean(form.slug)
@@ -376,6 +396,8 @@ export default function RplConfigurationPage() {
     setInterviewErrors({})
     setQuizPassMark((current) => ({ ...current, error: '' }))
     setCoursePlanMinimums((current) => ({ ...current, errors: { general: '', levels: {} } }))
+    setFailedMinimums((current) => ({ ...current, errors: { general: '', levels: {} } }))
+    setAfterQuiz((current) => ({ ...current, errors: {} }))
     try {
       await updateRplSettings({
         appeal_window_days: Number(settings.appeal_window_days),
@@ -389,6 +411,8 @@ export default function RplConfigurationPage() {
         ...interviewPayload(),
         ...quizPassMarkPayload(quizPassMark),
         ...coursePlanMinimumsPayload(coursePlanMinimums),
+        ...coursePlanMinimumsPayload(failedMinimums),
+        ...afterQuizSettingsPayload(afterQuiz),
       })
       setAction({ busy: false, error: '', success: copy.saved })
     } catch (error) {
@@ -398,6 +422,8 @@ export default function RplConfigurationPage() {
       setInterviewErrors(settingFieldErrors(error, INTERVIEW_ERROR_KEYS))
       setQuizPassMark((current) => ({ ...current, error: quizPassMarkFieldError(error) }))
       setCoursePlanMinimums((current) => ({ ...current, errors: coursePlanMinimumsFieldErrors(error) }))
+      setFailedMinimums((current) => ({ ...current, errors: coursePlanMinimumsFieldErrors(error, COURSE_PLAN_FAILED_MINIMUMS_KEY) }))
+      setAfterQuiz((current) => ({ ...current, errors: afterQuizSettingsFieldErrors(error) }))
       setAction({ busy: false, error: readApiError(error), success: '' })
     }
   }
@@ -476,7 +502,7 @@ export default function RplConfigurationPage() {
 
   const columns = [
     { key: 'code', label: copy.code, render: (row) => <code className="rounded-lg bg-[var(--color-surface-muted)] px-2 py-1 text-xs font-semibold">{row.code || row.currency || `#${row.id}`}</code> },
-    { key: 'name', label: copy.name, render: (row) => <div><span className="font-bold">{localize(row.name || row.content, language) || (row.amount != null ? `${row.amount} ${row.currency}` : '—')}</span><p className="mt-1 max-w-lg text-xs leading-5 text-[var(--color-text-muted)]">{localize(row.description, language)}</p></div> },
+    { key: 'name', label: copy.name, render: (row) => <div><span className="font-bold">{localize(row.name || row.content, language) || (row.amount != null ? (isPointsFee(row.currency) ? formatChargeAmount(Number(row.amount), FEE_POINTS_CURRENCY, language) : `${row.amount} ${row.currency}`) : '—')}</span><p className="mt-1 max-w-lg text-xs leading-5 text-[var(--color-text-muted)]">{localize(row.description, language)}</p></div> },
     { key: 'status', label: copy.status, render: (row) => row.status ? <Badge variant={row.status === 'published' ? 'success' : 'neutral'}>{row.status}</Badge> : <Badge variant={row.is_active !== false ? 'success' : 'neutral'}>{row.is_active !== false ? copy.active : copy.inactive}</Badge> },
     { key: 'actions', label: copy.actionsLabel, render: (row) => <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => openForm(row)}><Pencil size={15} />{copy.edit}</Button>{!tab.immutable ? <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(row)}><Trash2 size={15} /><span className="sr-only">{copy.delete}</span></Button> : null}</div> },
   ]
@@ -496,9 +522,27 @@ export default function RplConfigurationPage() {
     if (activeTab === 'categories') return <><Textarea dir={formLanguage === 'ar' ? 'rtl' : 'ltr'} rows={4} label={copy.examples} value={(form.examples?.[formLanguage] || []).join('\n')} onChange={(event) => setForm((current) => ({ ...current, examples: { ...current.examples, [formLanguage]: event.target.value.split('\n').filter(Boolean) } }))} /><div className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-900 lg:col-span-2"><strong className="block">{copy.fixedUploadPolicy}</strong>{copy.fixedUploadPolicyHint}</div><Input type="number" min="0" label={copy.minimum} value={form.minimum_items} onChange={(event) => setForm((current) => ({ ...current, minimum_items: event.target.value }))} /><Input type="number" min="1" label={copy.maximum} value={form.maximum_items} onChange={(event) => setForm((current) => ({ ...current, maximum_items: event.target.value }))} /></>
     if (activeTab === 'declarations') return <><Input type="number" min="1" label={copy.version} value={form.version} onChange={(event) => setForm((current) => ({ ...current, version: event.target.value }))} /><Input type="date" label={copy.effectiveFrom} value={form.effective_from || ''} onChange={(event) => setForm((current) => ({ ...current, effective_from: event.target.value }))} /></>
     if (activeTab === 'outcomes' || activeTab === 'actions') return <Select label={copy.behavior} value={form.behavior} onChange={(event) => setForm((current) => ({ ...current, behavior: event.target.value }))}>{(activeTab === 'outcomes' ? ['achieved', 'development_required', 'limited_completion', 'not_achieved'] : ['approve', 'conditional', 'remediation', 'reject', 'reassign']).map((value) => <option key={value} value={value}>{behaviorLabel(value, copy)}</option>)}</Select>
-    if (activeTab === 'fees') return <><Input type="number" min="0" step="0.01" label={copy.amount} value={form.amount} onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))} /><Input maxLength="3" label={copy.currency} value={form.currency} onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value.toUpperCase() }))} /><Input type="date" label={copy.effectiveFrom} value={form.effective_from || ''} onChange={(event) => setForm((current) => ({ ...current, effective_from: event.target.value }))} /><Input type="date" label={copy.effectiveUntil} value={form.effective_until || ''} onChange={(event) => setForm((current) => ({ ...current, effective_until: event.target.value }))} /></>
+    if (activeTab === 'fees') return feeFields()
     if (activeTab === 'committees') return <><Input type="number" min="1" max="1" label={copy.quorum} value={form.quorum} onChange={(event) => setForm((current) => ({ ...current, quorum: event.target.value }))} /><p className="text-xs text-amber-800">{copy.quorumSingleOnly}</p></>
     return <Input type="number" min="0" label={copy.order} value={form.sort_order} onChange={(event) => setForm((current) => ({ ...current, sort_order: event.target.value }))} />
+  }
+
+  // The Fees tab (owner answer O2): II Points, whole, for the final-exam path; or a
+  // three-letter money code, which the committee path still reads.
+  function feeFields() {
+    const points = isPointsFee(form.currency)
+    const error = feeScheduleFormError(form)
+    const moneyAboveZero = !points && Number(form.amount) > 0
+    return <>
+      <Select label={copy.feeChargedIn} value={points ? 'points' : 'money'} onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value === 'points' ? FEE_POINTS_CURRENCY : (isPointsFee(current.currency) ? '' : current.currency) }))}><option value="points">{copy.feePoints}</option><option value="money">{copy.feeMoney}</option></Select>
+      {points ? null : <Input maxLength="3" label={copy.feeCurrencyCode} value={form.currency} onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value.toUpperCase() }))} />}
+      <Input type="number" min="0" step={points ? '1' : '0.01'} label={copy.amount} value={form.amount} onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))} />
+      {error === 'whole_points' ? <p role="alert" className="text-sm text-red-700 lg:col-span-2">{copy.feeWholePoints}</p> : null}
+      {error === 'currency' && !points && form.currency ? <p role="alert" className="text-sm text-red-700 lg:col-span-2">{copy.feeCurrencyInvalid}</p> : null}
+      {moneyAboveZero ? <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900 lg:col-span-2">{copy.feeMoneyWarning}</p> : null}
+      <Input type="date" label={copy.effectiveFrom} value={form.effective_from || ''} onChange={(event) => setForm((current) => ({ ...current, effective_from: event.target.value }))} />
+      <Input type="date" label={copy.effectiveUntil} value={form.effective_until || ''} onChange={(event) => setForm((current) => ({ ...current, effective_until: event.target.value }))} />
+    </>
   }
 
   function nestedFields() {
@@ -514,7 +558,7 @@ export default function RplConfigurationPage() {
   }
 
   function renderSettings() {
-    return <div className="space-y-6"><Card><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.workflowTitle}</CardTitle><p className="mt-2 text-sm text-[var(--color-text-muted)]">{copy.workflowHint}</p></CardHeader><CardContent className="pt-6"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{Object.keys(APPLICATION_STATUS).map((status, index) => <div key={status} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-surface-muted)] text-xs font-bold">{index + 1}</span><RplStatusBadge status={status} language={language} /></div>)}</div></CardContent></Card><Card><CardContent className="space-y-5 p-6"><div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm leading-6 text-sky-900"><strong className="block text-base">{copy.fixedUploadPolicy}</strong><span>{copy.fixedUploadPolicyHint}</span></div><Input type="number" min="1" max="180" label={copy.appealDays} value={settings.appeal_window_days} onChange={(event) => setSettings((current) => ({ ...current, appeal_window_days: event.target.value }))} /><label className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] p-4"><input type="checkbox" checked={settings.require_verified_evidence_for_assessment} onChange={(event) => setSettings((current) => ({ ...current, require_verified_evidence_for_assessment: event.target.checked }))} />{copy.requireVerified}</label>{/* The reapply cooldown (owner, 12 Oct 2026). Governed: no default here or in the API, and the date is frozen onto each rejected case, so an edit only affects rejections made after it. */}<section className="space-y-4 rounded-2xl border border-[var(--color-border)] p-5 text-sm"><div><h3 className="font-bold">{copy.cooldownTitle}</h3><p className="mt-1 leading-6 text-[var(--color-text-muted)]">{copy.cooldownHint}</p></div><div className="grid gap-4 sm:grid-cols-2"><Input type="number" min="0" max="365" step="1" label={copy.cooldownDays} value={settings.rpl_reapply_cooldown_days} error={settings.rpl_reapply_cooldown_days === '' ? copy.cooldownMissing : undefined} onChange={(event) => setSettings((current) => ({ ...current, rpl_reapply_cooldown_days: event.target.value }))} /><Select label={copy.cooldownScope} value={settings.rpl_reapply_cooldown_scope} error={settings.rpl_reapply_cooldown_scope === '' ? copy.cooldownMissing : undefined} onChange={(event) => setSettings((current) => ({ ...current, rpl_reapply_cooldown_scope: event.target.value }))}><option value="" disabled>—</option><option value="all_rejections">{copy.cooldownScopeAll}</option><option value="screening_interview_quiz_declines">{copy.cooldownScopeNarrow}</option></Select></div></section>{renderInterviewSettings()}<section className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950"><div><h3 className="font-bold">{copy.geminiTitle}</h3><p className="mt-1 leading-6">{copy.geminiHint}</p></div>{/* The privacy kill switch. It decides whether the applicant's own files leave the platform for the model, and until now the only way to move it was an UPDATE against rpl_settings — not a control anyone can reach in the moment they need it. */}<label className="flex items-start gap-3 rounded-xl border border-amber-300 bg-white p-4"><input type="checkbox" className="mt-1" checked={settings.rpl_advisory_include_evidence_documents} onChange={(event) => setSettings((current) => ({ ...current, rpl_advisory_include_evidence_documents: event.target.checked }))} /><span><strong className="block">{copy.evidenceDocuments}</strong><span className="mt-1 block leading-6">{copy.evidenceDocumentsHint}</span></span></label><Input label={copy.geminiModel} value={settings.gemini_advisory_model} onChange={(event) => setSettings((current) => ({ ...current, gemini_advisory_model: event.target.value }))} /><Textarea rows={14} label={copy.geminiPrompt} value={settings.gemini_advisory_prompt} onChange={(event) => setSettings((current) => ({ ...current, gemini_advisory_prompt: event.target.value }))} /><p className="text-xs leading-5">{copy.geminiGovernance}</p></section>{renderScreeningSettings()}<QuizPassMarkSetting language={screenLanguage} state={quizPassMark} onChange={(value) => setQuizPassMark({ value, include: true, error: '' })} /><CoursePlanMinimumsSetting language={screenLanguage} levels={minimumLevels(levels)} state={coursePlanMinimums} onChange={(code, value) => setCoursePlanMinimums((current) => changeCoursePlanMinimum(current, code, value))} /><div className="flex justify-end"><Button onClick={saveSettings} disabled={action.busy || Number(settings.appeal_window_days) < 1 || Number(settings.appeal_window_days) > 180 || settings.gemini_advisory_prompt.trim().length < 200 || !isReapplyCooldownValid(settings) || !isScreeningModelValid || !isInterviewSettingsValid || !isQuizPassMarkReady(quizPassMark) || !isCoursePlanMinimumsReady(coursePlanMinimums)}><Save size={17} />{copy.saveSettings}</Button></div></CardContent></Card></div>
+    return <div className="space-y-6"><Card><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.workflowTitle}</CardTitle><p className="mt-2 text-sm text-[var(--color-text-muted)]">{copy.workflowHint}</p></CardHeader><CardContent className="pt-6"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{Object.keys(APPLICATION_STATUS).map((status, index) => <div key={status} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-surface-muted)] text-xs font-bold">{index + 1}</span><RplStatusBadge status={status} language={language} /></div>)}</div></CardContent></Card><Card><CardContent className="space-y-5 p-6"><div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm leading-6 text-sky-900"><strong className="block text-base">{copy.fixedUploadPolicy}</strong><span>{copy.fixedUploadPolicyHint}</span></div><Input type="number" min="1" max="180" label={copy.appealDays} value={settings.appeal_window_days} onChange={(event) => setSettings((current) => ({ ...current, appeal_window_days: event.target.value }))} /><label className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] p-4"><input type="checkbox" checked={settings.require_verified_evidence_for_assessment} onChange={(event) => setSettings((current) => ({ ...current, require_verified_evidence_for_assessment: event.target.checked }))} />{copy.requireVerified}</label>{/* The reapply cooldown (owner, 12 Oct 2026). Governed: no default here or in the API, and the date is frozen onto each rejected case, so an edit only affects rejections made after it. */}<section className="space-y-4 rounded-2xl border border-[var(--color-border)] p-5 text-sm"><div><h3 className="font-bold">{copy.cooldownTitle}</h3><p className="mt-1 leading-6 text-[var(--color-text-muted)]">{copy.cooldownHint}</p></div><div className="grid gap-4 sm:grid-cols-2"><Input type="number" min="0" max="365" step="1" label={copy.cooldownDays} value={settings.rpl_reapply_cooldown_days} error={settings.rpl_reapply_cooldown_days === '' ? copy.cooldownMissing : undefined} onChange={(event) => setSettings((current) => ({ ...current, rpl_reapply_cooldown_days: event.target.value }))} /><Select label={copy.cooldownScope} value={settings.rpl_reapply_cooldown_scope} error={settings.rpl_reapply_cooldown_scope === '' ? copy.cooldownMissing : undefined} onChange={(event) => setSettings((current) => ({ ...current, rpl_reapply_cooldown_scope: event.target.value }))}><option value="" disabled>—</option><option value="all_rejections">{copy.cooldownScopeAll}</option><option value="screening_interview_quiz_declines">{copy.cooldownScopeNarrow}</option></Select></div></section>{renderInterviewSettings()}<section className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950"><div><h3 className="font-bold">{copy.geminiTitle}</h3><p className="mt-1 leading-6">{copy.geminiHint}</p></div>{/* The privacy kill switch. It decides whether the applicant's own files leave the platform for the model, and until now the only way to move it was an UPDATE against rpl_settings — not a control anyone can reach in the moment they need it. */}<label className="flex items-start gap-3 rounded-xl border border-amber-300 bg-white p-4"><input type="checkbox" className="mt-1" checked={settings.rpl_advisory_include_evidence_documents} onChange={(event) => setSettings((current) => ({ ...current, rpl_advisory_include_evidence_documents: event.target.checked }))} /><span><strong className="block">{copy.evidenceDocuments}</strong><span className="mt-1 block leading-6">{copy.evidenceDocumentsHint}</span></span></label><Input label={copy.geminiModel} value={settings.gemini_advisory_model} onChange={(event) => setSettings((current) => ({ ...current, gemini_advisory_model: event.target.value }))} /><Textarea rows={14} label={copy.geminiPrompt} value={settings.gemini_advisory_prompt} onChange={(event) => setSettings((current) => ({ ...current, gemini_advisory_prompt: event.target.value }))} /><p className="text-xs leading-5">{copy.geminiGovernance}</p></section>{renderScreeningSettings()}<QuizPassMarkSetting language={screenLanguage} state={quizPassMark} onChange={(value) => setQuizPassMark({ value, include: true, error: '' })} /><CoursePlanMinimumsSetting language={screenLanguage} levels={minimumLevels(levels)} state={coursePlanMinimums} onChange={(code, value) => setCoursePlanMinimums((current) => changeCoursePlanMinimum(current, code, value))} /><CoursePlanMinimumsSetting variant="failed" language={screenLanguage} levels={minimumLevels(levels)} state={failedMinimums} onChange={(code, value) => setFailedMinimums((current) => changeCoursePlanMinimum(current, code, value))} /><AfterQuizSettings language={screenLanguage} state={afterQuiz} onChange={(key, value) => setAfterQuiz((current) => changeAfterQuizSetting(current, key, value))} /><div className="flex justify-end"><Button onClick={saveSettings} disabled={action.busy || Number(settings.appeal_window_days) < 1 || Number(settings.appeal_window_days) > 180 || settings.gemini_advisory_prompt.trim().length < 200 || !isReapplyCooldownValid(settings) || !isScreeningModelValid || !isInterviewSettingsValid || !isQuizPassMarkReady(quizPassMark) || !isCoursePlanMinimumsReady(coursePlanMinimums) || !isCoursePlanMinimumsReady(failedMinimums) || !isAfterQuizSettingsReady(afterQuiz)}><Save size={17} />{copy.saveSettings}</Button></div></CardContent></Card></div>
   }
 
   return (
@@ -531,7 +575,7 @@ export default function RplConfigurationPage() {
       </div>
       {action.error || action.success ? <div role="alert" className={`rounded-2xl border px-4 py-3 text-sm ${action.error ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700'}`}>{action.error || action.success}</div> : null}
       <RplPageState loading={state.loading} error={state.error} onRetry={load} language={language}>
-        {tab.settings ? renderSettings() : <div className="space-y-6"><div className="flex items-center justify-between gap-4">{tab.immutable ? <p className="text-sm text-[var(--color-text-muted)]">{copy.deactivateHint}</p> : <span />}<Button onClick={() => openForm()}><Plus size={17} />{copy.add}</Button></div>{formOpen ? renderForm() : null}<DataTableShell title={copy[activeTab]} description={copy.description} columns={columns} rows={state.rows} emptyText={copy.empty} /></div>}
+        {tab.wording ? <CertificateWordingPanel language={screenLanguage} /> : tab.settings ? renderSettings() : <div className="space-y-6"><div className="flex items-center justify-between gap-4">{tab.immutable ? <p className="text-sm text-[var(--color-text-muted)]">{copy.deactivateHint}</p> : <span />}<Button onClick={() => openForm()}><Plus size={17} />{copy.add}</Button></div>{activeTab === 'fees' ? <p className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-900">{copy.feesFinalExamHint}</p> : null}{formOpen ? renderForm() : null}<DataTableShell title={copy[activeTab]} description={copy.description} columns={columns} rows={state.rows} emptyText={copy.empty} /></div>}
       </RplPageState>
       {deleteTarget ? (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#031C2C]/65 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDeleteTarget(null) }}>

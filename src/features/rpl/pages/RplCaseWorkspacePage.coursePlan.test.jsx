@@ -122,7 +122,8 @@ function overview(overrides = {}) {
   return {
     application: { public_id: 'case-41', case_reference: 'RPL-2026-COURSES', status: 'assessment_in_progress' },
     entry_quiz: { verification_id: 5, result: 'passed', percent: 72, pass_mark_applied: 50, scored_at: '2026-10-14T09:00:00Z' },
-    leads_to_certificate_review: true,
+    after_courses: 'final_exam',
+    experience_certificate_eligible: true,
     generation: { can_generate: true, refusal: null, target_level: null, live_minimum: 1, minimum_applies: true },
     draft: null,
     approved: null,

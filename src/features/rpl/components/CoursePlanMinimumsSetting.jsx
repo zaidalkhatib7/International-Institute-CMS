@@ -3,6 +3,7 @@ import { fill } from '../domain/documentScreening'
 import {
   COURSE_PLAN_MINIMUM_MAX,
   COURSE_PLAN_MINIMUM_MIN,
+  coursePlanFailedMinimumsCopy,
   coursePlanMinimumsCopy,
   isCoursePlanMinimumValid,
   minimumLevelLabel,
@@ -15,17 +16,25 @@ import {
  * map is written only once the server holds it or someone types, and then with
  * every level. The owner's 5 / 7 / 10 are a hint, never prefilled. There is no
  * switch for the below-minimum reason: it is always required (D13(b)).
+ *
+ * variant="failed" is the second row: rpl_course_plan_minimums_failed, the
+ * minimum after a FAILED entry quiz (owner, 15 Oct 2026, "hybrid": the gap-closing
+ * courses first, then top-ups to this number; 0 means gaps only). Same rules,
+ * its own region, labels and ids, so nothing on the page repeats.
  */
-export default function CoursePlanMinimumsSetting({ language, levels = [], state, onChange }) {
-  const copy = coursePlanMinimumsCopy(language)
+export default function CoursePlanMinimumsSetting({ language, levels = [], state, onChange, variant = 'passed' }) {
+  const failed = variant === 'failed'
+  const copy = failed ? coursePlanFailedMinimumsCopy(language) : coursePlanMinimumsCopy(language)
+  const idPrefix = failed ? 'rpl-course-plan-minimum-failed' : 'rpl-course-plan-minimum'
+  const titleId = failed ? 'rpl-course-plan-minimums-failed-title' : 'rpl-course-plan-minimums-title'
   const byCode = new Map((Array.isArray(levels) ? levels : []).map((level) => [level?.code, level]))
   const codes = Array.isArray(state?.codes) ? state.codes : []
   const missing = !state?.include
 
   return (
-    <section aria-labelledby="rpl-course-plan-minimums-title" className="space-y-4 rounded-2xl border border-[var(--color-border)] p-5 text-sm">
+    <section aria-labelledby={titleId} className="space-y-4 rounded-2xl border border-[var(--color-border)] p-5 text-sm">
       <div>
-        <h3 id="rpl-course-plan-minimums-title" className="font-bold">{copy.title}</h3>
+        <h3 id={titleId} className="font-bold">{copy.title}</h3>
         <p className="mt-1 leading-6 text-[var(--color-text-muted)]">{copy.hint}</p>
       </div>
       {codes.length ? (
@@ -37,7 +46,7 @@ export default function CoursePlanMinimumsSetting({ language, levels = [], state
             return (
               <Input
                 key={code}
-                id={`rpl-course-plan-minimum-${code}`}
+                id={`${idPrefix}-${code}`}
                 type="number"
                 inputMode="numeric"
                 min={COURSE_PLAN_MINIMUM_MIN}

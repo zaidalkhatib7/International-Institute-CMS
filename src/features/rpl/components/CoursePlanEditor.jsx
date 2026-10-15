@@ -12,14 +12,18 @@ import {
   applyCoursePlanWrite,
   coursePlanCopy,
   coursePlanLocale,
+  heldPlanItems,
   isCoursePlanReadOnly,
   isCoursePlanReasonValid,
   isCoursePlanStateRefusal,
   isItemRemovable,
   isMinimumSettingMissing,
+  isPlanLearningComplete,
   isStaleConflict,
+  itemHolds,
   minimumsText,
   removedPlanItems,
+  topUpsBeyondMinimum,
   topUpsWithoutMinimum,
 } from '../domain/coursePlan'
 import {
@@ -42,8 +46,13 @@ import { RecommendationGrounds } from './AdvisoryProvenance'
  * Gemini proposes the client's courses from the evaluation of the entry quiz;
  * staff add and remove courses, each with a written reason, and approve the plan
  * (D13(b): at least the governed minimum for the level after a passed quiz, or
- * fewer with a written reason; 7.1 D11: a failed quiz gets the gap-closing
- * courses only, with no minimum and no certificate).
+ * fewer with a written reason; after a failed quiz the gap-closing courses first,
+ * then top-ups to the failed-client minimum, owner 15 Oct 2026, "hybrid").
+ *
+ * P6 (owner model of 15 Oct 2026): the client buys the approved courses; each
+ * item shows its purchase, enrolment, lessons and course quiz, and a governance
+ * hold on its programme. When every course is completed the plan closes and the
+ * final exam opens; a closed plan is read-only.
  *
  * The component loads its own data, so the case workspace never has to. What may
  * be done comes from the server's `can` flags, and every write sends the plan's
@@ -52,7 +61,7 @@ import { RecommendationGrounds } from './AdvisoryProvenance'
  * the page to hide the tab. Copy is Arabic and English only.
  */
 
-const PLAN_STATUS_VARIANT = { draft: 'warning', approved: 'success', superseded: 'neutral', discarded: 'neutral' }
+const PLAN_STATUS_VARIANT = { draft: 'warning', approved: 'success', superseded: 'neutral', discarded: 'neutral', closed: 'success' }
 const ITEM_STATUS_VARIANT = { proposed: 'info', approved: 'success', removed: 'neutral', purchased: 'primary', completed: 'success', refunded: 'neutral' }
 const PURPOSE_VARIANT = { gap_closure: 'info', minimum_completion: 'warning', staff_added: 'neutral' }
 
@@ -99,9 +108,29 @@ function ItemBadges({ item, copy }) {
       {/* A staff-added course already says so through its purpose. */}
       {item?.origin && !(item.origin === 'staff' && item.purpose === 'staff_added') ? <Badge variant="neutral">{copy.origin[item.origin] || humanizeCode(item.origin)}</Badge> : null}
       {item?.status ? <Badge variant={ITEM_STATUS_VARIANT[item.status] || 'neutral'}>{copy.itemStatus[item.status] || humanizeCode(item.status)}</Badge> : null}
-      {program.buyable === true ? <Badge variant="success">{copy.buyable}</Badge> : <Badge variant="warning">{copy.notBuyable}</Badge>}
+      {/* A course the client already holds is not offered for sale, so "buyable" says nothing about it. */}
+      {['purchased', 'completed'].includes(item?.status) ? null : program.buyable === true ? <Badge variant="success">{copy.buyable}</Badge> : <Badge variant="warning">{copy.notBuyable}</Badge>}
+      {itemHolds(item).length ? <Badge variant="danger">{copy.onHold}</Badge> : null}
     </div>
   )
+}
+
+/*
+ * What the client has done with an approved course (P6): bought on, the
+ * enrolment and its package version, lessons completed, the course quiz, and
+ * completed on. Staff-only facts; the client sees its own progress elsewhere.
+ */
+function ItemProgress({ item, copy, language }) {
+  const enrollment = item?.enrollment && typeof item.enrollment === 'object' ? item.enrollment : null
+  const progress = enrollment?.progress || item?.progress || null
+  const lines = []
+  if (item?.purchased_at) lines.push(fill(copy.purchasedOn, { at: formatLocalizedDateTime(item.purchased_at, language) }))
+  if (enrollment?.id != null) lines.push(fill(copy.enrolment, { id: enrollment.id, version: enrollment.package_version || '—' }))
+  if (progress && progress.lessons_total != null) lines.push(fill(copy.lessonsProgress, { done: progress.lessons_completed ?? 0, total: progress.lessons_total }))
+  if (progress && typeof progress.course_quiz_passed === 'boolean') lines.push(progress.course_quiz_passed ? copy.courseQuizPassed : copy.courseQuizNotPassed)
+  if (item?.completed_at) lines.push(fill(copy.completedOn, { at: formatLocalizedDateTime(item.completed_at, language) }))
+  if (!lines.length) return null
+  return <p className="text-xs leading-5 text-[var(--color-text-muted)]">{lines.map((line, index) => <span key={line}>{index ? ' · ' : ''}<bdi>{line}</bdi></span>)}</p>
 }
 
 function ItemCard({ item, copy, language, evidenceTitles, removable, removeForm, busy, onOpenRemove, onRemoveChange, onRemoveCancel, onRemoveSubmit }) {
@@ -132,6 +161,8 @@ function ItemCard({ item, copy, language, evidenceTitles, removable, removeForm,
         <p className="text-xs leading-5 text-[var(--color-text-muted)]"><strong>{copy.evidenceConsidered}:</strong> {evidenceIds.map((id, index) => <span key={id}>{index ? ' · ' : ''}<bdi>{evidenceTitles.get(String(id)) || `#${id}`}</bdi></span>)}</p>
       ) : null}
       <RecommendationGrounds course={item} copy={copy} />
+      <ItemProgress item={item} copy={copy} language={language} />
+      {itemHolds(item).length ? <p role="note" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs leading-5 text-amber-900">{copy.itemOnHold} {fill(copy.holdBlocks, { blocks: itemHolds(item).map((hold) => copy.holdLabels[hold] || humanizeCode(hold)).join(' · ') })}</p> : null}
       {item?.status === 'purchased' ? <p className="text-xs text-[var(--color-text-muted)]">{copy.lockedPurchased}</p> : null}
       {item?.status === 'completed' ? <p className="text-xs text-[var(--color-text-muted)]">{copy.lockedCompleted}</p> : null}
       {removable && !formOpen ? <div className="flex justify-end"><Button size="sm" variant="ghost" onClick={() => onOpenRemove(item.id)} disabled={Boolean(busy)}><Trash2 size={15} />{copy.remove}</Button></div> : null}
@@ -318,11 +349,17 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
     }
   }
 
+  /*
+   * The entry quiz result, read from the quiz itself (P6: leads_to_certificate_review
+   * is gone from the staff overview, since both results now lead to the final exam
+   * and the level certificate).
+   */
   function renderQuizBanner() {
     const quiz = overview?.entry_quiz
-    const values = { percent: formatQuizPercent(quiz?.percent) ?? '—', mark: quiz?.pass_mark_applied ?? '—' }
-    if (overview?.leads_to_certificate_review === true) return <p className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm leading-6 text-green-900">{fill(copy.quizPassed, values)}</p>
-    if (overview?.leads_to_certificate_review === false) return <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm leading-6 text-amber-900">{fill(copy.quizFailed, values)}</p>
+    const level = generation.target_level || plan?.target_level || null
+    const values = { percent: formatQuizPercent(quiz?.percent) ?? '—', mark: quiz?.pass_mark_applied ?? '—', level: localize(level?.name, language) || level?.code || '—' }
+    if (quiz?.result === 'passed') return <p className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm leading-6 text-green-900">{fill(copy.quizPassed, values)}</p>
+    if (quiz?.result === 'failed') return <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm leading-6 text-amber-900">{fill(copy.quizFailed, values)}</p>
     return null
   }
 
@@ -362,13 +399,19 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
     const levelName = localize(current?.target_level?.name, language) || current?.target_level?.code || '—'
     const showChanged = current === draft && !amendment && current?.entry_quiz_result === 'passed' && generation.live_minimum != null && Number(generation.live_minimum) !== Number(current?.minimum_required)
     const topUps = topUpsWithoutMinimum(current)
+    const extraTopUps = topUpsBeyondMinimum(current)
+    // No minimum: a plan made under P5's F1, or one whose frozen minimum is 0 (gaps only).
+    const noMinimum = current?.minimum_applies === false || (current?.minimum_required != null && Number(current.minimum_required) === 0)
+    // The "hybrid" rule after a failed quiz (owner, 15 Oct 2026): gaps first, then top-ups to this minimum.
+    const failedHybrid = !noMinimum && current?.entry_quiz_result === 'failed' && current?.minimum_required != null
     return (
       <div className="space-y-3">
         <p className="rounded-xl bg-[var(--color-surface-muted)] p-3 text-sm font-semibold">
-          {current?.minimum_applies === false
+          {noMinimum
             ? <>{copy.noMinimum}{' · '}{fill(copy.buyableCount, { count: counts.buyable })}</>
             : <>{fill(copy.counter, { count: counts.active, minimum: current?.minimum_required ?? '—', level: levelName })}{' · '}{fill(copy.buyableCount, { count: counts.buyable })}</>}
         </p>
+        {failedHybrid ? <p className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-900">{fill(copy.failedMinimum, { minimum: current.minimum_required })}</p> : null}
         {current?.below_minimum ? (
           <div role="note" className="space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
             <p className="flex items-center gap-2 font-semibold"><TriangleAlert size={16} aria-hidden="true" />{fill(copy.belowMinimum, { count: counts.active, minimum: current.minimum_required })}</p>
@@ -380,6 +423,8 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
         {showChanged ? <p className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-900">{fill(copy.minimumChanged, { minimum: current.minimum_required, current: generation.live_minimum })}</p> : null}
         {/* F1 and a ZERO minimum: a top-up has no place on a gap-closing plan; staff decide, the screen says so. */}
         {topUps ? <p role="note" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm leading-6 text-amber-900">{fill(copy.topUpWithoutMinimum, { count: topUps })}</p> : null}
+        {/* The hybrid rule: a top-up the plan does not need to reach its minimum has no place on it; staff decide. */}
+        {!topUps && extraTopUps ? <p role="note" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm leading-6 text-amber-900">{fill(copy.topUpBeyondMinimum, { count: extraTopUps, minimum: current.minimum_required })}</p> : null}
       </div>
     )
   }
@@ -406,7 +451,9 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
   function renderApprove() {
     if (!draft || !can('approve')) return null
     const counts = planCounts(draft)
-    const notBuyable = activePlanItems(draft).filter((item) => item?.program?.buyable !== true).length
+    const notBuyable = activePlanItems(draft).filter((item) => item?.program?.buyable !== true && !['purchased', 'completed'].includes(item?.status)).length
+    // A governance hold is a warning here, never a block (P6): the plan may still be approved.
+    const held = heldPlanItems(draft)
     const empty = counts.active === 0
     const needsReason = Boolean(draft.below_minimum)
     const levelName = localize(draft.target_level?.name, language) || draft.target_level?.code || '—'
@@ -417,6 +464,7 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
         <strong className="block">{fill(copy.approveTitle, { version: draft.version })}</strong>
         {empty ? <p className="text-amber-900">{copy.emptyPlan}</p> : <p className="leading-6">{fill(copy.approveSummary, { count: counts.active, buyable: counts.buyable })}</p>}
         {!empty && notBuyable ? <p className="leading-6 text-amber-900">{fill(copy.approveNotBuyable, { count: notBuyable })}</p> : null}
+        {!empty && held.length ? <p role="note" className="leading-6 text-amber-900">{fill(copy.approveHeld, { count: held.length, codes: held.map((item) => item?.program?.official_code || item?.program?.id).join(' · ') })}</p> : null}
         {needsReason && !empty ? (
           <>
             <p className="leading-6 text-amber-900">{fill(copy.approveBelow, { count: counts.active, level: levelName, minimum: draft.minimum_required })}</p>
@@ -454,6 +502,7 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
           {current.source ? <span className="text-xs text-[var(--color-text-muted)]">{copy.planSource[current.source] || humanizeCode(current.source)}</span> : null}
         </div>
         {current.creation_reason ? <p className="text-sm leading-6 text-[var(--color-text-muted)]" dir="auto">{fill(copy.creationReason, { reason: current.creation_reason })}</p> : null}
+        {isPlanLearningComplete(current) ? <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm font-semibold leading-6 text-green-900">{copy.learningComplete}</p> : null}
         {renderCounter(current)}
         {items.length ? (
           <div className="space-y-3">

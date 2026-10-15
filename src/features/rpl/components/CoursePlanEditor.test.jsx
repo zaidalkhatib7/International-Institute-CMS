@@ -129,7 +129,8 @@ function overview(overrides = {}) {
   return {
     application: { public_id: 'case-1', case_reference: 'RPL-2026-PLAN', status: 'course_plan_review' },
     entry_quiz: { verification_id: 5, result: 'passed', percent: 72, pass_mark_applied: 50, scored_at: '2026-10-14T09:00:00Z' },
-    leads_to_certificate_review: true,
+    after_courses: 'final_exam',
+    experience_certificate_eligible: true,
     generation: { can_generate: false, refusal: 'case_status', target_level: { id: 2, code: 'practitioner', name: { en: 'Practitioner' } }, live_minimum: 2, minimum_applies: true },
     draft: plan(),
     approved: null,
@@ -264,7 +265,8 @@ describe('the proposal', () => {
       data: overview({
         application: { public_id: 'case-1', status: 'assessment_in_progress' },
         entry_quiz: { verification_id: 5, result: 'referred', percent: null, pass_mark_applied: null, scored_at: '2026-10-14T09:00:00Z' },
-        leads_to_certificate_review: null,
+        after_courses: null,
+        experience_certificate_eligible: null,
         generation: { can_generate: false, refusal: 'entry_quiz_referred', target_level: null, live_minimum: 2, minimum_applies: null },
         draft: null,
         versions: [],
@@ -568,18 +570,19 @@ describe('what the screen will not do', () => {
     expect(screen.queryByRole('button', { name: EN.approveSubmit })).not.toBeInTheDocument()
   })
 
-  it('shows a failed entry quiz with no certificate and no minimum (7.1 D11)', async () => {
+  it('shows a failed entry quiz with no Experience Confirmation Certificate, and a plan made before the failed minimum with none (7.1 D11)', async () => {
     mocks.fetchRplCoursePlan.mockResolvedValue({
       data: overview({
         entry_quiz: { verification_id: 5, result: 'failed', percent: 42, pass_mark_applied: 50, scored_at: '2026-10-14T09:00:00Z' },
-        leads_to_certificate_review: false,
+        after_courses: 'final_exam',
+        experience_certificate_eligible: false,
         generation: { can_generate: false, refusal: 'case_status', target_level: null, live_minimum: 5, minimum_applies: false },
         draft: plan({ entry_quiz_result: 'failed', minimum_required: 0, minimum_applies: false }),
       }),
     })
     renderEditor()
 
-    expect(await screen.findByText(/Entry quiz not passed: 42\.00% \(pass mark: more than 50%\)\. One attempt only, and no certificate follows this request/)).toBeInTheDocument()
+    expect(await screen.findByText(fill(EN.quizFailed, { percent: '42.00', mark: 50, level: 'Practitioner' }))).toBeInTheDocument()
     expect(screen.getByText(new RegExp(EN.noMinimum.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))).toBeInTheDocument()
     expect(screen.queryByText(/of the minimum/)).not.toBeInTheDocument()
     expect(screen.queryByText(EN.quizPassed.slice(0, 18))).not.toBeInTheDocument()
@@ -660,6 +663,137 @@ describe('in Arabic', () => {
     expect(await screen.findByRole('article', { name: 'دورة 41' })).toBeInTheDocument()
     expect(screen.getByText(AR.below.catalogue_shortfall)).toBeInTheDocument()
     expect(screen.getByText(AR.title)).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('undefined')
+  })
+})
+
+/*
+ * P6 ON THE COURSE PLAN (owner model of 15 Oct 2026) and the failed-client
+ * minimum (round-3 answer O1, "hybrid"). The banner reads the entry quiz itself;
+ * each item shows what the client did with it; a governance hold is flagged on
+ * the item and listed as a warning (never a block) when approving; a closed plan
+ * says the final exam is open; and a failed plan made under O1 counts against its
+ * own minimum, flagging only the top-ups it does not need.
+ */
+describe('P6 on the plan', () => {
+  it('reads the banner from the entry quiz, never from leads_to_certificate_review', async () => {
+    mocks.fetchRplCoursePlan.mockResolvedValue({ data: overview({ after_courses: 'final_exam', leads_to_certificate_review: false }) })
+    renderEditor()
+
+    expect(await screen.findByText(fill(EN.quizPassed, { percent: '72.00', mark: 50, level: 'Practitioner' }))).toBeInTheDocument()
+    expect(screen.queryByText(/Entry quiz not passed/)).not.toBeInTheDocument()
+  })
+
+  it('shows what the client bought, the enrolment, the lessons and the course quiz, and a closed plan\'s message', async () => {
+    const enrollment = (id, quizPassed, done) => ({ id, status: done === 6 && quizPassed ? 'completed' : 'active', lifecycle_status: 'active', package_version: '1.0', enrolled_at: '2026-10-16T09:00:00Z', completed_at: null, progress: { lessons_completed: done, lessons_total: 6, course_quiz_passed: quizPassed } })
+    const closed = plan({
+      status: 'closed',
+      closed_reason: 'learning_complete',
+      closed_at: '2026-10-20T09:00:00Z',
+      items: [
+        item(1, { status: 'completed', purchased_at: '2026-10-16T09:00:00Z', completed_at: '2026-10-19T09:00:00Z', enrollment: enrollment(501, true, 6) }),
+        item(2, { status: 'purchased', purchased_at: '2026-10-16T10:00:00Z', enrollment: enrollment(502, false, 3) }),
+      ],
+    })
+    mocks.fetchRplCoursePlan.mockResolvedValue({ data: overview({ application: { public_id: 'case-1', status: 'final_exam' }, draft: null, approved: closed, can: { generate: false, regenerate: false, edit: false, approve: false, amend: false, discard: false } }) })
+    renderEditor({ application: { status: 'final_exam' } })
+
+    expect(await screen.findByText(EN.learningComplete)).toBeInTheDocument()
+    expect(screen.getByText(EN.planStatus.closed)).toBeInTheDocument()
+    // Read-only in the final exam: nothing to amend or approve.
+    expect(screen.getByText(EN.readOnly)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: EN.amend })).not.toBeInTheDocument()
+
+    const done = within(screen.getByRole('article', { name: 'Course 41' }))
+    expect(done.getByText(EN.itemStatus.completed)).toBeInTheDocument()
+    expect(done.getByText('Enrolment #501 · package version 1.0')).toBeInTheDocument()
+    expect(done.getByText('6 of 6 lessons completed')).toBeInTheDocument()
+    expect(done.getByText(EN.courseQuizPassed)).toBeInTheDocument()
+    expect(done.getByText(/^Completed on /)).toBeInTheDocument()
+    // A course the client holds is not offered for sale, so no "buyable" badge on it.
+    expect(done.queryByText(EN.buyable)).not.toBeInTheDocument()
+
+    const bought = within(screen.getByRole('article', { name: 'Course 42' }))
+    expect(bought.getByText(/^Bought on /)).toBeInTheDocument()
+    expect(bought.getByText('3 of 6 lessons completed')).toBeInTheDocument()
+    expect(bought.getByText(EN.courseQuizNotPassed)).toBeInTheDocument()
+  })
+
+  it('flags a course on a governance hold, and warns about it when approving without blocking', async () => {
+    mocks.fetchRplCoursePlan.mockResolvedValue({
+      data: overview({ draft: plan({ items: [item(1, { holds: ['new_enrolment', 'new_assessment'], program: program(41, { official_code: 'CGP-PSD-010' }) }), item(2)] }) }),
+    })
+    renderEditor()
+
+    const held = within(await screen.findByRole('article', { name: 'Course 41' }))
+    expect(held.getByText(EN.onHold)).toBeInTheDocument()
+    expect(held.getByText(`${EN.itemOnHold} Blocked: New enrolments · New assessments`)).toBeInTheDocument()
+
+    const approve = within(screen.getByRole('region', { name: 'Approve version 1' }))
+    expect(approve.getByText(fill(EN.approveHeld, { count: 1, codes: 'CGP-PSD-010' }))).toBeInTheDocument()
+    expect(approve.getByRole('button', { name: EN.approveSubmit })).toBeEnabled()
+  })
+
+  it('counts a failed plan made under O1 against its own minimum, gaps first, and flags only an unneeded top-up', async () => {
+    const failedPlan = (items, minimum = 3) => plan({
+      entry_quiz_result: 'failed',
+      minimum_required: minimum,
+      minimum_applies: true,
+      minimums_setting_snapshot: { key: 'rpl_course_plan_minimums_failed', value: { practitioner: 3, advanced_practitioner: 7, expert: 10 }, level_code: 'practitioner', level_minimum: 3, applied: true, not_applied_reason: null, read_at: '2026-10-15T09:00:00Z' },
+      counts: { active: items.length, buyable: items.length, removed: 0 },
+      items,
+    })
+    const failedOverview = (draft) => overview({
+      entry_quiz: { verification_id: 5, result: 'failed', percent: 42, pass_mark_applied: 50, scored_at: '2026-10-14T09:00:00Z' },
+      experience_certificate_eligible: false,
+      generation: { can_generate: false, refusal: 'case_status', target_level: { id: 2, code: 'practitioner', name: { en: 'Practitioner' } }, live_minimum: 3, minimum_applies: true },
+      draft,
+    })
+    // Two gaps and one top-up against a minimum of 3: exactly what the plan needs.
+    mocks.fetchRplCoursePlan.mockResolvedValue({ data: failedOverview(failedPlan([item(1), item(2), item(3, { purpose: 'minimum_completion' })])) })
+    const { unmount } = renderEditor()
+
+    expect(await screen.findByText('3 of the minimum 3 for Practitioner · 3 available to buy')).toBeInTheDocument()
+    expect(screen.getByText(fill(EN.failedMinimum, { minimum: 3 }))).toBeInTheDocument()
+    expect(screen.queryByText(/without them/)).not.toBeInTheDocument()
+    expect(screen.queryByText(EN.noMinimum)).not.toBeInTheDocument()
+    unmount()
+
+    // Three gaps already reach the minimum: the top-up is not needed, and staff are told so.
+    mocks.fetchRplCoursePlan.mockResolvedValue({ data: failedOverview(failedPlan([item(1), item(2), item(4), item(3, { purpose: 'minimum_completion' })])) })
+    renderEditor()
+    expect(await screen.findByText(fill(EN.topUpBeyondMinimum, { count: 1, minimum: 3 }))).toBeInTheDocument()
+    expect(screen.queryByText(fill(EN.topUpWithoutMinimum, { count: 1 }))).not.toBeInTheDocument()
+  })
+
+  it('reads a failed minimum of 0 as gaps only, and flags every top-up', async () => {
+    mocks.fetchRplCoursePlan.mockResolvedValue({
+      data: overview({
+        entry_quiz: { verification_id: 5, result: 'failed', percent: 42, pass_mark_applied: 50, scored_at: '2026-10-14T09:00:00Z' },
+        draft: plan({ entry_quiz_result: 'failed', minimum_required: 0, minimum_applies: true }),
+      }),
+    })
+    renderEditor()
+
+    expect(await screen.findByText(new RegExp(EN.noMinimum.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))).toBeInTheDocument()
+    expect(screen.queryByText(/of the minimum/)).not.toBeInTheDocument()
+    expect(screen.getByText(fill(EN.topUpWithoutMinimum, { count: 1 }))).toBeInTheDocument()
+  })
+
+  it('renders P6 items in Arabic without a literal "undefined"', async () => {
+    language.current = 'ar'
+    mocks.fetchRplCoursePlan.mockResolvedValue({
+      data: overview({
+        application: { public_id: 'case-1', status: 'final_exam' },
+        draft: null,
+        approved: plan({ status: 'closed', closed_reason: 'learning_complete', items: [item(1, { status: 'completed', holds: ['credential_issuance'], purchased_at: '2026-10-16T09:00:00Z', completed_at: '2026-10-19T09:00:00Z', enrollment: { id: 501, package_version: '1.0', progress: { lessons_completed: 6, lessons_total: 6, course_quiz_passed: true } } })] }),
+        can: { generate: false, regenerate: false, edit: false, approve: false, amend: false, discard: false },
+      }),
+    })
+    renderEditor({ language: 'ar', application: { status: 'final_exam' } })
+
+    expect(await screen.findByText(AR.learningComplete)).toBeInTheDocument()
+    expect(screen.getByText(AR.courseQuizPassed)).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('undefined')
   })
 })

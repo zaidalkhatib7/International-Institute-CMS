@@ -37,6 +37,10 @@ export const routeAccess = Object.freeze({
   '/rpl/assessments': permission('rpl.applications.view'),
   '/rpl/accreditation': permission('rpl.committee.decide'),
   '/rpl/appeals': permission('rpl.appeals.review'),
+  // After the entry quiz (owner model of 15 Oct 2026, P6): each queue is its permission's (S1, S7, S17).
+  '/rpl/payments': permission('rpl.payments.reconcile'),
+  '/rpl/experience-certificates': permission('rpl.experience_certificates.approve'),
+  '/rpl/attention': permission('rpl.applications.view'),
   '/rpl/configuration': permission('rpl.settings.manage'),
   '/rpl/source-of-truth': permission('rpl.settings.manage'),
   '/assessors': permission('rpl.assignments.manage'),
