@@ -11,9 +11,12 @@ import {
   AFTER_QUIZ_LIMITS,
   REFUSAL_CATEGORIES,
   afterQuizCopy,
+  certificateLine,
   chargePriceLine,
   chargeRouteLabel,
   chargeStatusLabel,
+  experienceRequestStatusLabel,
+  experienceRequestStatusVariant,
   experienceStateLabel,
   isAfterQuizReasonValid,
   isStaleConflict,
@@ -37,19 +40,9 @@ import { approveRplExperienceCertificate, fetchRplExperienceCertificate, refuseR
  */
 
 const STATE_VARIANT = { not_eligible: 'neutral', unavailable: 'warning', available: 'info', awaiting_payment: 'warning', awaiting_issue: 'info', issued: 'success', revoked: 'danger' }
-const STATUS_VARIANT = { requested: 'warning', approved: 'info', issued: 'success', refused: 'danger', cancelled: 'neutral' }
 
 function Line({ children }) {
   return <p className="text-xs leading-5 text-[var(--color-text-muted)]">{children}</p>
-}
-
-/*
- * The certificate line as it stands now (J09-F3): the replacement after a reissue,
- * and a revoked certificate says so, with when, beside the registry's own status.
- */
-function certificateLine(certificate, text, at) {
-  if (certificate.status === 'revoked') return fill(text.certificateRevoked, { number: certificate.number, at: at(certificate.issued_at), revokedAt: at(certificate.revoked_at) })
-  return fill(certificate.reissued ? text.certificateReissued : text.certificate, { number: certificate.number, at: at(certificate.issued_at) })
 }
 
 function CertificateRow({ row, copy, language }) {
@@ -59,7 +52,8 @@ function CertificateRow({ row, copy, language }) {
   return (
     <div className="space-y-1">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={STATUS_VARIANT[row.status] || 'neutral'}>{text.statuses[row.status] || row.status}</Badge>
+        {/* The request's status as staff read it: an issued request whose certificate was revoked reads revoked, never "Issued" (review of the fixes, 17 Oct 2026). */}
+        <Badge variant={experienceRequestStatusVariant(row)}>{experienceRequestStatusLabel(row, language)}</Badge>
         {row.client_choice ? <span className="text-sm font-semibold">{text.choice}: {text.choices[row.client_choice] || row.client_choice}</span> : null}
       </div>
       {row.choice_changed_at ? <Line>{fill(text.choiceChanged, { at: at(row.choice_changed_at) })}</Line> : null}
@@ -139,6 +133,8 @@ export default function ExperienceCertificatePanel({ applicationId, language, ca
   const overview = state.overview
   const current = overview?.current || null
   const history = (Array.isArray(overview?.history) ? overview.history : []).filter((row) => row && row.public_id !== current?.public_id)
+  // A revoked certificate never reads as issued, even from a payload that still says issued.
+  const overviewState = overview?.state === 'issued' && current?.certificate?.status === 'revoked' ? 'revoked' : overview?.state
   const showApprove = canApprove && current?.status === 'requested' && serverAllows(current, 'approve', current?.charge?.status === 'paid')
   const showRefuse = canApprove && current?.status === 'requested' && serverAllows(current, 'refuse', true)
 
@@ -182,10 +178,10 @@ export default function ExperienceCertificatePanel({ applicationId, language, ca
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={STATE_VARIANT[overview.state] || 'neutral'}>{experienceStateLabel(overview.state, language)}</Badge>
+          <Badge variant={STATE_VARIANT[overviewState] || 'neutral'}>{experienceStateLabel(overviewState, language)}</Badge>
         </div>
         {reasonSentence()}
-        {overview.state === 'revoked' ? <p role="status" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 text-sm leading-6">{text.revokedNote}</p> : null}
+        {overviewState === 'revoked' ? <p role="status" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 text-sm leading-6">{text.revokedNote}</p> : null}
         {overview.eligible !== false ? (
           <div className="space-y-1">
             {/* The live price (contract S18): US dollars, and Syrian pounds at today's rate while a rate is set. */}

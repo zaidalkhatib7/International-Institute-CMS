@@ -299,6 +299,11 @@ describe('cancelling and refunding', () => {
 
     expect(await screen.findByText(AR.charges.rateUnchanged)).toBeInTheDocument()
     await waitFor(() => expect(mocks.fetchRplCharges).toHaveBeenCalledTimes(2))
+    // The refused category is cleared, so the button waits for another one; the reason typed is kept.
+    expect(screen.getByLabelText(AR.charges.category)).toHaveValue('')
+    expect(screen.getByLabelText(AR.common.reason)).toHaveValue('The rate moved since the request.')
+    expect(screen.getByRole('button', { name: AR.charges.cancelSubmit })).toBeDisabled()
+    expect(mocks.cancelRplCharge).toHaveBeenCalledTimes(1)
   })
 
   it.each([

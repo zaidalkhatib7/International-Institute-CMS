@@ -216,6 +216,49 @@ describe('what staff see', () => {
     expect(card.queryByText(EN.level.states.queued)).not.toBeInTheDocument()
     expect(card.queryByText(EN.level.feeDue)).not.toBeInTheDocument()
   })
+
+  // Review of the fixes (17 Oct 2026): the S14 state "revoked" is checked before "issued", and the
+  // certificate block carries {id, number, issued_at, status, reissued, revoked_at}, as J09-F3 did for the experience certificate.
+  it('shows a revoked level certificate as revoked, with when, never as issued', async () => {
+    mocks.fetchRplFinalExam.mockResolvedValue({
+      data: exam({ state: 'passed', level_certificate: { state: 'revoked', fee_problem: null, holds: [], outbox: { status: 'processed', attempts: 1, last_error: null, available_at: '2026-10-21T09:15:00Z' }, certificate: { id: 90, number: 'ICPC-LVL-2026-000090', issued_at: '2026-10-21T09:00:00Z', status: 'revoked', reissued: false, revoked_at: '2026-10-22T10:00:00Z' }, certification_fee: null, charge: null } }),
+    })
+    renderPanel()
+
+    const card = within(await screen.findByRole('region', { name: EN.level.title }))
+    expect(card.getByText(EN.level.states.revoked)).toBeInTheDocument()
+    expect(card.getByText(EN.level.revokedNote)).toBeInTheDocument()
+    expect(card.getByText(/^Certificate ICPC-LVL-2026-000090, issued on .+, revoked on /)).toBeInTheDocument()
+    expect(card.queryByText(EN.level.states.issued)).not.toBeInTheDocument()
+    expect(card.queryByText(/^Next attempt at /)).not.toBeInTheDocument()
+  })
+
+  it('never shows a revoked level certificate as issued, even when the state still says issued (Arabic)', async () => {
+    mocks.fetchRplFinalExam.mockResolvedValue({
+      data: exam({ state: 'passed', level_certificate: { state: 'issued', holds: [], outbox: null, certificate: { id: 90, number: 'ICPC-LVL-2026-000090', issued_at: '2026-10-21T09:00:00Z', status: 'revoked', reissued: false, revoked_at: '2026-10-22T10:00:00Z' } } }),
+    })
+    renderPanel({ language: 'ar' })
+
+    const card = within(await screen.findByRole('region', { name: AR.level.title }))
+    expect(card.getByText(AR.level.states.revoked)).toBeInTheDocument()
+    expect(card.getByText(AR.level.revokedNote)).toBeInTheDocument()
+    expect(card.getByText(/^الشهادة ICPC-LVL-2026-000090، صدرت في .+ وأُلغيت في /)).toBeInTheDocument()
+    expect(card.queryByText(AR.level.states.issued)).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('undefined')
+  })
+
+  it('shows the replacement after a reissue as a reissue, issued', async () => {
+    mocks.fetchRplFinalExam.mockResolvedValue({
+      data: exam({ state: 'passed', level_certificate: { state: 'issued', holds: [], outbox: { status: 'processed', attempts: 1 }, certificate: { id: 91, number: 'ICPC-LVL-2026-000091', issued_at: '2026-10-23T09:00:00Z', status: 'active', reissued: true, revoked_at: null } } }),
+    })
+    renderPanel()
+
+    const card = within(await screen.findByRole('region', { name: EN.level.title }))
+    expect(card.getByText(EN.level.states.issued)).toBeInTheDocument()
+    expect(card.getByText(/^Certificate ICPC-LVL-2026-000091 \(a reissue\), issued on /)).toBeInTheDocument()
+    expect(card.queryByText(EN.level.states.revoked)).not.toBeInTheDocument()
+    expect(card.queryByText(EN.level.revokedNote)).not.toBeInTheDocument()
+  })
 })
 
 describe('void and reopen (S15, S16)', () => {

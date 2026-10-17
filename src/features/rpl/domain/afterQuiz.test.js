@@ -13,6 +13,7 @@ import {
   canApproveWording,
   cancelCategoriesFor,
   certificateKind,
+  certificateLine,
   changeAfterQuizSetting,
   chargePaidInLabel,
   chargePriceLine,
@@ -22,6 +23,9 @@ import {
   confirmFormErrors,
   confirmPayload,
   emptyConfirmForm,
+  experienceRequestStatus,
+  experienceRequestStatusLabel,
+  experienceRequestStatusVariant,
   experienceStateLabel,
   feeScheduleAmountMinor,
   feeScheduleFormError,
@@ -96,9 +100,11 @@ describe('the copy', () => {
     expect(Object.keys(AFTER_QUIZ_COPY.en.finalExam.blocked).sort()).toEqual(['course_on_hold', 'no_courses', 'question_bank_short', 'setting_missing', 'stop_chosen', 'try_referred'])
     expect(Object.keys(AFTER_QUIZ_COPY.ar.finalExam.blocked).sort()).toEqual(['course_on_hold', 'no_courses', 'question_bank_short', 'setting_missing', 'stop_chosen', 'try_referred'])
     expect(experienceStateLabel('revoked', 'en')).toBe('Revoked')
-    // The API's states (RplLevelCertificateIssuer::staffState), by their API names.
-    expect(Object.keys(AFTER_QUIZ_COPY.en.finalExam.level.states).sort()).toEqual(['awaiting_fee', 'fee_unusable', 'held', 'issued', 'not_due', 'queued'])
-    expect(Object.keys(AFTER_QUIZ_COPY.ar.finalExam.level.states).sort()).toEqual(['awaiting_fee', 'fee_unusable', 'held', 'issued', 'not_due', 'queued'])
+    // The API's states (RplLevelCertificateIssuer::staffState), by their API names; revoked: review of the fixes, 17 Oct 2026.
+    expect(Object.keys(AFTER_QUIZ_COPY.en.finalExam.level.states).sort()).toEqual(['awaiting_fee', 'fee_unusable', 'held', 'issued', 'not_due', 'queued', 'revoked'])
+    expect(Object.keys(AFTER_QUIZ_COPY.ar.finalExam.level.states).sort()).toEqual(['awaiting_fee', 'fee_unusable', 'held', 'issued', 'not_due', 'queued', 'revoked'])
+    expect(levelCertificateStateLabel('revoked', 'en')).toBe('Revoked')
+    expect(levelCertificateStateLabel('revoked', 'ar')).toBe('مُلغاة')
     expect(experienceStateLabel('awaiting_issue', 'ar')).toBe('بانتظار الإصدار')
     expect(finalExamStateLabel('retake_due', 'en')).toBe('Retake fee due')
     expect(levelCertificateStateLabel('awaiting_fee', 'en')).toBe('Awaiting the certification fee')
@@ -106,6 +112,31 @@ describe('the copy', () => {
     expect(levelCertificateStateLabel('awaiting_fee', 'ar')).toBe('بانتظار رسوم الشهادة')
     // An unknown code is shown in words rather than hidden.
     expect(chargeStatusLabel('something_new', 'en')).toBe('something new')
+  })
+
+  // Review of the fixes (17 Oct 2026): an issued request whose certificate was revoked never reads "Issued".
+  it('reads an experience-certificate request by its certificate\'s own status', () => {
+    const revoked = { status: 'issued', certificate: { id: 77, number: 'ICPC-EXC-2026-000001', status: 'revoked', reissued: false, revoked_at: '2026-10-16T09:00:00Z' } }
+    expect(experienceRequestStatus(revoked)).toBe('revoked')
+    expect(experienceRequestStatusLabel(revoked, 'en')).toBe('Revoked after issue')
+    expect(experienceRequestStatusLabel(revoked, 'ar')).toBe('أُلغيت بعد صدورها')
+    expect(experienceRequestStatusVariant(revoked)).toBe('danger')
+    const active = { status: 'issued', certificate: { id: 78, status: 'active', reissued: true } }
+    expect(experienceRequestStatus(active)).toBe('issued')
+    expect(experienceRequestStatusVariant(active)).toBe('success')
+    expect(experienceRequestStatus({ status: 'requested', certificate: null })).toBe('requested')
+    expect(experienceRequestStatusVariant({ status: 'cancelled' })).toBe('neutral')
+    expect(experienceRequestStatus(null)).toBe('')
+    expect(experienceRequestStatusLabel({ status: 'requested' }, 'ar')).toBe('مطلوبة')
+  })
+
+  it('words a certificate as it stands now: issued, a reissue, or revoked with when', () => {
+    const at = (value) => `<${value}>`
+    const level = AFTER_QUIZ_COPY.en.finalExam.level
+    expect(certificateLine({ number: 'N-1', issued_at: 'i' }, level, at)).toBe('Certificate N-1, issued on <i>')
+    expect(certificateLine({ number: 'N-2', issued_at: 'i', status: 'active', reissued: true }, level, at)).toBe('Certificate N-2 (a reissue), issued on <i>')
+    expect(certificateLine({ number: 'N-3', issued_at: 'i', status: 'revoked', reissued: true, revoked_at: 'r' }, level, at)).toBe('Certificate N-3, issued on <i>, revoked on <r>')
+    expect(certificateLine({ number: 'N-3', issued_at: 'i', status: 'revoked', revoked_at: 'r' }, AFTER_QUIZ_COPY.ar.finalExam.level, at)).toBe('الشهادة N-3، صدرت في <i> وأُلغيت في <r>')
   })
 
   it('carries the spec\'s fixed sentences word for word', () => {

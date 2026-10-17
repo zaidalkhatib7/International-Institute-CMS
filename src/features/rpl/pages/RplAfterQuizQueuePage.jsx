@@ -18,6 +18,9 @@ import {
   chargeRouteLabel,
   chargeStatusLabel,
   chargeTitle,
+  experienceRequestStatus,
+  experienceRequestStatusLabel,
+  experienceRequestStatusVariant,
   programTitle,
 } from '../domain/afterQuiz'
 import { fetchRplAfterQuizAttention, fetchRplChargeQueue, fetchRplExperienceCertificateQueue } from '../services/rplService'
@@ -98,7 +101,8 @@ export default function RplAfterQuizQueuePage({ mode = 'payments' }) {
   const certificateColumns = [
     { key: 'case', label: queue.case, render: (row) => <div><CaseLink application={row.application} />{row.application?.status ? <div className="mt-1"><RplStatusBadge status={row.application.status} language={screenLanguage} /></div> : null}</div> },
     { key: 'client', label: queue.client, render: (row) => row.client?.name || '—' },
-    { key: 'status', label: queue.status, render: (row) => copy.experience.statuses[row.status] || row.status || '—' },
+    // A revoked certificate stays an "issued" request: the certificate's own status decides, so it never lists as Issued (review of the fixes, 17 Oct 2026).
+    { key: 'status', label: queue.status, render: (row) => (experienceRequestStatus(row) ? <Badge variant={experienceRequestStatusVariant(row)}>{experienceRequestStatusLabel(row, screenLanguage)}</Badge> : '—') },
     { key: 'choice', label: queue.choice, render: (row) => copy.experience.choices[row.client_choice] || row.client_choice || '—' },
     { key: 'quiz', label: queue.entryQuiz, render: (row) => (row.entry_quiz ? fill(copy.experience.entryQuiz, { percent: formatQuizPercent(row.entry_quiz.percent) ?? '—', mark: row.entry_quiz.pass_mark_applied ?? '—' }) : '—') },
     { key: 'charge', label: queue.charge, render: (row) => (row.charge ? <bdi>{`${chargePriceLine(row.charge, screenLanguage)} · ${chargeStatusLabel(row.charge.status, screenLanguage)}`}</bdi> : '—') },

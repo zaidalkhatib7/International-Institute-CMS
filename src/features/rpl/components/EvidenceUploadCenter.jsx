@@ -286,7 +286,7 @@ function SavedEvidenceCard({ evidence, language, text, categories, canReview, on
   )
 }
 
-export default function EvidenceUploadCenter({ applicationId, evidence: sourceEvidence, categories: sourceCategories, completeness: sourceCompleteness = null, declarationAccepted = false, language = 'en', canReview = true, onEvidenceChange, onCompletenessChange, onDeclarationChange, onRefreshRequested }) {
+export default function EvidenceUploadCenter({ applicationId, evidence: sourceEvidence, categories: sourceCategories, referenceCategories = [], completeness: sourceCompleteness = null, declarationAccepted = false, language = 'en', canReview = true, onEvidenceChange, onCompletenessChange, onDeclarationChange, onRefreshRequested }) {
   const text = copyByLanguage[language] || copyByLanguage.en
   const isArabic = language === 'ar'
   const inputRef = useRef(null)
@@ -442,7 +442,7 @@ export default function EvidenceUploadCenter({ applicationId, evidence: sourceEv
           <h2 id="evidence-upload-title" className="text-2xl font-bold text-[var(--color-text)]">{text.title}</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{text.subtitle}</p>
         </div>
-        <CompletenessMeter value={completeness} categories={uploadCategories} language={language} />
+        <CompletenessMeter value={completeness} categories={uploadCategories} referenceCategories={referenceCategories} language={language} />
       </div>
 
       {notice.text ? <div role="alert" className={`rounded-2xl border px-4 py-3 text-sm ${notice.type === 'success' ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>{notice.text}</div> : null}

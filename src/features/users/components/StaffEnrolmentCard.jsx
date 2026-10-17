@@ -5,6 +5,7 @@ import Money from '../../../components/Money'
 import { readApiError } from '../../../services/apiResponse'
 import { amountMinorOf, formatMoneyInline, isMoney } from '../../../utils/money'
 import { localize } from '../../rpl/domain/rpl'
+import { enrolmentRefusal } from '../domain/enrolment'
 import { fillWallet, walletBalances, walletCopy, walletRefusal } from '../domain/wallet'
 import { enrollUserByStaff } from '../services/usersService'
 
@@ -20,6 +21,9 @@ import { enrollUserByStaff } from '../services/usersService'
  * and click answers 409 price_changed, charges nothing, and the price is read
  * again with the choice kept. A free programme is enrolled with the programme
  * alone. A governance hold refuses here with its staff detail (errors.governance_hold).
+ * A course the RPL purchase gate refuses says why, per reason_code (enrolmentRefusal):
+ * outside the plan, already held, the plan not in force, or the request completed
+ * with the Experience Confirmation Certificate (review of the fixes, 17 Oct 2026).
  */
 export default function StaffEnrolmentCard({ userId, user, programs, copy, language, typeLabel, onEnrolled, onReload }) {
   const text = walletCopy(language)
@@ -65,7 +69,7 @@ export default function StaffEnrolmentCard({ userId, user, programs, copy, langu
         setNotice(fillWallet(text.priceChanged, { amount: formatMoneyInline(data.current_amount, language) }))
         onReload?.()
       } else {
-        setNotice(walletRefusal(error, language) || readApiError(error, copy.enrollFailed, language))
+        setNotice(walletRefusal(error, language) || enrolmentRefusal(error, language) || readApiError(error, copy.enrollFailed, language))
       }
     } finally {
       setBusy(false)

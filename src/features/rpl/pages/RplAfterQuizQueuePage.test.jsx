@@ -105,6 +105,27 @@ describe('the experience certificates queue (S7)', () => {
     fireEvent.change(screen.getByLabelText(Q.status), { target: { value: 'issued' } })
     await waitFor(() => expect(mocks.fetchRplExperienceCertificateQueue).toHaveBeenLastCalledWith({ status: 'issued' }))
   })
+
+  // Review of the fixes (17 Oct 2026): a revoked certificate stays an "issued" request; the certificate's own status decides.
+  it.each([
+    ['en', 'Revoked after issue', 'Issued'],
+    ['ar', 'أُلغيت بعد صدورها', 'صدرت'],
+  ])('lists a revoked certificate as revoked, never as issued (%s)', async (screenLanguage, revokedLabel, issuedLabel) => {
+    language.current = screenLanguage
+    mocks.fetchRplExperienceCertificateQueue.mockResolvedValue({
+      data: [
+        { public_id: 'cert-2', status: 'issued', client_choice: 'stop', application: { public_id: 'case-47', case_reference: 'RPL-2026-RVK' }, client: { id: 11, name: 'Lina Haddad' }, entry_quiz: null, charge: null, certificate: { id: 77, number: 'ICPC-EXC-2026-000001', issued_at: '2026-10-15T10:05:00Z', status: 'revoked', reissued: false, revoked_at: '2026-10-16T09:00:00Z' }, created_at: '2026-10-15T08:00:00Z' },
+        { public_id: 'cert-3', status: 'issued', client_choice: 'continue', application: { public_id: 'case-48', case_reference: 'RPL-2026-ISS' }, client: { id: 12, name: 'Sami Khoury' }, entry_quiz: null, charge: null, certificate: { id: 78, number: 'ICPC-EXC-2026-000002', issued_at: '2026-10-15T11:05:00Z', status: 'active', reissued: false, revoked_at: null }, created_at: '2026-10-15T09:00:00Z' },
+      ],
+    })
+    renderPage('experience_certificates')
+
+    const revokedRow = (await screen.findByRole('link', { name: 'RPL-2026-RVK' })).closest('tr')
+    expect(within(revokedRow).getByText(revokedLabel)).toBeInTheDocument()
+    expect(within(revokedRow).queryByText(issuedLabel)).not.toBeInTheDocument()
+    const issuedRow = screen.getByRole('link', { name: 'RPL-2026-ISS' }).closest('tr')
+    expect(within(issuedRow).getByText(issuedLabel)).toBeInTheDocument()
+  })
 })
 
 describe('the attention list (S17)', () => {

@@ -37,7 +37,7 @@ export default function RplEvidencePage() {
   const isArabic = language === 'ar'
   const copy = copyByLanguage[language] || copyByLanguage.en
   const [applicationId, setApplicationId] = useState('')
-  const [state, setState] = useState({ loading: true, error: '', applications: [], evidence: [], categories: [], completeness: null, declarationAccepted: false })
+  const [state, setState] = useState({ loading: true, error: '', applications: [], evidence: [], categories: [], referenceCategories: [], completeness: null, declarationAccepted: false })
 
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: '' }))
@@ -54,6 +54,7 @@ export default function RplEvidencePage() {
       setState({
         loading: false, error: '', applications: unwrapCollection(applicationsResponse), evidence: unwrapCollection(evidenceResponse),
         categories: selected ? getApplicationEvidenceCategories(selected, referenceCategories.length ? referenceCategories : EVIDENCE_CATEGORIES) : [],
+        referenceCategories,
         completeness: readApplicationCompleteness(selected),
         declarationAccepted: readApplicationDeclarationAccepted(selected),
       })
@@ -89,6 +90,7 @@ export default function RplEvidencePage() {
           applicationId={applicationId || null}
           evidence={state.evidence}
           categories={state.categories}
+          referenceCategories={state.referenceCategories}
           completeness={state.completeness}
           declarationAccepted={state.declarationAccepted}
           language={language}

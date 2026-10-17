@@ -74,6 +74,11 @@ const copyByLanguage = {
     generate: "توليد الأسئلة عبر Gemini",
     regenerateAll: "إعادة توليد المسودة كاملة",
     generating: "جارٍ التوليد… قد يستغرق حتى دقيقتين",
+    generationQueued:
+      "طُلب التوليد وينتظر أن يبدأه الخادم. تتحقق هذه الصفحة منه كل بضع ثوانٍ، ويتوقف اعتماد الأسئلة وتعديلها ورفضها وإرسال المجموعة حتى ينتهي.",
+    generationRunning:
+      "يولّد الخادم الأسئلة الآن، وقد يستغرق ذلك بضع دقائق. تتحقق هذه الصفحة منه كل بضع ثوانٍ، ويتوقف اعتماد الأسئلة وتعديلها ورفضها وإرسال المجموعة حتى ينتهي.",
+    generationFailed: "لم يكتمل آخر توليد، ولم يُحفظ منه شيء. يمكنك أن تبدأه من جديد.",
     recommended: "العدد الموصى به من Gemini",
     approved: "معتمدة",
     pending: "بانتظار المراجعة",
@@ -184,6 +189,11 @@ const copyByLanguage = {
     generate: "Generate questions with Gemini",
     regenerateAll: "Regenerate full draft",
     generating: "Generating… this can take up to two minutes",
+    generationQueued:
+      "The generation was asked for and is waiting for the server to start it. This page checks it every few seconds; approving, editing and removing questions and sending the set wait until it finishes.",
+    generationRunning:
+      "The server is generating the questions; this can take a few minutes. This page checks it every few seconds; approving, editing and removing questions and sending the set wait until it finishes.",
+    generationFailed: "The last generation did not finish, and nothing was saved by it. You can start it again.",
     recommended: "Gemini recommended count",
     approved: "approved",
     pending: "pending review",
@@ -297,6 +307,19 @@ const copyByLanguage = {
    per-key rescue, so a key present in en and missing in ar renders "undefined" in
    the language this CMS defaults to. */
 export const COPY = copyByLanguage;
+
+/*
+ * A QUEUED GENERATION (G4, 17 Oct 2026; review round 2). The server answers the
+ * generate and regenerate requests at once (202) and runs the model on its queue;
+ * the set carries that run under `generation` until it finishes. While it is
+ * queued or running, the generated questions it will replace are not approved,
+ * edited or removed and the set is not sent (the server refuses each with
+ * generation_in_progress): the controls wait with it, and the panel reads the set
+ * again every GENERATION_POLL_MS. `abandoned` is a run past the server's window.
+ */
+export const GENERATION_POLL_MS = 4000;
+const GENERATION_IN_FLIGHT = ["queued", "running"];
+const GENERATION_ENDED_BADLY = ["failed", "abandoned"];
 
 function apiError(error, fallback) {
   const data = error?.response?.data;
@@ -418,6 +441,19 @@ export default function DynamicAssessmentPanel({
 
   const assessment = state.assessment;
   const withdrawn = state.withdrawn || [];
+  const generation = assessment?.generation || null;
+  const generationRunning = GENERATION_IN_FLIGHT.includes(generation?.status);
+  const generationEndedBadly = GENERATION_ENDED_BADLY.includes(generation?.status);
+  // The draft's own controls: held while another action runs or a generation is in flight.
+  const draftLocked = busy !== "" || generationRunning;
+
+  useEffect(() => {
+    if (!generationRunning) return undefined;
+    const timer = window.setTimeout(() => {
+      load();
+    }, GENERATION_POLL_MS);
+    return () => window.clearTimeout(timer);
+  }, [generationRunning, assessment, load]);
   const items = (assessment?.active_items || []).filter(
     (item) => item.status !== "superseded",
   );
@@ -576,11 +612,29 @@ export default function DynamicAssessmentPanel({
               />
             ) : null}
 
+            {!isIssued && generationRunning ? (
+              <div
+                role="status"
+                className="flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-950"
+              >
+                <RefreshCw size={16} className="mt-1 shrink-0 animate-spin" />
+                <span>{generation.status === "queued" ? copy.generationQueued : copy.generationRunning}</span>
+              </div>
+            ) : null}
+            {!isIssued && generationEndedBadly ? (
+              <div
+                role="alert"
+                className="whitespace-pre-line rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950"
+              >
+                {[copy.generationFailed, ...(generation.error?.messages || [])].join("\n")}
+              </div>
+            ) : null}
+
             {!isIssued ? (
               <div className="flex flex-wrap items-center gap-3">
                 <Button
                   onClick={() => run("generate", () => generateDynamicAssessmentDraft(assessment.id))}
-                  disabled={busy !== ""}
+                  disabled={draftLocked}
                 >
                   <Sparkles size={17} />
                   {items.length ? copy.regenerateAll : copy.generate}
@@ -593,14 +647,14 @@ export default function DynamicAssessmentPanel({
                     <Button
                       variant="outline"
                       onClick={() => run("approveAll", () => approveAllDynamicAssessmentItems(assessment.id))}
-                      disabled={busy !== "" || pendingCount === 0}
+                      disabled={draftLocked || pendingCount === 0}
                     >
                       <CheckCheck size={17} />
                       {copy.approveAll} ({pendingCount})
                     </Button>
                     <Button
                       onClick={() => run("send", () => sendDynamicAssessment(assessment.id))}
-                      disabled={busy !== "" || approvedCount < 25 || approvedCount > 50 || pendingCount > 0}
+                      disabled={draftLocked || approvedCount < 25 || approvedCount > 50 || pendingCount > 0}
                     >
                       <Send size={17} />
                       {copy.send} ({approvedCount})
@@ -1051,7 +1105,7 @@ export default function DynamicAssessmentPanel({
                               setEditing({ id: null, text: "" });
                             })
                           }
-                          disabled={busy !== ""}
+                          disabled={draftLocked}
                         >
                           {copy.save}
                         </Button>
@@ -1092,7 +1146,7 @@ export default function DynamicAssessmentPanel({
                           size="sm"
                           variant="outline"
                           onClick={() => run("approve", () => approveDynamicAssessmentItem(item.id))}
-                          disabled={busy !== "" || item.status === "rejected"}
+                          disabled={draftLocked || item.status === "rejected"}
                         >
                           <CheckCircle2 size={15} />
                           {copy.approve}
@@ -1102,7 +1156,7 @@ export default function DynamicAssessmentPanel({
                         size="sm"
                         variant="outline"
                         onClick={() => setEditing({ id: item.id, text: promptText(item.prompt, language) })}
-                        disabled={busy !== "" || item.status === "rejected"}
+                        disabled={draftLocked || item.status === "rejected"}
                       >
                         <Pencil size={15} />
                         {copy.edit}
@@ -1111,7 +1165,7 @@ export default function DynamicAssessmentPanel({
                         size="sm"
                         variant="outline"
                         onClick={() => run("regenerate", () => regenerateDynamicAssessmentItem(item.id))}
-                        disabled={busy !== "" || item.status === "rejected" || !item.is_ai_generated}
+                        disabled={draftLocked || item.status === "rejected" || !item.is_ai_generated}
                       >
                         <RefreshCw size={15} />
                         {copy.regenerate}
@@ -1121,7 +1175,7 @@ export default function DynamicAssessmentPanel({
                           size="sm"
                           variant="outline"
                           onClick={() => run("reject", () => rejectDynamicAssessmentItem(item.id))}
-                          disabled={busy !== ""}
+                          disabled={draftLocked}
                         >
                           <Trash2 size={15} />
                           {copy.reject}

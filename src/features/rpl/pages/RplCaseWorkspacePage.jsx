@@ -216,7 +216,7 @@ export default function RplCaseWorkspacePage() {
   }[language] || copyByLanguage.en
   // `loaded` tells "not read yet" from "read, and empty" (UI-07): until the first answer, no card says no screening has run.
   const [screening, setScreening] = useState({ loading: false, loaded: false, error: '', forbidden: false, items: [] })
-  const [state, setState] = useState({ loading: true, error: '', auxiliaryWarning: false, application: null, evidence: [], categories: EVIDENCE_CATEGORIES, timeline: [], assessments: [], assignments: [], assessors: [], levels: [], committees: [], committeeActions: [], outcomes: [], competencyNames: {}, declineCategories: readDeclineCategories(null) })
+  const [state, setState] = useState({ loading: true, error: '', auxiliaryWarning: false, application: null, evidence: [], categories: EVIDENCE_CATEGORIES, referenceCategories: [], timeline: [], assessments: [], assignments: [], assessors: [], levels: [], committees: [], committeeActions: [], outcomes: [], competencyNames: {}, declineCategories: readDeclineCategories(null) })
   // The course plan tab (P5): needs rpl.applications.view, and a 403 from the server removes it.
   const [coursePlanForbidden, setCoursePlanForbidden] = useState(false)
   // The final exam tab (P6): the same rule, and a 403 from the server removes it.
@@ -280,6 +280,9 @@ export default function RplCaseWorkspacePage() {
       application,
       evidence: unwrapCollection(valueOf(results[1], [])),
       categories,
+      // Every category the reference data holds (inactive ones too): the meter names
+      // a frozen requirement the standard no longer lists from it (review round 2).
+      referenceCategories,
       levels: unwrapCollection(reference.pathways || []).flatMap((pathway) => pathway.levels || []),
       // The RPL competencies by code, so a plan course names the competency it closes rather than its code (UI-09).
       competencyNames: Object.fromEntries(unwrapCollection(reference.pathways || []).flatMap((pathway) => pathway.standards || []).flatMap((standard) => standard.competencies || []).filter((competency) => competency?.code).map((competency) => [competency.code, competency.name])),
@@ -617,7 +620,7 @@ export default function RplCaseWorkspacePage() {
           <Card><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.requests}</CardTitle></CardHeader><CardContent className="space-y-5 pt-6"><div className="grid gap-4 sm:grid-cols-2"><Input label={copy.subject} value={informationRequest.subject} onChange={(event) => setInformationRequest((current) => ({ ...current, subject: event.target.value }))} /><Input type="datetime-local" label={copy.dueAt} value={informationRequest.due_at} onChange={(event) => setInformationRequest((current) => ({ ...current, due_at: event.target.value }))} /><Textarea className="sm:col-span-2" rows={3} label={copy.message} value={informationRequest.message} onChange={(event) => setInformationRequest((current) => ({ ...current, message: event.target.value }))} /></div><div className="flex justify-end"><Button onClick={sendInformationRequest} disabled={action.busy || !informationRequest.subject.trim() || !informationRequest.message.trim()}>{copy.createRequest}</Button></div><div className="space-y-3">{application.information_requests?.length ? application.information_requests.map((item) => <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-[var(--color-border)] p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold">{item.subject}</p><p className="mt-1 text-sm text-[var(--color-text-muted)]">{item.message}</p></div><div className="flex items-center gap-2"><Badge variant={item.status === 'closed' ? 'neutral' : 'warning'}>{item.status}</Badge>{item.status !== 'closed' ? <Button size="sm" variant="outline" onClick={() => closeInformationRequest(item.id)}>{copy.closeRequest}</Button> : null}</div></div>) : <p className="text-sm text-[var(--color-text-muted)]">{copy.noRequests}</p>}</div></CardContent></Card>
         </div>
         <div className="space-y-6">
-          <CompletenessMeter value={readApplicationCompleteness(application)} categories={state.categories} language={language} />
+          <CompletenessMeter value={readApplicationCompleteness(application)} categories={state.categories} referenceCategories={state.referenceCategories} language={language} />
           {/* The only control anywhere that can set payment_status='paid'.
               Credential issuance is gated on it, and before this panel there
               was no way to release an approved applicant once a fee existed. */}
@@ -758,7 +761,7 @@ export default function RplCaseWorkspacePage() {
           </div>
 
           {activeTab === 'overview' ? renderOverview() : null}
-          {activeTab === 'evidence' ? <EvidenceUploadCenter applicationId={applicationId} evidence={state.evidence} categories={state.categories} completeness={readApplicationCompleteness(application)} declarationAccepted={declarationAccepted} language={language} canReview onEvidenceChange={(next) => setState((current) => ({ ...current, evidence: next }))} onCompletenessChange={(next) => setState((current) => ({ ...current, application: { ...current.application, completeness: next, completeness_percentage: next?.percentage } }))} onDeclarationChange={(accepted) => setState((current) => ({ ...current, application: { ...current.application, completeness: { ...(current.application?.completeness || {}), declaration: { ...(current.application?.completeness?.declaration || {}), accepted } } } }))} onRefreshRequested={load} /> : null}
+          {activeTab === 'evidence' ? <EvidenceUploadCenter applicationId={applicationId} evidence={state.evidence} categories={state.categories} referenceCategories={state.referenceCategories} completeness={readApplicationCompleteness(application)} declarationAccepted={declarationAccepted} language={language} canReview onEvidenceChange={(next) => setState((current) => ({ ...current, evidence: next }))} onCompletenessChange={(next) => setState((current) => ({ ...current, application: { ...current.application, completeness: next, completeness_percentage: next?.percentage } }))} onDeclarationChange={(accepted) => setState((current) => ({ ...current, application: { ...current.application, completeness: { ...(current.application?.completeness || {}), declaration: { ...(current.application?.completeness?.declaration || {}), accepted } } } }))} onRefreshRequested={load} /> : null}
           {activeTab === 'screening' ? <DocumentScreeningPanel applicationId={applicationId} screenings={screening.items} loading={screening.loading} error={screening.error} canRun={canRunScreening} categories={state.categories} language={screenLanguage} onReload={loadScreenings} onScreeningAdded={(created) => setScreening((current) => ({ ...current, items: [created, ...current.items.filter((item) => item.public_id !== created.public_id)] }))} onScreeningUpdated={(updated) => setScreening((current) => ({ ...current, items: current.items.map((item) => (item.public_id === updated.public_id ? updated : item)) }))} /> : null}
           {activeTab === 'decision' ? renderDecision() : null}
           {activeTab === 'assessment' ? renderAssessment() : null}

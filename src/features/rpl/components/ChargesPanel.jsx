@@ -117,8 +117,11 @@ export default function ChargesPanel({ applicationId, language, canReconcile = f
       } else if (rateMissing(error)) {
         setNotice({ error: copy.common.noRate, success: '' })
       } else if (rateUnchanged(error)) {
-        // J07-G2: the rate did not change, so the request is not out of date; the reload drops the category.
+        // J07-G2: the rate did not change, so the request is not out of date. The reload drops the
+        // option; the refused category is cleared too, so the submit button waits for another one
+        // (review of the fixes, 17 Oct 2026). The reason staff typed is kept.
         setNotice({ error: text.rateUnchanged, success: '' })
+        setCancelForm((current) => (current ? { ...current, category: '' } : current))
         load({ silent: true })
       } else {
         setNotice({ error: readApiError(error, copy.common.failed, language), success: '' })

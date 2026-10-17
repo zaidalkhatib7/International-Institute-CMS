@@ -196,6 +196,39 @@ describe('what the panel says', () => {
     expect(await screen.findByText(EN.states.revoked)).toBeInTheDocument()
     expect(screen.getByText(EN.revokedNote)).toBeInTheDocument()
     expect(screen.getByText(/^Certificate ICPC-EXC-2026-000001, issued on .+, revoked on /)).toBeInTheDocument()
+    // The request row too (review of the fixes, 17 Oct 2026): the request stays "issued", the certificate decides.
+    expect(screen.getByText(EN.statuses.revoked)).toBeInTheDocument()
+    expect(screen.queryByText(EN.statuses.issued)).not.toBeInTheDocument()
+    expect(screen.queryByText(EN.states.issued)).not.toBeInTheDocument()
+  })
+
+  it('never shows a revoked certificate as issued, even when the state still says issued', async () => {
+    mocks.fetchRplExperienceCertificate.mockResolvedValue({
+      data: overview({
+        state: 'issued',
+        current: certificate({ status: 'issued', certificate: { id: 77, number: 'ICPC-EXC-2026-000001', issued_at: '2026-10-15T10:05:00Z', status: 'revoked', reissued: false, revoked_at: '2026-10-16T09:00:00Z' }, can: { approve: false, refuse: false } }),
+      }),
+    })
+    renderPanel()
+
+    expect(await screen.findByText(EN.states.revoked)).toBeInTheDocument()
+    expect(screen.getByText(EN.revokedNote)).toBeInTheDocument()
+    expect(screen.getByText(EN.statuses.revoked)).toBeInTheDocument()
+    expect(screen.queryByText(EN.states.issued)).not.toBeInTheDocument()
+  })
+
+  it('shows a revoked certificate in an earlier request as revoked too, in Arabic', async () => {
+    mocks.fetchRplExperienceCertificate.mockResolvedValue({
+      data: overview({
+        history: [certificate({ public_id: 'cert-0', status: 'issued', certificate: { id: 70, number: 'ICPC-EXC-2026-000000', issued_at: '2026-10-10T10:05:00Z', status: 'revoked', reissued: false, revoked_at: '2026-10-11T09:00:00Z' }, can: { approve: false, refuse: false } })],
+      }),
+    })
+    renderPanel({ language: 'ar' })
+
+    fireEvent.click(await screen.findByText(new RegExp(AR.history)))
+    expect(screen.getByText(AR.statuses.revoked)).toBeInTheDocument()
+    expect(screen.queryByText(AR.statuses.issued)).not.toBeInTheDocument()
+    expect(screen.getByText(/^الشهادة ICPC-EXC-2026-000000، صدرت في .+ وأُلغيت في /)).toBeInTheDocument()
   })
 
   it('shows the replacement after a reissue as a reissue, issued', async () => {

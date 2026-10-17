@@ -10,6 +10,7 @@ import { coursePlanCopy, itemHolds } from '../domain/coursePlan'
 import {
   AFTER_QUIZ_LIMITS,
   afterQuizCopy,
+  certificateLine,
   chargePriceLine,
   chargeStatusLabel,
   finalExamStateLabel,
@@ -44,7 +45,8 @@ import { fetchRplFinalExam, reopenRplFinalExamTry, voidRplFinalExamTry } from '.
 const STATE_VARIANT = { not_yet: 'neutral', available: 'info', in_progress: 'warning', waiting: 'warning', retake_due: 'warning', blocked: 'danger', passed: 'success', closed: 'neutral' }
 const ROUND_VARIANT = { open: 'info', exhausted: 'warning', passed: 'success', closed: 'neutral' }
 const RESULT_VARIANT = { passed: 'success', failed: 'danger', referred: 'warning' }
-const LEVEL_VARIANT = { not_due: 'neutral', queued: 'info', fee_unusable: 'danger', held: 'warning', awaiting_fee: 'warning', issued: 'success' }
+// revoked (review of the fixes, 17 Oct 2026): the certificate standing now was revoked in the registry; S14 checks it before issued.
+const LEVEL_VARIANT = { not_due: 'neutral', queued: 'info', fee_unusable: 'danger', held: 'warning', awaiting_fee: 'warning', issued: 'success', revoked: 'danger' }
 
 function Line({ children }) {
   return <p className="text-xs leading-5 text-[var(--color-text-muted)]">{children}</p>
@@ -282,12 +284,16 @@ export default function FinalExamPanel({ applicationId, language, canManage = fa
     if (!level || typeof level !== 'object') return null
     const holds = Array.isArray(level.holds) ? level.holds : []
     const at = (value) => formatLocalizedDateTime(value, language)
+    // A revoked certificate never reads as issued, even from a payload that still says issued.
+    const levelState = level.certificate?.status === 'revoked' ? 'revoked' : level.state
+    const revoked = levelState === 'revoked'
     return (
       <section aria-label={text.level.title} className="space-y-2 rounded-2xl border border-[var(--color-border)] p-4 text-sm">
         <div className="flex flex-wrap items-center gap-2">
           <h4 className="flex items-center gap-2 font-bold"><Award size={16} aria-hidden="true" />{text.level.title}</h4>
-          <Badge variant={LEVEL_VARIANT[level.state] || 'neutral'}>{levelCertificateStateLabel(level.state, language)}</Badge>
+          <Badge variant={LEVEL_VARIANT[levelState] || 'neutral'}>{levelCertificateStateLabel(levelState, language)}</Badge>
         </div>
+        {revoked ? <p role="status" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 leading-6">{text.level.revokedNote}</p> : null}
         {level.state === 'held' ? <p className="leading-6 text-amber-900">{text.level.held}</p> : null}
         {holds.length ? <ul className="space-y-1">{holds.map((hold) => <li key={hold.hold_id}><Line><bdi>{fill(text.level.hold, { id: hold.hold_id, program: hold.program_code || '—', version: hold.package_version || '—' })}</bdi></Line></li>)}</ul> : null}
         {level.state === 'fee_unusable' ? <p className="leading-6 text-red-800">{text.level.feeUnusable}</p> : null}
@@ -296,8 +302,9 @@ export default function FinalExamPanel({ applicationId, language, canManage = fa
         {level.charge ? <Line><bdi>{fill(text.level.charge, { amount: chargePriceLine(level.charge, language), status: chargeStatusLabel(level.charge.status, language) })}</bdi></Line> : null}
         {level.outbox ? <Line>{fill(text.level.outbox, { status: level.outbox.status ? issuanceJobStatusLabel(level.outbox.status, language) : '—', attempts: level.outbox.attempts ?? 0 })}</Line> : null}
         {level.outbox?.last_error ? <Line><span dir="auto">{fill(text.level.lastError, { error: level.outbox.last_error })}</span></Line> : null}
-        {level.outbox?.available_at && level.state !== 'issued' ? <Line>{fill(text.level.availableAt, { at: at(level.outbox.available_at) })}</Line> : null}
-        {level.certificate ? <p className="font-semibold"><bdi>{fill(text.level.certificate, { number: level.certificate.number, at: at(level.certificate.issued_at) })}</bdi></p> : null}
+        {level.outbox?.available_at && levelState !== 'issued' && !revoked ? <Line>{fill(text.level.availableAt, { at: at(level.outbox.available_at) })}</Line> : null}
+        {/* The certificate as it stands now: a reissue says so, and a revoked one says when, in red, never as issued. */}
+        {level.certificate ? <p className={`font-semibold${revoked ? ' text-[var(--color-danger)]' : ''}`}><bdi>{certificateLine(level.certificate, text.level, at)}</bdi></p> : null}
       </section>
     )
   }

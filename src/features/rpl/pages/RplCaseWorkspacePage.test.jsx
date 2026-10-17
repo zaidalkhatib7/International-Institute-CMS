@@ -679,3 +679,36 @@ describe('the decision on the overview', () => {
     expect(await screen.findByText('Authenticity risk 70% (7/10)')).toBeInTheDocument()
   })
 })
+
+describe('the completeness meter names what the case counts', () => {
+  // Review round 2 (17 Oct 2026): a case froze the CV beside the letter; staff then
+  // untick the CV on the standard and deactivate it. The meter still counts it and
+  // names it from the full reference list, in Arabic, on the overview and on the Evidence tab.
+  const frozen = {
+    percentage: 75,
+    categories: [{ category_id: 1, code: 'identity', required: 1, provided: 1, complete: true }],
+    evidence_groups: [{ code: 'experience_document', complete: false, any_of: [
+      { category_id: 2, code: 'curriculum_vitae', required: 1, provided: 0, complete: false },
+      { category_id: 3, code: 'professional_experience', required: 1, provided: 0, complete: false },
+    ] }],
+    declaration: { accepted: true },
+  }
+
+  it.each([['/rpl/applications/41'], ['/rpl/applications/41?tab=evidence']])('%s', async (entry) => {
+    language.current = 'ar'
+    mocks.fetchRplApplication.mockResolvedValue({ data: application({
+      status: 'administrative_review', finalised_at: null, decline_reason_code: null, reapply_available_at: null,
+      completeness: frozen,
+      standard: { id: 9, evidence_categories: [{ id: 1, code: 'identity' }, { id: 3, code: 'professional_experience' }] },
+    }) })
+    mocks.fetchRplReferenceData.mockResolvedValue({ data: { evidence_categories: [
+      { id: 1, code: 'identity', name: { en: 'Personal identity', ar: 'الهوية الشخصية' }, is_active: true },
+      { id: 2, code: 'curriculum_vitae', name: { en: 'Curriculum vitae', ar: 'السيرة الذاتية' }, is_active: false },
+      { id: 3, code: 'professional_experience', name: { en: 'Professional experience', ar: 'الخبرة المهنية' }, is_active: true },
+    ] } })
+    renderCase(entry)
+
+    expect((await screen.findAllByText('السيرة الذاتية أو الخبرة المهنية')).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Curriculum Vitae/)).not.toBeInTheDocument()
+  })
+})

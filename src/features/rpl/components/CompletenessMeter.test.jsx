@@ -91,6 +91,72 @@ describe('CompletenessMeter', () => {
     ])
   })
 
+  it('says how many files the either-one item still needs when staff raised a member minimum (review round 2)', () => {
+    const categories = [
+      { id: 2, code: 'curriculum_vitae', labels: { en: 'Curriculum vitae', ar: 'السيرة الذاتية' } },
+      { id: 3, code: 'professional_experience', labels: { en: 'Professional experience', ar: 'الخبرة المهنية' } },
+    ]
+    const valueWith = (cv, letter) => ({
+      percentage: 75,
+      categories: [],
+      evidence_groups: [{ code: 'experience_document', complete: false, any_of: [
+        { category_id: 2, code: 'curriculum_vitae', required: 2, provided: cv, complete: false },
+        { category_id: 3, code: 'professional_experience', required: 2, provided: letter, complete: false },
+      ] }],
+      declaration: { accepted: true },
+    })
+    const action = (language, cv, letter) => {
+      const view = render(<CompletenessMeter language={language} categories={categories} value={valueWith(cv, letter)} />)
+      const rows = screen.getAllByRole('listitem').map((item) => item.textContent)
+      view.unmount()
+      return rows
+    }
+
+    // One CV of two, no letter: the CV needs one more, the letter two. Before, both read "Add one file to either".
+    expect(action('en', 1, 0)).toEqual(['Curriculum vitae or Professional experienceCurriculum vitae: add 1 more file(s) or Professional experience: add 2 more file(s)'])
+    expect(action('ar', 1, 0)).toEqual(['السيرة الذاتية أو الخبرة المهنيةالسيرة الذاتية: أضف ١ ملف(اً) أخر أو الخبرة المهنية: أضف ٢ ملف(اً) أخر'])
+    // Nothing yet: two files to either.
+    expect(action('en', 0, 0)).toEqual(['Curriculum vitae or Professional experienceAdd 2 more file(s) to either'])
+    expect(action('ar', 0, 0)).toEqual(['السيرة الذاتية أو الخبرة المهنيةأضف ٢ ملف(اً) أخر إلى أيٍّ منهما'])
+    // One of each: one more file to either completes it.
+    expect(action('en', 1, 1)).toEqual(['Curriculum vitae or Professional experienceAdd one file to either'])
+
+    // The next-step box says the same.
+    render(<CompletenessMeter language="en" categories={categories} value={valueWith(0, 0)} />)
+    expect(screen.getAllByText('Add 2 more file(s) to either')).toHaveLength(2)
+  })
+
+  it('names a category the case still counts but its standard no longer lists from the reference list, never by its English code on an Arabic screen', () => {
+    // The live standard lists only the letter now; the case froze the CV with it, and a single frozen category the standard dropped.
+    const live = [{ id: 3, code: 'professional_experience', labels: { en: 'Professional experience', ar: 'الخبرة المهنية' } }]
+    const reference = [
+      { id: 2, code: 'curriculum_vitae', name: { en: 'Curriculum vitae', ar: 'السيرة الذاتية' }, is_active: false },
+      { id: 3, code: 'professional_experience', name: { en: 'Professional experience', ar: 'الخبرة المهنية' } },
+      { id: 4, code: 'recommendation', name: { en: 'Recommendation letter', ar: 'خطاب توصية' } },
+    ]
+    const value = {
+      percentage: 50,
+      categories: [{ category_id: 4, code: 'recommendation', required: 1, provided: 0, complete: false }],
+      evidence_groups: [{ code: 'experience_document', complete: false, any_of: [
+        { category_id: 2, code: 'curriculum_vitae', required: 1, provided: 0, complete: false },
+        { category_id: 3, code: 'professional_experience', required: 1, provided: 0, complete: false },
+      ] }],
+      declaration: { accepted: true },
+    }
+
+    const arabic = render(<CompletenessMeter language="ar" categories={live} referenceCategories={reference} value={value} />)
+    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'خطاب توصيةأضف ١ ملف(اً) أخر', 'السيرة الذاتية أو الخبرة المهنيةأضف ملفاً واحداً إلى أيٍّ منهما',
+    ])
+    expect(screen.queryByText(/Curriculum/)).not.toBeInTheDocument()
+    arabic.unmount()
+
+    // Without the reference list the code is all there is, readable.
+    render(<CompletenessMeter language="ar" categories={live} value={value} />)
+    expect(screen.getByText('Curriculum Vitae أو الخبرة المهنية')).toBeInTheDocument()
+    expect(screen.getAllByText('Recommendation')).toHaveLength(2)
+  })
+
   it('shows no work-experience row when the item is met or not part of the case', () => {
     // A case submitted before the release has no work-experience item: required 0, complete.
     render(<CompletenessMeter language="en" value={{ percentage: 100, categories: [], work_experience: { required: 0, provided: 0, complete: true }, declaration: { accepted: true } }} />)

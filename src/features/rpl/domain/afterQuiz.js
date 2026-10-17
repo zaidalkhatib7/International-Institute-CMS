@@ -1,4 +1,5 @@
 import { localize } from './rpl'
+import { fill } from './documentScreening'
 import {
   MAX_PRICE_USD_MINOR,
   MIN_PRICE_USD_MINOR,
@@ -247,6 +248,8 @@ export const AFTER_QUIZ_COPY = {
         issued: 'صدرت',
         refused: 'مرفوضة',
         cancelled: 'ملغاة',
+        // A request stays "issued" when its certificate is revoked: the certificate's own status says so (experienceRequestStatus).
+        revoked: 'أُلغيت بعد صدورها',
       },
       choice: 'اختيار العميل',
       choices: {
@@ -383,6 +386,7 @@ export const AFTER_QUIZ_COPY = {
           held: 'موقوفة بقرار حوكمة',
           awaiting_fee: 'بانتظار رسوم الشهادة',
           issued: 'صدرت',
+          revoked: 'مُلغاة',
         },
         // The issuance job's status (integration_outbox), in words (platform walk, 17 Oct 2026, UI-09).
         outboxStates: {
@@ -401,6 +405,9 @@ export const AFTER_QUIZ_COPY = {
         lastError: 'آخر خطأ: {error}',
         availableAt: 'المحاولة التالية في {at}',
         certificate: 'الشهادة {number}، صدرت في {at}',
+        certificateRevoked: 'الشهادة {number}، صدرت في {at} وأُلغيت في {revokedAt}',
+        certificateReissued: 'الشهادة {number} (إعادة إصدار)، صدرت في {at}',
+        revokedNote: 'أُلغيت شهادة المستوى الصادرة لهذا الطلب، ويراها العميل مُلغاة. لإصدار بديل استخدم "إعادة إصدار" في سجل الشهادات.',
         charge: 'رسوم الشهادة: {amount} · {status}',
       },
       noTransitions: 'لا توجد حالة أخرى يمكن تعيينها من هنا. يعرض تبويب الاختبار النهائي المحاولات، وتُصدر المحاولة الناجحة شهادة المستوى تلقائيًا.',
@@ -647,6 +654,7 @@ export const AFTER_QUIZ_COPY = {
         issued: 'Issued',
         refused: 'Refused',
         cancelled: 'Cancelled',
+        revoked: 'Revoked after issue',
       },
       choice: 'The client\'s choice',
       choices: {
@@ -783,6 +791,7 @@ export const AFTER_QUIZ_COPY = {
           held: 'On governance hold',
           awaiting_fee: 'Awaiting the certification fee',
           issued: 'Issued',
+          revoked: 'Revoked',
         },
         outboxStates: {
           pending: 'waiting',
@@ -800,6 +809,9 @@ export const AFTER_QUIZ_COPY = {
         lastError: 'Last error: {error}',
         availableAt: 'Next attempt at {at}',
         certificate: 'Certificate {number}, issued on {at}',
+        certificateRevoked: 'Certificate {number}, issued on {at}, revoked on {revokedAt}',
+        certificateReissued: 'Certificate {number} (a reissue), issued on {at}',
+        revokedNote: 'The level certificate issued for this case was revoked, and the client sees it as revoked. To issue a replacement, use "Reissue" in the certificate registry.',
         charge: 'Certification fee: {amount} · {status}',
       },
       noTransitions: 'No other status can be set from here. The final exam tab shows the tries; a passed try issues the level certificate automatically.',
@@ -931,6 +943,41 @@ export function finalExamStateLabel(state, language) {
 
 export function levelCertificateStateLabel(state, language) {
   return labelFrom(afterQuizCopy(language).finalExam.level.states, state)
+}
+
+/*
+ * AN ISSUED CERTIFICATE AS IT STANDS NOW (J09-F3 and the review of the fixes,
+ * 17 Oct 2026). The API sends the certificate standing now (after a reissue, its
+ * replacement) with its registry status, whether it was reissued and when it was
+ * revoked. A revoked certificate says so with when, and never reads as issued.
+ * text is copy.experience or copy.finalExam.level: both carry certificate,
+ * certificateRevoked and certificateReissued.
+ */
+export function certificateLine(certificate, text, at) {
+  if (certificate?.status === 'revoked') return fill(text.certificateRevoked, { number: certificate.number, at: at(certificate.issued_at), revokedAt: at(certificate.revoked_at) })
+  return fill(certificate?.reissued ? text.certificateReissued : text.certificate, { number: certificate?.number, at: at(certificate?.issued_at) })
+}
+
+/*
+ * AN EXPERIENCE-CERTIFICATE REQUEST'S STATUS AS STAFF READ IT (review of the fixes,
+ * 17 Oct 2026). The request stays "issued" when the owner revokes its certificate
+ * (the registry holds the revoke), so the certificate's own status decides: an
+ * issued request whose certificate was revoked reads "revoked after issue", in red,
+ * on the case panel and in the after-quiz queue alike, never "Issued".
+ */
+export const EXPERIENCE_REQUEST_STATUS_VARIANT = Object.freeze({ requested: 'warning', approved: 'info', issued: 'success', refused: 'danger', cancelled: 'neutral', revoked: 'danger' })
+
+export function experienceRequestStatus(row) {
+  const status = row?.status ?? ''
+  return status === 'issued' && row?.certificate?.status === 'revoked' ? 'revoked' : status
+}
+
+export function experienceRequestStatusLabel(row, language) {
+  return labelFrom(afterQuizCopy(language).experience.statuses, experienceRequestStatus(row))
+}
+
+export function experienceRequestStatusVariant(row) {
+  return EXPERIENCE_REQUEST_STATUS_VARIANT[experienceRequestStatus(row)] || 'neutral'
 }
 
 /** The level certificate's issuance job status in words, never the raw outbox code (UI-09). */
