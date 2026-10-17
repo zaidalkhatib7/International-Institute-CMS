@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bot, CheckCircle2, Download, ExternalLink, KeyRound,
+import { Bot, CheckCircle2, Clock, Download, ExternalLink, KeyRound,
   ShieldOff, Loader2, RefreshCw, ShieldAlert, Sparkles, Trash2, UploadCloud } from 'lucide-react'
 import { Badge, Button, Card, CardContent, Select, Textarea } from '../../../components/ui'
 import {
@@ -198,6 +198,68 @@ const TREE_COPY = {
   en: { title: 'Generated package content — review lesson by lesson', hint: 'Open any lesson in the usual Sections & Lessons screens to review/edit; edits persist, and per-component regeneration is available below.', questions: 'questions', progressTitle: 'Live generation progress', rationale: 'Answer-rationale coverage (informational quality metric — rationale is optional and never blocks approval or publication)' },
 }
 
+/*
+ * WHY THE COUNTERS STOPPED.
+ *
+ * On 17 Oct 2026 eight packages were queued on the one ai-imports worker. Two
+ * runs failed on a transient Gemini answer, Laravel released each job behind
+ * every package queued before it, and this panel kept showing frozen counters
+ * (197 / 400) for about four hours with no reason given. The server now says
+ * whether an in-place retry is waiting, how many packages are ahead in the
+ * queue, and the last error; this copy is how the panel says it.
+ */
+const LIVE_COPY = {
+  ar: {
+    retrying: 'تعذّر الرد من Gemini مؤقتًا — إعادة المحاولة تلقائيًا',
+    attempt: '(المحاولة {n} من {m})',
+    queued: 'في قائمة الانتظار — قبلها {n} حزمة',
+    lastError: 'آخر خطأ',
+  },
+  en: {
+    retrying: 'Gemini did not answer properly — retrying automatically',
+    attempt: '(attempt {n} of {m})',
+    queued: 'Waiting in the queue — {n} package(s) ahead',
+    lastError: 'Last error',
+  },
+}
+
+// The server sends the fields in data.progress
+// (ProgramAiAuthoringController::whyProgressStopped); the top level is read as a
+// fallback only.
+function liveField(status, key) {
+  const nested = status?.progress?.[key]
+  if (nested !== undefined && nested !== null) return nested
+  return status?.[key] ?? null
+}
+
+function isCount(value) {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+/**
+ * What the live notice should say, or null when there is nothing to add.
+ * Waiting in the queue wins over the in-place retry message: a released job is
+ * also "retrying", but what the reader needs then is how long the line is.
+ */
+function liveRunNotice(status) {
+  const queue = liveField(status, 'queue')
+  const attempt = liveField(status, 'attempt')
+  const lastError = liveField(status, 'last_error')
+  // The server marks the job its worker is holding with queue.running (and sends
+  // position null, ahead 0). That job is not waiting in the queue: while it waits
+  // in place to retry, the retry message is the one that applies.
+  const queueAhead = queue && queue.running !== true && isCount(queue.ahead) ? queue.ahead : null
+  const retrying = liveField(status, 'retrying') === true
+
+  return {
+    kind: queueAhead !== null ? 'queued' : retrying ? 'retrying' : null,
+    ahead: queueAhead,
+    // The server sends attempt as {current, max, scope}.
+    attempt: attempt && isCount(attempt.current) && isCount(attempt.max) ? { n: attempt.current, max: attempt.max } : null,
+    lastError: typeof lastError === 'string' && lastError.trim() ? lastError.trim() : null,
+  }
+}
+
 function locText(value, language) {
   if (!value) return ''
   if (typeof value === 'string') return value
@@ -375,6 +437,8 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
   const governance = status?.governance
   const aiStatus = status?.ai_authoring_status || 'not_generated'
   const canGenerate = !isPublished && !isRunning && aiStatus !== 'ai_draft'
+  const liveNotice = isRunning ? liveRunNotice(status) : null
+  const liveCopy = LIVE_COPY[language] || LIVE_COPY.en
 
   return (
     <div className="space-y-6">
@@ -645,6 +709,26 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
                   {copy.questions}: {status.progress.questions_done}{status.progress.questions_total ? ` / ${status.progress.questions_total}` : ''}
                 </Badge>
               </div>
+              {liveNotice?.kind === 'queued' ? (
+                <p role="status" className="mt-3 flex items-center gap-2 text-sm text-amber-700">
+                  <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  {liveCopy.queued.replace('{n}', liveNotice.ahead)}
+                </p>
+              ) : null}
+              {liveNotice?.kind === 'retrying' ? (
+                <p role="status" className="mt-3 flex items-center gap-2 text-sm text-amber-700">
+                  <RefreshCw className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  {liveCopy.retrying}
+                  {liveNotice.attempt
+                    ? ` ${liveCopy.attempt.replace('{n}', liveNotice.attempt.n).replace('{m}', liveNotice.attempt.max)}`
+                    : ''}
+                </p>
+              ) : null}
+              {liveNotice?.lastError ? (
+                <p className="mt-2 break-words text-xs text-[var(--color-text-muted)]">
+                  {liveCopy.lastError}: {liveNotice.lastError}
+                </p>
+              ) : null}
             </div>
           ) : null}
 
