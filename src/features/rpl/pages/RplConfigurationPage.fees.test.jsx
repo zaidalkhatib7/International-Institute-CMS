@@ -3,13 +3,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import RplConfigurationPage, { COPY } from './RplConfigurationPage'
 
 /*
- * THE FEES TAB AND THE LEVEL CERTIFICATE'S FEE (owner answer O2 of 15 Oct 2026).
+ * THE FEES TAB AND THE LEVEL CERTIFICATE'S FEE (owner answer O2 of 15 Oct 2026;
+ * owner decisions of 17 Oct 2026: every fee in US dollars).
  *
- * On the final-exam path a fee above 0 is charged only as a whole number of II
- * Points, and the API refuses to convert money. So the Fees tab saves II Points
- * (POINTS) by default and as a whole number, still saves a three-letter money code
- * for the committee path, and warns that a money fee above 0 strands the level
- * certificate. A three-letter-only currency field could never save POINTS.
+ * One fee per pathway and level, in US dollars with cents, for the committee
+ * path and the final-exam path alike: no "Charged in" choice and no currency
+ * code. The body sends the amount as US cents (amount_minor) and the currency
+ * USD (contract S14). A row still in another currency (POINTS before 17 Oct, or
+ * EUR) is flagged "not in US dollars: re-enter it", and opens empty so nothing
+ * is converted.
  */
 
 const mocks = vi.hoisted(() => ({
@@ -52,6 +54,7 @@ beforeEach(() => {
   mocks.fetchRplReferenceData.mockResolvedValue(REFERENCE)
   mocks.fetchRplSettings.mockResolvedValue({ data: {} })
   mocks.createRplConfiguration.mockResolvedValue({ data: {} })
+  mocks.updateRplConfiguration.mockResolvedValue({ data: {} })
   mocks.fetchRplCertificateWordings.mockResolvedValue({ data: [] })
 })
 
@@ -64,69 +67,82 @@ async function openFeeForm(copy = C) {
 
 const saveButton = () => screen.getByRole('button', { name: C.save })
 
-describe('the Fees tab (O2)', () => {
-  it('saves a fee in II Points as POINTS by default, as a whole number', async () => {
+describe('the Fees tab (US dollars only)', () => {
+  it('saves a fee in US dollars with cents, as US cents, with no currency to choose', async () => {
     await openFeeForm()
 
-    expect(screen.getByLabelText(C.feeChargedIn)).toHaveValue('points')
-    expect(screen.queryByLabelText(C.feeCurrencyCode)).not.toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText(C.amount), { target: { value: '40.5' } })
-    expect(screen.getByText(C.feeWholePoints)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Charged in/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Currency code/i)).not.toBeInTheDocument()
+    expect(screen.getByText(C.feeCurrencyUsd)).toBeInTheDocument()
+    const amount = screen.getByLabelText(C.feeAmountUsd)
+    expect(amount).toHaveAttribute('type', 'text')
+
+    fireEvent.change(amount, { target: { value: '49.555' } })
+    expect(screen.getByText(C.feeAmountInvalid)).toBeInTheDocument()
+    expect(saveButton()).toBeDisabled()
+    fireEvent.change(amount, { target: { value: '0.50' } })
     expect(saveButton()).toBeDisabled()
 
-    fireEvent.change(screen.getByLabelText(C.amount), { target: { value: '40' } })
-    expect(screen.queryByText(C.feeWholePoints)).not.toBeInTheDocument()
+    fireEvent.change(amount, { target: { value: '49.5' } })
+    expect(screen.queryByText(C.feeAmountInvalid)).not.toBeInTheDocument()
     expect(saveButton()).toBeEnabled()
     fireEvent.click(saveButton())
 
     await waitFor(() => expect(mocks.createRplConfiguration).toHaveBeenCalledTimes(1))
-    expect(mocks.createRplConfiguration).toHaveBeenCalledWith('fee-schedules', expect.objectContaining({ rpl_pathway_id: 1, amount: 40, currency: 'POINTS' }))
+    const body = mocks.createRplConfiguration.mock.calls[0][1]
+    expect(mocks.createRplConfiguration.mock.calls[0][0]).toBe('fee-schedules')
+    expect(body).toMatchObject({ rpl_pathway_id: 1, amount_minor: 4950, currency: 'USD' })
+    expect(body).not.toHaveProperty('amount')
   })
 
-  it('still saves a three-letter money code, and warns that a money fee above 0 strands the level certificate', async () => {
+  it('saves a fee of 0 (the level certificate is then issued at once)', async () => {
     await openFeeForm()
 
-    fireEvent.change(screen.getByLabelText(C.feeChargedIn), { target: { value: 'money' } })
-    fireEvent.change(screen.getByLabelText(C.amount), { target: { value: '49.50' } })
-    expect(saveButton()).toBeDisabled()
-    fireEvent.change(screen.getByLabelText(C.feeCurrencyCode), { target: { value: 'eu' } })
-    expect(screen.getByText(C.feeCurrencyInvalid)).toBeInTheDocument()
-    expect(saveButton()).toBeDisabled()
-    fireEvent.change(screen.getByLabelText(C.feeCurrencyCode), { target: { value: 'eur' } })
-    expect(screen.getByText(C.feeMoneyWarning)).toBeInTheDocument()
-    expect(saveButton()).toBeEnabled()
-
-    // Back to II Points and to money again: POINTS, no warning; the money code is typed anew.
-    fireEvent.change(screen.getByLabelText(C.feeChargedIn), { target: { value: 'points' } })
-    expect(screen.queryByText(C.feeMoneyWarning)).not.toBeInTheDocument()
-    expect(screen.queryByLabelText(C.feeCurrencyCode)).not.toBeInTheDocument()
-    expect(screen.getByText(C.feeWholePoints)).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText(C.feeChargedIn), { target: { value: 'money' } })
-    expect(screen.getByLabelText(C.feeCurrencyCode)).toHaveValue('')
-    fireEvent.change(screen.getByLabelText(C.feeCurrencyCode), { target: { value: 'eur' } })
+    fireEvent.change(screen.getByLabelText(C.feeAmountUsd), { target: { value: '0' } })
     fireEvent.click(saveButton())
 
-    await waitFor(() => expect(mocks.createRplConfiguration).toHaveBeenCalledTimes(1))
-    expect(mocks.createRplConfiguration).toHaveBeenCalledWith('fee-schedules', expect.objectContaining({ amount: 49.5, currency: 'EUR' }))
+    await waitFor(() => expect(mocks.createRplConfiguration).toHaveBeenCalledWith('fee-schedules', expect.objectContaining({ amount_minor: 0, currency: 'USD' })))
   })
 
-  it('tells staff on the tab that a fee above 0 on the final-exam path is in II Points, in Arabic too', async () => {
+  it('lists a fee in dollars, and flags a row in another currency to be re-entered in dollars', async () => {
+    mocks.fetchRplConfiguration.mockResolvedValue({
+      data: [
+        { id: 7, rpl_pathway_id: 1, rpl_level_id: 1, amount: '100.00', currency: 'USD', money: { currency: 'USD', amount_minor: 10000, amount: '100.00' }, is_active: true },
+        { id: 8, rpl_pathway_id: 1, rpl_level_id: 1, amount: '25.00', currency: 'EUR', money: { currency: 'EUR', amount_minor: 2500, amount: '25.00', legacy: true }, usable: false, is_active: true },
+      ],
+    })
+    render(<RplConfigurationPage />)
+    fireEvent.click(await screen.findByRole('button', { name: C.fees }))
+
+    expect(await screen.findByText('$ 100.00')).toBeInTheDocument()
+    expect(screen.getByText('25.00 EUR')).toBeInTheDocument()
+    expect(screen.getByText(C.feeLegacyCurrency.replace('{currency}', 'EUR'))).toBeInTheDocument()
+    expect(screen.getAllByText(/Not in US dollars/)).toHaveLength(1)
+  })
+
+  it('opens a row in another currency empty, so nothing is converted, and saves it in dollars', async () => {
+    mocks.fetchRplConfiguration.mockResolvedValue({ data: [{ id: 8, rpl_pathway_id: 1, rpl_level_id: 1, amount: '25.00', currency: 'EUR', money: { currency: 'EUR', amount_minor: 2500, amount: '25.00', legacy: true }, usable: false, is_active: true }] })
+    render(<RplConfigurationPage />)
+    fireEvent.click(await screen.findByRole('button', { name: C.fees }))
+    fireEvent.click(await screen.findByRole('button', { name: C.edit }))
+
+    expect(screen.getByLabelText(C.feeAmountUsd)).toHaveValue('')
+    expect(screen.getByRole('note')).toHaveTextContent(C.feeLegacyCurrency.replace('{currency}', 'EUR'))
+    fireEvent.change(screen.getByLabelText(C.feeAmountUsd), { target: { value: '30' } })
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(mocks.updateRplConfiguration).toHaveBeenCalledWith('fee-schedules', 8, expect.objectContaining({ amount_minor: 3000, currency: 'USD' })))
+  })
+
+  it('tells staff the fee is in US dollars on both paths, in Arabic too, with no points left', async () => {
     render(<RplConfigurationPage />)
     fireEvent.click(await screen.findByRole('button', { name: C.fees }))
     expect(await screen.findByText(C.feesFinalExamHint)).toBeInTheDocument()
-    expect(C.feesFinalExamHint).toContain('II Points (POINTS)')
-    expect(COPY.ar.feesFinalExamHint).toContain('POINTS')
-    for (const key of ['feeChargedIn', 'feePoints', 'feeMoney', 'feeCurrencyCode', 'feeWholePoints', 'feeCurrencyInvalid', 'feeMoneyWarning']) {
-      expect(COPY.ar[key]).toBeTruthy()
-      expect(COPY.en[key]).toBeTruthy()
+    expect(C.feesFinalExamHint).toContain('US dollars')
+    expect(COPY.ar.feesFinalExamHint).toContain('بالدولار الأمريكي')
+    for (const language of ['ar', 'en']) {
+      expect(COPY[language].feesFinalExamHint).not.toMatch(/POINTS|II Points|نقاط/)
+      for (const key of ['feeCurrencyUsd', 'feeAmountUsd', 'feeAmountInvalid', 'feeLegacyCurrency']) expect(COPY[language][key]).toBeTruthy()
     }
-  })
-
-  it('lists a fee in II Points by name', async () => {
-    mocks.fetchRplConfiguration.mockResolvedValue({ data: [{ id: 7, rpl_pathway_id: 1, rpl_level_id: 1, amount: '100.00', currency: 'POINTS', is_active: true }] })
-    render(<RplConfigurationPage />)
-    fireEvent.click(await screen.findByRole('button', { name: C.fees }))
-
-    expect(await screen.findByText('100 II Points')).toBeInTheDocument()
   })
 })

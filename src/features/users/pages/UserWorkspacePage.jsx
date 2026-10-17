@@ -37,7 +37,6 @@ import {
   deleteUser,
   deleteUserExperience,
   deleteUserQualification,
-  enrollUserByStaff,
   fetchUser,
   fetchUserProfessionalEligibility,
   purgeUser,
@@ -59,10 +58,11 @@ import { getAdminLanguage } from "../../../services/languageStorage";
 import { useAuthorization } from "../../auth/context/useAuthorization";
 import RplStatusBadge from "../../rpl/components/RplStatusBadge";
 import RoleAssignmentPanel from "../components/RoleAssignmentPanel";
+import StaffEnrolmentCard from "../components/StaffEnrolmentCard";
+import WalletCard from "../components/WalletCard";
 import {
   formatLocalizedDate,
   formatLocalizedDateTime,
-  formatLocalizedNumber,
 } from "../../../utils/localization";
 
 /*
@@ -76,6 +76,7 @@ import {
  * governed case had been created. The test asserts both locales carry the
  * same keys, because nothing else catches it until somebody switches language.
  */
+// eslint-disable-next-line react-refresh/only-export-components -- exported for the locale-parity test above.
 export const copyByLanguage = {
   en: {
     workspace: "Client workspace",
@@ -182,7 +183,6 @@ export const copyByLanguage = {
     professionalHint:
       "The taught-programme route to the same three qualifications the Professional Academic RPL pathway assesses toward. Enrolment uses verified academic-entry requirements.",
     selectProgram: "Select an eligible programme",
-    enroll: "Enroll and charge wallet",
     noPrograms:
       "No professional qualification programme is currently eligible. Verify the academic evidence or add the missing requirement.",
     diploma: "Professional diploma",
@@ -190,7 +190,6 @@ export const copyByLanguage = {
     doctorate: "Professional doctorate",
     cases: "Existing RPL cases",
     noCases: "No RPL case exists for this client.",
-    points: "points",
     loadFailed: "Unable to load the client workspace.",
     createCaseFailed: "Unable to create the RPL case.",
     enrollFailed: "Unable to enroll this client.",
@@ -338,7 +337,6 @@ export const copyByLanguage = {
     professionalHint:
       "المسار التدريبي المؤدي إلى نفس المؤهلات الثلاثة التي يقيّمها المسار الأكاديمي المهني. التسجيل يعتمد على مؤهلات قبول أكاديمية موثقة.",
     selectProgram: "اختر برنامجاً متاحاً",
-    enroll: "تسجيل وخصم من المحفظة",
     noPrograms:
       "لا يوجد برنامج مؤهل حالياً. تحقق من الأدلة الأكاديمية أو أضف المتطلب الناقص.",
     diploma: "دبلوم مهني",
@@ -346,7 +344,6 @@ export const copyByLanguage = {
     doctorate: "دكتوراه مهنية",
     cases: "طلبات RPL الحالية",
     noCases: "لا يوجد طلب RPL لهذا العميل.",
-    points: "نقطة",
     loadFailed: "تعذر تحميل مساحة عمل العميل.",
     createCaseFailed: "تعذر إنشاء طلب RPL.",
     enrollFailed: "تعذر تسجيل العميل.",
@@ -574,7 +571,6 @@ export default function UserWorkspacePage() {
     eligibility: null,
     academicTracks: [],
   });
-  const [programId, setProgramId] = useState("");
   const [targetLevelId, setTargetLevelId] = useState("");
   const [academicTrackId, setAcademicTrackId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -814,23 +810,6 @@ export default function UserWorkspacePage() {
       if (publicId) navigate(`/academic-rpl/applications/${publicId}`);
     } catch (error) {
       setState((current) => ({ ...current, error: readApiError(error) }));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function enrollProgram() {
-    if (!programId) return;
-    setBusy(true);
-    try {
-      await enrollUserByStaff(userId, programId);
-      setProgramId("");
-      await load();
-    } catch (error) {
-      setState((current) => ({
-        ...current,
-        error: readApiError(error, copy.enrollFailed),
-      }));
     } finally {
       setBusy(false);
     }
@@ -1846,44 +1825,31 @@ export default function UserWorkspacePage() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="border-b border-[var(--color-border)]">
-                  <CardTitle>{copy.professional}</CardTitle>
-                  <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                    {copy.professionalHint}
-                  </p>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-end">
-                  <Select
-                    className="flex-1"
-                    label={copy.selectProgram}
-                    value={programId}
-                    onChange={(event) => setProgramId(event.target.value)}
-                    disabled={!eligiblePrograms.length}
-                  >
-                    <option value="">{copy.selectProgram}</option>
-                    {eligiblePrograms.map((program) => (
-                      <option key={program.id} value={program.id}>
-                        {programmeTypeLabel(program.program_type, copy)} ·{" "}
-                        {localize(program.title, language)} ·{" "}
-                        {formatLocalizedNumber(
-                          program.price_points || 0,
-                          language,
-                        )}{" "}
-                        {copy.points}
-                      </option>
-                    ))}
-                  </Select>
-                  <Button onClick={enrollProgram} disabled={!programId || busy}>
-                    {busy ? (
-                      <LoaderCircle className="animate-spin" size={17} />
-                    ) : (
-                      <FilePlus2 size={17} />
-                    )}
-                    {copy.enroll}
-                  </Button>
-                </CardContent>
-              </Card>
+              {/*
+                THE CLIENT'S WALLET (owner, 17 Oct 2026): two balances, top-up
+                and deduction for finance.manage, and the ledger for finance.
+              */}
+              <WalletCard
+                userId={userId}
+                user={user}
+                language={language}
+                canManage={hasPermission("finance.manage")}
+                canReadLedger={
+                  hasPermission("finance.manage") ||
+                  hasPermission("finance.reports.view")
+                }
+              />
+
+              <StaffEnrolmentCard
+                userId={userId}
+                user={user}
+                programs={eligiblePrograms}
+                copy={copy}
+                language={language}
+                typeLabel={(type) => programmeTypeLabel(type, copy)}
+                onEnrolled={load}
+                onReload={load}
+              />
 
               <Card>
                 <CardHeader className="border-b border-[var(--color-border)]">

@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import {
+  ArrowLeftRight,
   BadgePercent,
   CalendarClock,
   ChartNoAxesCombined,
@@ -27,10 +28,21 @@ import {
   CardTitle,
   DataTableShell,
   Input,
+  MoneyInput,
   PageHeader,
   Select,
   Textarea,
 } from "../../../components/ui";
+import Money from "../../../components/Money";
+import {
+  LEGACY_POINTS,
+  exchangeRateText,
+  formatMoney,
+  isMoney,
+  moneyFromDecimal,
+  toMinor,
+} from "../../../utils/money";
+import ExchangeRatePanel from "../components/ExchangeRatePanel";
 import {
   readApiError,
   readLocalized,
@@ -38,10 +50,7 @@ import {
   unwrapCollection,
 } from "../../../services/apiResponse";
 import { getAdminLanguage } from "../../../services/languageStorage";
-import {
-  formatLocalizedDateTime,
-  formatLocalizedNumber,
-} from "../../../utils/localization";
+import { formatLocalizedDateTime } from "../../../utils/localization";
 import {
   EmptyState,
   MetricTile,
@@ -231,6 +240,97 @@ Object.assign(copies.en, {
   descriptionAr: "Description in Arabic",
 });
 
+/*
+ * MONEY (owner decisions of 17 Oct 2026): every price in US dollars, the wallet
+ * in two balances, the USD -> SYP rate set by the owner. The dashboard keeps one
+ * row per currency, never summed together, and the earlier points as history.
+ */
+Object.assign(copies.ar, {
+  exchangeRate: "سعر الصرف",
+  usdOnly: "بالدولار الأمريكي",
+  amountUsd: "المبلغ (بالدولار الأمريكي)",
+  amountInvalid:
+    "أدخل صفرًا أو مبلغًا حتى 1,000,000.00 دولار بخانتين عشريتين على الأكثر.",
+  notUsd: "ليس بالدولار الأمريكي: أرشفه وأضف سعرًا بالدولار",
+  valueUsd: "القيمة (بالدولار الأمريكي)",
+  valuePercent: "النسبة (من 0.01 إلى 100)",
+  minimumOrderUsd: "الحد الأدنى للطلب (بالدولار الأمريكي)",
+  maximumDiscountUsd: "أقصى خصم (بالدولار الأمريكي)",
+  currencyRows: {
+    USD: "الدولار الأمريكي",
+    SYP: "الليرة السورية",
+    legacy: "نقاط (سجلات سابقة)",
+  },
+  topUps: "مبالغ أُضيفت إلى الأرصدة",
+  deductions: "تصحيحات خُصمت من الأرصدة",
+  outsidePayments: "دفعات خارجية مؤكدة",
+  balancesHeld: "أرصدة محفوظة للعملاء",
+  grossUsd: "المبيعات بسعر الدولار",
+  grossUsdHint:
+    "قيمة المبيعات المدفوعة بسعرها بالدولار، أيًّا كانت العملة المدفوعة. المبيعات من الرصيد إنفاق لمال استُلم من قبل، وليست مالًا جديدًا.",
+  rateChip: "سعر الصرف الساري: {rate}",
+  noRate: "لم يُضبط سعر صرف: لا دفع بالليرة السورية حتى يُضبط.",
+});
+Object.assign(copies.en, {
+  exchangeRate: "Exchange rate",
+  usdOnly: "US dollars",
+  amountUsd: "Amount (US dollars)",
+  amountInvalid:
+    "Enter 0 or an amount up to 1,000,000.00 US dollars with at most two decimals.",
+  notUsd: "Not in US dollars: archive it and add a dollar price",
+  valueUsd: "Value (US dollars)",
+  valuePercent: "Percentage (0.01 to 100)",
+  minimumOrderUsd: "Minimum order (US dollars)",
+  maximumDiscountUsd: "Maximum discount (US dollars)",
+  currencyRows: {
+    USD: "US dollars",
+    SYP: "Syrian pounds",
+    legacy: "Points (earlier records)",
+  },
+  topUps: "Money received into balances",
+  deductions: "Corrections deducted from balances",
+  outsidePayments: "Outside payments confirmed",
+  balancesHeld: "Balances held for clients",
+  grossUsd: "Sales at the US-dollar price",
+  grossUsdHint:
+    "Paid sales at their dollar price, whatever currency they were paid in. A sale paid from a balance spends money received earlier; it is not new money.",
+  rateChip: "Rate in force: {rate}",
+  noRate: "No exchange rate is set: no payment in Syrian pounds until one is set.",
+});
+
+const MAX_PRICE_MINOR = 100000000;
+
+/** A map of currency -> amount (a ledger decimal or a Money) in a fixed order: USD, SYP, others, then the earlier points. */
+function currencyRows(values) {
+  const entries = Object.entries(values || {}).map(([code, amount]) => [
+    code,
+    isMoney(amount) ? amount : moneyFromDecimal(amount, code),
+  ]);
+  const rank = (code) =>
+    code === "USD" ? 0 : code === "SYP" ? 1 : code === LEGACY_POINTS ? 3 : 2;
+  return entries.sort(
+    ([a], [b]) => rank(a) - rank(b) || String(a).localeCompare(String(b)),
+  );
+}
+
+/** A finance price row's amount: its Money (contract S12), else its ledger decimal in its currency. */
+function priceMoney(price) {
+  if (!price) return null;
+  return isMoney(price.money)
+    ? price.money
+    : moneyFromDecimal(price.amount, price.currency);
+}
+
+function isUsdRow(row) {
+  return String(row?.money?.currency ?? row?.currency ?? "").toUpperCase() === "USD";
+}
+
+/** A typed dollar amount as US cents within 0..$1,000,000.00, or null. */
+function usdMinorOrNull(text) {
+  const minor = toMinor(text, "USD");
+  return minor != null && minor <= MAX_PRICE_MINOR ? minor : null;
+}
+
 const productTypes = [
   "program",
   "rpl_fee",
@@ -251,7 +351,7 @@ const emptyProduct = {
 };
 const emptyPrice = {
   id: null,
-  currency: "EUR",
+  legacy_currency: "",
   amount: "",
   billing_interval: "one_time",
   is_active: true,
@@ -263,8 +363,7 @@ const emptyCoupon = {
   code: "",
   discount_type: "percent",
   value: "",
-  currency: "",
-  minimum_order: 0,
+  minimum_order: "",
   maximum_discount: "",
   redemption_limit: "",
   per_user_limit: "",
@@ -288,11 +387,16 @@ function mapProduct(item = {}) {
     is_active: item.is_active !== false,
   };
 }
+/*
+ * A price row in the form: US dollars only. A row in another currency opens
+ * with no amount and its old currency named: it is never converted.
+ */
 function mapPrice(item = {}) {
+  const usd = isUsdRow(item);
   return {
     id: item.id || null,
-    currency: item.currency || "EUR",
-    amount: item.amount || "",
+    legacy_currency: usd ? "" : String(item.currency || "").toUpperCase(),
+    amount: usd ? (priceMoney(item)?.amount ?? "") : "",
     billing_interval: item.billing_interval || "one_time",
     is_active: item.is_active !== false,
     valid_from: dateOnly(item.valid_from),
@@ -304,10 +408,23 @@ function mapCoupon(item = {}) {
     id: item.id || null,
     code: item.code || "",
     discount_type: item.discount_type || "percent",
-    value: item.value || "",
-    currency: item.currency || "",
-    minimum_order: item.minimum_order || 0,
-    maximum_discount: item.maximum_discount || "",
+    // A fixed discount is US dollars (its value_money); a percentage stays a percentage.
+    value:
+      item.discount_type === "fixed"
+        ? isUsdRow(item)
+          ? ((isMoney(item.value_money) ? item.value_money : moneyFromDecimal(item.value, "USD"))?.amount ?? "")
+          : ""
+        : item.value || "",
+    minimum_order:
+      (isMoney(item.minimum_order_money)
+        ? item.minimum_order_money
+        : moneyFromDecimal(item.minimum_order, "USD")
+      )?.amount ?? "",
+    maximum_discount:
+      (isMoney(item.maximum_discount_money)
+        ? item.maximum_discount_money
+        : moneyFromDecimal(item.maximum_discount, "USD")
+      )?.amount ?? "",
     redemption_limit: item.redemption_limit || "",
     per_user_limit: item.per_user_limit || "",
     is_active: item.is_active !== false,
@@ -315,6 +432,35 @@ function mapCoupon(item = {}) {
     ends_at: dateOnly(item.ends_at),
   };
 }
+/** The coupon body (contract S12): a percentage as `value`, a fixed discount and the bounds as US cents. */
+function couponMoneyFields(form) {
+  const fixed = form.discount_type === "fixed";
+  const minimum = String(form.minimum_order ?? "").trim();
+  const maximum = String(form.maximum_discount ?? "").trim();
+  return {
+    ...(fixed
+      ? { value_minor: usdMinorOrNull(form.value), currency: "USD" }
+      : { value: Number(form.value) }),
+    minimum_order_minor: minimum === "" ? 0 : usdMinorOrNull(minimum),
+    maximum_discount_minor: maximum === "" ? null : usdMinorOrNull(maximum),
+  };
+}
+
+function isCouponMoneyValid(form) {
+  const fields = couponMoneyFields(form);
+  if (form.discount_type === "fixed" && !(fields.value_minor >= 1)) return false;
+  if (form.discount_type !== "fixed") {
+    const percent = String(form.value ?? "").trim();
+    if (!/^\d{1,3}(\.\d{1,2})?$/.test(percent)) return false;
+    const [whole, fraction = ""] = percent.split(".");
+    const hundredths = Number.parseInt(`${whole}${fraction.padEnd(2, "0")}`, 10);
+    if (hundredths < 1 || hundredths > 10000) return false;
+  }
+  if (fields.minimum_order_minor == null) return false;
+  if (String(form.maximum_discount ?? "").trim() !== "" && fields.maximum_discount_minor == null) return false;
+  return true;
+}
+
 function sumObjectValues(value) {
   return Object.values(value || {}).reduce(
     (sum, item) => sum + Number(item || 0),
@@ -434,15 +580,20 @@ export default function FinanceOperationsPage() {
   }
   async function savePrice(event) {
     event.preventDefault();
-    if (!priceForm.currency || priceForm.amount === "") {
+    if (priceForm.amount === "") {
       setError(copy.required);
+      return;
+    }
+    // US dollars only, as US cents (contract S12); a value the API would refuse is said here.
+    const amountMinor = usdMinorOrNull(priceForm.amount);
+    if (amountMinor == null) {
+      setError(copy.amountInvalid);
       return;
     }
     setIsSubmitting(true);
     try {
       const payload = {
-        currency: priceForm.currency.toUpperCase(),
-        amount: Number(priceForm.amount),
+        amount_minor: amountMinor,
         billing_interval: priceForm.billing_interval,
         is_active: priceForm.is_active,
         valid_from: priceForm.valid_from || null,
@@ -474,20 +625,16 @@ export default function FinanceOperationsPage() {
       setError(copy.required);
       return;
     }
+    if (!isCouponMoneyValid(couponForm)) {
+      setError(copy.amountInvalid);
+      return;
+    }
     setIsSubmitting(true);
     try {
       const payload = {
         code: couponForm.code,
         discount_type: couponForm.discount_type,
-        value: Number(couponForm.value),
-        currency:
-          couponForm.discount_type === "fixed"
-            ? couponForm.currency.toUpperCase()
-            : null,
-        minimum_order: Number(couponForm.minimum_order || 0),
-        maximum_discount: couponForm.maximum_discount
-          ? Number(couponForm.maximum_discount)
-          : null,
+        ...couponMoneyFields(couponForm),
         redemption_limit: couponForm.redemption_limit
           ? Number(couponForm.redemption_limit)
           : null,
@@ -558,9 +705,10 @@ export default function FinanceOperationsPage() {
           {row.prices?.map((price) => (
             <Badge
               key={price.id}
-              variant={price.is_active ? "success" : "neutral"}
+              variant={!isUsdRow(price) ? "warning" : price.is_active ? "success" : "neutral"}
             >
-              {price.currency} {price.amount}
+              <bdi dir="ltr">{formatMoney(priceMoney(price), language)}</bdi>
+              {!isUsdRow(price) ? <span className="ms-1">· {copy.notUsd}</span> : null}
             </Badge>
           ))}
           {!row.prices?.length ? "—" : null}
@@ -616,9 +764,18 @@ export default function FinanceOperationsPage() {
         <div>
           <p className="font-bold text-[var(--color-primary)]">{row.code}</p>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-            {row.discount_type === "percent"
-              ? `${row.value}%`
-              : `${row.currency} ${row.value}`}
+            {row.discount_type === "percent" ? (
+              `${row.value}%`
+            ) : (
+              <bdi dir="ltr">
+                {formatMoney(
+                  isMoney(row.value_money)
+                    ? row.value_money
+                    : moneyFromDecimal(row.value, row.currency),
+                  language,
+                )}
+              </bdi>
+            )}
           </p>
         </div>
       ),
@@ -626,7 +783,16 @@ export default function FinanceOperationsPage() {
     {
       key: "minimum",
       label: copy.minimumOrder,
-      render: (row) => row.minimum_order,
+      render: (row) => (
+        <bdi dir="ltr">
+          {formatMoney(
+            isMoney(row.minimum_order_money)
+              ? row.minimum_order_money
+              : moneyFromDecimal(row.minimum_order, "USD"),
+            language,
+          )}
+        </bdi>
+      ),
     },
     {
       key: "redemptions",
@@ -690,9 +856,14 @@ export default function FinanceOperationsPage() {
       key: "price",
       label: copy.prices,
       render: (row) =>
-        row.price
-          ? `${row.price.currency} ${row.price.amount} / ${row.price.billing_interval || copy.oneTime}`
-          : "—",
+        row.price ? (
+          <span>
+            <bdi dir="ltr">{formatMoney(priceMoney(row.price), language)}</bdi>
+            {` / ${row.price.billing_interval || copy.oneTime}`}
+          </span>
+        ) : (
+          "—"
+        ),
     },
     {
       key: "renewal",
@@ -793,12 +964,31 @@ export default function FinanceOperationsPage() {
             icon: UsersRound,
             count: subscriptions.length,
           },
+          {
+            value: "exchange_rate",
+            label: copy.exchangeRate,
+            icon: ArrowLeftRight,
+          },
         ]}
       />
-      {isLoading ? (
+      {tab === "exchange_rate" ? (
+        <ExchangeRatePanel language={isArabic ? "ar" : "en"} />
+      ) : isLoading ? (
         <OperationsLoader />
       ) : tab === "overview" ? (
         <>
+          <p className="text-sm font-semibold text-[var(--color-text-muted)]">
+            {dashboard.current_exchange_rate ? (
+              <bdi>
+                {copy.rateChip.replace(
+                  "{rate}",
+                  exchangeRateText(dashboard.current_exchange_rate, language),
+                )}
+              </bdi>
+            ) : Object.prototype.hasOwnProperty.call(dashboard, "current_exchange_rate") ? (
+              <span className="text-red-700">{copy.noRate}</span>
+            ) : null}
+          </p>
           <Card>
             <CardContent className="pt-6">
               <form
@@ -862,13 +1052,25 @@ export default function FinanceOperationsPage() {
               variant="danger"
             />
           </div>
+          {isMoney(dashboard.gross_usd_list_price) ? (
+            <MetricTile
+              icon={CircleDollarSign}
+              label={copy.grossUsd}
+              value={<Money value={dashboard.gross_usd_list_price} language={language} />}
+              hint={copy.grossUsdHint}
+            />
+          ) : null}
           <div className="grid gap-5 lg:grid-cols-3">
             {[
               [copy.gross, dashboard.gross_by_currency, CircleDollarSign],
               [copy.refunds, dashboard.refunds_by_currency, ReceiptText],
               [copy.discounts, dashboard.discounts_by_currency, BadgePercent],
-            ].map(([title, values, icon]) => (
-              <Card key={title}>
+              [copy.topUps, dashboard.wallet_top_ups_by_currency, ArrowLeftRight],
+              [copy.deductions, dashboard.wallet_deductions_by_currency, ReceiptText],
+              [copy.outsidePayments, dashboard.outside_payments_by_currency, CreditCard],
+              [copy.balancesHeld, dashboard.wallet_balances_by_currency, UsersRound],
+            ].filter(([, values], index) => index < 3 || values !== undefined).map(([title, values, icon]) => (
+              <Card key={title} role="region" aria-label={title}>
                 <CardHeader className="border-b border-[var(--color-border)]">
                   <CardTitle className="flex items-center gap-2">
                     {createElement(icon, { size: 20 })}
@@ -877,16 +1079,20 @@ export default function FinanceOperationsPage() {
                 </CardHeader>
                 <CardContent className="pt-5">
                   <div className="space-y-3">
-                    {Object.entries(values || {}).map(([currency, amount]) => (
+                    {/* One row per currency, never added together: dollars, pounds, any other code, then the earlier points as history. */}
+                    {currencyRows(values).map(([currency, amount]) => (
                       <div
                         key={currency}
-                        className="flex items-center justify-between rounded-xl bg-[var(--color-surface-muted)] px-4 py-3"
+                        data-legacy={currency === LEGACY_POINTS ? "true" : undefined}
+                        className={`flex items-center justify-between rounded-xl px-4 py-3 ${currency === LEGACY_POINTS ? "bg-transparent text-[var(--color-text-muted)] ring-1 ring-[var(--color-border)]" : "bg-[var(--color-surface-muted)]"}`}
                       >
-                        <bdi className="font-semibold">{currency}</bdi>
-                        <span className="text-lg font-bold text-[var(--color-primary)]">
-                          {formatLocalizedNumber(amount, language, {
-                            maximumFractionDigits: 2,
-                          })}
+                        <span className="font-semibold">
+                          {currency === LEGACY_POINTS
+                            ? copy.currencyRows.legacy
+                            : copy.currencyRows[currency] || <bdi>{currency}</bdi>}
+                        </span>
+                        <span className={`text-lg font-bold ${currency === LEGACY_POINTS ? "" : "text-[var(--color-primary)]"}`}>
+                          <Money value={amount} language={language} />
                         </span>
                       </div>
                     ))}
@@ -1104,8 +1310,11 @@ export default function FinanceOperationsPage() {
               >
                 <div>
                   <p className="font-bold">
-                    {price.currency} {price.amount}
+                    <bdi dir="ltr">{formatMoney(priceMoney(price), language)}</bdi>
                   </p>
+                  {!isUsdRow(price) ? (
+                    <p className="text-xs font-semibold text-amber-800">{copy.notUsd}</p>
+                  ) : null}
                   <p className="text-xs text-[var(--color-text-muted)]">
                     {copy[
                       price.billing_interval === "one_time"
@@ -1131,28 +1340,31 @@ export default function FinanceOperationsPage() {
             <h3 className="font-bold">
               {priceForm.id ? copy.edit : copy.addPrice}
             </h3>
-            <Input
-              label={copy.currency}
-              required
-              value={priceForm.currency}
-              onChange={(event) =>
-                setPriceForm((current) => ({
-                  ...current,
-                  currency: event.target.value,
-                }))
-              }
-            />
-            <Input
-              label={copy.amount}
-              type="number"
-              min="0"
-              step="0.01"
+            {/* One price in US dollars (owner, 17 Oct 2026): no currency field. */}
+            <p className="text-sm font-semibold text-[var(--color-text-muted)]">
+              {copy.currency}: {copy.usdOnly}
+            </p>
+            {priceForm.legacy_currency ? (
+              <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+                {copy.notUsd} ({priceForm.legacy_currency})
+              </p>
+            ) : null}
+            <MoneyInput
+              label={copy.amountUsd}
+              currency="USD"
+              language={language}
               required
               value={priceForm.amount}
-              onChange={(event) =>
+              error={
+                String(priceForm.amount).trim() !== "" &&
+                usdMinorOrNull(priceForm.amount) == null
+                  ? copy.amountInvalid
+                  : undefined
+              }
+              onChange={(value) =>
                 setPriceForm((current) => ({
                   ...current,
-                  amount: event.target.value,
+                  amount: value,
                 }))
               }
             />
@@ -1262,55 +1474,56 @@ export default function FinanceOperationsPage() {
             <option value="percent">{copy.percent}</option>
             <option value="fixed">{copy.fixed}</option>
           </Select>
-          <Input
-            label={copy.value}
-            type="number"
-            min="0.01"
-            step="0.01"
-            required
-            value={couponForm.value}
-            onChange={(event) =>
-              setCouponForm((current) => ({
-                ...current,
-                value: event.target.value,
-              }))
-            }
-          />
-          <Input
-            label={copy.currency}
-            disabled={couponForm.discount_type !== "fixed"}
-            required={couponForm.discount_type === "fixed"}
-            value={couponForm.currency}
-            onChange={(event) =>
-              setCouponForm((current) => ({
-                ...current,
-                currency: event.target.value,
-              }))
-            }
-          />
-          <Input
-            label={copy.minimumOrder}
-            type="number"
-            min="0"
-            step="0.01"
+          {/* A fixed discount and the order bounds are US dollars; a percentage stays a percentage (contract S12). */}
+          {couponForm.discount_type === "fixed" ? (
+            <MoneyInput
+              label={copy.valueUsd}
+              currency="USD"
+              language={language}
+              required
+              value={couponForm.value}
+              onChange={(value) =>
+                setCouponForm((current) => ({ ...current, value }))
+              }
+            />
+          ) : (
+            <Input
+              label={copy.valuePercent}
+              type="number"
+              min="0.01"
+              max="100"
+              step="0.01"
+              required
+              value={couponForm.value}
+              onChange={(event) =>
+                setCouponForm((current) => ({
+                  ...current,
+                  value: event.target.value,
+                }))
+              }
+            />
+          )}
+          <p className="self-end text-sm font-semibold text-[var(--color-text-muted)]">
+            {copy.currency}: {copy.usdOnly}
+          </p>
+          <MoneyInput
+            label={copy.minimumOrderUsd}
+            currency="USD"
+            language={language}
             value={couponForm.minimum_order}
-            onChange={(event) =>
-              setCouponForm((current) => ({
-                ...current,
-                minimum_order: event.target.value,
-              }))
+            onChange={(value) =>
+              setCouponForm((current) => ({ ...current, minimum_order: value }))
             }
           />
-          <Input
-            label={copy.maximumDiscount}
-            type="number"
-            min="0.01"
-            step="0.01"
+          <MoneyInput
+            label={copy.maximumDiscountUsd}
+            currency="USD"
+            language={language}
             value={couponForm.maximum_discount}
-            onChange={(event) =>
+            onChange={(value) =>
               setCouponForm((current) => ({
                 ...current,
-                maximum_discount: event.target.value,
+                maximum_discount: value,
               }))
             }
           />

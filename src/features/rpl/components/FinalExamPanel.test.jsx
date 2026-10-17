@@ -26,6 +26,7 @@ vi.mock('../services/rplService', () => mocks)
 const EN = AFTER_QUIZ_COPY.en.finalExam
 const AR = AFTER_QUIZ_COPY.ar.finalExam
 const COMMON = AFTER_QUIZ_COPY.en.common
+const usd = (minor, amount) => ({ currency: 'USD', amount_minor: minor, amount })
 
 function attempt(number, overrides = {}) {
   return {
@@ -61,7 +62,7 @@ function exam(overrides = {}) {
       { program: { id: 41, official_code: 'CGP-DGT-041', title: { en: 'Course 41', ar: 'دورة 41' } }, enrollment_id: 501, enrolled_package_version: '1.0', completed_at: '2026-10-18T09:00:00Z', eligible_question_count: 9, holds: [] },
       { program: { id: 42, official_code: 'CGP-DGT-042', title: { en: 'Course 42', ar: 'دورة 42' } }, enrollment_id: 502, enrolled_package_version: '1.1', completed_at: '2026-10-19T08:00:00Z', eligible_question_count: 2, holds: ['new_assessment'] },
     ],
-    settings: { pass_mark_percent: 50, questions_per_course: 3, retake_wait_days: null, retake_fee_points: 400 },
+    settings: { pass_mark_percent: 50, questions_per_course: 3, retake_wait_days: null, retake_fee: { usd: usd(40000, '400.00'), syp: null, exchange_rate: null } },
     rounds: [
       {
         round_number: 1,
@@ -129,7 +130,7 @@ describe('what staff see', () => {
     const settings = within(screen.getByRole('region', { name: EN.settings }))
     expect(settings.getByText('Pass mark: more than 50%')).toBeInTheDocument()
     expect(settings.getByText(`Waiting days before a retake: ${COMMON.notSet}`)).toBeInTheDocument()
-    expect(settings.getByText('Retake fee: 400 II Points')).toBeInTheDocument()
+    expect(settings.getByText('Retake fee: $ 400.00')).toBeInTheDocument()
   })
 
   it('names the programme when the final exam is blocked', async () => {
@@ -160,25 +161,25 @@ describe('what staff see', () => {
   it('shows the level certification fee as due, then the issued certificate (O2)', async () => {
     // The API's S14 shape (RplLevelCertificateIssuer::staffState): awaiting_fee, the fee frozen at the pass, and its charge.
     mocks.fetchRplFinalExam.mockResolvedValue({
-      data: exam({ state: 'passed', level_certificate: { state: 'awaiting_fee', fee_problem: null, holds: [], outbox: null, certificate: null, certification_fee_points: 900, charge: { public_id: 'charge-9', type: 'certification_fee', amount: 900, currency: 'POINTS', status: 'pending' } } }),
+      data: exam({ state: 'passed', level_certificate: { state: 'awaiting_fee', fee_problem: null, holds: [], outbox: null, certificate: null, certification_fee: usd(90000, '900.00'), charge: { public_id: 'charge-9', type: 'certification_fee', amount: usd(90000, '900.00'), price_usd: usd(90000, '900.00'), exchange_rate: null, status: 'pending' } } }),
     })
     const { unmount } = renderPanel()
 
     const due = within(await screen.findByRole('region', { name: EN.level.title }))
     expect(due.getByText(EN.level.states.awaiting_fee)).toBeInTheDocument()
     expect(due.getByText(EN.level.feeDue)).toBeInTheDocument()
-    expect(due.getByText('Certification fee frozen at the pass: 900 II Points')).toBeInTheDocument()
-    expect(due.getByText('Certification fee: 900 II Points · Awaiting confirmation')).toBeInTheDocument()
+    expect(due.getByText('Certification fee frozen at the pass: $ 900.00')).toBeInTheDocument()
+    expect(due.getByText('Certification fee: $ 900.00 · Awaiting confirmation')).toBeInTheDocument()
     expect(due.queryByText(EN.level.feeUnusable)).not.toBeInTheDocument()
     unmount()
 
     // Not yet requested by the client: the frozen fee, and no charge line.
     mocks.fetchRplFinalExam.mockResolvedValue({
-      data: exam({ state: 'passed', level_certificate: { state: 'awaiting_fee', fee_problem: null, holds: [], outbox: null, certificate: null, certification_fee_points: 40, charge: null } }),
+      data: exam({ state: 'passed', level_certificate: { state: 'awaiting_fee', fee_problem: null, holds: [], outbox: null, certificate: null, certification_fee: usd(4000, '40.00'), charge: null } }),
     })
     const { unmount: unmountUnpaid } = renderPanel()
     const unpaid = within(await screen.findByRole('region', { name: EN.level.title }))
-    expect(unpaid.getByText('Certification fee frozen at the pass: 40 II Points')).toBeInTheDocument()
+    expect(unpaid.getByText('Certification fee frozen at the pass: $ 40.00')).toBeInTheDocument()
     expect(unpaid.queryByText(/^Certification fee: /)).not.toBeInTheDocument()
     unmountUnpaid()
 
@@ -190,7 +191,7 @@ describe('what staff see', () => {
 
   it('shows a pass stranded by a money fee on the Fees tab as fee_unusable, never as being issued (O2)', async () => {
     mocks.fetchRplFinalExam.mockResolvedValue({
-      data: exam({ state: 'passed', level_certificate: { state: 'fee_unusable', fee_problem: 'RPL_SETTING_MISSING: rpl_fee_schedules', holds: [], outbox: { status: 'pending', attempts: 0, last_error: 'RPL_SETTING_MISSING: rpl_fee_schedules', available_at: '2026-10-21T09:15:00Z' }, certificate: null, certification_fee_points: null, charge: null } }),
+      data: exam({ state: 'passed', level_certificate: { state: 'fee_unusable', fee_problem: 'RPL_SETTING_MISSING: rpl_fee_schedules', holds: [], outbox: { status: 'pending', attempts: 0, last_error: 'RPL_SETTING_MISSING: rpl_fee_schedules', available_at: '2026-10-21T09:15:00Z' }, certificate: null, certification_fee: null, charge: null } }),
     })
     renderPanel()
 
@@ -272,7 +273,7 @@ describe('the panel itself', () => {
   })
 
   it('renders in Arabic without a literal "undefined"', async () => {
-    mocks.fetchRplFinalExam.mockResolvedValue({ data: exam({ state: 'waiting', level_certificate: { state: 'awaiting_fee', holds: [], outbox: null, certificate: null, certification_fee_points: 900, charge: { amount: 900, currency: 'POINTS', status: 'pending' } } }) })
+    mocks.fetchRplFinalExam.mockResolvedValue({ data: exam({ state: 'waiting', level_certificate: { state: 'awaiting_fee', holds: [], outbox: null, certificate: null, certification_fee: usd(90000, '900.00'), charge: { amount: { currency: 'SYP', amount_minor: 11700000, amount: '11700000' }, price_usd: usd(90000, '900.00'), exchange_rate: { id: 7, syp_per_usd: '13000.0000' }, status: 'pending' } } }) })
     renderPanel({ language: 'ar' })
 
     expect(await screen.findByText(AR.states.waiting)).toBeInTheDocument()

@@ -54,6 +54,7 @@ import {
   entryQuizCopy,
   entryQuizItemMarks,
   hasQuizResult,
+  isCaseClosed,
   isHeardAtExpiry,
   isRescoreReasonValid,
   isTechnicalFailureReasonValid,
@@ -121,6 +122,8 @@ const copyByLanguage = {
     reissueConfirm: "إعادة الفتح",
     reissueCancel: "إلغاء",
     reissueDone: "أُعيد فتح التقييم مع الاحتفاظ بالإجابات السابقة.",
+    reissueClosedCase:
+      "الطلب مغلق، فلا يُعاد فتح أي اختبار للمتقدم. وتصحّح المنصة الاختبار الذي فتحه عند انتهاء وقته.",
     withdraw: "سحب مجموعة الأسئلة",
     withdrawTitle: "سحب تقييم لن يُكمله المتقدم",
     withdrawWhy:
@@ -230,6 +233,8 @@ const copyByLanguage = {
     reissueConfirm: "Reopen",
     reissueCancel: "Cancel",
     reissueDone: "The assessment was reopened; previous answers were kept.",
+    reissueClosedCase:
+      "The case is closed, so nothing is reopened for the applicant. An opened quiz is marked by the platform when its time runs out.",
     withdraw: "Withdraw the question set",
     withdrawTitle: "Withdraw an assessment the applicant will not finish",
     withdrawWhy:
@@ -446,7 +451,13 @@ export default function DynamicAssessmentPanel({
    * server requires as `technical_failure_reason` and audits. The server
    * re-checks both under its lock and answers 422 otherwise.
    */
-  const canReissue = (windowClosed || neverOpened || answeredIncomplete) && !hasQuizResult(assessment);
+  /*
+   * F4: NOTHING REOPENS ON A CLOSED CASE. The server refuses a reopen once the
+   * case is completed, withdrawn or rejected; the show payload carries
+   * application.status, so the control is not offered there and a note says why.
+   */
+  const caseClosed = isCaseClosed(assessment);
+  const canReissue = !caseClosed && (windowClosed || neverOpened || answeredIncomplete) && !hasQuizResult(assessment);
   const reissueNeedsTechnicalFailure = reopenNeedsTechnicalFailure(assessment);
   const quizMarks = entryQuizItemMarks(assessment);
   // Timer expiry closes the quiz as heard (plan R8 exception; D11(i), on the plan
@@ -782,12 +793,18 @@ export default function DynamicAssessmentPanel({
                           run(
                             "reissue",
                             async () => {
-                              await reissueDynamicAssessment(assessment.id, {
-                                reason: reissueDraft.reason.trim(),
-                                ...(reissueNeedsTechnicalFailure
-                                  ? { technical_failure_reason: reissueDraft.technicalFailure.trim() }
-                                  : {}),
-                              });
+                              try {
+                                await reissueDynamicAssessment(assessment.id, {
+                                  reason: reissueDraft.reason.trim(),
+                                  ...(reissueNeedsTechnicalFailure
+                                    ? { technical_failure_reason: reissueDraft.technicalFailure.trim() }
+                                    : {}),
+                                });
+                              } catch (error) {
+                                // A refusal means the screen was out of date (the case may have closed): read the set again.
+                                if (Number(error?.response?.status) === 422) load();
+                                throw error;
+                              }
                               setReissueDraft({ open: false, reason: "", technicalFailure: "" });
                             },
                             copy.reissueDone,
@@ -826,6 +843,15 @@ export default function DynamicAssessmentPanel({
                   </Button>
                 )}
               </section>
+            ) : null}
+
+            {caseClosed && assessment?.status === "issued" ? (
+              <p
+                role="note"
+                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4 text-sm leading-6 text-[var(--color-text-muted)]"
+              >
+                {copy.reissueClosedCase}
+              </p>
             ) : null}
 
             {withdrawBlocked ? (

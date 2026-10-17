@@ -65,12 +65,8 @@ function buildProgramPayloadForUpdate(program, featuredValue) {
       en: readLocalized(program?.duration),
       ar: program?.duration?.ar || '',
     },
-    fees: program?.fees === '' || program?.fees == null ? 0 : Number(program.fees),
-    currency: program?.currency || 'EUR',
-    price_points:
-      program?.price_points === '' || program?.price_points == null
-        ? 0
-        : Number(program.price_points),
+    // The one price, in US cents (owner, 17 Oct 2026), re-sent exactly as stored; never fees, currency or price_points.
+    ...(Number.isSafeInteger(program?.price_usd_minor) ? { price_usd_minor: program.price_usd_minor } : {}),
     featured_image: program?.featured_image || '',
     intro_video_url: program?.intro_video_url || '',
     intro_text: {

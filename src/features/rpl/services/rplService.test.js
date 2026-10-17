@@ -471,7 +471,7 @@ describe('the P6 endpoints', () => {
   test('the charges: the case list, the queue with its filters, and the three writes', async () => {
     await fetchRplCharges('case-41')
     await fetchRplChargeQueue({ status: 'pending', type: 'final_exam_retake' })
-    await confirmRplChargePayment('charge-1', { lock_version: 2, method: 'bank_transfer', reference: 'TRX-1', paid_at: '2026-10-14', amount_received: '150.00', currency_received: 'EUR' })
+    await confirmRplChargePayment('charge-1', { lock_version: 2, method: 'syriatel_cash', reference: 'TRX-1', paid_at: '2026-10-14', amount_received_minor: 649870, currency_received: 'SYP' })
     await cancelRplCharge('charge-1', { lock_version: 3, reason: 'No transfer arrived.', category: 'payment_not_found' })
     await refundRplCharge('charge-2', { lock_version: 1, reason: 'Paid twice by mistake.' })
 
@@ -480,7 +480,7 @@ describe('the P6 endpoints', () => {
       ['/admin/rpl/charges', { params: { status: 'pending', type: 'final_exam_retake' } }],
     ])
     expect(http.post.mock.calls).toEqual([
-      ['/admin/rpl/charges/charge-1/confirm-payment', { lock_version: 2, method: 'bank_transfer', reference: 'TRX-1', paid_at: '2026-10-14', amount_received: '150.00', currency_received: 'EUR' }],
+      ['/admin/rpl/charges/charge-1/confirm-payment', { lock_version: 2, method: 'syriatel_cash', reference: 'TRX-1', paid_at: '2026-10-14', amount_received_minor: 649870, currency_received: 'SYP' }],
       ['/admin/rpl/charges/charge-1/cancel', { lock_version: 3, reason: 'No transfer arrived.', category: 'payment_not_found' }],
       ['/admin/rpl/charges/charge-2/refund', { lock_version: 1, reason: 'Paid twice by mistake.' }],
     ])

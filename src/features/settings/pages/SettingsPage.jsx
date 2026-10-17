@@ -1,11 +1,47 @@
-import { useState } from 'react'
-import { Languages, LogOut, Palette, ServerCog, ShieldCheck } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useContext, useState } from 'react'
+import { ArrowLeftRight, Languages, LogOut, Palette, ServerCog, ShieldCheck } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, LanguageSlider, PageHeader } from '../../../components/ui'
 import { branding, getBrandText } from '../../../config/branding'
 import { getPlatformArchitecture } from '../../../config/platformArchitecture'
 import { getAdminLanguage, setAdminLanguage } from '../../../services/languageStorage'
 import { clearAdminToken, hasAdminToken } from '../../../services/tokenStorage'
+import { exchangeRateText } from '../../../utils/money'
+import { getRouteAccess } from '../../../routes/routeAccess'
+import { AuthorizationContext } from '../../auth/context/authorizationContext'
+import { exchangeRateCopy } from '../../finance/domain/exchangeRate'
+import { useExchangeRate } from '../../finance/hooks/useExchangeRate'
+
+/*
+ * THE EXCHANGE RATE ON THE SETTINGS PAGE (owner, 17 Oct 2026: "in the platform
+ * settings"). Read-only: the rate in force, from the public currencies route,
+ * and a link to the governed screen in Finance where the owner's role sets it.
+ */
+function ExchangeRateCard({ language }) {
+  const copy = exchangeRateCopy(language)
+  const authorization = useContext(AuthorizationContext)
+  const exchange = useExchangeRate()
+  const mayOpen = authorization?.canAccess ? authorization.canAccess(getRouteAccess('/finance/exchange-rate')) : false
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-3">
+          <ArrowLeftRight size={21} className="text-[var(--color-accent)]" />
+          {copy.settingsCard}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {exchange.loaded && !exchange.failed ? (
+          exchange.rate
+            ? <p className="text-2xl font-bold text-[var(--color-primary)]"><bdi>{exchangeRateText(exchange.rate, language)}</bdi></p>
+            : <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{copy.noRate}</p>
+        ) : null}
+        <p className="text-sm text-[var(--color-text-muted)]">{copy.settingsCardHint}</p>
+        {mayOpen ? <Link to="/finance/exchange-rate" className="text-sm font-semibold text-[var(--color-primary)] underline underline-offset-2">{copy.open}</Link> : null}
+      </CardContent>
+    </Card>
+  )
+}
 
 const copyByLanguage = {
   ar: {
@@ -160,6 +196,8 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        <ExchangeRateCard language={currentLanguage === 'ar' ? 'ar' : 'en'} />
       </div>
     </div>
   )

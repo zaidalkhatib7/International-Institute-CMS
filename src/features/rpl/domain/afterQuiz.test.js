@@ -5,29 +5,35 @@ import {
   AFTER_QUIZ_SETTING_KEYS,
   CERTIFICATE_KIND_LABELS,
   CHARGE_TYPES,
-  FEE_POINTS_CURRENCY,
+  OFFLINE_METHODS,
+  STAFF_CANCEL_CATEGORIES,
   afterQuizCopy,
   afterQuizSettingsFieldErrors,
   afterQuizSettingsPayload,
   canApproveWording,
+  cancelCategoriesFor,
   certificateKind,
   changeAfterQuizSetting,
+  chargePaidInLabel,
+  chargePriceLine,
+  chargeRouteLabel,
   chargeStatusLabel,
   chargeTitle,
   confirmFormErrors,
   confirmPayload,
   emptyConfirmForm,
   experienceStateLabel,
+  feeScheduleAmountMinor,
   feeScheduleFormError,
   finalExamStateLabel,
-  formatChargeAmount,
   hasPaidChargeForSlot,
   isAfterQuizReasonValid,
   isAfterQuizSettingValid,
   isAfterQuizSettingsReady,
   isConfirmFormValid,
-  isPointsFee,
+  isConfirmableCharge,
   isReopenableTry,
+  rateMissing,
   isStaleConflict,
   isVoidableTry,
   isWordingFormValid,
@@ -39,6 +45,7 @@ import {
   wordingTexts,
 } from './afterQuiz'
 import { createAuthorization } from '../../auth/authorization'
+import { LEGACY_POINTS } from '../../../utils/money'
 
 /*
  * AFTER THE ENTRY QUIZ (owner model of 15 Oct 2026, P6), the domain module.
@@ -104,7 +111,17 @@ describe('the copy', () => {
     expect(AFTER_QUIZ_COPY.en.finalExam.autoIssue).toMatch(/^A passed try issues the level certificate automatically: no staff approval, assessor report, quality review or committee \(owner decision, 15 Oct 2026\)\./)
     // O2: the certification fee, when above 0, is paid before the automatic issue.
     expect(AFTER_QUIZ_COPY.en.finalExam.autoIssue).toMatch(/certification fee is above 0/)
-    expect(AFTER_QUIZ_COPY.en.settings.fields.price.hint).toBe('In II Points. Empty: the certificate is not offered.')
+    expect(AFTER_QUIZ_COPY.en.settings.fields.price.hint).toBe('In US dollars, cents allowed. Empty: the certificate is not offered.')
+    // D7 overrides (owner decisions of 17 Oct 2026).
+    expect(AFTER_QUIZ_COPY.en.settings.fields.price.label).toContain('1.00 to 1,000,000.00')
+    expect(AFTER_QUIZ_COPY.en.charges.hint).toBe('The client pays the dollar price from his dollar or pound balance, or outside the platform. A pound amount is the dollar price × the rate at the moment he pays from his balance or asks to pay outside, and it is frozen then.')
+    expect(AFTER_QUIZ_COPY.ar.charges.hint).toBe('يدفع العميل السعر بالدولار من رصيده بالدولار أو بالليرة، أو خارج المنصة. ويُحسب المبلغ بالليرة من السعر بالدولار مضروبًا في سعر الصرف لحظة الدفع من الرصيد أو لحظة طلب الدفع الخارجي، ويُثبَّت عندها.')
+    expect(AFTER_QUIZ_COPY.en.cancelCategories.exchange_rate_outdated).toBe('Syrian-pound amount out of date')
+    expect(AFTER_QUIZ_COPY.ar.cancelCategories.exchange_rate_outdated).toBe('مبلغ الليرة السورية لم يعد صالحًا')
+  })
+
+  it('names no II Points anywhere, in either language', () => {
+    expect(JSON.stringify(AFTER_QUIZ_COPY)).not.toMatch(/II Points|نقاط II|POINTS/)
     expect(AFTER_QUIZ_COPY.en.settings.fields.passMark.hint).toBe('A try passes only above this mark, on the exact fraction (owner decision, 15 Oct 2026; seeded 50).')
   })
 
@@ -163,21 +180,31 @@ describe('isStaleConflict and the setting refusal', () => {
 })
 
 describe('the settings payload (2.2)', () => {
+  // The server holds the two prices as whole US cents (contract 2.8): 150000 is $1,500.00.
   const HELD = {
-    rpl_experience_certificate_price_points: 1500,
+    rpl_experience_certificate_price_usd_minor: 150000,
     rpl_final_exam_pass_mark_percent: 50,
     rpl_final_exam_questions_per_course: null,
     rpl_final_exam_retake_wait_days: 14,
   }
 
-  it('lists exactly the five keys', () => {
+  it('lists exactly the five keys, the two prices in US cents', () => {
     expect(AFTER_QUIZ_SETTING_KEYS).toEqual([
-      'rpl_experience_certificate_price_points',
+      'rpl_experience_certificate_price_usd_minor',
       'rpl_final_exam_pass_mark_percent',
       'rpl_final_exam_questions_per_course',
       'rpl_final_exam_retake_wait_days',
-      'rpl_final_exam_retake_fee_points',
+      'rpl_final_exam_retake_fee_usd_minor',
     ])
+  })
+
+  it('shows a held price as dollars and sends the typed dollars as an integer of cents', () => {
+    const state = readAfterQuizSettings({ ...HELD, rpl_final_exam_retake_fee_usd_minor: 4999 })
+    expect(state.values.rpl_experience_certificate_price_usd_minor).toBe('1500.00')
+    expect(state.values.rpl_final_exam_retake_fee_usd_minor).toBe('49.99')
+    const typed = changeAfterQuizSetting(state, 'rpl_final_exam_retake_fee_usd_minor', '5.50')
+    expect(afterQuizSettingsPayload(typed)).toHaveProperty('rpl_final_exam_retake_fee_usd_minor', 550)
+    expect(Number.isInteger(afterQuizSettingsPayload(typed).rpl_experience_certificate_price_usd_minor)).toBe(true)
   })
 
   it('invents nothing: a key the server holds no value for is neither shown nor sent', () => {
@@ -191,7 +218,7 @@ describe('the settings payload (2.2)', () => {
     const state = readAfterQuizSettings(HELD)
     expect(state.values.rpl_final_exam_questions_per_course).toBe('')
     expect(afterQuizSettingsPayload(state)).toEqual({
-      rpl_experience_certificate_price_points: 1500,
+      rpl_experience_certificate_price_usd_minor: 150000,
       rpl_final_exam_pass_mark_percent: 50,
       rpl_final_exam_retake_wait_days: 14,
     })
@@ -201,19 +228,25 @@ describe('the settings payload (2.2)', () => {
 
   it('sends null when a nullable key is emptied, which clears it, and refuses an empty pass mark', () => {
     let state = readAfterQuizSettings(HELD)
-    state = changeAfterQuizSetting(state, 'rpl_experience_certificate_price_points', '')
-    expect(afterQuizSettingsPayload(state)).toHaveProperty('rpl_experience_certificate_price_points', null)
+    state = changeAfterQuizSetting(state, 'rpl_experience_certificate_price_usd_minor', '')
+    expect(afterQuizSettingsPayload(state)).toHaveProperty('rpl_experience_certificate_price_usd_minor', null)
     expect(isAfterQuizSettingsReady(state)).toBe(true)
     state = changeAfterQuizSetting(state, 'rpl_final_exam_pass_mark_percent', '')
     expect(isAfterQuizSettingsReady(state)).toBe(false)
   })
 
   it.each([
-    ['rpl_experience_certificate_price_points', '1', true],
-    ['rpl_experience_certificate_price_points', '1000000', true],
-    ['rpl_experience_certificate_price_points', '0', false],
-    ['rpl_experience_certificate_price_points', '1000001', false],
-    ['rpl_experience_certificate_price_points', '5.5', false],
+    ['rpl_experience_certificate_price_usd_minor', '1', true],
+    ['rpl_experience_certificate_price_usd_minor', '1.00', true],
+    ['rpl_experience_certificate_price_usd_minor', '1000000', true],
+    ['rpl_experience_certificate_price_usd_minor', '1000000.00', true],
+    ['rpl_experience_certificate_price_usd_minor', '5.5', true],
+    ['rpl_experience_certificate_price_usd_minor', '0', false],
+    ['rpl_experience_certificate_price_usd_minor', '0.99', false],
+    ['rpl_experience_certificate_price_usd_minor', '1000000.01', false],
+    ['rpl_experience_certificate_price_usd_minor', '5.555', false],
+    ['rpl_experience_certificate_price_usd_minor', 'abc', false],
+    ['rpl_experience_certificate_price_usd_minor', '1e3', false],
     ['rpl_final_exam_pass_mark_percent', '50', true],
     ['rpl_final_exam_pass_mark_percent', '100', false],
     ['rpl_final_exam_pass_mark_percent', '0', false],
@@ -224,8 +257,11 @@ describe('the settings payload (2.2)', () => {
     ['rpl_final_exam_retake_wait_days', '0', true],
     ['rpl_final_exam_retake_wait_days', '365', true],
     ['rpl_final_exam_retake_wait_days', '366', false],
-    ['rpl_final_exam_retake_fee_points', '0', false],
-    ['rpl_final_exam_retake_fee_points', '-1', false],
+    ['rpl_final_exam_retake_fee_usd_minor', '0', false],
+    ['rpl_final_exam_retake_fee_usd_minor', '-1', false],
+    ['rpl_final_exam_retake_fee_usd_minor', '49.99', true],
+    // The retired points keys are unknown.
+    ['rpl_final_exam_retake_fee_points', '400', false],
     ['unknown_key', '5', false],
   ])('%s = %j is valid: %s', (key, value, valid) => {
     expect(isAfterQuizSettingValid(key, value)).toBe(valid)
@@ -238,7 +274,7 @@ describe('the settings payload (2.2)', () => {
         data: {
           errors: {
             rpl_final_exam_questions_per_course: ['The questions per course must not be greater than 50.'],
-            rpl_experience_certificate_price_points: ['The price must be an integer.', 'The price must be an integer.'],
+            rpl_experience_certificate_price_usd_minor: ['The price must be an integer.', 'The price must be an integer.'],
             rpl_quiz_pass_mark_percent: ['Unrelated.'],
           },
         },
@@ -246,43 +282,73 @@ describe('the settings payload (2.2)', () => {
     })
     expect(errors).toEqual({
       rpl_final_exam_questions_per_course: 'The questions per course must not be greater than 50.',
-      rpl_experience_certificate_price_points: 'The price must be an integer.',
+      rpl_experience_certificate_price_usd_minor: 'The price must be an integer.',
     })
     expect(afterQuizSettingsFieldErrors(new Error('x'))).toEqual({})
   })
 
   it('clears a key\'s server line once it is edited', () => {
-    const state = { values: {}, include: {}, errors: { rpl_final_exam_retake_wait_days: 'Too big.', rpl_final_exam_retake_fee_points: 'Other.' } }
-    expect(changeAfterQuizSetting(state, 'rpl_final_exam_retake_wait_days', '7').errors).toEqual({ rpl_final_exam_retake_fee_points: 'Other.' })
+    const state = { values: {}, include: {}, errors: { rpl_final_exam_retake_wait_days: 'Too big.', rpl_final_exam_retake_fee_usd_minor: 'Other.' } }
+    expect(changeAfterQuizSetting(state, 'rpl_final_exam_retake_wait_days', '7').errors).toEqual({ rpl_final_exam_retake_fee_usd_minor: 'Other.' })
   })
 })
 
-describe('the confirm form (S3)', () => {
+describe('the confirm form (S15)', () => {
   const TODAY = '2026-10-15'
-  const filled = { method: 'bank_transfer', reference: 'TRX-2026-0042', paid_at: '2026-10-14', amount_received: '150.00', currency_received: 'eur', notes: '  Received at the Amman branch.  ' }
+  const RATE = { id: 7, syp_per_usd: '13000.0000', effective_from: '2026-10-15T08:00:00Z' }
+  // An outside request in pounds, frozen at the request: 649,870 SYP for $ 49.99 at 13,000.
+  const sypCharge = { public_id: 'c-1', lock_version: 3, route: 'offline', status: 'pending', amount: { currency: 'SYP', amount_minor: 649870, amount: '649870' }, price_usd: { currency: 'USD', amount_minor: 4999, amount: '49.99' }, exchange_rate: RATE }
+  const usdCharge = { public_id: 'c-2', lock_version: 1, route: 'offline', status: 'pending', amount: { currency: 'USD', amount_minor: 1500, amount: '15.00' }, price_usd: { currency: 'USD', amount_minor: 1500, amount: '15.00' }, exchange_rate: null }
+  const pointsCharge = { public_id: 'c-0', lock_version: 1, route: 'offline', status: 'pending', amount: { currency: LEGACY_POINTS, amount_minor: 1500, amount: '1500', legacy: true }, price_usd: null, exchange_rate: null }
+  const filled = { method: 'syriatel_cash', reference: 'TRX-2026-0042', paid_at: '2026-10-14', amount_received: '649870', notes: '  Received at the Damascus branch.  ' }
 
-  it('builds exactly the API body, with the lock_version', () => {
-    expect(confirmPayload(filled, 3)).toEqual({
+  it('builds exactly the S15 body: the charge\'s lock_version, its currency, the amount in minor units', () => {
+    expect(confirmPayload(filled, sypCharge)).toEqual({
       lock_version: 3,
-      method: 'bank_transfer',
+      method: 'syriatel_cash',
       reference: 'TRX-2026-0042',
       paid_at: '2026-10-14',
-      amount_received: '150.00',
-      currency_received: 'EUR',
-      notes: 'Received at the Amman branch.',
+      amount_received_minor: 649870,
+      currency_received: 'SYP',
+      notes: 'Received at the Damascus branch.',
     })
-    expect(confirmPayload({ ...filled, notes: '  ' }, 1)).not.toHaveProperty('notes')
+    expect(confirmPayload({ ...filled, amount_received: '15', notes: '  ' }, usdCharge)).toEqual({ lock_version: 1, method: 'syriatel_cash', reference: 'TRX-2026-0042', paid_at: '2026-10-14', amount_received_minor: 1500, currency_received: 'USD' })
   })
 
-  it('validates each field the way the API does', () => {
-    expect(isConfirmFormValid(filled, TODAY)).toBe(true)
-    expect(isConfirmFormValid(emptyConfirmForm(), TODAY)).toBe(false)
-    expect(confirmFormErrors({ ...filled, reference: 'ab' }, TODAY).reference).toBe('reference')
-    expect(confirmFormErrors({ ...filled, paid_at: '2026-10-16' }, TODAY).paid_at).toBe('paid_at')
-    expect(confirmFormErrors({ ...filled, amount_received: '0' }, TODAY).amount_received).toBe('amount_received')
-    expect(confirmFormErrors({ ...filled, amount_received: '1.234' }, TODAY).amount_received).toBe('amount_received')
-    expect(confirmFormErrors({ ...filled, currency_received: 'EURO' }, TODAY).currency_received).toBe('currency_received')
-    expect(confirmFormErrors({ ...filled, method: 'wallet' }, TODAY).method).toBe('method')
+  it('takes the two Syrian mobile-money methods the owner named', () => {
+    expect(OFFLINE_METHODS).toEqual(['bank_transfer', 'cash', 'syriatel_cash', 'mtn_cash', 'external_gateway', 'manual_reconciliation'])
+  })
+
+  it('validates each field the way the API does, the amount equal to the amount due', () => {
+    expect(isConfirmFormValid(filled, TODAY, sypCharge)).toBe(true)
+    expect(isConfirmFormValid(emptyConfirmForm(), TODAY, sypCharge)).toBe(false)
+    expect(emptyConfirmForm()).not.toHaveProperty('currency_received')
+    expect(confirmFormErrors({ ...filled, reference: 'ab' }, TODAY, sypCharge).reference).toBe('reference')
+    expect(confirmFormErrors({ ...filled, paid_at: '2026-10-16' }, TODAY, sypCharge).paid_at).toBe('paid_at')
+    expect(confirmFormErrors({ ...filled, amount_received: '649870.5' }, TODAY, sypCharge).amount_received).toBe('amount_received')
+    expect(confirmFormErrors({ ...filled, amount_received: '699860' }, TODAY, sypCharge).amount_received).toBe('amount_mismatch')
+    expect(confirmFormErrors({ ...filled, amount_received: '15.00' }, TODAY, usdCharge).amount_received).toBe('')
+    expect(confirmFormErrors({ ...filled, amount_received: '15.001' }, TODAY, usdCharge).amount_received).toBe('amount_received')
+    expect(confirmFormErrors({ ...filled, amount_received: '14.99' }, TODAY, usdCharge).amount_received).toBe('amount_mismatch')
+    expect(confirmFormErrors({ ...filled, method: 'wallet' }, TODAY, sypCharge).method).toBe('method')
+  })
+
+  it('never confirms a request in points from before 17 Oct 2026', () => {
+    expect(isConfirmableCharge(pointsCharge)).toBe(false)
+    expect(isConfirmableCharge(usdCharge)).toBe(true)
+    expect(confirmFormErrors({ ...filled, amount_received: '1500' }, TODAY, pointsCharge).amount_received).toBe('legacy_currency')
+  })
+
+  it('offers the out-of-date-rate category only on a request in Syrian pounds', () => {
+    expect(STAFF_CANCEL_CATEGORIES).toContain('exchange_rate_outdated')
+    expect(cancelCategoriesFor(sypCharge)).toContain('exchange_rate_outdated')
+    expect(cancelCategoriesFor(usdCharge)).not.toContain('exchange_rate_outdated')
+  })
+
+  it('reads the 503 exchange_rate_missing, and nothing else', () => {
+    expect(rateMissing({ response: { status: 503, data: { code: 'exchange_rate_missing' } } })).toBe(true)
+    expect(rateMissing({ response: { status: 503, data: { code: 'rpl_setting_missing' } } })).toBe(false)
+    expect(rateMissing({ response: { status: 422, data: { code: 'exchange_rate_missing' } } })).toBe(false)
   })
 
   it('warns when another charge of the same type and round is already paid', () => {
@@ -294,11 +360,24 @@ describe('the confirm form (S3)', () => {
 })
 
 describe('amounts, titles, tries, wording and certificate kinds', () => {
-  it('shows II Points by name and any other currency as sent', () => {
-    expect(formatChargeAmount(1500, 'POINTS', 'en')).toBe('1500 II Points')
-    expect(formatChargeAmount(1500, 'POINTS', 'ar')).toBe('1500 نقاط II')
-    expect(formatChargeAmount('150.00', 'EUR', 'en')).toBe('150.00 EUR')
-    expect(formatChargeAmount(null, 'POINTS', 'en')).toBe('—')
+  it('shows a charge in dollars, in pounds with its dollar price and rate, or in points as an earlier record', () => {
+    const rate = { id: 7, syp_per_usd: '13000.0000', effective_from: '2026-10-15T08:00:00Z' }
+    const usd = { route: 'wallet', amount: { currency: 'USD', amount_minor: 4999, amount: '49.99' }, price_usd: { currency: 'USD', amount_minor: 4999, amount: '49.99' }, exchange_rate: null }
+    const syp = { route: 'wallet', amount: { currency: 'SYP', amount_minor: 649870, amount: '649870' }, price_usd: { currency: 'USD', amount_minor: 4999, amount: '49.99' }, exchange_rate: rate }
+    const points = { route: 'wallet', amount: { currency: LEGACY_POINTS, amount_minor: 1500, amount: '1500', legacy: true }, price_usd: null, exchange_rate: null }
+    expect(chargePriceLine(usd, 'en')).toBe('$ 49.99')
+    expect(chargePriceLine(syp, 'en')).toBe('649,870 SYP ($ 49.99 at 1 USD = 13,000 SYP)')
+    expect(chargePriceLine(syp, 'ar')).toContain('649,870 ل.س')
+    expect(chargePriceLine(points, 'en')).toBe('1,500 points (earlier record)')
+    expect(chargePriceLine(points, 'ar')).toContain('1,500 نقطة (سجل سابق)')
+    expect(chargePriceLine({ amount: null }, 'en')).toBe('—')
+    expect(chargeRouteLabel(usd, 'en')).toBe('Wallet, dollar balance')
+    expect(chargeRouteLabel(syp, 'en')).toBe('Wallet, pound balance')
+    expect(chargeRouteLabel(points, 'en')).toBe('Wallet')
+    expect(chargeRouteLabel({ ...usd, route: 'offline' }, 'ar')).toBe('دفع خارج المنصة')
+    expect(chargePaidInLabel(syp, 'en')).toBe('Syrian pounds')
+    expect(chargePaidInLabel(points, 'en')).toBe('Points (earlier record)')
+    expect(chargePaidInLabel({}, 'en')).toBe('—')
   })
 
   it('names a retake by its round, and the certification fee by name (O2)', () => {
@@ -335,26 +414,25 @@ describe('amounts, titles, tries, wording and certificate kinds', () => {
   })
 })
 
-describe('the Fees tab schedule (owner answer O2)', () => {
-  it('takes II Points as POINTS or a three-letter money code, as the API does', () => {
-    expect(FEE_POINTS_CURRENCY).toBe('POINTS')
-    expect(isPointsFee('POINTS')).toBe(true)
-    expect(isPointsFee(' points ')).toBe(true)
-    expect(isPointsFee('USD')).toBe(false)
-    expect(feeScheduleFormError({ currency: 'POINTS', amount: '40' })).toBeNull()
-    expect(feeScheduleFormError({ currency: 'POINTS', amount: '0' })).toBeNull()
+describe('the Fees tab schedule (owner, 17 Oct 2026: US dollars only)', () => {
+  it('takes US dollars only; any other currency is a legacy row, never saved as it is', () => {
+    expect(feeScheduleFormError({ currency: 'USD', amount: '40' })).toBeNull()
     expect(feeScheduleFormError({ currency: 'usd', amount: '49.50' })).toBeNull()
-    expect(feeScheduleFormError({ currency: 'EURO', amount: '10' })).toBe('currency')
-    expect(feeScheduleFormError({ currency: '', amount: '10' })).toBe('currency')
-    expect(feeScheduleFormError({ currency: 'US1', amount: '10' })).toBe('currency')
+    expect(feeScheduleFormError({ currency: LEGACY_POINTS, amount: '40' })).toBe('legacy_currency')
+    expect(feeScheduleFormError({ currency: 'EUR', amount: '25' })).toBe('legacy_currency')
+    expect(feeScheduleFormError({ currency: '', amount: '10' })).toBe('legacy_currency')
   })
 
-  it('needs an amount of 0 or more, and a whole one in II Points', () => {
-    expect(feeScheduleFormError({ currency: 'POINTS', amount: '' })).toBe('amount')
-    expect(feeScheduleFormError({ currency: 'POINTS', amount: '-1' })).toBe('amount')
-    expect(feeScheduleFormError({ currency: 'POINTS', amount: 'abc' })).toBe('amount')
-    expect(feeScheduleFormError({ currency: 'POINTS', amount: '40.5' })).toBe('whole_points')
-    expect(feeScheduleFormError({ currency: 'POINTS', amount: '100.00' })).toBeNull()
-    expect(feeScheduleFormError({ currency: 'EUR', amount: '40.5' })).toBeNull()
+  it('needs 0, or $1.00 to $1,000,000.00 with at most two decimals, sent as US cents', () => {
+    expect(feeScheduleFormError({ currency: 'USD', amount: '0' })).toBeNull()
+    expect(feeScheduleFormError({ currency: 'USD', amount: '' })).toBe('amount')
+    expect(feeScheduleFormError({ currency: 'USD', amount: '-1' })).toBe('amount')
+    expect(feeScheduleFormError({ currency: 'USD', amount: 'abc' })).toBe('amount')
+    expect(feeScheduleFormError({ currency: 'USD', amount: '0.50' })).toBe('amount')
+    expect(feeScheduleFormError({ currency: 'USD', amount: '40.505' })).toBe('amount')
+    expect(feeScheduleFormError({ currency: 'USD', amount: '1000000.01' })).toBe('amount')
+    expect(feeScheduleFormError({ currency: 'USD', amount: '40.5' })).toBeNull()
+    expect(feeScheduleAmountMinor({ currency: 'USD', amount: '40.5' })).toBe(4050)
+    expect(feeScheduleAmountMinor({ currency: 'USD', amount: '49.50' })).toBe(4950)
   })
 })

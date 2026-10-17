@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { BadgeCheck, Banknote, Loader2 } from 'lucide-react'
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Textarea } from '../../../components/ui'
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, MoneyInput, Select, Textarea } from '../../../components/ui'
 import { reconcileRplPayment } from '../services/rplService'
 import { readApiError } from '../../../services/apiResponse'
 import { formatLocalizedDateTime } from '../../../utils/localization'
+import { amountMinorOf, exchangeRateText, formatMoney, formatMoneyInline, isMoney, moneyFromDecimal, readsLeftToRight, toMinor } from '../../../utils/money'
+import { rateMissing } from '../domain/afterQuiz'
 
 /*
  * RECORDING THAT THE CERTIFICATE FEE WAS PAID.
  *
  * `POST /applications/{id}/payment-reconciliation` existed with no caller
- * anywhere in the CMS. It is the ONLY code path that sets
+ * anywhere in the platform. It is the ONLY code path that sets
  * `payment_status = 'paid'`, and RplWorkflowService refuses credential issuance
  * until it is. There is no checkout, no order flow and no gateway webhook.
  *
@@ -21,14 +23,21 @@ import { formatLocalizedDateTime } from '../../../utils/localization'
  *
  * The endpoint is idempotent, row-locked and audited, and it detects a
  * reference already used on another order. So this panel stays thin: collect
- * the four fields, show the refusal verbatim when it comes, and never try to
- * decide anything itself.
+ * the fields, show the refusal verbatim when it comes, and never try to decide
+ * anything itself.
  *
  * Owner model of 15 Oct 2026 (P6): this is the COMMITTEE PATH's certification
  * fee only, so it is titled that way and never mistaken for the payments after
  * the entry quiz (the Experience Confirmation Certificate, a final-exam retake
  * and the level certification fee on the final-exam path), which are charges in
  * their own panel.
+ *
+ * Owner decisions of 17 Oct 2026 (contract S17): the fee is in US dollars. Staff
+ * record the currency the client paid in, and the amount, which must be exactly
+ * what the server says is due: the dollar amount, or the pounds at the rate in
+ * force now (committee_fee_due, read with the case). A mismatch is refused (422
+ * amount_mismatch) and the due amount is read again; with no rate set, pounds
+ * cannot be recorded (503 exchange_rate_missing).
  */
 
 const COPY = {
@@ -41,6 +50,8 @@ const COPY = {
     provider: 'وسيلة الدفع',
     bank_transfer: 'حوالة بنكية',
     cash: 'نقدًا',
+    syriatel_cash: 'سيريتل كاش',
+    mtn_cash: 'MTN كاش',
     external_gateway: 'بوابة دفع خارجية',
     manual_reconciliation: 'تسوية يدوية',
     reference: 'المرجع',
@@ -52,6 +63,17 @@ const COPY = {
     recorded: 'تم تسجيل الدفعة.',
     amount: 'المبلغ',
     idempotent: 'التسجيل غير قابل للتكرار: المرجع نفسه لا يُحتسب مرتين، ومرجع مستخدَم في طلب آخر يُرفض.',
+    paidIn: 'العملة المدفوعة',
+    usd: 'بالدولار الأمريكي',
+    syp: 'بالليرة السورية',
+    due: 'المبلغ المستحق: {amount}',
+    dueSyp: 'المبلغ المستحق: {amount} ({usd} بسعر {rate}، مقرّبًا إلى أقرب ليرة)',
+    amountPaid: 'المبلغ المدفوع',
+    amountInvalidUsd: 'أدخل مبلغًا بالدولار الأمريكي بخانتين عشريتين على الأكثر، مثل 49.99.',
+    amountInvalidSyp: 'أدخل عددًا صحيحًا من الليرات السورية، مثل 125000.',
+    amountMustMatch: 'يجب أن يساوي المبلغ المدفوع المبلغ المستحق بهذه العملة.',
+    mismatchReloaded: 'لا يطابق المبلغ المستحق الآن، فأُعيد تحميله. راجع المبلغ ثم أعد المحاولة.',
+    noRate: 'لم يُضبط سعر صرف: لا يمكن تسجيل دفعة بالليرة السورية حتى يُضبط. ولا يتأثر الدفع بالدولار.',
   },
   en: {
     title: 'Certification fee (committee path)',
@@ -62,6 +84,8 @@ const COPY = {
     provider: 'Method',
     bank_transfer: 'Bank transfer',
     cash: 'Cash',
+    syriatel_cash: 'Syriatel Cash',
+    mtn_cash: 'MTN Cash',
     external_gateway: 'External gateway',
     manual_reconciliation: 'Manual reconciliation',
     reference: 'Reference',
@@ -73,33 +97,48 @@ const COPY = {
     recorded: 'Payment recorded.',
     amount: 'Amount',
     idempotent: 'Recording is idempotent: the same reference is never counted twice, and a reference already used on another order is refused.',
+    paidIn: 'Paid in',
+    usd: 'US dollars',
+    syp: 'Syrian pounds',
+    due: 'Amount due: {amount}',
+    dueSyp: 'Amount due: {amount} ({usd} at {rate}, rounded to the whole pound)',
+    amountPaid: 'Amount paid',
+    amountInvalidUsd: 'Enter an amount in US dollars with at most two decimals, such as 49.99.',
+    amountInvalidSyp: 'Enter a whole number of Syrian pounds, such as 125000.',
+    amountMustMatch: 'The amount paid must equal the amount due in this currency.',
+    mismatchReloaded: 'That is not the amount due now, so it has been read again. Check the amount, then try again.',
+    noRate: 'No exchange rate is set: a payment in Syrian pounds cannot be recorded until one is set. Dollar payments are not affected.',
   },
 }
 
-const PROVIDERS = ['bank_transfer', 'cash', 'external_gateway', 'manual_reconciliation']
+const PROVIDERS = ['bank_transfer', 'cash', 'syriatel_cash', 'mtn_cash', 'external_gateway', 'manual_reconciliation']
+
+function emptyForm() {
+  return { provider: 'bank_transfer', provider_reference: '', paid_at: '', notes: '', currency_paid: '', amount_paid: '' }
+}
+
+function fill(template, values) {
+  return Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), template)
+}
 
 export default function PaymentReconciliationPanel({ application, language = 'en', onReconciled }) {
   const copy = COPY[language] || COPY.en
 
-  const [form, setForm] = useState({
-    provider: 'bank_transfer',
-    provider_reference: '',
-    paid_at: '',
-    notes: '',
-  })
+  const [form, setForm] = useState(emptyForm)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
   if (!application) return null
 
-  const amount = Number(application.fee_snapshot?.amount ?? 0)
-  const currency = application.fee_snapshot?.currency || ''
+  // The fee frozen on the case: a ledger figure in the currency it was set in (history keeps EUR or points).
+  const feeMoney = moneyFromDecimal(application.fee_snapshot?.amount ?? 0, application.fee_snapshot?.currency || 'USD')
+  const feeAmount = amountMinorOf(feeMoney) ?? 0
   const isPaid = application.payment_status === 'paid'
 
   // No fee, no reconciliation. The endpoint refuses it too (422), so offering
   // the form would only produce a confusing rejection.
-  if (amount <= 0 && !isPaid) {
+  if (feeAmount <= 0 && !isPaid) {
     return (
       <Card>
         <CardHeader className="border-b border-[var(--color-border)]">
@@ -114,7 +153,23 @@ export default function PaymentReconciliationPanel({ application, language = 'en
     )
   }
 
+  // What is due now (S17): the dollar amount, and the pounds at today's rate while a rate is set.
+  const due = application.committee_fee_due && typeof application.committee_fee_due === 'object' ? application.committee_fee_due : null
+  const dueUsd = isMoney(due?.usd) ? due.usd : feeMoney?.currency === 'USD' ? feeMoney : null
+  const dueSyp = isMoney(due?.syp) ? due.syp : null
+  const dueFor = { USD: dueUsd, SYP: dueSyp }
+  const chosenDue = dueFor[form.currency_paid] || null
+  const typedMinor = form.currency_paid ? toMinor(form.amount_paid, form.currency_paid) : null
+  const amountTyped = String(form.amount_paid).trim() !== ''
+  const amountError = !amountTyped || !form.currency_paid
+    ? ''
+    : typedMinor == null
+      ? (form.currency_paid === 'SYP' ? copy.amountInvalidSyp : copy.amountInvalidUsd)
+      : typedMinor !== amountMinorOf(chosenDue) ? copy.amountMustMatch : ''
+  const ready = !busy && form.provider_reference.trim().length >= 3 && Boolean(chosenDue) && typedMinor != null && typedMinor === amountMinorOf(chosenDue)
+
   async function submit() {
+    if (!ready) return
     setBusy(true)
     setError('')
     setSuccess('')
@@ -124,17 +179,35 @@ export default function PaymentReconciliationPanel({ application, language = 'en
         provider_reference: form.provider_reference.trim(),
         ...(form.paid_at ? { paid_at: form.paid_at } : {}),
         ...(form.notes.trim() ? { notes: form.notes.trim() } : {}),
+        currency_paid: form.currency_paid,
+        amount_paid_minor: typedMinor,
       })
       setSuccess(copy.recorded)
-      setForm({ provider: 'bank_transfer', provider_reference: '', paid_at: '', notes: '' })
+      setForm(emptyForm())
       if (onReconciled) onReconciled()
     } catch (requestError) {
       // 409 carries a real explanation — a reference on another order, or this
       // case reconciled under a different one. Show it verbatim.
-      setError(readApiError(requestError))
+      if (rateMissing(requestError)) {
+        setError(copy.noRate)
+      } else if (Number(requestError?.response?.status) === 422 && requestError?.response?.data?.reason_code === 'amount_mismatch') {
+        // The amount due moved (the rate changed): read the case again for the new committee_fee_due.
+        setError(copy.mismatchReloaded)
+        if (onReconciled) onReconciled()
+      } else {
+        setError(readApiError(requestError))
+      }
     } finally {
       setBusy(false)
     }
+  }
+
+  function dueLine() {
+    if (!chosenDue) return null
+    const text = form.currency_paid === 'SYP' && due?.exchange_rate && dueUsd
+      ? fill(copy.dueSyp, { amount: formatMoneyInline(chosenDue, language), usd: formatMoneyInline(dueUsd, language), rate: exchangeRateText(due.exchange_rate, language) })
+      : fill(copy.due, { amount: formatMoneyInline(chosenDue, language) })
+    return <p className="text-sm font-semibold"><bdi>{text}</bdi></p>
   }
 
   return (
@@ -145,9 +218,9 @@ export default function PaymentReconciliationPanel({ application, language = 'en
             <Banknote className="h-5 w-5" aria-hidden="true" /> {copy.title}
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
-            {amount > 0 ? (
+            {feeAmount > 0 ? (
               <Badge variant="neutral">
-                {copy.amount}: {amount} {currency}
+                {copy.amount}: <bdi dir={readsLeftToRight(feeMoney, language) ? 'ltr' : undefined}>{formatMoney(feeMoney, language)}</bdi>
               </Badge>
             ) : null}
             <Badge variant={isPaid ? 'success' : 'warning'}>
@@ -160,7 +233,7 @@ export default function PaymentReconciliationPanel({ application, language = 'en
 
       <CardContent className="space-y-3 p-6">
         {error ? (
-          <p className="whitespace-pre-line rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <p role="alert" className="whitespace-pre-line rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             {error}
           </p>
         ) : null}
@@ -180,6 +253,20 @@ export default function PaymentReconciliationPanel({ application, language = 'en
           </p>
         ) : (
           <>
+            <fieldset className="space-y-2">
+              <legend className="text-xs text-[var(--color-text-muted)]">{copy.paidIn}</legend>
+              <div className="flex flex-wrap gap-3 text-sm">
+                {[['USD', copy.usd, dueUsd], ['SYP', copy.syp, dueSyp]].map(([code, label, amount]) => (
+                  <label key={code} className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${amount ? 'cursor-pointer border-[var(--color-border)]' : 'cursor-not-allowed border-dashed border-[var(--color-border)] opacity-60'}`}>
+                    <input type="radio" name={`committee-fee-currency-${application.public_id}`} value={code} checked={form.currency_paid === code} disabled={!amount} onChange={() => setForm((c) => ({ ...c, currency_paid: code, amount_paid: '' }))} />
+                    <span>{label}</span>
+                    {amount ? <bdi dir={readsLeftToRight(amount, language) ? 'ltr' : undefined} className="text-[var(--color-text-muted)]">{formatMoney(amount, language)}</bdi> : null}
+                  </label>
+                ))}
+              </div>
+              {!dueSyp && dueUsd ? <p className="text-xs text-[var(--color-text-muted)]">{copy.noRate}</p> : null}
+            </fieldset>
+            {dueLine()}
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-xs text-[var(--color-text-muted)]">
                 {copy.provider}
@@ -210,6 +297,15 @@ export default function PaymentReconciliationPanel({ application, language = 'en
                   onChange={(event) => setForm((c) => ({ ...c, paid_at: event.target.value }))}
                 />
               </label>
+              <MoneyInput
+                currency={form.currency_paid || 'USD'}
+                language={language}
+                label={copy.amountPaid}
+                value={form.amount_paid}
+                disabled={!form.currency_paid}
+                error={amountError || undefined}
+                onChange={(value) => setForm((c) => ({ ...c, amount_paid: value }))}
+              />
             </div>
             <Textarea
               rows={2}
@@ -220,7 +316,7 @@ export default function PaymentReconciliationPanel({ application, language = 'en
             <div className="flex flex-wrap items-center gap-3">
               <Button
                 onClick={submit}
-                disabled={busy || form.provider_reference.trim().length < 3}
+                disabled={!ready}
               >
                 {busy ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

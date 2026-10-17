@@ -1,4 +1,5 @@
 import {
+  ArrowLeftRight,
   Award,
   BadgeCheck,
   BookOpenCheck,
@@ -187,6 +188,8 @@ const groups = [
         icon: Headphones,
       },
       { label: { ar: 'النظام المالي', en: 'Finance' }, href: '/finance', icon: WalletCards },
+      // The USD -> SYP exchange rate (owner, 17 Oct 2026): read by finance and payment roles, set by the owner's role only.
+      { label: { ar: 'سعر الصرف', en: 'Exchange rate' }, href: '/finance/exchange-rate', icon: ArrowLeftRight },
     ],
   },
   {

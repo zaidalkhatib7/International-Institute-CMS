@@ -402,6 +402,29 @@ describe('the next-status select', () => {
     await waitFor(() => expect(mocks.fetchRplApplication).toHaveBeenCalledTimes(2))
   })
 
+  // F2: a case that closes withdraws its question sets still awaiting answers; an opened entry quiz keeps its timer.
+  it.each([['withdrawn'], ['rejected']])('says what closing the case does to its question sets when the target is %s', async (target) => {
+    open({ allowed_transitions: ['awaiting_applicant', target] })
+    renderCase()
+
+    const select = await screen.findByLabelText('Next status')
+    const sentence = 'A question set still awaiting answers is withdrawn with the case; an opened entry quiz whose time is running is marked when its time runs out.'
+    expect(screen.queryByText(sentence)).not.toBeInTheDocument()
+    fireEvent.change(select, { target: { value: target } })
+    expect(screen.getByText(sentence)).toBeInTheDocument()
+    fireEvent.change(select, { target: { value: 'awaiting_applicant' } })
+    expect(screen.queryByText(sentence)).not.toBeInTheDocument()
+  })
+
+  it('says it in Arabic too', async () => {
+    language.current = 'ar'
+    open({ allowed_transitions: ['withdrawn'] })
+    renderCase()
+
+    fireEvent.change(await screen.findByLabelText('الحالة التالية'), { target: { value: 'withdrawn' } })
+    expect(screen.getByText('تُسحب مع الطلب أي مجموعة أسئلة ما زالت بانتظار الإجابة، ويُصحَّح اختبار الدخول المفتوح الذي يجري وقته عند انتهاء الوقت.')).toBeInTheDocument()
+  })
+
   it('says so when nothing can be set from here', async () => {
     open({ allowed_transitions: [] })
     renderCase()
@@ -426,6 +449,43 @@ describe('the next-status select', () => {
 
     expect((await screen.findAllByText('مقابلة مطلوبة')).length).toBeGreaterThan(0)
     expect(document.body.textContent).not.toContain('undefined')
+  })
+})
+
+// F2 on the intake rejection (money review): the API never lists `rejected` among the generic
+// targets, so the initial administrative review card is where staff reject at intake, and it
+// says what closing the case does to its question sets.
+describe('the intake review card', () => {
+  const reviewing = () => mocks.fetchRplApplication.mockResolvedValue({
+    data: application({ status: 'administrative_review', finalised_at: null, decline_reason_code: null, reapply_available_at: null, allowed_transitions: [] }),
+  })
+  const decisionSelect = async (label, needsInformation) => {
+    const selects = await screen.findAllByLabelText(label)
+    return selects.find((select) => within(select).queryByRole('option', { name: needsInformation }))
+  }
+
+  it('says what a rejection does to the question sets, and only for a rejection', async () => {
+    reviewing()
+    renderCase()
+
+    const select = await decisionSelect('Decision', 'More information required')
+    const sentence = 'A question set still awaiting answers is withdrawn with the case; an opened entry quiz whose time is running is marked when its time runs out.'
+    expect(screen.queryByText(sentence)).not.toBeInTheDocument()
+    fireEvent.change(select, { target: { value: 'rejected' } })
+    expect(screen.getByRole('note')).toHaveTextContent(sentence)
+    fireEvent.change(select, { target: { value: 'needs_information' } })
+    expect(screen.queryByText(sentence)).not.toBeInTheDocument()
+    fireEvent.change(select, { target: { value: 'accepted' } })
+    expect(screen.queryByText(sentence)).not.toBeInTheDocument()
+  })
+
+  it('says it in Arabic too', async () => {
+    language.current = 'ar'
+    reviewing()
+    renderCase()
+
+    fireEvent.change(await decisionSelect('القرار', 'معلومات إضافية مطلوبة'), { target: { value: 'rejected' } })
+    expect(screen.getByText('تُسحب مع الطلب أي مجموعة أسئلة ما زالت بانتظار الإجابة، ويُصحَّح اختبار الدخول المفتوح الذي يجري وقته عند انتهاء الوقت.')).toBeInTheDocument()
   })
 })
 

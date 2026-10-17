@@ -133,8 +133,8 @@ beforeEach(() => {
   mocks.fetchRplAssessments.mockResolvedValue({ data: [] })
   mocks.fetchRplAssignments.mockResolvedValue({ data: [] })
   mocks.fetchRplAssessors.mockResolvedValue({ data: [] })
-  mocks.fetchRplCharges.mockResolvedValue({ data: [{ id: 1, public_id: 'charge-1', type: 'experience_certificate', cycle: 1, amount: 1500, currency: 'POINTS', route: 'offline', status: 'pending', lock_version: 1, can: { confirm: true, cancel: true, refund: false } }] })
-  mocks.fetchRplExperienceCertificate.mockResolvedValue({ data: { eligible: true, state: 'available', reason_code: null, live_price_points: 1500, live_wording: { id: 2, version: 1, sha256: 'ab' }, current: null, history: [] } })
+  mocks.fetchRplCharges.mockResolvedValue({ data: [{ id: 1, public_id: 'charge-1', type: 'experience_certificate', cycle: 1, amount: { currency: 'USD', amount_minor: 150000, amount: '1500.00' }, price_usd: { currency: 'USD', amount_minor: 150000, amount: '1500.00' }, exchange_rate: null, route: 'offline', status: 'pending', lock_version: 1, can: { confirm: true, cancel: true, refund: false } }] })
+  mocks.fetchRplExperienceCertificate.mockResolvedValue({ data: { eligible: true, state: 'available', reason_code: null, live_price: { usd: { currency: 'USD', amount_minor: 150000, amount: '1500.00' }, syp: null, exchange_rate: null }, live_wording: { id: 2, version: 1, sha256: 'ab' }, current: null, history: [] } })
   mocks.fetchRplFinalExam.mockResolvedValue({ data: { state: 'available', blocked_reason: null, courses: [], settings: {}, rounds: [], level_certificate: { state: 'not_due', holds: [] }, can: { void: false, reopen: false } } })
   mocks.confirmRplChargePayment.mockResolvedValue({ data: {} })
 })
@@ -226,11 +226,12 @@ describe('the overview panels', () => {
     const form = within(screen.getByRole('region', { name: A.charges.confirmTitle }))
     fireEvent.change(form.getByLabelText(A.charges.reference), { target: { value: 'TRX-2026-1' } })
     fireEvent.change(form.getByLabelText(A.charges.paidOn), { target: { value: '2026-01-05' } })
-    fireEvent.change(form.getByLabelText(A.charges.amountReceived), { target: { value: '150' } })
-    fireEvent.change(form.getByLabelText(A.charges.currencyReceived), { target: { value: 'EUR' } })
+    // The amount due in the charge's own currency (S15): $1,500.00, typed as dollars.
+    fireEvent.change(form.getByLabelText(A.charges.amountReceived), { target: { value: '1500' } })
     fireEvent.click(form.getByRole('button', { name: A.charges.confirmSubmit }))
 
     await waitFor(() => expect(mocks.confirmRplChargePayment).toHaveBeenCalledTimes(1))
+    expect(mocks.confirmRplChargePayment.mock.calls[0][1]).toMatchObject({ amount_received_minor: 150000, currency_received: 'USD' })
     await waitFor(() => expect(mocks.fetchRplApplication).toHaveBeenCalledTimes(2))
     await waitFor(() => expect(mocks.fetchRplExperienceCertificate).toHaveBeenCalledTimes(2))
     // Only the case and its timeline are read again, never the whole page.

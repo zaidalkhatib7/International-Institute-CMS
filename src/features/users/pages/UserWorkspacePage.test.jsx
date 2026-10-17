@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import UserWorkspacePage, { copyByLanguage } from './UserWorkspacePage'
 import { formatLocalizedDate, formatLocalizedDateTime } from '../../../utils/localization'
+import { LEGACY_POINTS } from '../../../utils/money'
 
 /*
  * THE STAFF SIDE OF THE NEW RPL INTAKE (owner flow, 12 Oct 2026).
@@ -129,7 +130,10 @@ function serve() {
       case '/admin/rpl/reference-data':
         return { data: { data: { pathways: [pathway] } } }
       case '/admin/programs':
-        return { data: { data: [] } }
+        return { data: { data: world.programs || [] } }
+      // The staff wallet ledger (contract S5): a Laravel paginator.
+      case '/admin/users/7/wallet/transactions':
+        return { data: { data: world.ledger || [], current_page: 1, last_page: 1, total: (world.ledger || []).length } }
       case '/academic-rpl/reference-data':
         return { data: { data: { tracks: [] } } }
       default:
@@ -511,5 +515,133 @@ describe('the preferred language', () => {
     const [url, body] = http.put.mock.calls[0]
     expect(url).toBe('/admin/users/7')
     expect(body.preferred_locale).toBe('en')
+  })
+})
+
+/*
+ * THE CLIENT'S WALLET AND THE STAFF-ASSISTED ENROLMENT (owner decisions of 17
+ * Oct 2026; contract S5, S6, S7). Two balances, never added together; the staff
+ * ledger with a filter by currency, the earlier points rows muted under one line
+ * that says what became of them; and an enrolment paid from the balance staff
+ * choose, the body echoing the amount the screen showed.
+ */
+const money = (currency, minor, amount) => ({ currency, amount_minor: minor, amount })
+const RATE = { id: 7, syp_per_usd: '13000.0000', effective_from: '2026-10-17T09:00:00Z' }
+const POINTS = LEGACY_POINTS
+
+function programme(overrides = {}) {
+  return {
+    id: 31,
+    program_type: 'professional_diploma',
+    title: { en: 'Professional Diploma in Site Safety', ar: 'الدبلوم المهني في سلامة المواقع' },
+    is_active: true,
+    is_free: false,
+    price_usd_minor: 4999,
+    price: { usd: money('USD', 4999, '49.99'), syp: money('SYP', 649870, '649870'), exchange_rate: RATE },
+    ...overrides,
+  }
+}
+
+function withProgrammes(programs) {
+  world.programs = programs
+  world.eligibility = { ...eligibility(OPEN_INTAKE), professional_qualifications: { eligible_program_types: ['professional_diploma'] } }
+}
+
+describe('the wallet card', () => {
+  it('shows both balances and the ledger, the earlier points rows muted under one line', async () => {
+    world.user = client({ wallet_balances: { usd: money('USD', 25000, '250.00'), syp: money('SYP', 700000, '700000') } })
+    world.ledger = [
+      { id: 3, created_at: '2026-10-17T10:00:00Z', direction: 'credit', currency: 'SYP', amount: money('SYP', 700000, '700000'), balance_after: money('SYP', 700000, '700000'), kind: 'top_up', method: 'syriatel_cash', reference: 'SY-1', received_on: '2026-10-17', notes: null, description: null, recorded_by: { id: 2, name: 'Finance Officer' }, subject: null },
+      { id: 2, created_at: '2026-10-17T00:00:00Z', direction: 'credit', currency: 'USD', amount: money('USD', 25000, '250.00'), balance_after: money('USD', 25000, '250.00'), kind: 'conversion', method: null, reference: null, received_on: null, notes: null, description: null, recorded_by: null, subject: null },
+      { id: 1, created_at: '2026-10-01T09:00:00Z', direction: 'credit', currency: POINTS, amount: { currency: POINTS, amount_minor: 250, amount: '250', legacy: true }, balance_after: { currency: POINTS, amount_minor: 250, amount: '250', legacy: true }, kind: null, method: null, reference: null, received_on: null, notes: null, description: 'Credit', recorded_by: null, subject: null },
+    ]
+    renderWorkspace()
+
+    const ledger = within(await screen.findByRole('table', { name: 'Wallet movements' }))
+    expect(screen.getAllByText('$ 250.00').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('700,000 SYP').length).toBeGreaterThan(0)
+    expect(ledger.getByText('Top-up')).toBeInTheDocument()
+    expect(ledger.getByText(/Syriatel Cash · SY-1/)).toBeInTheDocument()
+    expect(ledger.getByText('Points carried into US dollars')).toBeInTheDocument()
+    const legacy = ledger.getAllByText('250 points (earlier record)')[0].closest('tr')
+    expect(legacy).toHaveAttribute('data-legacy', 'true')
+    expect(screen.getByText(/Until 17 Oct 2026 the wallet held points/)).toBeInTheDocument()
+    expect(http.get).toHaveBeenCalledWith('/admin/users/7/wallet/transactions', { params: { page: 1 } })
+
+    fireEvent.change(screen.getByLabelText('Show'), { target: { value: 'legacy' } })
+    await waitFor(() => expect(http.get).toHaveBeenCalledWith('/admin/users/7/wallet/transactions', { params: { currency: POINTS, page: 1 } }))
+  })
+
+  it('offers Top up and Deduct for the client', async () => {
+    renderWorkspace()
+
+    expect(await screen.findByRole('button', { name: 'Top up' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deduct' })).toBeInTheDocument()
+  })
+})
+
+describe('the staff-assisted enrolment (S7)', () => {
+  it('shows the dollar price, offers the balance to pay from, and sends the amount shown', async () => {
+    world.user = client({ wallet_balances: { usd: money('USD', 10000, '100.00'), syp: money('SYP', 100000, '100000') } })
+    withProgrammes([programme()])
+    http.post.mockResolvedValue({ data: { data: { enrollment_id: 5 } } })
+    renderWorkspace()
+
+    const select = await screen.findByLabelText(en.selectProgram)
+    expect(within(select).getByRole('option', { name: /Professional Diploma in Site Safety · \$ 49\.99/ })).toBeInTheDocument()
+    fireEvent.change(select, { target: { value: '31' } })
+
+    const usdChoice = screen.getByRole('radio', { name: /US-dollar balance/ })
+    const sypChoice = screen.getByRole('radio', { name: /Syrian-pound balance/ })
+    expect(usdChoice).toBeEnabled()
+    // 649,870 pounds are due at today's rate and the client holds 100,000: too low.
+    expect(sypChoice).toBeDisabled()
+    expect(screen.getByText('balance too low')).toBeInTheDocument()
+    const enrol = screen.getByRole('button', { name: 'Enrol and pay from the US-dollar balance' })
+    expect(enrol).toBeDisabled()
+    fireEvent.click(usdChoice)
+    fireEvent.click(enrol)
+
+    await waitFor(() => expect(http.post).toHaveBeenCalledWith('/admin/users/7/enrollments', { program_id: 31, currency: 'USD', expected_amount_minor: 4999 }))
+  })
+
+  it('offers no Syrian-pound payment while no exchange rate is set', async () => {
+    world.user = client({ wallet_balances: { usd: money('USD', 0, '0.00'), syp: money('SYP', 9000000, '9000000') } })
+    withProgrammes([programme({ price: { usd: money('USD', 4999, '49.99'), syp: null, exchange_rate: null } })])
+    renderWorkspace()
+
+    fireEvent.change(await screen.findByLabelText(en.selectProgram), { target: { value: '31' } })
+    expect(screen.getByRole('radio', { name: /Syrian-pound balance/ })).toBeDisabled()
+    expect(screen.getByText(/No exchange rate is set/)).toBeInTheDocument()
+  })
+
+  it('on 409 price_changed charges nothing, reads the price again and keeps the choice', async () => {
+    world.user = client({ wallet_balances: { usd: money('USD', 10000, '100.00'), syp: money('SYP', 0, '0') } })
+    withProgrammes([programme()])
+    http.post.mockRejectedValue({ response: { status: 409, data: { message: 'The price changed since it was shown.', code: 'price_changed', current_amount: money('USD', 5999, '59.99'), current_price: { usd: money('USD', 5999, '59.99'), syp: null, exchange_rate: null } } } })
+    renderWorkspace()
+
+    fireEvent.change(await screen.findByLabelText(en.selectProgram), { target: { value: '31' } })
+    fireEvent.click(screen.getByRole('radio', { name: /US-dollar balance/ }))
+    const fetchesBefore = userFetches()
+    world.programs = [programme({ price_usd_minor: 5999, price: { usd: money('USD', 5999, '59.99'), syp: null, exchange_rate: null } })]
+    fireEvent.click(screen.getByRole('button', { name: 'Enrol and pay from the US-dollar balance' }))
+
+    expect(await screen.findByText('The price changed since it was shown: it is now $ 59.99. Nothing was charged; check it and enrol again.')).toBeInTheDocument()
+    await waitFor(() => expect(userFetches()).toBeGreaterThan(fetchesBefore))
+    expect(await screen.findByText('pays $ 59.99')).toBeInTheDocument()
+    expect(screen.getByLabelText(en.selectProgram)).toHaveValue('31')
+    expect(screen.getByRole('radio', { name: /US-dollar balance/ })).toBeChecked()
+  })
+
+  it('enrols a free programme with the programme alone', async () => {
+    withProgrammes([programme({ is_free: true, price_usd_minor: 0, price: null })])
+    http.post.mockResolvedValue({ data: { data: { enrollment_id: 6 } } })
+    renderWorkspace()
+
+    fireEvent.change(await screen.findByLabelText(en.selectProgram), { target: { value: '31' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enrol (free)' }))
+
+    await waitFor(() => expect(http.post).toHaveBeenCalledWith('/admin/users/7/enrollments', { program_id: 31 }))
   })
 })

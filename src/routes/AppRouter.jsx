@@ -47,6 +47,7 @@ const CertificatesPage = lazy(() => import('../features/certificates/pages/Certi
 const DigitalLibraryPage = lazy(() => import('../features/library/pages/DigitalLibraryPage'))
 const SupportOperationsPage = lazy(() => import('../features/support/pages/SupportOperationsPage'))
 const FinanceOperationsPage = lazy(() => import('../features/finance/pages/FinanceOperationsPage'))
+const ExchangeRatePage = lazy(() => import('../features/finance/pages/ExchangeRatePage'))
 const NotFoundPage = lazy(() => import('../features/shared/pages/NotFoundPage'))
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'))
 
@@ -132,8 +133,9 @@ export default function AppRouter() {
           }
         />
 
+        {/* A client's balances (owner, 17 Oct 2026): top up or deduct, by id only, never a name in the URL. */}
         <Route
-          path="/users/wallet"
+          path="/users/:id/wallet"
           element={
             <AdminRoute>
               <UserWalletActionPage />
@@ -324,6 +326,7 @@ export default function AppRouter() {
         <Route path="/library" element={<AdminRoute><DigitalLibraryPage /></AdminRoute>} />
         <Route path="/support" element={<AdminRoute><SupportOperationsPage /></AdminRoute>} />
         <Route path="/finance" element={<AdminRoute><FinanceOperationsPage /></AdminRoute>} />
+        <Route path="/finance/exchange-rate" element={<AdminRoute><ExchangeRatePage /></AdminRoute>} />
 
         {moduleWorkspacePaths.map((path) => (
           <Route

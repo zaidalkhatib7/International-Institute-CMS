@@ -51,7 +51,9 @@ function program(id, overrides = {}) {
     content_status: 'published',
     is_active: true,
     is_free: false,
-    price_points: 120,
+    // One price in US dollars (owner, 17 Oct 2026): US cents, and the Price the staff payload carries.
+    price_usd_minor: 12000,
+    price: { usd: { currency: 'USD', amount_minor: 12000, amount: '120.00' }, syp: null, exchange_rate: null },
     buyable: true,
     ...overrides,
   }

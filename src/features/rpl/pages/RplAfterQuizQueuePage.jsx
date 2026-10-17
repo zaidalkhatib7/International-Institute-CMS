@@ -13,9 +13,11 @@ import {
   CHARGE_TYPES,
   EXPERIENCE_CERTIFICATE_STATUSES,
   afterQuizCopy,
+  chargePaidInLabel,
+  chargePriceLine,
+  chargeRouteLabel,
   chargeStatusLabel,
   chargeTitle,
-  formatChargeAmount,
   programTitle,
 } from '../domain/afterQuiz'
 import { fetchRplAfterQuizAttention, fetchRplChargeQueue, fetchRplExperienceCertificateQueue } from '../services/rplService'
@@ -86,8 +88,9 @@ export default function RplAfterQuizQueuePage({ mode = 'payments' }) {
     { key: 'case', label: queue.case, render: (row) => <CaseLink application={row.application} /> },
     { key: 'client', label: queue.client, render: (row) => row.client?.name || '—' },
     { key: 'type', label: queue.type, render: (row) => chargeTitle(row, screenLanguage) },
-    { key: 'amount', label: queue.amount, render: (row) => <bdi>{formatChargeAmount(row.amount, row.currency, screenLanguage)}</bdi> },
-    { key: 'route', label: queue.route, render: (row) => copy.routes[row.route] || row.route || '—' },
+    { key: 'amount', label: queue.amount, render: (row) => <bdi>{chargePriceLine(row, screenLanguage)}</bdi> },
+    { key: 'paidIn', label: queue.paidIn, render: (row) => chargePaidInLabel(row, screenLanguage) },
+    { key: 'route', label: queue.route, render: (row) => chargeRouteLabel(row, screenLanguage) },
     { key: 'status', label: queue.status, render: (row) => <Badge variant={CHARGE_STATUS_VARIANT[row.status] || 'neutral'}>{chargeStatusLabel(row.status, screenLanguage)}</Badge> },
     { key: 'requested', label: queue.requested, render: (row) => <span className="text-sm text-[var(--color-text-muted)]">{at(row.requested_at)}{row.payer_reference ? <span className="block"><bdi>{fill(copy.charges.payerReference, { reference: row.payer_reference })}</bdi></span> : null}</span> },
   ]
@@ -98,7 +101,7 @@ export default function RplAfterQuizQueuePage({ mode = 'payments' }) {
     { key: 'status', label: queue.status, render: (row) => copy.experience.statuses[row.status] || row.status || '—' },
     { key: 'choice', label: queue.choice, render: (row) => copy.experience.choices[row.client_choice] || row.client_choice || '—' },
     { key: 'quiz', label: queue.entryQuiz, render: (row) => (row.entry_quiz ? fill(copy.experience.entryQuiz, { percent: formatQuizPercent(row.entry_quiz.percent) ?? '—', mark: row.entry_quiz.pass_mark_applied ?? '—' }) : '—') },
-    { key: 'charge', label: queue.charge, render: (row) => (row.charge ? <bdi>{`${formatChargeAmount(row.charge.amount, row.charge.currency, screenLanguage)} · ${chargeStatusLabel(row.charge.status, screenLanguage)}`}</bdi> : '—') },
+    { key: 'charge', label: queue.charge, render: (row) => (row.charge ? <bdi>{`${chargePriceLine(row.charge, screenLanguage)} · ${chargeStatusLabel(row.charge.status, screenLanguage)}`}</bdi> : '—') },
     { key: 'created', label: queue.requested, render: (row) => <span className="text-sm text-[var(--color-text-muted)]">{at(row.created_at)}</span> },
   ]
 
@@ -155,7 +158,7 @@ export default function RplAfterQuizQueuePage({ mode = 'payments' }) {
         },
       },
     ]
-    // O2: the pass waits in the final exam until the Fees tab's fee is in whole II Points (or 0).
+    // The pass waits in the final exam until the Fees tab's fee is in US dollars (or 0); a fee in another currency is never converted.
     const feeUnusableColumns = [
       { key: 'case', label: queue.case, render: (row) => <CaseLink application={row.application} /> },
       { key: 'reason', label: queue.reason, render: () => <span className="text-sm leading-6">{copy.finalExam.level.feeUnusable}</span> },

@@ -4,15 +4,17 @@ import { Link } from 'react-router-dom'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Select, Textarea } from '../../../components/ui'
 import { readApiError, unwrapApiData } from '../../../services/apiResponse'
 import { formatLocalizedDateTime } from '../../../utils/localization'
+import { formatPrice } from '../../../utils/money'
 import { fill } from '../domain/documentScreening'
 import { formatQuizPercent } from '../domain/entryQuiz'
 import {
   AFTER_QUIZ_LIMITS,
   REFUSAL_CATEGORIES,
   afterQuizCopy,
+  chargePriceLine,
+  chargeRouteLabel,
   chargeStatusLabel,
   experienceStateLabel,
-  formatChargeAmount,
   isAfterQuizReasonValid,
   isStaleConflict,
   personName,
@@ -53,7 +55,7 @@ function CertificateRow({ row, copy, language }) {
       </div>
       {row.choice_changed_at ? <Line>{fill(text.choiceChanged, { at: at(row.choice_changed_at) })}</Line> : null}
       {quiz ? <Line>{fill(text.entryQuiz, { percent: formatQuizPercent(quiz.percent) ?? '—', mark: quiz.pass_mark_applied ?? '—' })}</Line> : null}
-      {row.charge ? <Line><bdi>{fill(text.charge, { amount: formatChargeAmount(row.charge.amount, row.charge.currency, language), route: copy.routes[row.charge.route] || row.charge.route || '—', status: chargeStatusLabel(row.charge.status, language) })}</bdi></Line> : null}
+      {row.charge ? <Line><bdi>{fill(text.charge, { amount: chargePriceLine(row.charge, language), route: chargeRouteLabel(row.charge, language), status: chargeStatusLabel(row.charge.status, language) })}</bdi></Line> : null}
       {row.approved_at ? <Line>{fill(text.approvedBy, { name: personName(row.approved_by, language), at: at(row.approved_at) })}</Line> : null}
       {row.wording ? <Line><span title={row.wording.sha256 || undefined}>{fill(text.frozenWording, { version: row.wording.version ?? '—', sha: shortHash(row.wording.sha256) })}</span></Line> : null}
       {row.refused_at ? <Line>{fill(text.refusedBy, { name: personName(row.refused_by, language), at: at(row.refused_at) })}{row.refusal_category ? ` · ${text.refusalCategories[row.refusal_category] || row.refusal_category}` : ''}</Line> : null}
@@ -176,7 +178,8 @@ export default function ExperienceCertificatePanel({ applicationId, language, ca
         {reasonSentence()}
         {overview.eligible !== false ? (
           <div className="space-y-1">
-            <Line>{overview.live_price_points != null ? fill(text.livePrice, { price: formatChargeAmount(overview.live_price_points, 'POINTS', language) }) : text.priceNotSet}</Line>
+            {/* The live price (contract S18): US dollars, and Syrian pounds at today's rate while a rate is set. */}
+            <Line><bdi>{overview.live_price ? fill(text.livePrice, { price: formatPrice(overview.live_price, language) }) : text.priceNotSet}</bdi></Line>
             <Line>{overview.live_wording ? fill(text.liveWording, { version: overview.live_wording.version ?? '—' }) : text.noLiveWording}</Line>
           </div>
         ) : null}

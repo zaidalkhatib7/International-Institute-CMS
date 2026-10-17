@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CLOSED_CASE_STATUSES,
   ENTRY_QUIZ_COPY,
   ENTRY_QUIZ_REFERRAL_REASONS,
   QUIZ_PASS_MARK_COPY,
@@ -11,6 +12,7 @@ import {
   entryQuizItemMarks,
   formatQuizPercent,
   hasQuizResult,
+  isCaseClosed,
   isHeardAtExpiry,
   isQuizPassMarkReady,
   isQuizPassMarkValid,
@@ -244,5 +246,32 @@ describe('the pass mark setting', () => {
     }
     expect(quizPassMarkFieldError(error)).toBe('The pass mark must be between 1 and 99.')
     expect(quizPassMarkFieldError({})).toBe('')
+  })
+})
+
+/*
+ * F4: ON A CLOSED CASE NOTHING REOPENS. The platform mirrors the API's
+ * RplApplicationStatus::isClosed() from the set payload's application.status.
+ */
+describe('a closed case', () => {
+  it('is completed, withdrawn or rejected, as the API says', () => {
+    expect(CLOSED_CASE_STATUSES).toEqual(['completed', 'withdrawn', 'rejected'])
+  })
+
+  it.each([
+    ['completed', true],
+    ['withdrawn', true],
+    ['rejected', true],
+    ['assessment_in_progress', false],
+    ['evidence_verification', false],
+    [undefined, false],
+    [null, false],
+  ])('reads application.status %j as closed: %s', (status, closed) => {
+    expect(isCaseClosed({ application: { status } })).toBe(closed)
+  })
+
+  it('takes a set with no application as open (the server stays the authority)', () => {
+    expect(isCaseClosed({})).toBe(false)
+    expect(isCaseClosed(null)).toBe(false)
   })
 })

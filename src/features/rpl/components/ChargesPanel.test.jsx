@@ -2,11 +2,14 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ChargesPanel from './ChargesPanel'
 import { AFTER_QUIZ_COPY } from '../domain/afterQuiz'
+import { LEGACY_POINTS } from '../../../utils/money'
 
 /*
  * THE CASE'S PAYMENTS AFTER THE ENTRY QUIZ (owner model of 15 Oct 2026, P6).
  *
- * Pinned: Confirm sends exactly the S3 body with the charge's lock_version;
+ * Pinned: Confirm sends exactly the S15 body with the charge's lock_version, the
+ * charge's own currency and the amount received in minor units, which must equal
+ * the amount due (owner, 17 Oct 2026);
  * Cancel needs a category and a reason of 10 or more characters; Refund shows
  * only for finance.manage AND the server's can.refund; a stale write (409
  * rpl_charge_stale) says so, keeps what was typed and reloads; the level
@@ -26,6 +29,9 @@ vi.mock('../services/rplService', () => mocks)
 const EN = AFTER_QUIZ_COPY.en
 const AR = AFTER_QUIZ_COPY.ar
 const REASON = 'No transfer reached the institute account.'
+const RATE = { id: 7, syp_per_usd: '13000.0000', effective_from: '2026-10-15T08:00:00Z' }
+// $ 49.99 at 13,000 pounds to the dollar, frozen when the client asked to pay outside.
+const SYP_AMOUNT = { currency: 'SYP', amount_minor: 649870, amount: '649870' }
 
 function charge(overrides = {}) {
   return {
@@ -33,8 +39,9 @@ function charge(overrides = {}) {
     public_id: 'charge-1',
     type: 'experience_certificate',
     cycle: 1,
-    amount: 1500,
-    currency: 'POINTS',
+    amount: { currency: 'USD', amount_minor: 1500, amount: '15.00' },
+    price_usd: { currency: 'USD', amount_minor: 1500, amount: '15.00' },
+    exchange_rate: null,
     route: 'offline',
     status: 'pending',
     invoice_number: 'INV-2026-0042',
@@ -47,8 +54,8 @@ function charge(overrides = {}) {
     refunded_at: null,
     application: { public_id: 'case-41', case_reference: 'RPL-2026-AFTER' },
     client: { id: 9, name: 'Amina Saleh' },
-    price_setting_key: 'rpl_experience_certificate_price_points',
-    price_setting_snapshot: { key: 'rpl_experience_certificate_price_points', value: 1500 },
+    price_setting_key: 'rpl_experience_certificate_price_usd_minor',
+    price_setting_snapshot: { key: 'rpl_experience_certificate_price_usd_minor', value_minor: 1500, currency: 'USD' },
     order_id: 12,
     order_number: 'ORD-12',
     payment_id: null,
@@ -59,8 +66,7 @@ function charge(overrides = {}) {
     confirmed_at: null,
     offline_method: null,
     offline_reference: null,
-    offline_amount_received: null,
-    offline_currency: null,
+    offline_received: null,
     staff_notes: null,
     consumed_at: null,
     consumed_by: null,
@@ -90,23 +96,25 @@ function fillConfirm(form) {
   fireEvent.change(form.getByLabelText(EN.charges.method), { target: { value: 'cash' } })
   fireEvent.change(form.getByLabelText(EN.charges.reference), { target: { value: '  RCPT-2026-117  ' } })
   fireEvent.change(form.getByLabelText(EN.charges.paidOn), { target: { value: '2026-01-05' } })
-  fireEvent.change(form.getByLabelText(EN.charges.amountReceived), { target: { value: '150.50' } })
-  fireEvent.change(form.getByLabelText(EN.charges.currencyReceived), { target: { value: 'jod' } })
+  fireEvent.change(form.getByLabelText(EN.charges.amountReceived), { target: { value: '15.00' } })
   fireEvent.change(form.getByLabelText(EN.charges.notes), { target: { value: 'Paid at the Amman office.' } })
 }
 
-describe('confirming an outside payment (S3)', () => {
-  it('sends exactly the S3 body with the charge lock_version, then reloads', async () => {
+describe('confirming an outside payment (S15)', () => {
+  it('sends exactly the S15 body with the charge lock_version, then reloads', async () => {
     renderPanel()
 
     const card = within(await screen.findByRole('article', { name: EN.chargeTypes.experience_certificate }))
-    expect(card.getByText('1500 II Points')).toBeInTheDocument()
-    expect(card.getByText('1500 II Points').closest('p')).toHaveTextContent('1500 II Points · Paid outside the platform')
+    expect(card.getByText('$ 15.00')).toBeInTheDocument()
+    expect(card.getByText('$ 15.00').closest('p')).toHaveTextContent('$ 15.00 · Paid outside the platform')
     expect(card.getByText(EN.chargeStatuses.pending)).toBeInTheDocument()
     fireEvent.click(card.getByRole('button', { name: EN.charges.confirm }))
 
     const form = within(screen.getByRole('region', { name: EN.charges.confirmTitle }))
     expect(form.getByText(EN.charges.confirmHint)).toBeInTheDocument()
+    // The currency is the charge's own, shown and never chosen.
+    expect(form.getByText('Amount due: $ 15.00')).toBeInTheDocument()
+    expect(form.queryByLabelText(/currency/i)).not.toBeInTheDocument()
     const submit = form.getByRole('button', { name: EN.charges.confirmSubmit })
     expect(submit).toBeDisabled()
     fillConfirm(form)
@@ -118,8 +126,8 @@ describe('confirming an outside payment (S3)', () => {
       method: 'cash',
       reference: 'RCPT-2026-117',
       paid_at: '2026-01-05',
-      amount_received: '150.50',
-      currency_received: 'JOD',
+      amount_received_minor: 1500,
+      currency_received: 'USD',
       notes: 'Paid at the Amman office.',
     }))
     expect(await screen.findByText(EN.charges.confirmed)).toBeInTheDocument()
@@ -138,7 +146,7 @@ describe('confirming an outside payment (S3)', () => {
 
     expect(form.getByText(EN.charges.referenceInvalid)).toBeInTheDocument()
     expect(form.getByText(EN.charges.paidOnInvalid)).toBeInTheDocument()
-    expect(form.getByText(EN.charges.amountInvalid)).toBeInTheDocument()
+    expect(form.getByText(EN.charges.amountInvalidUsd)).toBeInTheDocument()
     expect(form.getByRole('button', { name: EN.charges.confirmSubmit })).toBeDisabled()
   })
 
@@ -163,6 +171,49 @@ describe('confirming an outside payment (S3)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(EN.charges.stale)
     await waitFor(() => expect(mocks.fetchRplCharges).toHaveBeenCalledTimes(2))
     expect(within(screen.getByRole('region', { name: EN.charges.confirmTitle })).getByLabelText(EN.charges.reference)).toHaveValue('  RCPT-2026-117  ')
+  })
+
+  it('confirms a request in Syrian pounds only for its exact frozen amount (M12)', async () => {
+    mocks.fetchRplCharges.mockResolvedValue({ data: [charge({ amount: SYP_AMOUNT, price_usd: { currency: 'USD', amount_minor: 4999, amount: '49.99' }, exchange_rate: RATE })] })
+    renderPanel()
+
+    fireEvent.click(await screen.findByRole('button', { name: EN.charges.confirm }))
+    const form = within(screen.getByRole('region', { name: EN.charges.confirmTitle }))
+    expect(form.getByText('Amount due: 649,870 SYP ($ 49.99 at 1 USD = 13,000 SYP)')).toBeInTheDocument()
+    fillConfirm(form)
+    fireEvent.change(form.getByLabelText(EN.charges.method), { target: { value: 'syriatel_cash' } })
+    const submit = form.getByRole('button', { name: EN.charges.confirmSubmit })
+
+    fireEvent.change(form.getByLabelText(EN.charges.amountReceived), { target: { value: '649870.5' } })
+    expect(form.getByText(EN.charges.amountInvalidSyp)).toBeInTheDocument()
+    fireEvent.change(form.getByLabelText(EN.charges.amountReceived), { target: { value: '699860' } })
+    expect(form.getByText(EN.charges.amountMustMatch)).toBeInTheDocument()
+    expect(submit).toBeDisabled()
+    fireEvent.change(form.getByLabelText(EN.charges.amountReceived), { target: { value: '649870' } })
+    expect(submit).toBeEnabled()
+    fireEvent.click(submit)
+
+    await waitFor(() => expect(mocks.confirmRplChargePayment).toHaveBeenCalledWith('charge-1', {
+      lock_version: 2,
+      method: 'syriatel_cash',
+      reference: 'RCPT-2026-117',
+      paid_at: '2026-01-05',
+      amount_received_minor: 649870,
+      currency_received: 'SYP',
+      notes: 'Paid at the Amman office.',
+    }))
+  })
+
+  it('says no rate is set when the server answers 503 exchange_rate_missing', async () => {
+    mocks.confirmRplChargePayment.mockRejectedValue({ response: { status: 503, data: { message: 'Payment in Syrian pounds is not available: no exchange rate is set.', code: 'exchange_rate_missing' } } })
+    renderPanel()
+
+    fireEvent.click(await screen.findByRole('button', { name: EN.charges.confirm }))
+    const form = within(screen.getByRole('region', { name: EN.charges.confirmTitle }))
+    fillConfirm(form)
+    fireEvent.click(form.getByRole('button', { name: EN.charges.confirmSubmit }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(EN.common.noRate)
   })
 
   it('shows a reference already used elsewhere as the server wrote it (409 payment_reference_used)', async () => {
@@ -197,6 +248,26 @@ describe('cancelling and refunding', () => {
 
     await waitFor(() => expect(mocks.cancelRplCharge).toHaveBeenCalledWith('charge-1', { lock_version: 2, reason: REASON, category: 'payment_not_found' }))
     expect(await screen.findByText(EN.charges.cancelled)).toBeInTheDocument()
+  })
+
+  it('offers the out-of-date-rate category on a request in Syrian pounds only', async () => {
+    mocks.fetchRplCharges.mockResolvedValue({ data: [charge(), charge({ public_id: 'charge-2', id: 2, type: 'final_exam_retake', cycle: 2, amount: SYP_AMOUNT, exchange_rate: RATE })] })
+    renderPanel()
+
+    const usdCard = within(await screen.findByRole('article', { name: EN.chargeTypes.experience_certificate }))
+    fireEvent.click(usdCard.getByRole('button', { name: EN.charges.cancel }))
+    expect(within(screen.getByLabelText(EN.charges.category)).queryByText(EN.cancelCategories.exchange_rate_outdated)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: EN.common.cancel }))
+
+    const sypCard = within(screen.getByRole('article', { name: 'Final-exam retake · round 2' }))
+    fireEvent.click(sypCard.getByRole('button', { name: EN.charges.cancel }))
+    const category = screen.getByLabelText(EN.charges.category)
+    expect(within(category).getByText(EN.cancelCategories.exchange_rate_outdated)).toBeInTheDocument()
+    fireEvent.change(category, { target: { value: 'exchange_rate_outdated' } })
+    fireEvent.change(screen.getByLabelText(EN.common.reason), { target: { value: 'The rate moved since the request.' } })
+    fireEvent.click(screen.getByRole('button', { name: EN.charges.cancelSubmit }))
+
+    await waitFor(() => expect(mocks.cancelRplCharge).toHaveBeenCalledWith('charge-2', { lock_version: 2, reason: 'The rate moved since the request.', category: 'exchange_rate_outdated' }))
   })
 
   it.each([
@@ -234,13 +305,14 @@ describe('cancelling and refunding', () => {
 describe('what the panel shows', () => {
   it('shows a paid outside payment\'s evidence and who confirmed it, staff-only', async () => {
     mocks.fetchRplCharges.mockResolvedValue({
-      data: [charge({ status: 'paid', paid_at: '2026-10-15T09:00:00Z', confirmed_by: { id: 3, name: 'Finance Officer' }, confirmed_at: '2026-10-15T10:00:00Z', offline_method: 'bank_transfer', offline_reference: 'TRX-9', offline_amount_received: '150.00', offline_currency: 'EUR', staff_notes: 'Matched on the statement.', can: { confirm: false, cancel: false, refund: false } })],
+      data: [charge({ status: 'paid', paid_at: '2026-10-15T09:00:00Z', amount: SYP_AMOUNT, price_usd: { currency: 'USD', amount_minor: 4999, amount: '49.99' }, exchange_rate: RATE, confirmed_by: { id: 3, name: 'Finance Officer' }, confirmed_at: '2026-10-15T10:00:00Z', offline_method: 'syriatel_cash', offline_reference: 'TRX-9', offline_received: SYP_AMOUNT, staff_notes: 'Matched on the statement.', can: { confirm: false, cancel: false, refund: false } })],
     })
     renderPanel()
 
     const card = within(await screen.findByRole('article', { name: EN.chargeTypes.experience_certificate }))
     expect(card.getByText(/^Confirmed by Finance Officer on /)).toBeInTheDocument()
-    expect(card.getByText('Received outside: 150.00 EUR · Bank transfer · reference TRX-9')).toBeInTheDocument()
+    expect(card.getByText('Received outside: 649,870 SYP · Syriatel Cash · reference TRX-9')).toBeInTheDocument()
+    expect(card.getByText('649,870 SYP ($ 49.99 at 1 USD = 13,000 SYP)').closest('p')).toHaveTextContent('Paid outside the platform')
     expect(card.getByText('Staff notes: Matched on the statement.')).toBeInTheDocument()
     expect(card.queryByRole('button')).not.toBeInTheDocument()
   })
@@ -252,6 +324,25 @@ describe('what the panel shows', () => {
     const card = within(await screen.findByRole('article', { name: EN.chargeTypes.certification_fee }))
     expect(card.getByText(EN.charges.certificationFeeNote)).toBeInTheDocument()
     expect(card.getByRole('button', { name: EN.charges.confirm })).toBeInTheDocument()
+  })
+
+  it('shows a charge from before 17 Oct 2026 in points as an earlier record, and never confirms it', async () => {
+    mocks.fetchRplCharges.mockResolvedValue({ data: [charge({ amount: { currency: LEGACY_POINTS, amount_minor: 1500, amount: '1500', legacy: true }, price_usd: null })] })
+    renderPanel()
+
+    const card = within(await screen.findByRole('article', { name: EN.chargeTypes.experience_certificate }))
+    expect(card.getByText('1,500 points (earlier record)').closest('p')).toHaveTextContent('1,500 points (earlier record) · Paid outside the platform')
+    expect(card.queryByRole('button', { name: EN.charges.confirm })).not.toBeInTheDocument()
+    expect(card.getByText(EN.charges.notConfirmable)).toBeInTheDocument()
+    expect(card.getByRole('button', { name: EN.charges.cancel })).toBeInTheDocument()
+  })
+
+  it('names the balance a wallet payment came from', async () => {
+    mocks.fetchRplCharges.mockResolvedValue({ data: [charge({ route: 'wallet', status: 'paid', amount: SYP_AMOUNT, exchange_rate: RATE, price_usd: { currency: 'USD', amount_minor: 4999, amount: '49.99' }, can: { confirm: false, cancel: false, refund: false } })] })
+    renderPanel()
+
+    const card = within(await screen.findByRole('article', { name: EN.chargeTypes.experience_certificate }))
+    expect(card.getByText('649,870 SYP ($ 49.99 at 1 USD = 13,000 SYP)').closest('p')).toHaveTextContent(EN.routes.walletSyp)
   })
 
   it('says so when the case has no payment', async () => {
@@ -275,7 +366,9 @@ describe('what the panel shows', () => {
     const card = within(await screen.findByRole('article', { name: AR.chargeTypes.experience_certificate }))
     fireEvent.click(card.getByRole('button', { name: AR.charges.confirm }))
     expect(screen.getByRole('region', { name: AR.charges.confirmTitle })).toBeInTheDocument()
-    expect(card.getByText('1500 نقاط II').closest('p')).toHaveTextContent('1500 نقاط II · دفع خارج المنصة')
+    // The amount reads left to right inside the Arabic line (an isolated "$ 15.00", never "15.00 $").
+    const line = card.getAllByText(/دفع خارج المنصة/)[0]
+    expect(line).toHaveTextContent('$ 15.00')
     expect(document.body.textContent).not.toContain('undefined')
   })
 })

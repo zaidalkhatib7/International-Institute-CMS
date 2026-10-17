@@ -281,6 +281,20 @@ export function reopenNeedsTechnicalFailure(set) {
   return entryAttemptOpened(set)
 }
 
+/*
+ * F4: THE CASE STATUSES THAT ARE CLOSED, mirroring the API's
+ * RplApplicationStatus::isClosed(). On a closed case nothing is reopened for the
+ * applicant (the server refuses it); an opened quiz is marked when its time runs
+ * out. The server stays the authority: a new closed status there would only let
+ * the refused control show again, never let it succeed.
+ */
+export const CLOSED_CASE_STATUSES = Object.freeze(['completed', 'withdrawn', 'rejected'])
+
+/** Whether the set's case is closed, read from the set payload's application.status. A missing status is not closed. */
+export function isCaseClosed(set) {
+  return CLOSED_CASE_STATUSES.includes(set?.application?.status)
+}
+
 /** An opened entry quiz is never withdrawn: it is the one attempt (D11, owner). */
 export function withdrawBlockedByAttempt(set) {
   return entryAttemptOpened(set)

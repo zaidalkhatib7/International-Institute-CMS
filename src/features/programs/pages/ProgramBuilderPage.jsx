@@ -16,6 +16,7 @@ import {
   Card,
   CardContent,
   Input,
+  MoneyInput,
   Select,
   Textarea,
 } from '../../../components/ui'
@@ -27,7 +28,9 @@ import {
   updateAdminProgram,
 } from '../services/programsService'
 import { getCurrentLanguage, readLocalizedValue, readStoredEnglish } from '../../../utils/localization'
+import { MAX_PRICE_USD_MINOR, MIN_PRICE_USD_MINOR, formatMoney, formatMoneyInline, fromMinor, money, sypPreview, toMinor } from '../../../utils/money'
 import { readApiError } from '../../../services/apiResponse'
+import { useExchangeRate } from '../../finance/hooks/useExchangeRate'
 import AiPackagePanel from '../components/AiPackagePanel'
 import SeedPackPanel from '../components/SeedPackPanel'
 import PublicationReadinessCard from '../components/PublicationReadinessCard'
@@ -125,9 +128,8 @@ function mapProgramToFormData(program) {
       en: sanitizeLocalizedValue(readStoredEnglish(program?.duration)),
       ar: sanitizeLocalizedValue(program?.duration?.ar),
     },
-    fees: program?.fees ?? '',
-    currency: program?.currency || 'EUR',
-    price_points: program?.price_points ?? '',
+    // One price, in US dollars (owner, 17 Oct 2026): price_usd_minor in cents, shown as dollars. No fallback to the retired points.
+    price_usd: Number.isSafeInteger(program?.price_usd_minor) ? fromMinor(program.price_usd_minor, 'USD') : '',
     featured_image: program?.featured_image || '',
     intro_video_url: program?.intro_video_url || '',
     intro_text: {
@@ -157,6 +159,18 @@ function mapProgramToFormData(program) {
       titleFromSlug(program?.category?.slug) ||
       '',
   }
+}
+
+/*
+ * The typed price as US cents: 0 when empty (not priced), or $1.00 to
+ * $1,000,000.00 (the API's range); null when it is neither, which stops the save.
+ */
+function programPriceMinor(text) {
+  if (String(text ?? '').trim() === '') return 0
+  const minor = toMinor(text, 'USD')
+  if (minor == null) return null
+  if (minor !== 0 && (minor < MIN_PRICE_USD_MINOR || minor > MAX_PRICE_USD_MINOR)) return null
+  return minor
 }
 
 function buildProgramPayload(formData) {
@@ -203,9 +217,8 @@ function buildProgramPayload(formData) {
       en: sanitizeLocalizedValue(formData.duration?.en),
       ar: sanitizeLocalizedValue(formData.duration?.ar),
     },
-    fees: formData.fees === '' ? 0 : Number(formData.fees),
-    currency: formData.currency || 'EUR',
-    price_points: formData.price_points === '' ? 0 : Number(formData.price_points),
+    // US cents, built from the typed dollars by string arithmetic; empty is 0 (not priced). fees, currency and price_points are never sent.
+    price_usd_minor: programPriceMinor(formData.price_usd) ?? 0,
     featured_image: formData.featured_image || '',
     intro_video_url: formData.intro_video_url || '',
     intro_text: {
@@ -285,11 +298,12 @@ function SectionCard({ icon, title, children }) {
   )
 }
 
-function PreviewCard({ formData, activeLanguage, copy }) {
+function PreviewCard({ formData, activeLanguage, copy, language }) {
   const title =
     formData.title?.[activeLanguage] || formData.title?.en || copy.untitledProgram
   const category = formData.category_name || copy.programCategory
-  const points = formData.price_points || '0'
+  const priceMinor = programPriceMinor(formData.price_usd)
+  const price = priceMinor != null ? formatMoney(money(priceMinor, 'USD'), language) : copy.notAvailable
 
   return (
     <Card className="overflow-hidden">
@@ -314,9 +328,9 @@ function PreviewCard({ formData, activeLanguage, copy }) {
 
         <div className="mt-8 border-t border-[var(--color-border)] pt-6 text-right">
           <p className="text-5xl font-bold text-[var(--color-accent-dark,#765A1F)]">
-            {points}
+            <bdi dir="ltr">{price}</bdi>
           </p>
-          <p className="mt-2 text-2xl font-semibold text-[var(--color-accent-dark,#765A1F)]">{copy.iiPoints}</p>
+          <p className="mt-2 text-2xl font-semibold text-[var(--color-accent-dark,#765A1F)]">{copy.priceUsd}</p>
         </div>
       </CardContent>
     </Card>
@@ -347,9 +361,10 @@ function SnapshotCard({ copy }) {
   )
 }
 
-function PricingSnapshotCard({ formData, copy }) {
+function PricingSnapshotCard({ formData, copy, language }) {
   const finalQuizTitle =
     formData.final_quiz_title?.en || formData.final_quiz_title?.ar
+  const priceMinor = programPriceMinor(formData.price_usd)
 
   return (
     <Card>
@@ -360,21 +375,9 @@ function PricingSnapshotCard({ formData, copy }) {
 
         <div className="mt-8 space-y-5 text-lg">
           <div className="flex items-center justify-between">
-            <span className="text-[var(--color-text-muted)]">{copy.fees}</span>
-            <span className="font-medium text-[var(--color-text)]">{formData.fees || copy.notAvailable}</span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="text-[var(--color-text-muted)]">{copy.currency}</span>
-            <span className="font-medium text-[var(--color-text)]">
-              {formData.currency || copy.notAvailable}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="text-[var(--color-text-muted)]">{copy.pricePoints}</span>
+            <span className="text-[var(--color-text-muted)]">{copy.price}</span>
             <span className="font-medium text-[var(--color-accent-dark,#765A1F)]">
-              {formData.price_points || copy.notAvailable}
+              <bdi dir="ltr">{priceMinor != null && String(formData.price_usd ?? '').trim() !== '' ? formatMoney(money(priceMinor, 'USD'), language) : copy.notAvailable}</bdi>
             </span>
           </div>
 
@@ -690,68 +693,50 @@ function AcademicContentContent({
   )
 }
 
+/*
+ * THE PRICE (owner decisions of 17 Oct 2026): one price, in US dollars, with
+ * cents. A client paying in Syrian pounds pays it x the exchange rate when he
+ * pays; the preview shows what that is at today's rate, for information only.
+ */
 function PricingContent({
   formData,
   updateField,
   copy,
+  language,
+  exchange,
 }) {
+  const typed = String(formData.price_usd ?? '').trim() !== ''
+  const priceMinor = programPriceMinor(formData.price_usd)
+  const preview = typed && priceMinor > 0 && exchange.rate ? sypPreview(priceMinor, exchange.rate) : null
+
   return (
     <div className="space-y-8">
-      <SectionCard icon={<Wallet size={24} />} title={copy.tuitionAndCurrency}>
-        <div className="grid gap-6 md:grid-cols-2">
-          <Input
-            label={copy.feesRequired}
-            placeholder={copy.feesPlaceholder}
-            value={formData.fees}
-            onChange={(e) => updateField('fees', e.target.value)}
-          />
-
-          <Select
-            label={copy.currencyRequired}
-            value={formData.currency}
-            onChange={(e) => updateField('currency', e.target.value)}
-          >
-            <option value="EUR">{copy.currencyEuro}</option>
-            <option value="USD">{copy.currencyUsd}</option>
-            <option value="GBP">{copy.currencyGbp}</option>
-          </Select>
-        </div>
-      </SectionCard>
-
-      <SectionCard icon={<Wallet size={24} />} title={copy.internalPointsPricing}>
-        <div className="space-y-6">
-          <Input
-            label={copy.pricePointsRequired}
-            placeholder={copy.pricePointsPlaceholder}
-            value={formData.price_points}
-            onChange={(e) => updateField('price_points', e.target.value)}
+      <SectionCard icon={<Wallet size={24} />} title={copy.price}>
+        <div className="space-y-4">
+          <MoneyInput
+            id="program-price-usd"
+            currency="USD"
+            language={language}
+            label={copy.priceRequired}
+            placeholder={copy.pricePlaceholder}
+            value={formData.price_usd}
+            error={typed && priceMinor == null ? copy.priceInvalid : undefined}
+            onChange={(value) => updateField('price_usd', value)}
           />
 
           <p className="text-sm text-[var(--color-text-muted)]">
-            {copy.pointsPricingHint}
+            {copy.programPriceHint}
           </p>
 
-          <div className="rounded-[20px] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-                  {copy.currencyPrice}
-                </p>
-                <p className="mt-2 text-2xl font-bold text-[var(--color-text)]">
-                  {formData.currency || 'EUR'} {formData.fees || '0'}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
-                  {copy.pointsPrice}
-                </p>
-                <p className="mt-2 text-2xl font-bold text-[var(--color-accent-dark,#765A1F)]">
-                  {formData.price_points || '0'} {copy.iiPoints}
-                </p>
-              </div>
-            </div>
-          </div>
+          {preview ? (
+            <p className="rounded-[20px] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-5 text-lg font-semibold">
+              <bdi>{copy.atTodaysRate.replace('{syp}', formatMoneyInline(preview, language))}</bdi>
+            </p>
+          ) : typed && priceMinor > 0 && exchange.loaded && !exchange.failed && !exchange.rate ? (
+            <p className="rounded-[20px] border border-red-200 bg-red-50 p-5 text-sm leading-6 text-red-800">
+              {copy.noRate}
+            </p>
+          ) : null}
         </div>
       </SectionCard>
 
@@ -1077,16 +1062,14 @@ export default function ProgramBuilderPage() {
         inactive: 'غير نشط',
         yes: 'نعم',
         no: 'لا',
-        iiPoints: 'نقاط II',
+        priceUsd: 'دولار أمريكي',
         settingsSnapshot: 'ملخص الإعدادات',
         stateSnapshot: 'ملخص الحالة',
         lastEdited: 'آخر تعديل',
         todayTime: 'اليوم، 14:22',
         visibility: 'الظهور',
         draft: 'مسودة',
-        fees: 'الرسوم',
-        currency: 'العملة',
-        pricePoints: 'نقاط السعر',
+        price: 'السعر',
         status: 'الحالة',
         loaded: 'محمل',
         notAvailable: '-',
@@ -1120,17 +1103,12 @@ export default function ProgramBuilderPage() {
         targetAudiencePlaceholder: 'صف الملف المثالي للمتقدم...',
         entryRequirementsRequired: 'متطلبات القبول *',
         entryRequirementsPlaceholder: 'حدّد المتطلبات المهنية ووثائق الخبرة المطلوبة...',
-        tuitionAndCurrency: 'الرسوم والعملة',
-        feesRequired: 'الرسوم *',
-        feesPlaceholder: '499.00',
-        currencyRequired: 'العملة *',
-        currencyEuro: 'EUR - يورو',
-        currencyUsd: 'USD - دولار أمريكي',
-        currencyGbp: 'GBP - جنيه إسترليني',
-        internalPointsPricing: 'التسعير بالنقاط الداخلية',
-        pricePointsRequired: 'نقاط السعر *',
-        pricePointsPlaceholder: '500',
-        pointsPricingHint: 'يمكن تسعير البرامج بنقاط المؤسسة بجانب العملة.',
+        priceRequired: 'السعر (بالدولار الأمريكي) *',
+        pricePlaceholder: '49.99',
+        priceInvalid: 'أدخل صفرًا أو سعرًا من 1.00 إلى 1,000,000.00 دولار بخانتين عشريتين على الأكثر، مثل 49.99.',
+        programPriceHint: 'سعر واحد بالدولار الأمريكي. يدفعه العميل بالليرة السورية مضروبًا في سعر الصرف عند الدفع، مقرّبًا إلى أقرب ليرة. صفر: البرنامج غير مسعّر ولا يُباع.',
+        atTodaysRate: 'بسعر اليوم: {syp}',
+        noRate: 'لم يُضبط سعر صرف: لا يمكن لأحد الدفع بالليرة السورية حتى يُضبط. ولا يتأثر الدفع بالدولار.',
         finalQuizSettings: 'إعدادات الاختبار النهائي',
         finalQuizTitle: 'عنوان الاختبار النهائي',
         finalQuizTitlePlaceholder: 'Strategic Leadership Final Assessment',
@@ -1141,11 +1119,9 @@ export default function ProgramBuilderPage() {
         minutesShort: 'دقيقة',
         finalQuizSettingsHint:
           'يحدد البرنامج عنوان الاختبار النهائي ونسبة النجاح، بينما تحدد بنوك الأسئلة عدد الأسئلة المساهمة من كل قسم.',
-        currencyPrice: 'السعر بالعملة',
-        pointsPrice: 'السعر بالنقاط',
         pricingGuidance: 'إرشادات التسعير',
         pricingGuidanceBody:
-          'تُدار خيارات التسعير وفق السياسة المالية المعتمدة في ICPC، مع فصل قيمة العملة عن الرصيد المؤسسي الاختياري.',
+          'لكل برنامج سعر واحد بالدولار الأمريكي (قرار المالك، 17 أكتوبر 2026). يدفع العميل من رصيده بالدولار، أو من رصيده بالليرة السورية بسعر الصرف عند الدفع، ويُثبَّت ما دفعه على طلبه. لا يغيّر تعديل السعر أي شراء تم.',
         featuredImage: 'الصورة الرئيسية',
         recommended: 'المقاس الموصى به',
         imageResolution: '1920×1080',
@@ -1220,16 +1196,14 @@ export default function ProgramBuilderPage() {
       inactive: 'Inactive',
       yes: 'Yes',
       no: 'No',
-      iiPoints: 'II Points',
+      priceUsd: 'US dollars',
       settingsSnapshot: 'Settings Snapshot',
       stateSnapshot: 'State Snapshot',
       lastEdited: 'Last Edited',
       todayTime: 'Today, 14:22',
       visibility: 'Visibility',
       draft: 'Draft',
-      fees: 'Fees',
-      currency: 'Currency',
-      pricePoints: 'Price Points',
+      price: 'Price',
       status: 'Status',
       loaded: 'Loaded',
       notAvailable: '-',
@@ -1263,17 +1237,12 @@ export default function ProgramBuilderPage() {
       targetAudiencePlaceholder: 'Describe the ideal candidate profile...',
       entryRequirementsRequired: 'Entry Requirements *',
       entryRequirementsPlaceholder: 'Specify professional prerequisites and evidence documents...',
-      tuitionAndCurrency: 'Tuition & Currency',
-      feesRequired: 'Fees *',
-      feesPlaceholder: '499.00',
-      currencyRequired: 'Currency *',
-      currencyEuro: 'EUR - Euro',
-      currencyUsd: 'USD - US Dollar',
-      currencyGbp: 'GBP - British Pound',
-      internalPointsPricing: 'Internal Points Pricing',
-      pricePointsRequired: 'Price Points *',
-      pricePointsPlaceholder: '500',
-      pointsPricingHint: 'Programs can be priced in institutional points alongside currency.',
+      priceRequired: 'Price (US dollars) *',
+      pricePlaceholder: '49.99',
+      priceInvalid: 'Enter 0, or a price from 1.00 to 1,000,000.00 US dollars with at most two decimals, such as 49.99.',
+      programPriceHint: 'One price in US dollars. A client paying in Syrian pounds pays it × the exchange rate when he pays, rounded to the whole pound. 0: the programme is not priced and not sold.',
+      atTodaysRate: 'At today\'s rate: {syp}',
+      noRate: 'No exchange rate is set: nobody can pay in Syrian pounds until one is set. Dollar payments are not affected.',
       finalQuizSettings: 'Final Quiz Settings',
       finalQuizTitle: 'Final Quiz Title',
       finalQuizTitlePlaceholder: 'e.g. Strategic Leadership Final Assessment',
@@ -1284,11 +1253,9 @@ export default function ProgramBuilderPage() {
       minutesShort: 'minutes',
       finalQuizSettingsHint:
         'Programs now own the learner-facing final quiz title, pass percentage, and duration timer. Section question banks control how many questions they contribute per attempt.',
-      currencyPrice: 'Currency Price',
-      pointsPrice: 'Points Price',
       pricingGuidance: 'Pricing Guidance',
       pricingGuidanceBody:
-        'Pricing is managed according to the configured ICPC finance policy. Currency and optional institutional-credit values remain independent.',
+        'Each programme has one price, in US dollars (owner decision, 17 Oct 2026). The client pays from his dollar balance, or from his Syrian-pound balance at the exchange rate when he pays, and what he paid is frozen on his order. Changing the price never changes a purchase already made.',
       featuredImage: 'Featured Image',
       recommended: 'Recommended',
       imageResolution: '1920×1080',
@@ -1360,6 +1327,8 @@ export default function ProgramBuilderPage() {
   )
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  // Today's USD -> SYP rate, for the pricing tab's preview only; read once that tab is open.
+  const exchange = useExchangeRate({ enabled: activeTab === 'pricing' })
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
   const [saveError, setSaveError] = useState('')
@@ -1378,9 +1347,7 @@ export default function ProgramBuilderPage() {
     target_audience: { en: '', ar: '' },
     entry_requirements: { en: '', ar: '' },
     duration: { en: '', ar: '' },
-    fees: '',
-    currency: 'EUR',
-    price_points: '',
+    price_usd: '',
     featured_image: '',
     intro_video_url: '',
     intro_text: { en: '', ar: '' },
@@ -1460,6 +1427,12 @@ export default function ProgramBuilderPage() {
   }
 
   const handleSave = async ({ publish = false } = {}) => {
+    // A price the API would refuse is said here, before anything is sent.
+    if (programPriceMinor(formData.price_usd) == null) {
+      setSaveMessage('')
+      setSaveError(copy.priceInvalid)
+      return
+    }
     setIsSaving(true)
     setSaveError('')
     setSaveMessage('')
@@ -1587,6 +1560,8 @@ export default function ProgramBuilderPage() {
             formData={formData}
             updateField={updateField}
             copy={copy}
+            language={language}
+            exchange={exchange}
           />
         )
       case 'final-quiz':
@@ -1756,9 +1731,9 @@ export default function ProgramBuilderPage() {
               language={language}
               onGoToTab={handleTabChange}
             />
-            <PreviewCard formData={formData} activeLanguage={activeLanguage} copy={copy} />
+            <PreviewCard formData={formData} activeLanguage={activeLanguage} copy={copy} language={language} />
             {activeTab === 'pricing' || activeTab === 'final-quiz' ? (
-              <PricingSnapshotCard formData={formData} copy={copy} />
+              <PricingSnapshotCard formData={formData} copy={copy} language={language} />
             ) : activeTab === 'publish' ? (
               <PublishSnapshotCard formData={formData} copy={copy} />
             ) : (

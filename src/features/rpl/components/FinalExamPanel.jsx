@@ -3,15 +3,16 @@ import { Award, Ban, GraduationCap, LoaderCircle, RotateCcw, TriangleAlert } fro
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Textarea } from '../../../components/ui'
 import { readApiError, unwrapApiData } from '../../../services/apiResponse'
 import { formatLocalizedDateTime } from '../../../utils/localization'
+import { amountMinorOf, formatMoneyInline, formatPrice } from '../../../utils/money'
 import { fill } from '../domain/documentScreening'
 import { formatQuizPercent } from '../domain/entryQuiz'
 import { coursePlanCopy, itemHolds } from '../domain/coursePlan'
 import {
   AFTER_QUIZ_LIMITS,
   afterQuizCopy,
+  chargePriceLine,
   chargeStatusLabel,
   finalExamStateLabel,
-  formatChargeAmount,
   isAfterQuizReasonValid,
   isReopenableTry,
   isVoidableTry,
@@ -136,7 +137,8 @@ export default function FinalExamPanel({ applicationId, language, canManage = fa
         <Line>{fill(text.passMark, { value: value(settings.pass_mark_percent) })}</Line>
         <Line>{fill(text.questionsPerCourse, { value: value(settings.questions_per_course) })}</Line>
         <Line>{fill(text.waitDays, { value: value(settings.retake_wait_days) })}</Line>
-        <Line>{fill(text.retakeFee, { value: value(settings.retake_fee_points, (points) => formatChargeAmount(points, 'POINTS', language)) })}</Line>
+        {/* The live retake fee (contract S18): a Price, US dollars and Syrian pounds at today's rate. */}
+        <Line><bdi>{fill(text.retakeFee, { value: settings.retake_fee ? formatPrice(settings.retake_fee, language) : copy.common.notSet })}</bdi></Line>
       </section>
     )
   }
@@ -265,7 +267,7 @@ export default function FinalExamPanel({ applicationId, language, canManage = fa
               {round.retake_wait_days_applied != null ? <Line>{fill(text.waitApplied, { days: round.retake_wait_days_applied })}</Line> : null}
               {round.eligible_from ? <Line>{fill(text.eligibleFrom, { at: at(round.eligible_from) })}</Line> : null}
               {round.passed_at ? <Line>{fill(text.passedAt, { at: at(round.passed_at) })}</Line> : null}
-              {round.charge ? <Line><bdi>{`${copy.chargeTypes.final_exam_retake}: ${formatChargeAmount(round.charge.amount, round.charge.currency, language)} · ${chargeStatusLabel(round.charge.status, language)}`}</bdi></Line> : null}
+              {round.charge ? <Line><bdi>{`${copy.chargeTypes.final_exam_retake}: ${chargePriceLine(round.charge, language)} · ${chargeStatusLabel(round.charge.status, language)}`}</bdi></Line> : null}
               {tries.length ? <ol className="space-y-2">{tries.map(renderTry)}</ol> : null}
             </article>
           )
@@ -289,8 +291,8 @@ export default function FinalExamPanel({ applicationId, language, canManage = fa
         {holds.length ? <ul className="space-y-1">{holds.map((hold) => <li key={hold.hold_id}><Line><bdi>{fill(text.level.hold, { id: hold.hold_id, program: hold.program_code || '—', version: hold.package_version || '—' })}</bdi></Line></li>)}</ul> : null}
         {level.state === 'fee_unusable' ? <p className="leading-6 text-red-800">{text.level.feeUnusable}</p> : null}
         {level.state === 'awaiting_fee' ? <p className="leading-6 text-amber-900">{text.level.feeDue}</p> : null}
-        {Number(level.certification_fee_points) > 0 ? <Line><bdi>{fill(text.level.feePoints, { amount: formatChargeAmount(level.certification_fee_points, 'POINTS', language) })}</bdi></Line> : null}
-        {level.charge ? <Line><bdi>{fill(text.level.charge, { amount: formatChargeAmount(level.charge.amount, level.charge.currency, language), status: chargeStatusLabel(level.charge.status, language) })}</bdi></Line> : null}
+        {amountMinorOf(level.certification_fee) > 0 ? <Line><bdi>{fill(text.level.feeFrozen, { amount: formatMoneyInline(level.certification_fee, language) })}</bdi></Line> : null}
+        {level.charge ? <Line><bdi>{fill(text.level.charge, { amount: chargePriceLine(level.charge, language), status: chargeStatusLabel(level.charge.status, language) })}</bdi></Line> : null}
         {level.outbox ? <Line>{fill(text.level.outbox, { status: level.outbox.status || '—', attempts: level.outbox.attempts ?? 0 })}</Line> : null}
         {level.outbox?.last_error ? <Line><span dir="auto">{fill(text.level.lastError, { error: level.outbox.last_error })}</span></Line> : null}
         {level.outbox?.available_at && level.state !== 'issued' ? <Line>{fill(text.level.availableAt, { at: at(level.outbox.available_at) })}</Line> : null}

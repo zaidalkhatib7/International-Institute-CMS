@@ -97,7 +97,7 @@ const copyByLanguage = {
     criteria: "معايير التقييم",
     criterion: "المعيار",
     weight: "الحد الأقصى",
-    score: "النقاط",
+    score: "الدرجة",
     notes: "التعليل المهني",
     outcome: "نتيجة المعيار",
     evidenceMapping: "الأدلة المستند إليها",

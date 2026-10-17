@@ -1,25 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Banknote, BadgeCheck, LoaderCircle, RotateCcw, TriangleAlert, XCircle } from 'lucide-react'
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Textarea } from '../../../components/ui'
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, MoneyInput, Select, Textarea } from '../../../components/ui'
 import { readApiError, unwrapCollection } from '../../../services/apiResponse'
 import { formatLocalizedDateTime } from '../../../utils/localization'
+import { formatMoneyInline } from '../../../utils/money'
 import { fill } from '../domain/documentScreening'
 import {
   AFTER_QUIZ_LIMITS,
   OFFLINE_METHODS,
-  STAFF_CANCEL_CATEGORIES,
   afterQuizCopy,
+  cancelCategoriesFor,
+  chargePriceLine,
+  chargeRouteLabel,
   chargeStatusLabel,
   chargeTitle,
   confirmFormErrors,
   confirmPayload,
   emptyConfirmForm,
-  formatChargeAmount,
   hasPaidChargeForSlot,
   isAfterQuizReasonValid,
   isConfirmFormValid,
+  isConfirmableCharge,
   isStaleConflict,
   personName,
+  rateMissing,
   serverAllows,
   settingMissingName,
   todayIso,
@@ -30,10 +34,13 @@ import { cancelRplCharge, confirmRplChargePayment, fetchRplCharges, refundRplCha
  * THE CASE'S PAYMENTS AFTER THE ENTRY QUIZ (owner model of 15 Oct 2026, P6).
  *
  * The Experience Confirmation Certificate, a final-exam retake and the level
- * certification fee are each a charge in II Points, paid from the wallet or
- * outside the platform. Staff with rpl.payments.reconcile confirm an outside
- * payment (with the money received as evidence only) or cancel the request;
- * finance.manage refunds a paid charge the server says is refundable. The panel
+ * certification fee are each a charge with ONE price in US dollars (owner, 17
+ * Oct 2026), paid from the client's dollar or pound balance or outside the
+ * platform; a pound amount is frozen with the dollar price and the rate when he
+ * pays from his balance or asks to pay outside. Staff with
+ * rpl.payments.reconcile confirm an outside payment only for that exact amount
+ * in that currency (M12), or cancel the request; finance.manage refunds a paid
+ * charge the server says is refundable. The panel
  * loads itself, never inside the case load; a 403 on the read hides it. A stale
  * write (409 rpl_charge_stale) says so, keeps what was typed and reloads.
  */
@@ -105,6 +112,8 @@ export default function ChargesPanel({ applicationId, language, canReconcile = f
         load({ silent: true })
       } else if (missing != null) {
         setNotice({ error: fill(copy.common.settingMissing, { setting: missing }), success: '' })
+      } else if (rateMissing(error)) {
+        setNotice({ error: copy.common.noRate, success: '' })
       } else {
         setNotice({ error: readApiError(error, copy.common.failed, language), success: '' })
       }
@@ -114,7 +123,7 @@ export default function ChargesPanel({ applicationId, language, canReconcile = f
   }
 
   function confirm(charge) {
-    return act('confirm', () => confirmRplChargePayment(charge.public_id, confirmPayload(confirmForm, charge.lock_version)), text.confirmed, () => setConfirmForm(null))
+    return act('confirm', () => confirmRplChargePayment(charge.public_id, confirmPayload(confirmForm, charge)), text.confirmed, () => setConfirmForm(null))
   }
 
   function cancel(charge) {
@@ -128,10 +137,13 @@ export default function ChargesPanel({ applicationId, language, canReconcile = f
   function renderConfirmForm(charge) {
     const today = todayIso()
     const form = confirmForm
-    const errors = confirmFormErrors(form, today)
+    const errors = confirmFormErrors(form, today, charge)
     const shown = (field) => String(form[field] ?? '').trim() !== '' && errors[field] !== ''
     const set = (field) => (event) => setConfirmForm((current) => ({ ...current, [field]: event.target.value }))
     const id = `charge-confirm-${charge.public_id}`
+    // The currency is the charge's own, shown and never chosen; the amount received must be the amount due (S15, M12).
+    const currency = charge.amount?.currency
+    const amountError = { amount_received: currency === 'SYP' ? text.amountInvalidSyp : text.amountInvalidUsd, amount_mismatch: text.amountMustMatch }[errors.amount_received]
     return (
       <section aria-label={text.confirmTitle} className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4 text-sm">
         <strong className="block">{text.confirmTitle}</strong>
@@ -143,14 +155,14 @@ export default function ChargesPanel({ applicationId, language, canReconcile = f
           </Select>
           <Input id={`${id}-reference`} label={text.reference} value={form.reference} maxLength={AFTER_QUIZ_LIMITS.referenceMax} error={shown('reference') ? text.referenceInvalid : undefined} onChange={set('reference')} />
           <Input id={`${id}-paid-at`} type="date" max={today} label={text.paidOn} value={form.paid_at} error={shown('paid_at') ? text.paidOnInvalid : undefined} onChange={set('paid_at')} />
-          <Input id={`${id}-amount`} inputMode="decimal" label={text.amountReceived} value={form.amount_received} error={shown('amount_received') ? text.amountInvalid : undefined} onChange={set('amount_received')} />
-          <Input id={`${id}-currency`} maxLength={3} label={text.currencyReceived} value={form.currency_received} error={shown('currency_received') ? text.currencyInvalid : undefined} onChange={set('currency_received')} />
+          <MoneyInput id={`${id}-amount`} currency={currency} language={language} label={text.amountReceived} value={form.amount_received} error={shown('amount_received') ? amountError : undefined} onChange={(value) => setConfirmForm((current) => ({ ...current, amount_received: value }))} />
         </div>
+        <p className="font-semibold"><bdi>{fill(text.amountDue, { amount: chargePriceLine(charge, language) })}</bdi></p>
         <p className="text-xs leading-5 text-[var(--color-text-muted)]">{text.evidenceHint}</p>
         <Textarea id={`${id}-notes`} rows={2} label={text.notes} value={form.notes} maxLength={AFTER_QUIZ_LIMITS.notesMax} error={errors.notes ? text.notesInvalid : undefined} onChange={set('notes')} />
         <div className="flex flex-wrap justify-end gap-2">
           <Button size="sm" variant="outline" onClick={() => setConfirmForm(null)} disabled={busy === 'confirm'}>{copy.common.cancel}</Button>
-          <Button size="sm" onClick={() => confirm(charge)} disabled={Boolean(busy) || !isConfirmFormValid(form, today)}>{busy === 'confirm' ? <LoaderCircle className="animate-spin" size={15} /> : <BadgeCheck size={15} />}{text.confirmSubmit}</Button>
+          <Button size="sm" onClick={() => confirm(charge)} disabled={Boolean(busy) || !isConfirmFormValid(form, today, charge)}>{busy === 'confirm' ? <LoaderCircle className="animate-spin" size={15} /> : <BadgeCheck size={15} />}{text.confirmSubmit}</Button>
         </div>
       </section>
     )
@@ -164,7 +176,7 @@ export default function ChargesPanel({ applicationId, language, canReconcile = f
         <p className="leading-6 text-[var(--color-text-muted)]">{text.cancelHint}</p>
         <Select id={`${id}-category`} label={text.category} value={cancelForm.category} onChange={(event) => setCancelForm((current) => ({ ...current, category: event.target.value }))}>
           <option value="" disabled>—</option>
-          {STAFF_CANCEL_CATEGORIES.map((category) => <option key={category} value={category}>{copy.cancelCategories[category]}</option>)}
+          {cancelCategoriesFor(charge).map((category) => <option key={category} value={category}>{copy.cancelCategories[category]}</option>)}
         </Select>
         <ReasonField id={`${id}-reason`} label={copy.common.reason} hint={copy.common.reasonHint} invalidText={copy.common.reasonInvalid} value={cancelForm.reason} disabled={busy === 'cancel'} onChange={(reason) => setCancelForm((current) => ({ ...current, reason }))} />
         <div className="flex flex-wrap justify-end gap-2">
@@ -192,7 +204,9 @@ export default function ChargesPanel({ applicationId, language, canReconcile = f
 
   function renderCharge(charge) {
     const pending = charge.status === 'pending'
-    const showConfirm = canReconcile && pending && charge.route === 'offline' && serverAllows(charge, 'confirm', true)
+    const offlinePending = canReconcile && pending && charge.route === 'offline' && serverAllows(charge, 'confirm', true)
+    // A pending request in points from before 17 Oct 2026 is never confirmed: staff cancel it and the client asks again.
+    const showConfirm = offlinePending && isConfirmableCharge(charge)
     const showCancel = canReconcile && pending && serverAllows(charge, 'cancel', true)
     // Refund is the server's call (paid, unused, and a purpose refundable this way); the permission is ours.
     const showRefund = canRefund && charge.can?.refund === true
@@ -206,7 +220,7 @@ export default function ChargesPanel({ applicationId, language, canReconcile = f
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
             <h4 className="font-bold">{chargeTitle(charge, language)}</h4>
-            <p className="mt-1 font-semibold"><bdi>{formatChargeAmount(charge.amount, charge.currency, language)}</bdi> · {copy.routes[charge.route] || charge.route || '—'}</p>
+            <p className="mt-1 font-semibold"><bdi>{chargePriceLine(charge, language)}</bdi> · {chargeRouteLabel(charge, language)}</p>
           </div>
           <Badge variant={STATUS_VARIANT[charge.status] || 'neutral'}>{chargeStatusLabel(charge.status, language)}</Badge>
         </div>
@@ -216,7 +230,7 @@ export default function ChargesPanel({ applicationId, language, canReconcile = f
           {charge.payer_reference ? <Line><bdi>{fill(text.payerReference, { reference: charge.payer_reference })}</bdi></Line> : null}
           {charge.paid_at ? <Line>{fill(text.paidAt, { at: at(charge.paid_at) })}</Line> : null}
           {charge.confirmed_at ? <Line>{fill(text.confirmedBy, { name: personName(charge.confirmed_by, language), at: at(charge.confirmed_at) })}</Line> : null}
-          {charge.offline_reference ? <Line><bdi>{fill(text.offlineEvidence, { amount: charge.offline_amount_received ?? '—', currency: charge.offline_currency || '', method: copy.methods[charge.offline_method] || charge.offline_method || '—', reference: charge.offline_reference })}</bdi></Line> : null}
+          {charge.offline_reference ? <Line><bdi>{fill(text.offlineEvidence, { amount: formatMoneyInline(charge.offline_received, language), method: copy.methods[charge.offline_method] || charge.offline_method || '—', reference: charge.offline_reference })}</bdi></Line> : null}
           {charge.staff_notes ? <Line><span dir="auto">{fill(text.staffNotes, { notes: charge.staff_notes })}</span></Line> : null}
           {charge.consumed_at ? <Line>{fill(text.consumed, { at: at(charge.consumed_at) })}</Line> : null}
           {charge.cancelled_at ? <Line>{fill(text.cancelledBy, { name: personName(charge.cancelled_by, language), at: at(charge.cancelled_at) })}{charge.cancel_category ? ` · ${copy.cancelCategories[charge.cancel_category] || charge.cancel_category}` : ''}</Line> : null}
@@ -225,6 +239,7 @@ export default function ChargesPanel({ applicationId, language, canReconcile = f
           {charge.refund_reason ? <Line><span dir="auto">{fill(text.refundReason, { reason: charge.refund_reason })}</span></Line> : null}
         </div>
         {charge.type === 'certification_fee' ? <p className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-900">{text.certificationFeeNote}</p> : null}
+        {offlinePending && !showConfirm ? <p role="note" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs leading-5 text-amber-900">{text.notConfirmable}</p> : null}
         {(showConfirm && !confirmOpen) || (showCancel && !cancelOpen) || (showRefund && !refundOpen) ? (
           <div className="flex flex-wrap justify-end gap-2">
             {showConfirm && !confirmOpen ? <Button size="sm" onClick={() => setConfirmForm({ publicId: charge.public_id, ...emptyConfirmForm() })} disabled={Boolean(busy)}><BadgeCheck size={15} />{text.confirm}</Button> : null}

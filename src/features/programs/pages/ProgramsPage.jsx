@@ -31,6 +31,7 @@ import {
 } from '../services/programsService'
 import { getCurrentLanguage, readLocalizedValue } from '../../../utils/localization'
 import { readApiError } from '../../../services/apiResponse'
+import { formatMoney, money } from '../../../utils/money'
 
 const PROGRAMS_TABLE_GRID =
   'grid-cols-[minmax(280px,2.2fr)_minmax(120px,1fr)_minmax(110px,0.9fr)_minmax(130px,0.95fr)_minmax(120px,0.95fr)_minmax(120px,0.95fr)_72px]'
@@ -106,8 +107,9 @@ function getSortValue(program, sortBy) {
       return getProgramCategoryName(program)
     case 'duration':
       return getProgramDuration(program)
-    case 'price_points':
-      return Number(program?.price_points ?? 0)
+    // The one price, in US cents (owner, 17 Oct 2026): an integer, compared as such.
+    case 'price_usd_minor':
+      return Number.isSafeInteger(program?.price_usd_minor) ? program.price_usd_minor : 0
     case 'is_featured':
       return Number(Boolean(program?.is_featured))
     case 'is_active':
@@ -193,7 +195,7 @@ function ProgramRow({
       <div className="truncate text-lg text-[var(--color-text-body,#43474D)]">{duration}</div>
 
       <div className="text-lg font-semibold text-[var(--color-text)]">
-        {program.price_points ?? 0} {labels.points}
+        <bdi dir="ltr">{Number.isSafeInteger(program.price_usd_minor) ? formatMoney(money(program.price_usd_minor, 'USD')) : '—'}</bdi>
       </div>
 
       <ToggleCell
@@ -261,7 +263,7 @@ export default function ProgramsPage() {
         sortTitle: 'الترتيب: العنوان',
         sortCategory: 'الترتيب: التصنيف',
         sortDuration: 'الترتيب: المدة',
-        sortPrice: 'الترتيب: النقاط',
+        sortPrice: 'الترتيب: السعر',
         sortVisibility: 'الترتيب: الظهور',
         sortStatus: 'الترتيب: الحالة',
         asc: 'تصاعدي',
@@ -282,7 +284,7 @@ export default function ProgramsPage() {
         rows: 'صفوف',
         prev: 'السابق',
         next: 'التالي',
-        live: 'مباشر', page: 'الصفحة', points: 'نقاط II', loadFailed: 'تعذر تحميل البرامج.', publicationFailed: 'تعذر تحديث حالة النشر.', visibilityFailed: 'تعذر تحديث الظهور.',
+        live: 'مباشر', page: 'الصفحة', loadFailed: 'تعذر تحميل البرامج.', publicationFailed: 'تعذر تحديث حالة النشر.', visibilityFailed: 'تعذر تحديث الظهور.',
       }
     }
     return {
@@ -304,7 +306,7 @@ export default function ProgramsPage() {
       sortTitle: 'Sort: Title',
       sortCategory: 'Sort: Category',
       sortDuration: 'Sort: Duration',
-      sortPrice: 'Sort: Price Points',
+      sortPrice: 'Sort: Price',
       sortVisibility: 'Sort: Visibility',
       sortStatus: 'Sort: Status',
       asc: 'Asc',
@@ -325,7 +327,7 @@ export default function ProgramsPage() {
       rows: 'Rows',
       prev: 'Prev',
       next: 'Next',
-      live: 'Live', page: 'Page', points: 'II Points', loadFailed: 'Failed to load programs.', publicationFailed: 'Failed to update publication status.', visibilityFailed: 'Failed to update visibility.',
+      live: 'Live', page: 'Page', loadFailed: 'Failed to load programs.', publicationFailed: 'Failed to update publication status.', visibilityFailed: 'Failed to update visibility.',
     }
   }, [language])
 
@@ -633,7 +635,7 @@ export default function ProgramsPage() {
               <option value="title">{copy.sortTitle}</option>
               <option value="category">{copy.sortCategory}</option>
               <option value="duration">{copy.sortDuration}</option>
-              <option value="price_points">{copy.sortPrice}</option>
+              <option value="price_usd_minor">{copy.sortPrice}</option>
               <option value="is_featured">{copy.sortVisibility}</option>
               <option value="is_active">{copy.sortStatus}</option>
             </Select>

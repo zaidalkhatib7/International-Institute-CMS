@@ -96,7 +96,8 @@ function buildPayload(program, form) {
     performance_indicators: form.performance_indicators,
     outcomes: form.outcomes,
     target_audience: program.target_audience || {}, entry_requirements: program.entry_requirements || {}, duration: program.duration || {},
-    fees: Number(program.fees || 0), currency: program.currency || 'EUR', price_points: Number(program.price_points || 0),
+    // The one price, in US cents (owner, 17 Oct 2026), re-sent exactly as stored: never reset, never fees, currency or price_points.
+    ...(Number.isSafeInteger(program.price_usd_minor) ? { price_usd_minor: program.price_usd_minor } : {}),
     featured_image: program.featured_image || '', intro_video_url: program.intro_video_url || '', intro_text: program.intro_text || {},
     is_featured: Boolean(program.is_featured), is_active: Boolean(program.is_active), is_free: Boolean(program.is_free), application_required: Boolean(program.application_required),
     program_type: program.program_type || 'short_course', audience_type: program.audience_type || 'individual', seo: program.seo || {},

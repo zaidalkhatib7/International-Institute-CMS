@@ -511,3 +511,68 @@ describe('a referred quiz, marked again once its cause is fixed', () => {
     expect(document.body.textContent).not.toContain('undefined')
   })
 })
+
+/*
+ * F4: A CLOSED CASE REOPENS NOTHING (follow-up fix of 17 Oct 2026). The server
+ * refuses a reopen once the case is completed, withdrawn or rejected; the show
+ * payload carries application.status, so the panel offers no reopen there and
+ * says why. An opened quiz is still marked by the timer.
+ */
+describe('a closed case reopens nothing', () => {
+  const expiredUnmarked = (overrides = {}) => entryQuiz({
+    status: 'issued',
+    answeredCount: 9,
+    answers_submitted_at: null,
+    due_at: '2026-10-14T09:30:00Z',
+    ...overrides,
+  })
+  const neverOpened = (overrides = {}) => entryQuiz({ status: 'issued', answeredCount: 0, answers_submitted_at: null, opened_at: null, due_at: null, ...overrides })
+
+  it.each(['rejected', 'withdrawn', 'completed'])('offers no reopen on an opened, unmarked quiz when the case is %s, and says why', async (status) => {
+    renderPanel(expiredUnmarked({ application: { id: 12, status } }))
+
+    expect(await screen.findByText(COPY.en.reissueClosedCase)).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: COPY.en.reissueTitle })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: COPY.en.reissue })).not.toBeInTheDocument()
+    expect(screen.getByText(COPY.en.reissueClosedCase)).toBeInTheDocument()
+    expect(mocks.reissueDynamicAssessment).not.toHaveBeenCalled()
+  })
+
+  it.each(['rejected', 'withdrawn', 'completed'])('offers no reopen on a set never opened when the case is %s', async (status) => {
+    renderPanel(neverOpened({ application: { id: 12, status } }))
+
+    expect(await screen.findByText(COPY.en.reissueClosedCase)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: COPY.en.reissue })).not.toBeInTheDocument()
+    expect(screen.getByText(COPY.en.reissueClosedCase)).toBeInTheDocument()
+  })
+
+  it('still offers the reopen, with the technical-failure field, on an open case', async () => {
+    renderPanel(expiredUnmarked({ application: { id: 12, status: 'evidence_verification' } }))
+
+    const section = within(await screen.findByRole('region', { name: COPY.en.reissueTitle }))
+    fireEvent.click(section.getByRole('button', { name: COPY.en.reissue }))
+    expect(screen.getByLabelText(EN.technicalFailureReason)).toBeInTheDocument()
+    expect(screen.queryByText(COPY.en.reissueClosedCase)).not.toBeInTheDocument()
+  })
+
+  it('reads the set again when the server refuses the reopen (the case closed meanwhile)', async () => {
+    renderPanel(neverOpened({ application: { id: 12, status: 'evidence_verification' } }))
+    mocks.reissueDynamicAssessment.mockRejectedValue({ response: { status: 422, data: { message: 'The case is closed; nothing is reopened for the applicant.', errors: { application: ['The case is closed; nothing is reopened for the applicant.'] } } } })
+
+    fireEvent.click(await screen.findByRole('button', { name: COPY.en.reissue }))
+    fireEvent.change(screen.getByLabelText(COPY.en.reissueReason), { target: { value: 'Never opened.' } })
+    mocks.fetchDynamicAssessment.mockResolvedValue({ data: neverOpened({ application: { id: 12, status: 'rejected' } }) })
+    fireEvent.click(screen.getByRole('button', { name: COPY.en.reissueConfirm }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The case is closed; nothing is reopened for the applicant.')
+    expect(await screen.findByText(COPY.en.reissueClosedCase)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: COPY.en.reissue })).not.toBeInTheDocument()
+  })
+
+  it('says it in Arabic without a literal "undefined"', async () => {
+    renderPanel(expiredUnmarked({ application: { id: 12, status: 'rejected' } }), 'ar')
+
+    expect(await screen.findByText(COPY.ar.reissueClosedCase)).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('undefined')
+  })
+})

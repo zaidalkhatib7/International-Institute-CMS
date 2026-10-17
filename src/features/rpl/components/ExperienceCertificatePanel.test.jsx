@@ -27,6 +27,9 @@ const EN = AFTER_QUIZ_COPY.en.experience
 const AR = AFTER_QUIZ_COPY.ar.experience
 const COMMON = AFTER_QUIZ_COPY.en.common
 const SHA = 'ab12cd34ef56'.repeat(5) + 'abcd'
+const USD_1500 = { currency: 'USD', amount_minor: 150000, amount: '1500.00' }
+// The live price (contract S18): US dollars, and pounds at today's rate while a rate is set.
+const LIVE_PRICE = { usd: USD_1500, syp: { currency: 'SYP', amount_minor: 19500000, amount: '19500000' }, exchange_rate: { id: 7, syp_per_usd: '13000.0000', effective_from: '2026-10-15T08:00:00Z' } }
 
 function certificate(overrides = {}) {
   return {
@@ -37,7 +40,7 @@ function certificate(overrides = {}) {
     application: { public_id: 'case-41', case_reference: 'RPL-2026-AFTER', status: 'course_plan_active' },
     client: { id: 9, name: 'Amina Saleh' },
     entry_quiz: { verification_id: 5, percent: 72, pass_mark_applied: 50, scored_at: '2026-10-14T09:00:00Z' },
-    charge: { public_id: 'charge-1', type: 'experience_certificate', amount: 1500, currency: 'POINTS', route: 'wallet', status: 'paid' },
+    charge: { public_id: 'charge-1', type: 'experience_certificate', amount: USD_1500, price_usd: USD_1500, exchange_rate: null, route: 'wallet', status: 'paid' },
     approved_by: null,
     approved_at: null,
     refused_by: null,
@@ -60,7 +63,7 @@ function overview(overrides = {}) {
     eligible: true,
     state: 'awaiting_issue',
     reason_code: null,
-    live_price_points: 1500,
+    live_price: LIVE_PRICE,
     live_wording: { id: 2, version: 1, sha256: SHA },
     current: certificate(),
     history: [],
@@ -87,6 +90,8 @@ describe('approving and refusing (S8, S9)', () => {
     expect(screen.getByText(`${EN.choice}: ${EN.choices.stop}`)).toBeInTheDocument()
     expect(screen.getByText('Entry quiz: 72.00% (pass mark: more than 50%)')).toBeInTheDocument()
     expect(screen.getByText('Approved wording: version 1')).toBeInTheDocument()
+    expect(screen.getByText("Current price: $ 1,500.00 (19,500,000 SYP at today's rate)")).toBeInTheDocument()
+    expect(screen.getByText('Payment: $ 1,500.00 · Wallet, dollar balance · Paid')).toBeInTheDocument()
     expect(screen.getByText(EN.approveHint)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: EN.approveSubmit }))
 
@@ -155,7 +160,7 @@ describe('what the panel says', () => {
     ['unavailable', 'price_not_set', EN.unavailable.price_not_set],
     ['unavailable', 'case_status', EN.unavailable.case_status],
   ])('says why it is %s (%s) in a sentence', async (state, reason, sentence) => {
-    mocks.fetchRplExperienceCertificate.mockResolvedValue({ data: overview({ eligible: state !== 'not_eligible', state, reason_code: reason, live_price_points: null, live_wording: null, current: null }) })
+    mocks.fetchRplExperienceCertificate.mockResolvedValue({ data: overview({ eligible: state !== 'not_eligible', state, reason_code: reason, live_price: null, live_wording: null, current: null }) })
     renderPanel()
 
     expect(await screen.findByText(sentence)).toBeInTheDocument()

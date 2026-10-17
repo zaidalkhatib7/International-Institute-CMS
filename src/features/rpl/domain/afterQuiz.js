@@ -1,4 +1,14 @@
 import { localize } from './rpl'
+import {
+  MAX_PRICE_USD_MINOR,
+  MIN_PRICE_USD_MINOR,
+  amountMinorOf,
+  exchangeRateText,
+  formatMoneyInline,
+  fromMinor,
+  isMoney,
+  toMinor,
+} from '../../../utils/money'
 
 /*
  * AFTER THE ENTRY QUIZ (owner model of 15 Oct 2026, P6).
@@ -21,8 +31,13 @@ import { localize } from './rpl'
  *     certification fee (the Fees tab) is above 0, a certification-fee charge
  *     must be paid first and the certificate is then issued automatically on
  *     payment (owner, 15 Oct 2026).
- *   - Every price is integer II Points, frozen when the client asks. The money
- *     staff receive outside is evidence only, never a price.
+ *   - Every price is ONE price in US dollars (owner, 17 Oct 2026). The client
+ *     pays it from his dollar or pound balance, or outside the platform. A pound
+ *     amount is the dollar price x the owner's exchange rate, rounded half up to
+ *     the whole pound, at the moment he pays from his balance or asks to pay
+ *     outside, and it is frozen then on the charge with the dollar price and the
+ *     rate. Staff confirm an outside payment only for that exact amount, in that
+ *     currency. A charge written before 17 Oct 2026 keeps its points as history.
  *   - The server is the authority: what may be done comes from its `can` flags
  *     and the viewer's permission; every staff write sends the row's
  *     lock_version, and a stale one answers 409 with the row's own code.
@@ -55,8 +70,10 @@ export const AFTER_QUIZ_LIMITS = Object.freeze({
 // certification_fee: the level's certification fee on the final-exam path (owner, 15 Oct 2026).
 export const CHARGE_TYPES = Object.freeze(['experience_certificate', 'final_exam_retake', 'certification_fee'])
 export const CHARGE_STATUSES = Object.freeze(['pending', 'paid', 'cancelled', 'refunded'])
-export const OFFLINE_METHODS = Object.freeze(['bank_transfer', 'cash', 'external_gateway', 'manual_reconciliation'])
-export const STAFF_CANCEL_CATEGORIES = Object.freeze(['payment_not_found', 'amount_mismatch', 'reference_already_used', 'other'])
+// Syriatel Cash and MTN Cash are the owner's words (17 Oct 2026); the API's RplCharge::OFFLINE_METHODS.
+export const OFFLINE_METHODS = Object.freeze(['bank_transfer', 'cash', 'syriatel_cash', 'mtn_cash', 'external_gateway', 'manual_reconciliation'])
+// exchange_rate_outdated: a pending request in Syrian pounds whose rate is stale; the client asks again (M12).
+export const STAFF_CANCEL_CATEGORIES = Object.freeze(['payment_not_found', 'amount_mismatch', 'reference_already_used', 'exchange_rate_outdated', 'other'])
 export const REFUSAL_CATEGORIES = Object.freeze(['payment_not_verified', 'not_eligible', 'other'])
 export const EXPERIENCE_CERTIFICATE_STATUSES = Object.freeze(['requested', 'approved', 'issued', 'refused', 'cancelled'])
 export const WORDING_CODE = 'rpl_experience_confirmation'
@@ -68,13 +85,18 @@ export const RESERVED_TEMPLATE_CODES = Object.freeze(['rpl-experience-confirmati
  * a missing setting the API refuses on (503), never a value the form invents.
  * Only the pass mark is seeded (50) and required; the other four may be emptied,
  * which clears them (the owner can withdraw a price).
+ *
+ * The two prices are US dollars (owner, 17 Oct 2026; contract 2.8): the server
+ * holds them as whole US cents (100 = $1.00), the form shows and takes dollars
+ * with cents, and the payload sends the integer of cents (`kind: 'usd'`). The
+ * bounds of a 'usd' setting are in cents. The three others are whole numbers.
  */
 export const AFTER_QUIZ_SETTINGS = Object.freeze([
-  Object.freeze({ id: 'price', key: 'rpl_experience_certificate_price_points', min: 1, max: 1000000, nullable: true }),
-  Object.freeze({ id: 'passMark', key: 'rpl_final_exam_pass_mark_percent', min: 1, max: 99, nullable: false }),
-  Object.freeze({ id: 'questionsPerCourse', key: 'rpl_final_exam_questions_per_course', min: 1, max: 50, nullable: true }),
-  Object.freeze({ id: 'waitDays', key: 'rpl_final_exam_retake_wait_days', min: 0, max: 365, nullable: true }),
-  Object.freeze({ id: 'retakeFee', key: 'rpl_final_exam_retake_fee_points', min: 1, max: 1000000, nullable: true }),
+  Object.freeze({ id: 'price', key: 'rpl_experience_certificate_price_usd_minor', kind: 'usd', min: MIN_PRICE_USD_MINOR, max: MAX_PRICE_USD_MINOR, nullable: true }),
+  Object.freeze({ id: 'passMark', key: 'rpl_final_exam_pass_mark_percent', kind: 'int', min: 1, max: 99, nullable: false }),
+  Object.freeze({ id: 'questionsPerCourse', key: 'rpl_final_exam_questions_per_course', kind: 'int', min: 1, max: 50, nullable: true }),
+  Object.freeze({ id: 'waitDays', key: 'rpl_final_exam_retake_wait_days', kind: 'int', min: 0, max: 365, nullable: true }),
+  Object.freeze({ id: 'retakeFee', key: 'rpl_final_exam_retake_fee_usd_minor', kind: 'usd', min: MIN_PRICE_USD_MINOR, max: MAX_PRICE_USD_MINOR, nullable: true }),
 ])
 
 export const AFTER_QUIZ_SETTING_KEYS = Object.freeze(AFTER_QUIZ_SETTINGS.map((setting) => setting.key))
@@ -94,8 +116,13 @@ export const AFTER_QUIZ_COPY = {
       reasonInvalid: 'اكتب ما بين 10 و2000 حرف.',
       settingMissing: 'إعداد لازم لهذا الإجراء غير مضبوط: {setting}. اضبطه في إعدادات RPL ثم أعد المحاولة.',
       ownCase: 'لا يؤكد الموظف دفعة ولا يعتمد شهادة ولا يرفضها في طلبه الشخصي.',
-      points: '{amount} نقاط II',
+      noRate: 'لم يُضبط سعر صرف: لا يمكن لأحد الدفع بالليرة السورية حتى يُضبط. ولا يتأثر الدفع بالدولار.',
       by: '{name} في {at}',
+      paidIn: {
+        USD: 'بالدولار الأمريكي',
+        SYP: 'بالليرة السورية',
+        legacy: 'بالنقاط (سجل سابق)',
+      },
     },
     chargeTypes: {
       experience_certificate: 'شهادة تثبيت الخبرة',
@@ -109,12 +136,16 @@ export const AFTER_QUIZ_COPY = {
       refunded: 'مستردة',
     },
     routes: {
-      wallet: 'المحفظة (نقاط II)',
+      wallet: 'المحفظة',
+      walletUsd: 'المحفظة، رصيد الدولار',
+      walletSyp: 'المحفظة، رصيد الليرة',
       offline: 'دفع خارج المنصة',
     },
     methods: {
       bank_transfer: 'حوالة بنكية',
       cash: 'نقدًا',
+      syriatel_cash: 'سيريتل كاش',
+      mtn_cash: 'MTN كاش',
       external_gateway: 'بوابة دفع خارجية',
       manual_reconciliation: 'تسوية يدوية',
     },
@@ -122,13 +153,14 @@ export const AFTER_QUIZ_COPY = {
       payment_not_found: 'لم نتمكن من العثور على هذه الدفعة.',
       amount_mismatch: 'المبلغ المدفوع لا يطابق السعر.',
       reference_already_used: 'مرجع الدفع هذا مستخدم من قبل.',
+      exchange_rate_outdated: 'مبلغ الليرة السورية لم يعد صالحًا',
       other: 'لم تتمكن المؤسسة من تأكيد هذه الدفعة.',
       client_cancelled: 'ألغى العميل طلب الدفع.',
       case_closed: 'أُلغي لأن الطلب اكتمل.',
     },
     charges: {
       title: 'المدفوعات بعد اختبار الدخول',
-      hint: 'يدفع العميل من محفظته بنقاط II أو خارج المنصة، ويؤكد الموظفون الدفع الخارجي هنا. يُثبَّت السعر لحظة طلب العميل.',
+      hint: 'يدفع العميل السعر بالدولار من رصيده بالدولار أو بالليرة، أو خارج المنصة. ويُحسب المبلغ بالليرة من السعر بالدولار مضروبًا في سعر الصرف لحظة الدفع من الرصيد أو لحظة طلب الدفع الخارجي، ويُثبَّت عندها.',
       empty: 'لا توجد مدفوعات لهذا الطلب بعد.',
       cycle: 'الجولة {cycle}',
       amount: 'المبلغ',
@@ -138,7 +170,7 @@ export const AFTER_QUIZ_COPY = {
       requestedAt: 'طُلب في {at}',
       paidAt: 'دُفع في {at}',
       confirmedBy: 'أكّده {name} في {at}',
-      offlineEvidence: 'استُلم خارج المنصة: {amount} {currency} · {method} · المرجع {reference}',
+      offlineEvidence: 'استُلم خارج المنصة: {amount} · {method} · المرجع {reference}',
       staffNotes: 'ملاحظات الموظفين: {notes}',
       consumed: 'استُخدم في {at}',
       cancelledBy: 'ألغاه {name} في {at}',
@@ -153,11 +185,13 @@ export const AFTER_QUIZ_COPY = {
       referenceInvalid: 'اكتب مرجعًا من 3 إلى 255 حرفًا.',
       paidOn: 'تاريخ الدفع',
       paidOnInvalid: 'اختر تاريخًا لا يتجاوز اليوم.',
+      amountDue: 'المبلغ المستحق: {amount}',
       amountReceived: 'المبلغ المستلم',
-      amountInvalid: 'أدخل مبلغًا أكبر من صفر بخانتين عشريتين على الأكثر.',
-      currencyReceived: 'العملة (رمز من 3 أحرف)',
-      currencyInvalid: 'أدخل رمز عملة من 3 أحرف لاتينية، مثل EUR.',
-      evidenceHint: 'المبلغ المستلم وعملته دليل للموظفين فقط، وليسا سعرًا: السعر هو نقاط II المثبتة على الطلب.',
+      amountInvalidUsd: 'أدخل مبلغًا بالدولار الأمريكي بخانتين عشريتين على الأكثر، مثل 49.99.',
+      amountInvalidSyp: 'أدخل عددًا صحيحًا من الليرات السورية، مثل 125000.',
+      amountMustMatch: 'يجب أن يساوي المبلغ المستلم المبلغ المستحق. إن دفع العميل مبلغًا مختلفًا فلا تؤكد: ألغِ الطلب بفئة "المبلغ المدفوع لا يطابق السعر".',
+      evidenceHint: 'أكّد فقط المبلغ المستحق نفسه وبعملة الطلب: المبلغ والعملة مثبّتان عليه. وتُحفظ الوسيلة والمرجع دليلًا.',
+      notConfirmable: 'طلب دفع بالنقاط من النظام السابق لا يُؤكَّد: ألغِه، ويطلب العميل الدفع من جديد بالدولار أو بالليرة.',
       notes: 'ملاحظات (اختيارية، للموظفين فقط)',
       notesInvalid: 'بحد أقصى 2000 حرف.',
       confirmSubmit: 'تأكيد الدفع',
@@ -171,7 +205,7 @@ export const AFTER_QUIZ_COPY = {
       cancelled: 'أُلغي طلب الدفع.',
       refund: 'إعادة المبلغ',
       refundTitle: 'إعادة مبلغ مدفوع',
-      refundHint: 'تُعاد فقط دفعة مدفوعة لم تُستخدم بعد. دفعة المحفظة تعود إلى المحفظة، والدفعة الخارجية تُسجَّل كمبلغ أُعيد خارج المنصة.',
+      refundHint: 'تُعاد فقط دفعة مدفوعة لم تُستخدم بعد. دفعة المحفظة تعود إلى الرصيد الذي دُفعت منه، بالعملة والمبلغ نفسيهما، والدفعة الخارجية تُسجَّل كمبلغ أُعيد خارج المنصة. ودفعة بالنقاط قبل 17 أكتوبر 2026 تعود بالعدد نفسه من الدولارات.',
       refundSubmit: 'إعادة المبلغ',
       refunded: 'أُعيد المبلغ.',
       stale: 'غيّر موظف آخر هذه الدفعة أثناء عملك عليها. أُعيد تحميلها: راجعها ثم أعد المحاولة. لم يُحفظ شيء مما أرسلته، وبقي ما كتبته.',
@@ -345,8 +379,8 @@ export const AFTER_QUIZ_COPY = {
         },
         held: 'تنتظر شهادة المستوى رفع إيقاف حوكمة، وتصدر بعد رفعه.',
         feeDue: 'رسوم شهادة هذا المستوى أكبر من صفر: تصدر الشهادة تلقائيًا بعد دفعها (قرار المالك، 15 أكتوبر 2026).',
-        feeUnusable: 'اجتاز العميل الاختبار النهائي، لكن رسوم الشهادة في تبويب الرسوم لهذا المسار والمستوى ليست عددًا صحيحًا من نقاط II: رسوم مسار الاختبار النهائي تُحصَّل بنقاط II فقط ولا تُحوَّل من المال أبدًا. تبقى الحالة في الاختبار النهائي حتى تُدخَل الرسوم بنقاط II (POINTS) أو تُجعل صفرًا.',
-        feePoints: 'رسوم الشهادة المثبتة عند الاجتياز: {amount}',
+        feeUnusable: 'اجتاز العميل الاختبار النهائي، لكن رسوم الشهادة في تبويب الرسوم لهذا المسار والمستوى ليست بالدولار الأمريكي. تبقى الحالة في الاختبار النهائي حتى تُدخَل الرسوم بالدولار أو تُجعل صفرًا.',
+        feeFrozen: 'رسوم الشهادة المثبتة عند الاجتياز: {amount}',
         hold: 'الإيقاف رقم {id}: {program} الإصدار {version}',
         outbox: 'مهمة الإصدار: {status}، {attempts} محاولات',
         lastError: 'آخر خطأ: {error}',
@@ -360,13 +394,15 @@ export const AFTER_QUIZ_COPY = {
       title: 'بعد اختبار الدخول',
       hint: 'إعدادات محكومة يقررها المالك (15 أكتوبر 2026)، ولا قيمة افتراضية لها في الشيفرة. كل قيمة تُثبَّت حيث تُستخدم: يحتفظ كل شراء بسعره، وتحتفظ كل محاولة بحد نجاحها.',
       fields: {
-        price: { label: 'سعر شهادة تثبيت الخبرة (نقاط II، من 1 إلى 1000000)', hint: 'بنقاط II. فارغ: الشهادة غير معروضة.' },
+        price: { label: 'سعر شهادة تثبيت الخبرة (بالدولار الأمريكي، من 1.00 إلى 1,000,000.00)', hint: 'بالدولار الأمريكي، وتُقبل السنتات. فارغ: الشهادة غير معروضة.' },
         passMark: { label: 'حد النجاح في الاختبار النهائي (٪، من 1 إلى 99)', hint: 'تنجح المحاولة فقط فوق هذه الدرجة، على الكسر الدقيق (قرار المالك، 15 أكتوبر 2026؛ القيمة الأولية 50).' },
         questionsPerCourse: { label: 'عدد الأسئلة لكل دورة مدروسة (من 1 إلى 50)', hint: 'عدد الأسئلة المسحوبة من كل دورة مدروسة. فارغ: لا يبدأ أي اختبار نهائي.' },
         waitDays: { label: 'أيام الانتظار قبل الإعادة (من 0 إلى 365)', hint: 'الأيام بعد المحاولة الثالثة الفاشلة قبل ثلاث محاولات جديدة. فارغ: لا تبدأ أي إعادة.' },
-        retakeFee: { label: 'رسوم إعادة الاختبار النهائي (نقاط II، من 1 إلى 1000000)', hint: 'رسوم الإعادة بنقاط II. فارغ: لا تُباع أي إعادة.' },
+        retakeFee: { label: 'رسوم إعادة الاختبار النهائي (بالدولار الأمريكي، من 1.00 إلى 1,000,000.00)', hint: 'بالدولار الأمريكي، وتُقبل السنتات. فارغ: لا تُباع أي إعادة.' },
       },
       invalid: 'أدخل عددًا صحيحًا من {min} إلى {max}.',
+      usdInvalid: 'أدخل مبلغًا بالدولار الأمريكي من 1.00 إلى 1,000,000.00 بخانتين عشريتين على الأكثر، مثل 49.99.',
+      atTodaysRate: '{syp} بسعر اليوم',
       passMarkRequired: 'لا يمكن ترك حد النجاح فارغًا: أدخل عددًا صحيحًا من 1 إلى 99.',
       notSet: 'غير مضبوط.',
     },
@@ -439,6 +475,7 @@ export const AFTER_QUIZ_COPY = {
       case: 'الطلب',
       client: 'العميل',
       amount: 'المبلغ',
+      paidIn: 'العملة المدفوعة',
       route: 'طريقة الدفع',
       requested: 'تاريخ الطلب',
       choice: 'اختيار العميل',
@@ -465,8 +502,13 @@ export const AFTER_QUIZ_COPY = {
       reasonInvalid: 'Write between 10 and 2,000 characters.',
       settingMissing: 'A setting this act needs is not set: {setting}. Set it in the RPL settings, then try again.',
       ownCase: 'Staff cannot confirm, approve or refuse a payment or certificate on their own case.',
-      points: '{amount} II Points',
+      noRate: 'No exchange rate is set: nobody can pay in Syrian pounds until one is set. Dollar payments are not affected.',
       by: '{name} on {at}',
+      paidIn: {
+        USD: 'US dollars',
+        SYP: 'Syrian pounds',
+        legacy: 'Points (earlier record)',
+      },
     },
     chargeTypes: {
       experience_certificate: 'Experience Confirmation Certificate',
@@ -480,12 +522,16 @@ export const AFTER_QUIZ_COPY = {
       refunded: 'Refunded',
     },
     routes: {
-      wallet: 'Wallet (II Points)',
+      wallet: 'Wallet',
+      walletUsd: 'Wallet, dollar balance',
+      walletSyp: 'Wallet, pound balance',
       offline: 'Paid outside the platform',
     },
     methods: {
       bank_transfer: 'Bank transfer',
       cash: 'Cash',
+      syriatel_cash: 'Syriatel Cash',
+      mtn_cash: 'MTN Cash',
       external_gateway: 'External gateway',
       manual_reconciliation: 'Manual reconciliation',
     },
@@ -493,13 +539,14 @@ export const AFTER_QUIZ_COPY = {
       payment_not_found: 'We could not find this payment.',
       amount_mismatch: 'The amount paid does not match the price.',
       reference_already_used: 'This payment reference was already used.',
+      exchange_rate_outdated: 'Syrian-pound amount out of date',
       other: 'The institute could not confirm this payment.',
       client_cancelled: 'The client cancelled this payment request.',
       case_closed: 'Cancelled because the request is complete.',
     },
     charges: {
       title: 'Payments after the entry quiz',
-      hint: 'The client pays from the wallet in II Points, or outside the platform; staff confirm an outside payment here. The price is frozen when the client asks.',
+      hint: 'The client pays the dollar price from his dollar or pound balance, or outside the platform. A pound amount is the dollar price × the rate at the moment he pays from his balance or asks to pay outside, and it is frozen then.',
       empty: 'No payments exist for this case yet.',
       cycle: 'round {cycle}',
       amount: 'Amount',
@@ -509,7 +556,7 @@ export const AFTER_QUIZ_COPY = {
       requestedAt: 'Requested on {at}',
       paidAt: 'Paid on {at}',
       confirmedBy: 'Confirmed by {name} on {at}',
-      offlineEvidence: 'Received outside: {amount} {currency} · {method} · reference {reference}',
+      offlineEvidence: 'Received outside: {amount} · {method} · reference {reference}',
       staffNotes: 'Staff notes: {notes}',
       consumed: 'Used on {at}',
       cancelledBy: 'Cancelled by {name} on {at}',
@@ -524,11 +571,13 @@ export const AFTER_QUIZ_COPY = {
       referenceInvalid: 'Write a reference of 3 to 255 characters.',
       paidOn: 'Date paid',
       paidOnInvalid: 'Choose a date no later than today.',
+      amountDue: 'Amount due: {amount}',
       amountReceived: 'Amount received',
-      amountInvalid: 'Enter an amount above zero with at most two decimals.',
-      currencyReceived: 'Currency (3-letter code)',
-      currencyInvalid: 'Enter a 3-letter currency code, such as EUR.',
-      evidenceHint: 'The amount and currency received are staff-only evidence, never a price: the price is the II Points frozen on the request.',
+      amountInvalidUsd: 'Enter an amount in US dollars with at most two decimals, such as 49.99.',
+      amountInvalidSyp: 'Enter a whole number of Syrian pounds, such as 125000.',
+      amountMustMatch: 'The amount received must equal the amount due. If the client paid a different amount, do not confirm: cancel the request with "The amount paid does not match the price".',
+      evidenceHint: 'Confirm only the exact amount due, in the currency of the request: both are frozen on it. The method and the reference are kept as evidence.',
+      notConfirmable: 'A payment request in points from the former system cannot be confirmed: cancel it, and the client asks again in US dollars or Syrian pounds.',
       notes: 'Notes (optional, staff only)',
       notesInvalid: 'At most 2,000 characters.',
       confirmSubmit: 'Confirm the payment',
@@ -542,7 +591,7 @@ export const AFTER_QUIZ_COPY = {
       cancelled: 'Payment request cancelled.',
       refund: 'Refund',
       refundTitle: 'Refund a paid charge',
-      refundHint: 'Only a paid charge that has not been used is refunded. A wallet payment returns to the wallet; an outside payment is recorded as returned outside the platform.',
+      refundHint: 'Only a paid charge that has not been used is refunded. A wallet payment returns to the balance it was paid from, in the same currency and amount; an outside payment is recorded as returned outside the platform. A payment in points made before 17 Oct 2026 returns as the same number of US dollars.',
       refundSubmit: 'Refund the payment',
       refunded: 'Payment refunded.',
       stale: 'Someone else changed this payment while you were working on it. It has been reloaded: check it and try again. Nothing you sent was saved, and what you typed is kept.',
@@ -716,8 +765,8 @@ export const AFTER_QUIZ_COPY = {
         },
         held: 'The level certificate waits on a governance hold. It is issued once the hold is lifted.',
         feeDue: 'This level\'s certification fee is above 0: the certificate is issued automatically once it is paid (owner decision, 15 Oct 2026).',
-        feeUnusable: 'The client passed the final exam, but the Fees tab\'s certification fee for this pathway and level is not a whole number of II Points. The fee on the final-exam path is charged only in II Points and is never converted from money. The case stays in the final exam until the fee is entered in II Points (POINTS) or set to 0.',
-        feePoints: 'Certification fee frozen at the pass: {amount}',
+        feeUnusable: 'The client passed the final exam, but the Fees tab\'s certification fee for this pathway and level is not in US dollars. The case stays in the final exam until the fee is entered in dollars or set to 0.',
+        feeFrozen: 'Certification fee frozen at the pass: {amount}',
         hold: 'Hold #{id}: {program} version {version}',
         outbox: 'Issuance job: {status}, {attempts} attempts',
         lastError: 'Last error: {error}',
@@ -731,13 +780,15 @@ export const AFTER_QUIZ_COPY = {
       title: 'After the entry quiz',
       hint: 'Governed settings the owner decides (15 Oct 2026); the code holds no default. Each value is frozen where it is used: a purchase keeps its price, and a try keeps its pass mark.',
       fields: {
-        price: { label: 'Experience Confirmation Certificate price (II Points, 1 to 1,000,000)', hint: 'In II Points. Empty: the certificate is not offered.' },
+        price: { label: 'Experience Confirmation Certificate price (US dollars, 1.00 to 1,000,000.00)', hint: 'In US dollars, cents allowed. Empty: the certificate is not offered.' },
         passMark: { label: 'Final-exam pass mark (%, 1 to 99)', hint: 'A try passes only above this mark, on the exact fraction (owner decision, 15 Oct 2026; seeded 50).' },
         questionsPerCourse: { label: 'Questions per studied course (1 to 50)', hint: 'Questions drawn from each studied course. Empty: no final exam can start.' },
         waitDays: { label: 'Retake waiting days (0 to 365)', hint: 'Days after the third failed try before three new tries. Empty: no retake can start.' },
-        retakeFee: { label: 'Final-exam retake fee (II Points, 1 to 1,000,000)', hint: 'Retake fee in II Points. Empty: no retake is sold.' },
+        retakeFee: { label: 'Final-exam retake fee (US dollars, 1.00 to 1,000,000.00)', hint: 'In US dollars, cents allowed. Empty: no retake is sold.' },
       },
       invalid: 'Enter a whole number from {min} to {max}.',
+      usdInvalid: 'Enter an amount in US dollars from 1.00 to 1,000,000.00 with at most two decimals, such as 49.99.',
+      atTodaysRate: '{syp} at today\'s rate',
       passMarkRequired: 'The final-exam pass mark cannot be empty: enter a whole number from 1 to 99.',
       notSet: 'Not set.',
     },
@@ -810,6 +861,7 @@ export const AFTER_QUIZ_COPY = {
       case: 'Case',
       client: 'Client',
       amount: 'Amount',
+      paidIn: 'Paid in',
       route: 'Route',
       requested: 'Requested',
       choice: 'Client\'s choice',
@@ -853,37 +905,74 @@ export function levelCertificateStateLabel(state, language) {
   return labelFrom(afterQuizCopy(language).finalExam.level.states, state)
 }
 
-/** A price or charge amount: II Points by name, any other currency as sent (staff-only money evidence). */
-export function formatChargeAmount(amount, currency, language) {
-  if (amount == null || amount === '') return '—'
-  if (!currency || currency === 'POINTS') return afterQuizCopy(language).common.points.replace('{amount}', String(amount))
-  return `${amount} ${currency}`
+/*
+ * A CHARGE'S AMOUNT IN ONE LINE (contract 2.6: amount is a Money, frozen when the
+ * client paid from his balance or asked to pay outside, with price_usd and the
+ * exchange_rate used):
+ *   dollars                 "$ 49.99"
+ *   pounds                  "649,870 SYP ($ 49.99 at 1 USD = 13,000 SYP)"
+ *   points (before 17 Oct)  "1,500 points (earlier record)"
+ */
+export function chargePriceLine(charge, language) {
+  const amount = charge?.amount
+  if (!isMoney(amount)) return '—'
+  const ar = language === 'ar'
+  const text = formatMoneyInline(amount, language)
+  if (amount.currency !== 'SYP' || !isMoney(charge?.price_usd)) return text
+  const usd = formatMoneyInline(charge.price_usd, language)
+  if (!charge?.exchange_rate) return `${text} (${usd})`
+  const rate = exchangeRateText(charge.exchange_rate, language)
+  return ar ? `${text} (${usd} بسعر \u2068${rate}\u2069)` : `${text} (${usd} at ${rate})`
 }
 
-/** The currency of a Fees-tab fee charged in II Points (owner answer O2, 15 Oct 2026; the API's RplFeeService::POINTS). */
-export const FEE_POINTS_CURRENCY = 'POINTS'
-
-/** Whether a Fees-tab currency is II Points. */
-export function isPointsFee(currency) {
-  return String(currency ?? '').trim().toUpperCase() === FEE_POINTS_CURRENCY
+/** How a charge was or will be paid: from which balance, or outside the platform. */
+export function chargeRouteLabel(charge, language) {
+  const routes = afterQuizCopy(language).routes
+  if (charge?.route === 'offline') return routes.offline
+  if (charge?.route === 'wallet') {
+    const currency = charge?.amount?.currency
+    return currency === 'USD' ? routes.walletUsd : currency === 'SYP' ? routes.walletSyp : routes.wallet
+  }
+  return charge?.route || '—'
 }
 
-/**
- * What stops a Fees-tab schedule from saving, as the API checks it, or null:
- *   - currency: neither POINTS nor a three-letter money code;
- *   - amount: not a number of 0 or more;
- *   - whole_points: a fee in II Points that is not a whole number.
- * A fee above 0 on the final-exam path must be in II Points (O2); a money fee
- * still saves, because the same schedule serves the committee path.
+/** The currency a charge is in, in words ("US dollars", "Syrian pounds", or the earlier points), or "—". */
+export function chargePaidInLabel(charge, language) {
+  const paidIn = afterQuizCopy(language).common.paidIn
+  const currency = charge?.amount?.currency
+  if (!currency) return '—'
+  return paidIn[currency] || paidIn.legacy
+}
+
+/** The categories staff may cancel this charge with: an out-of-date rate applies only to a request in Syrian pounds. */
+export function cancelCategoriesFor(charge) {
+  return STAFF_CANCEL_CATEGORIES.filter((category) => category !== 'exchange_rate_outdated' || charge?.amount?.currency === 'SYP')
+}
+
+/** The 503 refusal while no exchange rate is set: nothing is charged in Syrian pounds (fail closed). */
+export function rateMissing(error) {
+  return Number(error?.response?.status) === 503 && error?.response?.data?.code === 'exchange_rate_missing'
+}
+
+/*
+ * What stops a Fees-tab schedule from saving, as the API checks it (contract
+ * S14), or null. Every fee is in US dollars (owner, 17 Oct 2026):
+ *   - legacy_currency: a row in any other currency (POINTS or money from before),
+ *     shown but never saved as it is: staff re-enter it in dollars;
+ *   - amount: not 0 and not $1.00 to $1,000,000.00 with at most two decimals.
  */
 export function feeScheduleFormError(form) {
   const currency = String(form?.currency ?? '').trim().toUpperCase()
-  if (currency !== FEE_POINTS_CURRENCY && !/^[A-Z]{3}$/.test(currency)) return 'currency'
-  const raw = String(form?.amount ?? '').trim()
-  const amount = Number(raw)
-  if (raw === '' || !Number.isFinite(amount) || amount < 0) return 'amount'
-  if (currency === FEE_POINTS_CURRENCY && !Number.isInteger(amount)) return 'whole_points'
+  if (currency !== 'USD') return 'legacy_currency'
+  const minor = toMinor(form?.amount, 'USD')
+  if (minor == null) return 'amount'
+  if (minor !== 0 && (minor < MIN_PRICE_USD_MINOR || minor > MAX_PRICE_USD_MINOR)) return 'amount'
   return null
+}
+
+/** A Fees-tab amount typed in dollars, as the integer of US cents the API takes (amount_minor). */
+export function feeScheduleAmountMinor(form) {
+  return toMinor(form?.amount, 'USD')
 }
 
 /** A charge in one line: its type, and the round it opens for a retake. */
@@ -929,12 +1018,14 @@ export function canApproveWording(authorization) {
 }
 
 /*
- * THE CONFIRM FORM (S3). Every field is validated the way the API validates it,
- * and the body carries exactly the API's keys. The amount received is staff-only
- * evidence in a currency, sent as typed (two decimals at most), never a price.
+ * THE CONFIRM FORM (S15). Every field is validated the way the API validates it,
+ * and the body carries exactly the API's keys. The currency is the charge's own
+ * (shown, never chosen) and the amount received must equal the charge's frozen
+ * amount in it, in minor units (M12): a client who paid another amount or in the
+ * other currency is not confirmed; staff cancel and top up what was received.
  */
 export function emptyConfirmForm() {
-  return { method: 'bank_transfer', reference: '', paid_at: '', amount_received: '', currency_received: '', notes: '' }
+  return { method: 'bank_transfer', reference: '', paid_at: '', amount_received: '', notes: '' }
 }
 
 export function todayIso(now = new Date()) {
@@ -942,34 +1033,52 @@ export function todayIso(now = new Date()) {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
 
-export function confirmFormErrors(form, today = todayIso()) {
+/** Whether staff can confirm an outside payment of this charge at all: only one in US dollars or Syrian pounds. */
+export function isConfirmableCharge(charge) {
+  const currency = charge?.amount?.currency
+  return (currency === 'USD' || currency === 'SYP') && amountMinorOf(charge.amount) != null
+}
+
+/*
+ * The errors by field: '' when valid. amount_received is 'amount_received' when
+ * the text is not an amount in the charge's currency, 'amount_mismatch' when it
+ * is one but not the amount due, and 'legacy_currency' on a charge in points.
+ */
+export function confirmFormErrors(form, today = todayIso(), charge = null) {
   const reference = String(form?.reference ?? '').trim()
-  const amount = String(form?.amount_received ?? '').trim()
-  const currency = String(form?.currency_received ?? '').trim()
   const paidAt = String(form?.paid_at ?? '').trim()
+  const currency = charge?.amount?.currency
+  let amount = ''
+  if (!isConfirmableCharge(charge)) amount = 'legacy_currency'
+  else {
+    const minor = toMinor(form?.amount_received, currency)
+    if (minor == null) amount = 'amount_received'
+    else if (minor !== charge.amount.amount_minor) amount = 'amount_mismatch'
+  }
   return {
     method: OFFLINE_METHODS.includes(form?.method) ? '' : 'method',
     reference: reference.length >= AFTER_QUIZ_LIMITS.referenceMin && reference.length <= AFTER_QUIZ_LIMITS.referenceMax ? '' : 'reference',
     paid_at: /^\d{4}-\d{2}-\d{2}$/.test(paidAt) && paidAt <= today ? '' : 'paid_at',
-    amount_received: /^\d{1,10}(\.\d{1,2})?$/.test(amount) && Number(amount) > 0 ? '' : 'amount_received',
-    currency_received: /^[A-Za-z]{3}$/.test(currency) ? '' : 'currency_received',
+    amount_received: amount,
     notes: String(form?.notes ?? '').length <= AFTER_QUIZ_LIMITS.notesMax ? '' : 'notes',
   }
 }
 
-export function isConfirmFormValid(form, today = todayIso()) {
-  return Object.values(confirmFormErrors(form, today)).every((value) => value === '')
+export function isConfirmFormValid(form, today = todayIso(), charge = null) {
+  return Object.values(confirmFormErrors(form, today, charge)).every((value) => value === '')
 }
 
-export function confirmPayload(form, lockVersion) {
+/** The S15 body: the charge's lock_version, and the amount received in minor units of the charge's currency. */
+export function confirmPayload(form, charge) {
   const notes = String(form?.notes ?? '').trim()
+  const currency = charge?.amount?.currency
   return {
-    lock_version: lockVersion,
+    lock_version: charge?.lock_version,
     method: form.method,
     reference: String(form.reference).trim(),
     paid_at: String(form.paid_at).trim(),
-    amount_received: String(form.amount_received).trim(),
-    currency_received: String(form.currency_received).trim().toUpperCase(),
+    amount_received_minor: toMinor(form.amount_received, currency),
+    currency_received: currency,
     ...(notes ? { notes } : {}),
   }
 }
@@ -990,12 +1099,20 @@ function heldValue(raw, key) {
   return value != null && value !== '' && typeof value !== 'object' && typeof value !== 'boolean'
 }
 
+/** A held value as the form shows it: a 'usd' setting's whole cents as dollars ("150000" gives "1500.00"). */
+function shownValue(definition, value) {
+  const text = String(value).trim()
+  if (definition.kind === 'usd' && /^\d+$/.test(text)) return fromMinor(text, 'USD')
+  return text
+}
+
 export function readAfterQuizSettings(raw) {
   const values = {}
   const include = {}
-  for (const { key } of AFTER_QUIZ_SETTINGS) {
+  for (const definition of AFTER_QUIZ_SETTINGS) {
+    const { key } = definition
     const held = heldValue(raw, key)
-    values[key] = held ? String(raw[key]) : ''
+    values[key] = held ? shownValue(definition, raw[key]) : ''
     include[key] = held
   }
   return { values, include, errors: {} }
@@ -1014,27 +1131,34 @@ export function afterQuizSettingDefinition(key) {
   return AFTER_QUIZ_SETTINGS.find((setting) => setting.key === key) || null
 }
 
-/** '' is valid only on a nullable key (it clears it); otherwise a whole number within the key's bounds. */
+/** The value a setting's text sends: whole US cents for a 'usd' setting ("5.50" gives 550), a whole number otherwise, or null. */
+function settingNumber(definition, text) {
+  if (definition.kind === 'usd') return toMinor(text, 'USD')
+  return /^\d{1,7}$/.test(text) ? Number.parseInt(text, 10) : null
+}
+
+/** '' is valid only on a nullable key (it clears it); otherwise a value within the key's bounds (in cents for a 'usd' key). */
 export function isAfterQuizSettingValid(key, value) {
   const definition = afterQuizSettingDefinition(key)
   if (!definition) return false
   const text = String(value ?? '').trim()
   if (text === '') return definition.nullable
-  if (!/^\d{1,7}$/.test(text)) return false
-  const number = Number(text)
-  return Number.isInteger(number) && number >= definition.min && number <= definition.max
+  const number = settingNumber(definition, text)
+  return number != null && number >= definition.min && number <= definition.max
 }
 
 export function isAfterQuizSettingsReady(state) {
   return AFTER_QUIZ_SETTINGS.every(({ key }) => !state?.include?.[key] || isAfterQuizSettingValid(key, state?.values?.[key]))
 }
 
+/** The keys held or typed, each as the API takes it: a JSON integer (US cents for a price), or null to clear it. */
 export function afterQuizSettingsPayload(state) {
   const payload = {}
-  for (const { key } of AFTER_QUIZ_SETTINGS) {
+  for (const definition of AFTER_QUIZ_SETTINGS) {
+    const { key } = definition
     if (!state?.include?.[key]) continue
     const text = String(state?.values?.[key] ?? '').trim()
-    payload[key] = text === '' ? null : Number(text)
+    payload[key] = text === '' ? null : settingNumber(definition, text)
   }
   return payload
 }

@@ -32,6 +32,8 @@ const mocks = vi.hoisted(() => ({
 const language = vi.hoisted(() => ({ current: 'en' }))
 
 vi.mock('../services/rplService', () => mocks)
+// The pound preview under a typed price reads the public currencies route.
+vi.mock('../../finance/services/financeService', () => ({ fetchCurrencies: vi.fn().mockResolvedValue({ exchange_rate: null }) }))
 vi.mock('../../users/services/usersService', () => ({ fetchUsers: vi.fn() }))
 vi.mock('../../../services/languageStorage', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -65,11 +67,11 @@ function storedSettings(overrides = {}) {
       rpl_quiz_pass_mark_percent: 50,
       rpl_course_plan_minimums: { practitioner: 5, advanced_practitioner: 7, expert: 10 },
       // As seeded by migration 100008 and the O1 seed: four JSON nulls, the mark 50, and the failed minimums.
-      rpl_experience_certificate_price_points: null,
+      rpl_experience_certificate_price_usd_minor: null,
       rpl_final_exam_pass_mark_percent: 50,
       rpl_final_exam_questions_per_course: null,
       rpl_final_exam_retake_wait_days: null,
-      rpl_final_exam_retake_fee_points: null,
+      rpl_final_exam_retake_fee_usd_minor: null,
       rpl_course_plan_minimums_failed: { practitioner: 5, advanced_practitioner: 7, expert: 10 },
       ...overrides,
     },
@@ -96,11 +98,13 @@ const save = () => fireEvent.click(screen.getByRole('button', { name: COPY.en.sa
 const saveButton = () => screen.getByRole('button', { name: COPY.en.saveSettings })
 
 describe('the five settings after the entry quiz', () => {
-  it('shows five inputs, filled only with what the server holds (the seeded mark 50)', async () => {
+  it('shows five inputs, filled only with what the server holds (the seeded mark 50), the two prices as dollar fields', async () => {
     const block = within(await openControls())
 
-    expect(block.getAllByRole('spinbutton')).toHaveLength(5)
-    expect(block.getAllByRole('spinbutton').map((input) => input.value)).toEqual(['', '50', '', '', ''])
+    expect(block.getAllByRole('spinbutton')).toHaveLength(3)
+    expect(block.getAllByRole('spinbutton').map((input) => input.value)).toEqual(['50', '', ''])
+    expect(block.getByLabelText(S.fields.price.label)).toHaveValue('')
+    expect(block.getByLabelText(S.fields.retakeFee.label)).toHaveValue('')
   })
 
   it('puts a key into the PUT only when held or typed, and sends null to clear a nullable one', async () => {
@@ -110,7 +114,7 @@ describe('the five settings after the entry quiz', () => {
     await waitFor(() => expect(mocks.updateRplSettings).toHaveBeenCalledTimes(1))
     const first = mocks.updateRplSettings.mock.calls[0][0]
     expect(first.rpl_final_exam_pass_mark_percent).toBe(50)
-    for (const key of ['rpl_experience_certificate_price_points', 'rpl_final_exam_questions_per_course', 'rpl_final_exam_retake_wait_days', 'rpl_final_exam_retake_fee_points']) {
+    for (const key of ['rpl_experience_certificate_price_usd_minor', 'rpl_final_exam_questions_per_course', 'rpl_final_exam_retake_wait_days', 'rpl_final_exam_retake_fee_usd_minor']) {
       expect(first).not.toHaveProperty(key)
     }
 
@@ -118,14 +122,16 @@ describe('the five settings after the entry quiz', () => {
     fireEvent.change(screen.getByLabelText(S.fields.questionsPerCourse.label), { target: { value: '5' } })
     save()
     await waitFor(() => expect(mocks.updateRplSettings).toHaveBeenCalledTimes(2))
-    expect(mocks.updateRplSettings.mock.calls[1][0]).toMatchObject({ rpl_experience_certificate_price_points: 1500, rpl_final_exam_questions_per_course: 5, rpl_final_exam_pass_mark_percent: 50 })
-    expect(mocks.updateRplSettings.mock.calls[1][0]).not.toHaveProperty('rpl_final_exam_retake_fee_points')
+    // $1,500 typed in dollars is sent as whole US cents (contract 2.8).
+    expect(mocks.updateRplSettings.mock.calls[1][0]).toMatchObject({ rpl_experience_certificate_price_usd_minor: 150000, rpl_final_exam_questions_per_course: 5, rpl_final_exam_pass_mark_percent: 50 })
+    expect(mocks.updateRplSettings.mock.calls[1][0]).not.toHaveProperty('rpl_final_exam_retake_fee_usd_minor')
+    expect(mocks.updateRplSettings.mock.calls[1][0]).not.toHaveProperty('rpl_experience_certificate_price_points')
 
     // The owner withdraws the price: the key is sent as null.
     fireEvent.change(screen.getByLabelText(S.fields.price.label), { target: { value: '' } })
     save()
     await waitFor(() => expect(mocks.updateRplSettings).toHaveBeenCalledTimes(3))
-    expect(mocks.updateRplSettings.mock.calls[2][0]).toHaveProperty('rpl_experience_certificate_price_points', null)
+    expect(mocks.updateRplSettings.mock.calls[2][0]).toHaveProperty('rpl_experience_certificate_price_usd_minor', null)
   })
 
   it('holds the save back while a value is out of bounds, and never lets the pass mark be emptied', async () => {

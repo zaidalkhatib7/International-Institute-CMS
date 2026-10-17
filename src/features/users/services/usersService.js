@@ -69,30 +69,38 @@ export async function deleteUserExperience(userId, experienceId) {
   return response.data
 }
 
-export async function enrollUserByStaff(id, programId) {
-  const response = await http.post(`/admin/users/${id}/enrollments`, { program_id: Number(programId) })
+/*
+ * STAFF-ASSISTED ENROLMENT (contract S7). A priced programme is paid from the
+ * client's balance in the currency staff chose, and the body echoes the amount
+ * the screen showed (`expected_amount_minor`, an integer of minor units): a price
+ * or rate change between view and click answers 409 price_changed and charges
+ * nothing. A free programme sends the programme alone.
+ */
+export async function enrollUserByStaff(id, body) {
+  const response = await http.post(`/admin/users/${id}/enrollments`, body)
   return response.data
 }
 
-export async function creditUserWallet(userId, payload) {
-  const response = await http.post(`/admin/wallets/${userId}/credit`, payload)
+/*
+ * THE CLIENT'S TWO BALANCES (owner, 17 Oct 2026; contract S3, S4, S5). Money the
+ * institute received is topped up in the currency it was received in, and a
+ * deduction corrects a balance; both are audited and both REQUIRE an
+ * Idempotency-Key, so a double click or a retry after a lost answer never moves
+ * money twice. The amount is an integer of minor units (US cents, whole pounds).
+ */
+export async function topUpUserWallet(userId, body, idempotencyKey) {
+  const response = await http.post(`/admin/wallets/${userId}/top-ups`, body, { headers: { 'Idempotency-Key': idempotencyKey } })
   return response.data
 }
 
-export async function debitUserWallet(userId, payload) {
-  const safeAmount = Math.abs(Number(payload?.amount ?? 0))
-  const description = payload?.description
+export async function deductUserWallet(userId, body, idempotencyKey) {
+  const response = await http.post(`/admin/wallets/${userId}/deductions`, body, { headers: { 'Idempotency-Key': idempotencyKey } })
+  return response.data
+}
 
-  if (!safeAmount || safeAmount < 1) {
-    throw new Error('The amount field must be at least 1.')
-  }
-
-  const normalizedPayload = {
-    amount: safeAmount,
-    description,
-  }
-
-  const response = await http.post(`/admin/wallets/${userId}/debit`, normalizedPayload)
+/** The client's wallet ledger, staff shape (S5): currency USD, SYP or POINTS (the earlier records), paginated. */
+export async function fetchUserWalletTransactions(userId, params = {}) {
+  const response = await http.get(`/admin/users/${userId}/wallet/transactions`, { params })
   return response.data
 }
 

@@ -35,8 +35,9 @@ function staffCharge(overrides = {}) {
     public_id: 'charge-7',
     type: 'certification_fee',
     cycle: 1,
-    amount: 900,
-    currency: 'POINTS',
+    amount: { currency: 'USD', amount_minor: 90000, amount: '900.00' },
+    price_usd: { currency: 'USD', amount_minor: 90000, amount: '900.00' },
+    exchange_rate: null,
     route: 'offline',
     status: 'pending',
     payer_reference: 'Transfer from Amina',
@@ -58,7 +59,7 @@ beforeEach(() => {
   language.current = 'en'
   mocks.fetchRplChargeQueue.mockResolvedValue({ data: [staffCharge()] })
   mocks.fetchRplExperienceCertificateQueue.mockResolvedValue({
-    data: [{ public_id: 'cert-1', status: 'requested', client_choice: 'stop', application: { public_id: 'case-42', case_reference: 'RPL-2026-EXC', status: 'course_plan_active' }, client: { id: 10, name: 'Omar Haddad' }, entry_quiz: { percent: 72, pass_mark_applied: 50 }, charge: { amount: 1500, currency: 'POINTS', status: 'paid' }, created_at: '2026-10-21T08:00:00Z' }],
+    data: [{ public_id: 'cert-1', status: 'requested', client_choice: 'stop', application: { public_id: 'case-42', case_reference: 'RPL-2026-EXC', status: 'course_plan_active' }, client: { id: 10, name: 'Omar Haddad' }, entry_quiz: { percent: 72, pass_mark_applied: 50 }, charge: { amount: { currency: 'SYP', amount_minor: 19500000, amount: '19500000' }, price_usd: { currency: 'USD', amount_minor: 150000, amount: '1500.00' }, exchange_rate: { id: 7, syp_per_usd: '13000.0000' }, status: 'paid' }, created_at: '2026-10-21T08:00:00Z' }],
   })
   mocks.fetchRplAfterQuizAttention.mockResolvedValue({
     data: {
@@ -79,7 +80,10 @@ describe('the payments queue (S1)', () => {
     expect(await screen.findByRole('link', { name: 'RPL-2026-AFTER' })).toHaveAttribute('href', '/rpl/applications/case-41')
     const table = within(screen.getByRole('table', { name: Q.payments.title }))
     expect(table.getByText('Level certification fee')).toBeInTheDocument()
-    expect(table.getByText('900 II Points')).toBeInTheDocument()
+    expect(table.getByText('$ 900.00')).toBeInTheDocument()
+    // Paid in (owner, 17 Oct 2026): the currency of the request, in words.
+    expect(table.getByRole('columnheader', { name: Q.paidIn })).toBeInTheDocument()
+    expect(table.getByText(AFTER_QUIZ_COPY.en.common.paidIn.USD)).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText(Q.type), { target: { value: 'certification_fee' } })
     await waitFor(() => expect(mocks.fetchRplChargeQueue).toHaveBeenLastCalledWith({ status: 'pending', type: 'certification_fee' }))
@@ -96,6 +100,7 @@ describe('the experience certificates queue (S7)', () => {
     expect(await screen.findByRole('link', { name: 'RPL-2026-EXC' })).toHaveAttribute('href', '/rpl/applications/case-42')
     expect(screen.getByText(AFTER_QUIZ_COPY.en.experience.choices.stop)).toBeInTheDocument()
     expect(screen.getByText('Entry quiz: 72.00% (pass mark: more than 50%)')).toBeInTheDocument()
+    expect(screen.getByText('19,500,000 SYP ($ 1,500.00 at 1 USD = 13,000 SYP) · Paid')).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText(Q.status), { target: { value: 'issued' } })
     await waitFor(() => expect(mocks.fetchRplExperienceCertificateQueue).toHaveBeenLastCalledWith({ status: 'issued' }))

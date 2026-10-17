@@ -4,7 +4,8 @@ const anyPermission = (...slugs) => ({ anyPermissions: slugs })
 export const routeAccess = Object.freeze({
   '/dashboard': null,
   '/users': permission('users.view'),
-  '/users/wallet': permission('finance.manage'),
+  // A client's balances: top up or deduct (owner, 17 Oct 2026). The path carries the id only, never a name.
+  '/users/:id/wallet': permission('finance.manage'),
   '/programs': permission('programs.manage'),
   '/competency-gap-library': permission('programs.manage'),
   // A missing key means canAccess() returns true, so an operator without the
@@ -49,6 +50,8 @@ export const routeAccess = Object.freeze({
   '/library': permission('library.manage'),
   '/support': permission('support.manage'),
   '/finance': anyPermission('finance.reports.view', 'finance.catalog.manage'),
+  // The USD -> SYP rate (owner, 17 Oct 2026): read by every finance and payment role; only the owner's role sets it (the panel decides).
+  '/finance/exchange-rate': anyPermission('finance.exchange_rates.manage', 'finance.manage', 'finance.reports.view', 'finance.catalog.manage', 'rpl.payments.reconcile'),
   '/reports': anyPermission('applications.review', 'experts.view', 'cpd.review', 'audit.view'),
   '/notifications': null,
 })
@@ -57,5 +60,6 @@ export function getRouteAccess(pathname) {
   if (!pathname) return undefined
   if (/^\/rpl\/applications\/[^/]+$/.test(pathname)) return routeAccess['/rpl/applications']
   if (/^\/rpl\/assessments\/[^/]+$/.test(pathname)) return routeAccess['/rpl/assessments']
+  if (/^\/users\/[^/]+\/wallet$/.test(pathname)) return routeAccess['/users/:id/wallet']
   return routeAccess[pathname]
 }

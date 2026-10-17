@@ -11,3 +11,13 @@ export async function createFinanceCoupon(payload) { return (await http.post('/a
 export async function updateFinanceCoupon(id, payload) { return (await http.put(`/admin/finance/coupons/${id}`, payload)).data }
 export async function fetchFinanceSubscriptions(params = {}) { return (await http.get('/admin/finance/subscriptions', { params })).data }
 export async function updateFinanceSubscription(id, payload) { return (await http.put(`/admin/finance/subscriptions/${id}`, payload)).data }
+
+/*
+ * THE EXCHANGE RATE (owner decisions of 17 Oct 2026; contract S1, S2, W1).
+ * The rate is Syrian pounds for 1 US dollar, append-only: setting one sends the
+ * id of the rate the setter saw (409 exchange_rate_changed when it is no longer
+ * the live one). The public W1 route carries the current rate for previews.
+ */
+export async function fetchExchangeRates(params = {}) { return (await http.get('/admin/finance/exchange-rates', { params })).data }
+export async function setExchangeRate(payload) { return (await http.post('/admin/finance/exchange-rates', payload)).data }
+export async function fetchCurrencies() { return (await http.get('/currencies')).data }

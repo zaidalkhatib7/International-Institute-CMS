@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { BookOpenCheck, Check, FileCog, Gavel, Layers3, LoaderCircle, Pencil, Plus, Save, Settings2, ShieldCheck, Stamp, Trash2, X } from 'lucide-react'
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, DataTableShell, Input, PageHeader, Select, Textarea } from '../../../components/ui'
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, DataTableShell, Input, MoneyInput, PageHeader, Select, Textarea } from '../../../components/ui'
 import { readApiError, unwrapApiData, unwrapCollection } from '../../../services/apiResponse'
+import { amountMinorOf, formatMoney, isMoney, moneyFromDecimal } from '../../../utils/money'
 import { getAdminLanguage } from '../../../services/languageStorage'
 import { fetchUsers } from '../../users/services/usersService'
 import { APPLICATION_STATUS, EVIDENCE_EXTENSIONS, localize } from '../domain/rpl'
@@ -23,7 +24,7 @@ import AfterQuizSettings from '../components/AfterQuizSettings'
 import CertificateWordingPanel from '../components/CertificateWordingPanel'
 import { isQuizPassMarkReady, quizPassMarkFieldError, quizPassMarkPayload, readQuizPassMarkSetting } from '../domain/entryQuiz'
 import { COURSE_PLAN_FAILED_MINIMUMS_KEY, changeCoursePlanMinimum, coursePlanMinimumsFieldErrors, coursePlanMinimumsPayload, isCoursePlanMinimumsReady, minimumLevels, readCoursePlanMinimumsSetting } from '../domain/coursePlan'
-import { FEE_POINTS_CURRENCY, afterQuizSettingsFieldErrors, afterQuizSettingsPayload, changeAfterQuizSetting, feeScheduleFormError, formatChargeAmount, isAfterQuizSettingsReady, isPointsFee, readAfterQuizSettings } from '../domain/afterQuiz'
+import { afterQuizSettingsFieldErrors, afterQuizSettingsPayload, changeAfterQuizSetting, feeScheduleAmountMinor, feeScheduleFormError, isAfterQuizSettingsReady, readAfterQuizSettings } from '../domain/afterQuiz'
 import RplStatusBadge from '../components/RplStatusBadge'
 import { useModalDialog } from '../../../hooks/useModalDialog'
 
@@ -95,8 +96,8 @@ const copyByLanguage = {
   ar: {
     title: 'إعدادات ومعايير RPL', description: 'إدارة مرجعيات محرك RPL التشغيلية بنماذج مطابقة للواجهات البرمجية.',
     pathways: 'المسارات', levels: 'المستويات', standards: 'المعايير', competencies: 'الكفاءات', categories: 'فئات الأدلة', rubrics: 'نماذج التقييم', declarations: 'الإقرارات', outcomes: 'النتائج', actions: 'إجراءات اللجنة', fees: 'الرسوم', committees: 'اللجان', workflow: 'الضوابط', certificate_wording: 'صيغة الشهادة',
-    feesFinalExamHint: 'تسري رسوم الشهادة لكل مسار ومستوى أيضًا في مسار الاختبار النهائي (قرار المالك، 15 أكتوبر 2026): عند صفر تصدر شهادة المستوى تلقائيًا عند اجتياز الاختبار النهائي، وفوق الصفر يدفع العميل الرسوم أولًا، ثم تصدر الشهادة تلقائيًا بعد الدفع. في مسار الاختبار النهائي تُدخَل الرسوم الأكبر من صفر بنقاط II (POINTS) وبعدد صحيح: الرسوم بعملة نقدية لا تُحوَّل أبدًا، وتبقى شهادة المستوى معلّقة حتى تُصحَّح.',
-    feeChargedIn: 'تُحصَّل الرسوم بـ', feePoints: 'نقاط II (POINTS)', feeMoney: 'عملة نقدية (رمز من ثلاثة أحرف)', feeCurrencyCode: 'رمز العملة', feeWholePoints: 'الرسوم بنقاط II عدد صحيح.', feeCurrencyInvalid: 'أدخل رمز عملة من ثلاثة أحرف.', feeMoneyWarning: 'رسوم نقدية أكبر من صفر لا تصلح لمسار الاختبار النهائي: تبقى شهادة المستوى معلّقة حتى تُدخَل بنقاط II أو تُجعل صفرًا.',
+    feesFinalExamHint: 'رسوم الشهادة لكل مسار ومستوى بالدولار الأمريكي، وتسري أيضًا في مسار الاختبار النهائي (قرارا المالك، 15 و17 أكتوبر 2026): عند صفر تصدر شهادة المستوى تلقائيًا عند اجتياز الاختبار النهائي، وفوق الصفر يدفع العميل الرسوم أولًا، بالدولار أو بالليرة السورية بسعر الصرف عند الدفع، ثم تصدر الشهادة تلقائيًا.',
+    feeCurrencyUsd: 'تُحصَّل الرسوم بالدولار الأمريكي.', feeAmountUsd: 'المبلغ (بالدولار الأمريكي)', feeAmountInvalid: 'أدخل صفرًا، أو مبلغًا من 1.00 إلى 1,000,000.00 دولار بخانتين عشريتين على الأكثر.', feeLegacyCurrency: 'ليست بالدولار الأمريكي ({currency}): أعد إدخال هذه الرسوم بالدولار. ولا يمكن تحصيلها حتى ذلك.',
     add: 'إضافة سجل', edit: 'تعديل', delete: 'حذف', save: 'حفظ', cancel: 'إلغاء', active: 'فعال', inactive: 'غير فعال', code: 'الرمز', name: 'الاسم', descriptionField: 'الوصف', status: 'الحالة', actionsLabel: 'الإجراءات', empty: 'لا توجد سجلات.',
     pathway: 'المسار', standard: 'المعيار', level: 'المستوى', slug: 'المعرف', rank: 'الرتبة', version: 'النسخة', order: 'الترتيب', behavior: 'السلوك', quorum: 'النصاب', quorumSingleOnly: 'النصاب مثبت على 1: النصاب الأكبر يتطلب تسجيل أصوات متعددة، وشاشة التصويت غير مبنية بعد، ولا يوجد إلغاء — فتُحبس الحالة نهائيًا.', amount: 'المبلغ', currency: 'العملة', effectiveFrom: 'ساري من', effectiveUntil: 'ساري حتى',
     examples: 'أمثلة، كل مثال في سطر', extensions: 'الامتدادات', maxSize: 'الحد الأقصى (MB)', minimum: 'الحد الأدنى', maximum: 'الحد الأقصى', files: 'يقبل ملفات', urls: 'يقبل روابط', requiredDefault: 'مطلوب افتراضيًا',
@@ -113,8 +114,8 @@ const copyByLanguage = {
   en: {
     title: 'RPL Standards & Configuration', description: 'Manage every operational RPL reference with forms that match the backend contract.',
     pathways: 'Pathways', levels: 'Levels', standards: 'Standards', competencies: 'Competencies', categories: 'Evidence categories', rubrics: 'Rubrics', declarations: 'Declarations', outcomes: 'Outcomes', actions: 'Committee actions', fees: 'Fee schedules', committees: 'Committees', workflow: 'Controls', certificate_wording: 'Certificate wording',
-    feesFinalExamHint: 'The certification fee per pathway and level also applies on the final-exam path (owner decision, 15 Oct 2026): at 0 the level certificate is issued automatically when the final exam is passed; above 0 the client pays the fee first, and the certificate is then issued automatically on payment. On the final-exam path a fee above 0 is entered in II Points (POINTS), as a whole number: a fee in money is never converted, and the level certificate waits until it is corrected.',
-    feeChargedIn: 'Charged in', feePoints: 'II Points (POINTS)', feeMoney: 'A money currency (three-letter code)', feeCurrencyCode: 'Currency code', feeWholePoints: 'A fee in II Points is a whole number.', feeCurrencyInvalid: 'Enter a three-letter currency code.', feeMoneyWarning: 'A money fee above 0 cannot be charged on the final-exam path: the level certificate waits until the fee is entered in II Points or set to 0.',
+    feesFinalExamHint: 'The certification fee per pathway and level is in US dollars and also applies on the final-exam path (owner decisions, 15 and 17 Oct 2026): at 0 the level certificate is issued automatically when the final exam is passed; above 0 the client pays the fee first, in dollars or in Syrian pounds at the rate when he pays, and the certificate is then issued automatically.',
+    feeCurrencyUsd: 'The fee is charged in US dollars.', feeAmountUsd: 'Amount (US dollars)', feeAmountInvalid: 'Enter 0, or an amount from 1.00 to 1,000,000.00 US dollars with at most two decimals.', feeLegacyCurrency: 'Not in US dollars ({currency}): re-enter this fee in dollars. Until then it cannot be charged.',
     add: 'Add record', edit: 'Edit', delete: 'Delete', save: 'Save', cancel: 'Cancel', active: 'Active', inactive: 'Inactive', code: 'System code', name: 'Name', descriptionField: 'Description', status: 'Status', actionsLabel: 'Actions', empty: 'No records have been configured.',
     pathway: 'Pathway', standard: 'Standard', level: 'Level', slug: 'Slug', rank: 'Rank', version: 'Version', order: 'Sort order', behavior: 'Behaviour', quorum: 'Quorum', quorumSingleOnly: 'Quorum is fixed at 1: a higher quorum needs multiple recorded votes, the vote panel is not built yet, and there is no cancel — the case would be stuck permanently.', amount: 'Amount', currency: 'Currency', effectiveFrom: 'Effective from', effectiveUntil: 'Effective until',
     examples: 'Examples, one per line', extensions: 'Allowed extensions', maxSize: 'Maximum size (MB)', minimum: 'Minimum items', maximum: 'Maximum items', files: 'Accept files', urls: 'Accept URLs', requiredDefault: 'Required by default',
@@ -147,13 +148,35 @@ function emptyForm(resource) {
     rpl_pathway_id: '', rpl_standard_id: '', rpl_level_id: '', parent_id: '', rank: 1, version: 1, sort_order: 0,
     status: 'draft', behavior: resource === 'outcomes' ? 'achieved' : 'approve', is_active: true,
     accepts_files: true, accepts_urls: false, is_required_by_default: false, accepted_extensions: [...EVIDENCE_EXTENSIONS], max_size_kb: 51200, minimum_items: 1, maximum_items: '',
-    requires_gap_plan: false, is_credential_eligible: false, amount: '', currency: FEE_POINTS_CURRENCY, effective_from: '', effective_until: '', quorum: 1,
+    requires_gap_plan: false, is_credential_eligible: false, amount: '', currency: 'USD', legacy_currency: '', effective_from: '', effective_until: '', quorum: 1,
     evidence_categories: [], criteria: [], members: [],
   }
 }
 
+/** A Fees-tab row's amount as Money: the server's `money` (contract S14), else its ledger decimal and currency. */
+function feeRowMoney(row) {
+  return isMoney(row?.money) ? row.money : moneyFromDecimal(row?.amount, row?.currency)
+}
+
+/** A Fees-tab row in another currency than US dollars, above 0: shown, never charged, re-entered in dollars. */
+function isLegacyFeeRow(row) {
+  const currency = String(row?.money?.currency ?? row?.currency ?? '').toUpperCase()
+  return row?.usable === false || (currency !== '' && currency !== 'USD' && (amountMinorOf(feeRowMoney(row)) ?? 0) > 0)
+}
+
+/*
+ * A Fees-tab row in the form: always US dollars (owner, 17 Oct 2026). A dollar
+ * row shows its amount; a row in another currency opens EMPTY, with its old
+ * currency named, so staff re-enter the fee in dollars and nothing is converted.
+ */
+function feeFormFrom(base, row) {
+  const legacy = String(row?.currency ?? 'USD').toUpperCase() !== 'USD'
+  return { ...base, ...row, currency: 'USD', legacy_currency: legacy ? String(row.currency).toUpperCase() : '', amount: legacy ? '' : (feeRowMoney(row)?.amount ?? '') }
+}
+
 function formFrom(resource, row) {
   const base = emptyForm(resource)
+  if (resource === 'fee-schedules') return feeFormFrom(base, row)
   return {
     ...base, ...row,
     name: typeof row.name === 'object' ? arEnOnly(row.name, localized()) : { ...localized(), en: row.name || '' },
@@ -194,7 +217,8 @@ function payloadFor(resource, form) {
     case 'declarations': return { code: form.code || 'applicant_declaration', content: form.content, version: Number(form.version), is_active: form.is_active, effective_from: cleanDate(form.effective_from) }
     case 'outcomes': return { ...named, behavior: form.behavior, requires_gap_plan: form.requires_gap_plan, is_credential_eligible: form.is_credential_eligible, sort_order: Number(form.sort_order || 0) }
     case 'committee-actions': return { ...named, behavior: form.behavior, sort_order: Number(form.sort_order || 0) }
-    case 'fee-schedules': return { rpl_pathway_id: Number(form.rpl_pathway_id), rpl_level_id: numeric(form.rpl_level_id), amount: Number(form.amount), currency: form.currency.toUpperCase(), is_active: form.is_active, effective_from: cleanDate(form.effective_from), effective_until: cleanDate(form.effective_until) }
+    // US dollars only, the amount as an integer of US cents (contract S14; owner, 17 Oct 2026).
+    case 'fee-schedules': return { rpl_pathway_id: Number(form.rpl_pathway_id), rpl_level_id: numeric(form.rpl_level_id), amount_minor: feeScheduleAmountMinor(form), currency: 'USD', is_active: form.is_active, effective_from: cleanDate(form.effective_from), effective_until: cleanDate(form.effective_until) }
     case 'committees': return { ...named, quorum: Number(form.quorum), members: form.members.map((item) => ({ ...item, user_id: Number(item.user_id) })) }
     default: return form
   }
@@ -312,7 +336,7 @@ export default function RplConfigurationPage() {
   }
 
   function isValid() {
-    // POINTS (II Points, whole) or a three-letter money code, as the API checks (owner answer O2).
+    // US dollars only: 0, or $1.00 to $1,000,000.00 (owner, 17 Oct 2026), as the API checks.
     if (tab.resource === 'fee-schedules') return Boolean(form.rpl_pathway_id) && feeScheduleFormError(form) === null
     if (tab.resource === 'declarations') return form.content.en && form.content.ar && Number(form.version) >= 1
     if (!form.code || !form.name.en || !form.name.ar) return false
@@ -502,7 +526,7 @@ export default function RplConfigurationPage() {
 
   const columns = [
     { key: 'code', label: copy.code, render: (row) => <code className="rounded-lg bg-[var(--color-surface-muted)] px-2 py-1 text-xs font-semibold">{row.code || row.currency || `#${row.id}`}</code> },
-    { key: 'name', label: copy.name, render: (row) => <div><span className="font-bold">{localize(row.name || row.content, language) || (row.amount != null ? (isPointsFee(row.currency) ? formatChargeAmount(Number(row.amount), FEE_POINTS_CURRENCY, language) : `${row.amount} ${row.currency}`) : '—')}</span><p className="mt-1 max-w-lg text-xs leading-5 text-[var(--color-text-muted)]">{localize(row.description, language)}</p></div> },
+    { key: 'name', label: copy.name, render: (row) => <div><span className="font-bold">{localize(row.name || row.content, language) || (row.amount != null || row.money ? <bdi dir="ltr">{formatMoney(feeRowMoney(row), language)}</bdi> : '—')}</span>{tab.resource === 'fee-schedules' && isLegacyFeeRow(row) ? <p className="mt-1"><Badge variant="warning">{copy.feeLegacyCurrency.replace('{currency}', String(row.money?.currency ?? row.currency ?? ''))}</Badge></p> : null}<p className="mt-1 max-w-lg text-xs leading-5 text-[var(--color-text-muted)]">{localize(row.description, language)}</p></div> },
     { key: 'status', label: copy.status, render: (row) => row.status ? <Badge variant={row.status === 'published' ? 'success' : 'neutral'}>{row.status}</Badge> : <Badge variant={row.is_active !== false ? 'success' : 'neutral'}>{row.is_active !== false ? copy.active : copy.inactive}</Badge> },
     { key: 'actions', label: copy.actionsLabel, render: (row) => <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => openForm(row)}><Pencil size={15} />{copy.edit}</Button>{!tab.immutable ? <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(row)}><Trash2 size={15} /><span className="sr-only">{copy.delete}</span></Button> : null}</div> },
   ]
@@ -527,19 +551,15 @@ export default function RplConfigurationPage() {
     return <Input type="number" min="0" label={copy.order} value={form.sort_order} onChange={(event) => setForm((current) => ({ ...current, sort_order: event.target.value }))} />
   }
 
-  // The Fees tab (owner answer O2): II Points, whole, for the final-exam path; or a
-  // three-letter money code, which the committee path still reads.
+  // The Fees tab (owner, 17 Oct 2026): one fee in US dollars, for the committee path
+  // and the final-exam path alike; a client paying in pounds pays it at the rate when he pays.
   function feeFields() {
-    const points = isPointsFee(form.currency)
     const error = feeScheduleFormError(form)
-    const moneyAboveZero = !points && Number(form.amount) > 0
+    const typed = String(form.amount ?? '').trim() !== ''
     return <>
-      <Select label={copy.feeChargedIn} value={points ? 'points' : 'money'} onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value === 'points' ? FEE_POINTS_CURRENCY : (isPointsFee(current.currency) ? '' : current.currency) }))}><option value="points">{copy.feePoints}</option><option value="money">{copy.feeMoney}</option></Select>
-      {points ? null : <Input maxLength="3" label={copy.feeCurrencyCode} value={form.currency} onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value.toUpperCase() }))} />}
-      <Input type="number" min="0" step={points ? '1' : '0.01'} label={copy.amount} value={form.amount} onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))} />
-      {error === 'whole_points' ? <p role="alert" className="text-sm text-red-700 lg:col-span-2">{copy.feeWholePoints}</p> : null}
-      {error === 'currency' && !points && form.currency ? <p role="alert" className="text-sm text-red-700 lg:col-span-2">{copy.feeCurrencyInvalid}</p> : null}
-      {moneyAboveZero ? <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900 lg:col-span-2">{copy.feeMoneyWarning}</p> : null}
+      <p className="self-end text-sm font-semibold text-[var(--color-text-muted)]">{copy.feeCurrencyUsd}</p>
+      <MoneyInput currency="USD" language={language} label={copy.feeAmountUsd} value={form.amount} error={typed && error === 'amount' ? copy.feeAmountInvalid : undefined} onChange={(value) => setForm((current) => ({ ...current, amount: value }))} />
+      {form.legacy_currency ? <p role="note" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900 lg:col-span-2">{copy.feeLegacyCurrency.replace('{currency}', form.legacy_currency)}</p> : null}
       <Input type="date" label={copy.effectiveFrom} value={form.effective_from || ''} onChange={(event) => setForm((current) => ({ ...current, effective_from: event.target.value }))} />
       <Input type="date" label={copy.effectiveUntil} value={form.effective_until || ''} onChange={(event) => setForm((current) => ({ ...current, effective_until: event.target.value }))} />
     </>

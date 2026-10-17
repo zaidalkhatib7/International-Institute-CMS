@@ -21,8 +21,11 @@ import {
   PageHeader,
   Select,
 } from '../../../components/ui'
+import Money from '../../../components/Money'
 import { getCurrentLanguage } from '../../../utils/localization'
+import { isMoney } from '../../../utils/money'
 import { useAuthorization } from '../../auth/context/useAuthorization'
+import { buildUsersCsv, walletBalances, walletCopy, walletMatchesFilter, walletSortValue } from '../domain/wallet'
 import { createUser, fetchUsers } from '../services/usersService'
 
 const USERS_TABLE_GRID = 'grid-cols-[minmax(260px,2fr)_minmax(240px,2.2fr)_1fr_1fr_1fr]'
@@ -70,13 +73,6 @@ function getInitials(name) {
   return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase()
 }
 
-function formatWallet(wallet) {
-  if (!wallet) return '0'
-  const balance = wallet.balance ?? 0
-  const currency = wallet.currency ?? ''
-  return `${balance} ${currency}`.trim()
-}
-
 function formatDate(value, language) {
   if (!value) return '-'
   const date = new Date(value)
@@ -102,7 +98,8 @@ function getSortValue(user, sortBy, language) {
   if (sortBy === 'email') return user.email || ''
   if (sortBy === 'role') return formatRoleLabel(user.role, language)
   if (sortBy === 'created_at') return new Date(user.created_at || 0).getTime()
-  if (sortBy === 'wallet') return Number(user?.wallet?.balance ?? 0)
+  // One balance at a time, by its integer of minor units: dollars and pounds are never compared or added.
+  if (sortBy === 'wallet_usd' || sortBy === 'wallet_syp') return walletSortValue(user, sortBy)
   return user.name || ''
 }
 
@@ -144,32 +141,7 @@ function matchesDateFilter(value, filter) {
   return true
 }
 
-function escapeCsvValue(value) {
-  const input = value == null ? '' : String(value)
-  const escaped = input.replace(/"/g, '""')
-  return `"${escaped}"`
-}
-
-function buildUsersCsv(users, language) {
-  const headers =
-    language === 'ar'
-      ? ['المعرف', 'الاسم', 'البريد الإلكتروني', 'الدور', 'تاريخ التسجيل', 'رصيد المحفظة']
-      : ['ID', 'Name', 'Email', 'Role', 'Registration Date', 'Wallet Balance']
-
-  const rows = users.map((user) => [
-    `ICPC-${user.id}`,
-    user.name || '',
-    user.email || '',
-    user.role || '',
-    user.created_at || '',
-    Number(user?.wallet?.balance ?? 0),
-  ])
-
-  const lines = [headers, ...rows]
-  return lines.map((line) => line.map(escapeCsvValue).join(',')).join('\n')
-}
-
-function UserRow({ user, language, copy, onOpenWorkspace, onAddPoints, onDecreasePoints }) {
+function UserRow({ user, language, copy, walletText, onOpenWorkspace, onTopUp, onDeduct }) {
   const roleKey = getRoleKey(user.role)
   const displayRole = formatRoleLabel(roleKey, language)
 
@@ -198,26 +170,30 @@ function UserRow({ user, language, copy, onOpenWorkspace, onAddPoints, onDecreas
       </div>
 
       <div className="text-xl font-semibold text-[var(--color-accent-dark,#765A1F)]">
-        <div>{formatWallet(user.wallet)}</div>
-        {onAddPoints || onDecreasePoints ? <div className="mt-3 flex flex-wrap items-center gap-2">
-          {onAddPoints ? (
+        {/* Two balances, two lines: never added together (owner, 17 Oct 2026). */}
+        <div className="space-y-1 text-base" aria-label={walletText.balances}>
+          <div><Money value={walletBalances(user).usd} language={language} /></div>
+          <div><Money value={walletBalances(user).syp} language={language} /></div>
+        </div>
+        {onTopUp || onDeduct ? <div className="mt-3 flex flex-wrap items-center gap-2">
+          {onTopUp ? (
           <button
             type="button"
-            onClick={() => onAddPoints(user)}
+            onClick={() => onTopUp(user)}
             className="inline-flex h-9 min-w-[124px] items-center justify-center gap-1 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 shadow-[0_2px_10px_rgba(16,185,129,0.14)] transition-all hover:-translate-y-[1px] hover:bg-emerald-100 hover:shadow-[0_6px_16px_rgba(16,185,129,0.2)]"
           >
             <Plus size={13} strokeWidth={2.4} />
-            {copy.addPoints}
+            {walletText.topUp}
           </button>
           ) : null}
-          {onDecreasePoints ? (
+          {onDeduct ? (
           <button
             type="button"
-            onClick={() => onDecreasePoints(user)}
+            onClick={() => onDeduct(user)}
             className="inline-flex h-9 min-w-[124px] items-center justify-center gap-1 whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 shadow-[0_2px_10px_rgba(244,63,94,0.12)] transition-all hover:-translate-y-[1px] hover:bg-rose-100 hover:shadow-[0_6px_16px_rgba(244,63,94,0.18)]"
           >
             <Minus size={13} strokeWidth={2.4} />
-            {copy.decreasePoints}
+            {walletText.deduct}
           </button>
           ) : null}
         </div> : null}
@@ -279,7 +255,8 @@ export default function UsersPage() {
         sortEmail: 'الترتيب: البريد',
         sortRole: 'الترتيب: الدور',
         sortDate: 'الترتيب: التاريخ',
-        sortWallet: 'الترتيب: المحفظة',
+        sortWalletUsd: 'الترتيب: رصيد الدولار',
+        sortWalletSyp: 'الترتيب: رصيد الليرة',
         asc: 'تصاعدي',
         desc: 'تنازلي',
         addUser: 'إضافة مستخدم',
@@ -294,20 +271,8 @@ export default function UsersPage() {
         creating: 'جارٍ الإنشاء...',
         createdSuccess: 'تم إنشاء المستخدم بنجاح.',
         createFailed: 'فشل إنشاء المستخدم.',
-        walletTopupTitle: 'إضافة نقاط للمحفظة',
-        amount: 'المبلغ',
-        descriptionLabel: 'الوصف',
-        descriptionPlaceholder: 'سبب الإضافة (اختياري)',
-        addPoints: 'إضافة نقاط',
-        decreasePoints: 'خصم نقاط',
-        crediting: 'جارٍ الإضافة...',
-        creditedSuccess: 'تمت إضافة النقاط بنجاح.',
-        creditFailed: 'فشل إضافة النقاط.',
-        invalidAmount: 'أدخل مبلغًا أكبر من 0.',
         totalFilteredUsers: 'إجمالي المستخدمين المفلترين',
         adminAccounts: 'حسابات المدير',
-        totalWalletBalance: 'إجمالي رصيد المحفظة',
-        points: 'نقاط II',
         allUsers: 'كل المستخدمين',
         liveData: 'بيانات حية مقسمة من واجهة الإدارة',
         exportCsv: 'تصدير CSV',
@@ -315,8 +280,8 @@ export default function UsersPage() {
         filters: 'عوامل التصفية',
         walletFilter: 'فلترة المحفظة',
         walletAll: 'كل الأرصدة',
-        walletPositive: 'رصيد أكبر من 0',
-        walletZero: 'رصيد 0',
+        walletPositive: 'رصيد أكبر من 0 (بأيٍّ من العملتين)',
+        walletZero: 'لا رصيد',
         registrationFilter: 'فلترة التسجيل',
         registrationAll: 'كل التواريخ',
         registrationLast30: 'آخر 30 يوماً',
@@ -327,7 +292,7 @@ export default function UsersPage() {
         institutionalEmail: 'البريد المؤسسي',
         role: 'الدور',
         registrationDate: 'تاريخ التسجيل',
-        walletBalance: 'رصيد المحفظة',
+        walletBalance: 'أرصدة المحفظة',
         loadingUsers: 'جاري تحميل المستخدمين...',
         noUsersFound: 'لا يوجد مستخدمون.',
         showing: 'عرض',
@@ -362,7 +327,8 @@ export default function UsersPage() {
       sortEmail: 'Sort: Email',
       sortRole: 'Sort: Role',
       sortDate: 'Sort: Date',
-      sortWallet: 'Sort: Wallet',
+      sortWalletUsd: 'Sort: USD balance',
+      sortWalletSyp: 'Sort: SYP balance',
       asc: 'Asc',
       desc: 'Desc',
       addUser: 'Add User',
@@ -377,20 +343,8 @@ export default function UsersPage() {
       creating: 'Creating...',
       createdSuccess: 'User created successfully.',
       createFailed: 'Failed to create user.',
-      walletTopupTitle: 'Add Wallet Points',
-      amount: 'Amount',
-      descriptionLabel: 'Description',
-      descriptionPlaceholder: 'Reason for credit (optional)',
-      addPoints: 'Add Points',
-      decreasePoints: 'Decrease Points',
-      crediting: 'Crediting...',
-      creditedSuccess: 'Points credited successfully.',
-      creditFailed: 'Failed to credit points.',
-      invalidAmount: 'Enter an amount greater than 0.',
       totalFilteredUsers: 'Total Filtered Users',
       adminAccounts: 'Admin Accounts',
-      totalWalletBalance: 'Total Wallet Balance',
-      points: 'II Points',
       allUsers: 'All Users',
       liveData: 'Live paginated data from admin API',
       exportCsv: 'Export CSV',
@@ -398,8 +352,8 @@ export default function UsersPage() {
       filters: 'Filters',
       walletFilter: 'Wallet Filter',
       walletAll: 'All balances',
-      walletPositive: 'Balance greater than 0',
-      walletZero: 'Balance 0',
+      walletPositive: 'Balance above 0 (either currency)',
+      walletZero: 'No balance',
       registrationFilter: 'Registration Filter',
       registrationAll: 'All dates',
       registrationLast30: 'Last 30 days',
@@ -410,7 +364,7 @@ export default function UsersPage() {
       institutionalEmail: 'Institutional Email',
       role: 'Role',
       registrationDate: 'Registration Date',
-      walletBalance: 'Wallet Balance',
+      walletBalance: 'Wallet balances',
       loadingUsers: 'Loading users...',
       noUsersFound: 'No users found.',
       showing: 'Showing',
@@ -476,8 +430,9 @@ export default function UsersPage() {
   const [summary, setSummary] = useState({
     totalUsers: 0,
     adminUsers: 0,
-    walletBalance: 0,
+    walletTotals: null,
   })
+  const walletText = walletCopy(language)
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -528,46 +483,26 @@ export default function UsersPage() {
           audience,
         }
 
-        const firstPageResult = await fetchUsers({
-          ...query,
-          per_page: 100,
-          page: 1,
-        })
+        /*
+         * Two small reads, never every page of users: the total and the API's
+         * wallet_totals (one aggregate per currency over all open wallets,
+         * contract S6), and the count of administrators under the same filter.
+         * The two currencies stay two figures; nothing adds them.
+         */
+        const [firstPageResult, adminResult] = await Promise.all([
+          fetchUsers({ ...query, per_page: 1, page: 1 }),
+          role === 'all' ? fetchUsers({ ...query, role: 'admin', per_page: 1, page: 1 }) : Promise.resolve(null),
+        ])
 
         const firstPage = getUsersPage(firstPageResult)
-        const allUsers = [...firstPage.items]
-
-        if (firstPage.lastPage > 1) {
-          const remainingRequests = []
-          for (let page = 2; page <= firstPage.lastPage; page += 1) {
-            remainingRequests.push(
-              fetchUsers({
-                ...query,
-                per_page: 100,
-                page,
-              })
-            )
-          }
-
-          const remainingResults = await Promise.all(remainingRequests)
-          remainingResults.forEach((result) => {
-            const { items } = getUsersPage(result)
-            allUsers.push(...items)
-          })
-        }
-
-        const adminUsers = allUsers.filter(
-          (user) => String(user?.role).toLowerCase() === 'admin'
-        ).length
-        const walletBalance = allUsers.reduce((sum, user) => {
-          return sum + Number(user?.wallet?.balance ?? 0)
-        }, 0)
+        const adminUsers = role === 'all' ? getUsersPage(adminResult).total : role === 'admin' ? firstPage.total : 0
+        const totals = firstPageResult?.wallet_totals ?? firstPageResult?.data?.wallet_totals ?? null
 
         if (!cancelled) {
           setSummary({
             totalUsers: firstPage.total,
             adminUsers,
-            walletBalance,
+            walletTotals: totals && typeof totals === 'object' ? totals : null,
           })
         }
       } catch {
@@ -620,11 +555,7 @@ export default function UsersPage() {
 
   const filteredVisibleUsers = useMemo(() => {
     return visibleUsers.filter((user) => {
-      const walletBalance = Number(user?.wallet?.balance ?? 0)
-      const walletMatches =
-        walletFilter === 'all' ||
-        (walletFilter === 'positive' && walletBalance > 0) ||
-        (walletFilter === 'zero' && walletBalance === 0)
+      const walletMatches = walletMatchesFilter(user, walletFilter)
 
       const registrationMatches = matchesDateFilter(user?.created_at, registrationFilter)
       return walletMatches && registrationMatches
@@ -679,13 +610,10 @@ export default function UsersPage() {
     }
   }
 
+  // By id only: a client's name never travels in a URL (browser history, server logs).
   const openWalletAction = (user, action) => {
     if (!user?.id) return
-    const params = new URLSearchParams()
-    params.set('userId', String(user.id))
-    params.set('action', action)
-    if (user.name) params.set('name', user.name)
-    navigate(`/users/wallet?${params.toString()}`)
+    navigate(`/users/${user.id}/wallet?action=${action}`)
   }
 
   const clearAdvancedFilters = () => {
@@ -740,11 +668,7 @@ export default function UsersPage() {
       const allUsers = await fetchAllUsersForExport()
       const usersForExport = [...allUsers]
         .filter((user) => {
-          const walletBalance = Number(user?.wallet?.balance ?? 0)
-          const walletMatches =
-            walletFilter === 'all' ||
-            (walletFilter === 'positive' && walletBalance > 0) ||
-            (walletFilter === 'zero' && walletBalance === 0)
+          const walletMatches = walletMatchesFilter(user, walletFilter)
           const registrationMatches = matchesDateFilter(user?.created_at, registrationFilter)
           return walletMatches && registrationMatches
         })
@@ -830,7 +754,8 @@ export default function UsersPage() {
               <option value="email">{copy.sortEmail}</option>
               <option value="role">{copy.sortRole}</option>
               <option value="created_at">{copy.sortDate}</option>
-              <option value="wallet">{copy.sortWallet}</option>
+              <option value="wallet_usd">{copy.sortWalletUsd}</option>
+              <option value="wallet_syp">{copy.sortWalletSyp}</option>
             </Select>
 
             <Button
@@ -931,7 +856,7 @@ export default function UsersPage() {
         </Card>
       ) : null}
 
-      <section className="grid gap-6 xl:grid-cols-3">
+      <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
           label={copy.totalFilteredUsers}
           value={isSummaryLoading ? '...' : formatNumber(summary.totalUsers, language)}
@@ -940,10 +865,15 @@ export default function UsersPage() {
           label={copy.adminAccounts}
           value={isSummaryLoading ? '...' : formatNumber(summary.adminUsers, language)}
         />
+        {/* Two cards, one per currency, from the API's wallet_totals: never one summed number. */}
         <SummaryCard
-          label={copy.totalWalletBalance}
-          value={isSummaryLoading ? '...' : formatNumber(summary.walletBalance, language)}
-          hint={copy.points}
+          label={walletText.usdTotals}
+          value={isSummaryLoading ? '...' : <Money value={isMoney(summary.walletTotals?.usd) ? summary.walletTotals.usd : null} language={language} className="text-3xl" />}
+          dark
+        />
+        <SummaryCard
+          label={walletText.sypTotals}
+          value={isSummaryLoading ? '...' : <Money value={isMoney(summary.walletTotals?.syp) ? summary.walletTotals.syp : null} language={language} className="text-3xl" />}
           dark
         />
       </section>
@@ -1034,9 +964,10 @@ export default function UsersPage() {
               user={user}
               language={language}
               copy={copy}
+              walletText={walletText}
               onOpenWorkspace={(targetUser) => navigate(`/users/${targetUser.id}`)}
-              onAddPoints={canManageWallet ? (targetUser) => openWalletAction(targetUser, 'credit') : null}
-              onDecreasePoints={canManageWallet ? (targetUser) => openWalletAction(targetUser, 'debit') : null}
+              onTopUp={canManageWallet ? (targetUser) => openWalletAction(targetUser, 'top-up') : null}
+              onDeduct={canManageWallet ? (targetUser) => openWalletAction(targetUser, 'deduct') : null}
             />
           ))
         )}
