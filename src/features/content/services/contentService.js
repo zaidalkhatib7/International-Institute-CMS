@@ -16,6 +16,11 @@ export async function fetchProgramContentTree(programId) {
 /**
  * Activities had no read or write path at all: generated, counted, and
  * unreachable. They reach learners, so they belong in the review chain.
+ *
+ * An activity carries no marks (owner, 17 Oct 2026): it is optional practice
+ * for the client's own development, never graded and never a condition of
+ * progress or the certificate. The payload is title, instructions and
+ * `is_active` (whether clients see it in their lesson), with no score fields.
  */
 export async function updateActivity(activityId, payload) {
   const response = await http.put(`/admin/activities/${activityId}`, payload)
@@ -27,9 +32,12 @@ export async function updateActivity(activityId, payload) {
  * interface could only edit what it happened to produce. A reviewer who
  * decided a lesson needed one more, or one fewer, had no way to say so.
  *
- * Delete is refused by the server when learners have already submitted
- * (ACTIVITY_HAS_SUBMISSIONS); deactivate instead. The refusal carries the
- * count, so it is worth showing verbatim.
+ * Create sends the lesson, a title and `is_active: false` (hidden from clients
+ * until it is written and switched on), and no marks. Delete is refused by the
+ * server when learners have already submitted work to the activity
+ * (ACTIVITY_HAS_SUBMISSIONS), so that work is kept; deactivate it instead (the
+ * editor's "Shown to clients" switch). The refusal carries the count, so it is
+ * worth showing verbatim.
  */
 export async function createActivity(payload) {
   const response = await http.post('/admin/activities', payload)

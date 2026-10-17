@@ -32,6 +32,21 @@ import { getCurrentLanguage } from '../../../utils/localization'
  * of the question bank. Each node links to the editor that already exists for
  * it. Activities are the exception and are edited inline, because until now they
  * had no editor at all.
+ *
+ * ACTIVITIES CARRY NO MARKS (owner, 17 Oct 2026): an activity is optional
+ * practice the client does to improve themselves. It has no maximum or pass
+ * score, nobody grades it, and it never holds back progress, the final quiz or
+ * the certificate. So the editor has no score fields and sends none, each
+ * activity says so where it is edited, and a course or unit without activities
+ * is not flagged — having none is a valid choice, not a gap.
+ *
+ * WHO SEES AN ACTIVITY is its `is_active` switch: clients see only the active
+ * ones in their lesson. It is also the only way to withdraw an activity clients
+ * have already submitted work to, because deleting that one is refused
+ * (ACTIVITY_HAS_SUBMISSIONS: "deactivate it instead"). So the editor shows the
+ * switch and saves it, a hidden activity says so, and a new activity is created
+ * hidden: a placeholder titled "New activity" with no instructions must not
+ * reach clients before anyone has written it.
  */
 
 const COPY = {
@@ -47,13 +62,15 @@ const COPY = {
     noLessons: 'لا توجد دروس في هذه الوحدة.',
     noActivities: 'لا أنشطة على هذا الدرس.',
     activityTitle: 'عنوان النشاط', instructions: 'التعليمات',
-    maxScore: 'الدرجة القصوى', passScore: 'درجة النجاح',
+    optional: 'اختياري — بدون علامات، للتطوير الذاتي للعميل',
+    shown: 'ظاهر للعملاء (مُفعَّل)',
+    hidden: 'مخفي عن العملاء',
     save: 'حفظ النشاط', saving: 'جارٍ الحفظ…', saved: 'حُفظ.',
     chars: 'حرفًا', empty: 'فارغ', thin: 'قصير',
-    activityNote: 'الأنشطة لم تكن قابلة للعرض أو التحرير قبل الآن — تُولَّد وتُحسب فقط. تحريرها هنا.',
+    activityNote: 'الأنشطة تمارين اختيارية بلا علامات: لا تُصحَّح، ولا توقف تقدّم العميل ولا الاختبار النهائي ولا الشهادة. يبقى النشاط الجديد مخفيًا عن العملاء حتى تفعّل «ظاهر للعملاء» وتحفظه.',
     addActivity: 'إضافة نشاط',
     deleteActivity: 'حذف',
-    deleteActivityConfirm: 'حذف هذا النشاط؟ يُرفض الحذف إذا كان المتدربون قد سلّموا فيه.',
+    deleteActivityConfirm: 'حذف هذا النشاط؟ يُرفض الحذف إذا كان المتدربون قد سلّموا عملًا فيه، حفاظًا على العمل المسلَّم.',
     newActivityTitle: 'نشاط جديد',
   },
   en: {
@@ -68,13 +85,15 @@ const COPY = {
     noLessons: 'This unit has no lessons.',
     noActivities: 'No activities on this lesson.',
     activityTitle: 'Activity title', instructions: 'Instructions',
-    maxScore: 'Max score', passScore: 'Pass score',
+    optional: "Optional - no marks, for the client's own development",
+    shown: 'Shown to clients (active)',
+    hidden: 'Hidden from clients',
     save: 'Save activity', saving: 'Saving…', saved: 'Saved.',
     chars: 'characters', empty: 'empty', thin: 'thin',
-    activityNote: 'Activities could not be viewed or edited before now — only generated and counted. Edit them here.',
+    activityNote: 'Activities are optional practice with no marks: nobody grades them, and they never hold back the client\'s progress, the final quiz or the certificate. A new activity stays hidden from clients until you tick "Shown to clients" and save it.',
     addActivity: 'Add activity',
     deleteActivity: 'Delete',
-    deleteActivityConfirm: 'Delete this activity? Refused if learners have already submitted to it.',
+    deleteActivityConfirm: 'Delete this activity? Refused if learners have already submitted work to it, so that submitted work is kept.',
     newActivityTitle: 'New activity',
   },
 }
@@ -96,13 +115,20 @@ function arEn(value) {
   return { en: value?.en ?? '', ar: value?.ar ?? '' }
 }
 
+/*
+ * Title, instructions and whether clients see it. A score an older server still
+ * returns on the activity is not read, not shown and not sent back: activities
+ * carry no marks. An activity whose payload does not say is treated as shown,
+ * which is the server's default, so saving it never hides it by accident.
+ */
 function ActivityEditor({ activity, copy, language, onSaved, onDeleted }) {
   const [form, setForm] = useState({
     title: arEn(activity.title),
     instructions: arEn(activity.instructions),
-    max_score: activity.max_score,
-    pass_score: activity.pass_score,
+    is_active: activity.is_active !== false,
   })
+  // The stored state, not the unsaved tick: the badge says what clients see now.
+  const hidden = activity.is_active === false
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
@@ -115,8 +141,7 @@ function ActivityEditor({ activity, copy, language, onSaved, onDeleted }) {
       await updateActivity(activity.id, {
         title: form.title,
         instructions: form.instructions,
-        max_score: Number(form.max_score),
-        pass_score: Number(form.pass_score),
+        is_active: form.is_active,
       })
       setDone(true)
       if (onSaved) onSaved()
@@ -135,8 +160,8 @@ function ActivityEditor({ activity, copy, language, onSaved, onDeleted }) {
       await deleteActivity(activity.id)
       if (onDeleted) onDeleted()
     } catch (deleteError) {
-      // ACTIVITY_HAS_SUBMISSIONS carries the count — show it verbatim, because
-      // "deactivate instead" is only actionable if you know how many exist.
+      // ACTIVITY_HAS_SUBMISSIONS carries the count of submitted work — show it
+      // verbatim, because the refusal only means something with the number.
       setError(readApiError(deleteError))
       setBusy(false)
     }
@@ -144,6 +169,10 @@ function ActivityEditor({ activity, copy, language, onSaved, onDeleted }) {
 
   return (
     <div className="space-y-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted,transparent)] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="neutral">{copy.optional}</Badge>
+        {hidden ? <Badge variant="info">{copy.hidden}</Badge> : null}
+      </div>
       <Input
         label={copy.activityTitle}
         value={readLocalized(form.title, language)}
@@ -155,25 +184,23 @@ function ActivityEditor({ activity, copy, language, onSaved, onDeleted }) {
         value={readLocalized(form.instructions, language)}
         onChange={(e) => setForm((f) => ({ ...f, instructions: { ...f.instructions, [language]: e.target.value } }))}
       />
-      <div className="grid gap-3 md:grid-cols-3">
-        <Input
-          label={copy.maxScore} type="number" min="1" value={form.max_score}
-          onChange={(e) => setForm((f) => ({ ...f, max_score: e.target.value }))}
+      <label className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text)]">
+        <input
+          type="checkbox"
+          checked={form.is_active}
+          onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))}
         />
-        <Input
-          label={copy.passScore} type="number" min="0" value={form.pass_score}
-          onChange={(e) => setForm((f) => ({ ...f, pass_score: e.target.value }))}
-        />
-        <div className="flex items-end gap-2">
-          <Button disabled={busy} onClick={save}>
-            {busy
-              ? <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> {copy.saving}</>
-              : <><Save className="h-4 w-4" aria-hidden="true" /> {copy.save}</>}
-          </Button>
-          <Button variant="ghost" disabled={busy} onClick={remove}>
-            <Trash2 className="h-4 w-4" aria-hidden="true" /> {copy.deleteActivity}
-          </Button>
-        </div>
+        {copy.shown}
+      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button disabled={busy} onClick={save}>
+          {busy
+            ? <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> {copy.saving}</>
+            : <><Save className="h-4 w-4" aria-hidden="true" /> {copy.save}</>}
+        </Button>
+        <Button variant="ghost" disabled={busy} onClick={remove}>
+          <Trash2 className="h-4 w-4" aria-hidden="true" /> {copy.deleteActivity}
+        </Button>
       </div>
       {error ? <p className="whitespace-pre-line text-sm text-red-600">{error}</p> : null}
       {done ? <p className="text-sm text-emerald-600">{copy.saved}</p> : null}
@@ -221,9 +248,11 @@ export default function ProgramContentPage() {
   useEffect(() => { load(programId) }, [programId, load])
 
   /*
-   * A new activity is created with a placeholder title and sensible scores, then
-   * edited inline like any other. Asking for a title in a modal first would put
-   * a dialog between the reviewer and a field that is already on the page.
+   * A new activity is created with a placeholder title, HIDDEN from clients,
+   * and nothing else — no marks, because activities carry none — then edited
+   * inline like any other and switched on when it is ready. Asking for a title
+   * in a modal first would put a dialog between the reviewer and a field that
+   * is already on the page.
    */
   const addActivityTo = async (lessonId) => {
     setAddingTo(lessonId)
@@ -232,8 +261,7 @@ export default function ProgramContentPage() {
       await createActivity({
         lesson_id: lessonId,
         title: { [language]: copy.newActivityTitle },
-        max_score: 100,
-        pass_score: 60,
+        is_active: false,
       })
       await load(programId)
     } catch (addError) {
@@ -259,7 +287,8 @@ export default function ProgramContentPage() {
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="neutral"><Layers3 className="h-4 w-4" aria-hidden="true" /> {copy.units}: {totals.units}</Badge>
               <Badge variant={totals.lessons ? 'neutral' : 'warning'}><FileText className="h-4 w-4" aria-hidden="true" /> {copy.lessons}: {totals.lessons}</Badge>
-              <Badge variant={totals.activities ? 'neutral' : 'warning'}><Zap className="h-4 w-4" aria-hidden="true" /> {copy.activities}: {totals.activities}</Badge>
+              {/* Neutral even at zero: activities are optional, so none is not a gap. */}
+              <Badge variant="neutral"><Zap className="h-4 w-4" aria-hidden="true" /> {copy.activities}: {totals.activities}</Badge>
               <Badge variant={totals.questions ? 'neutral' : 'warning'}><FileQuestion className="h-4 w-4" aria-hidden="true" /> {copy.questions}: {totals.questions}</Badge>
             </div>
           ) : null}
@@ -303,7 +332,7 @@ export default function ProgramContentPage() {
 
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant={unit.lesson_count ? 'neutral' : 'warning'}>{copy.lessons}: {unit.lesson_count}</Badge>
-                    <Badge variant={unit.activity_count ? 'neutral' : 'warning'}>{copy.activities}: {unit.activity_count}</Badge>
+                    <Badge variant="neutral">{copy.activities}: {unit.activity_count}</Badge>
                     <Badge variant={unit.question_count ? 'neutral' : 'warning'}>{copy.questions}: {unit.question_count}</Badge>
                     <Button variant="outline" onClick={() => navigate(`/sections/edit?id=${unit.id}`)}>
                       <PencilLine className="h-4 w-4" aria-hidden="true" /> {copy.editUnit}
