@@ -183,6 +183,36 @@ describe('what the panel says', () => {
     expect(screen.queryByRole('button', { name: EN.approveSubmit })).not.toBeInTheDocument()
   })
 
+  // J09-F3 (17 Oct 2026): the panel reads the certificate's real status, as the certificate registry does.
+  it('shows a revoked certificate as revoked, never as issued', async () => {
+    mocks.fetchRplExperienceCertificate.mockResolvedValue({
+      data: overview({
+        state: 'revoked',
+        current: certificate({ status: 'issued', certificate: { id: 77, number: 'ICPC-EXC-2026-000001', issued_at: '2026-10-15T10:05:00Z', status: 'revoked', reissued: false, revoked_at: '2026-10-16T09:00:00Z' }, can: { approve: false, refuse: false } }),
+      }),
+    })
+    renderPanel()
+
+    expect(await screen.findByText(EN.states.revoked)).toBeInTheDocument()
+    expect(screen.getByText(EN.revokedNote)).toBeInTheDocument()
+    expect(screen.getByText(/^Certificate ICPC-EXC-2026-000001, issued on .+, revoked on /)).toBeInTheDocument()
+  })
+
+  it('shows the replacement after a reissue as a reissue, issued', async () => {
+    mocks.fetchRplExperienceCertificate.mockResolvedValue({
+      data: overview({
+        state: 'issued',
+        current: certificate({ status: 'issued', certificate: { id: 78, number: 'ICPC-EXC-2026-000002', issued_at: '2026-10-16T10:00:00Z', status: 'active', reissued: true, revoked_at: null }, can: { approve: false, refuse: false } }),
+      }),
+    })
+    renderPanel({ language: 'ar' })
+
+    expect(await screen.findByText(/^الشهادة ICPC-EXC-2026-000002 \(إعادة إصدار\)، صدرت في /)).toBeInTheDocument()
+    expect(screen.queryByText(AR.states.revoked)).not.toBeInTheDocument()
+    expect(screen.queryByText(AR.revokedNote)).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('undefined')
+  })
+
   it('says when "stop" did not close the case', async () => {
     mocks.fetchRplExperienceCertificate.mockResolvedValue({ data: overview({ state: 'issued', current: certificate({ status: 'issued', stop_not_applied_reason: 'case_already_at_level_certificate', can: { approve: false, refuse: false } }) }) })
     renderPanel()

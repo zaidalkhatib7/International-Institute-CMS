@@ -34,6 +34,7 @@ import {
   isConfirmableCharge,
   isReopenableTry,
   rateMissing,
+  rateUnchanged,
   isStaleConflict,
   isVoidableTry,
   isWordingFormValid,
@@ -88,9 +89,13 @@ describe('the copy', () => {
     expect(Object.keys(AFTER_QUIZ_COPY.en.chargeTypes).sort()).toEqual([...CHARGE_TYPES].sort())
     expect(CHARGE_TYPES).toContain('certification_fee')
     expect(Object.keys(AFTER_QUIZ_COPY.en.chargeStatuses).sort()).toEqual(['cancelled', 'paid', 'pending', 'refunded'])
-    expect(Object.keys(AFTER_QUIZ_COPY.en.experience.states).sort()).toEqual(['available', 'awaiting_issue', 'awaiting_payment', 'issued', 'not_eligible', 'unavailable'])
+    // revoked (J09-F3) and stop_chosen (J09-F2): 17 Oct 2026.
+    expect(Object.keys(AFTER_QUIZ_COPY.en.experience.states).sort()).toEqual(['available', 'awaiting_issue', 'awaiting_payment', 'issued', 'not_eligible', 'revoked', 'unavailable'])
+    expect(Object.keys(AFTER_QUIZ_COPY.ar.experience.states).sort()).toEqual(['available', 'awaiting_issue', 'awaiting_payment', 'issued', 'not_eligible', 'revoked', 'unavailable'])
     expect(Object.keys(AFTER_QUIZ_COPY.en.finalExam.states).sort()).toEqual(['available', 'blocked', 'closed', 'in_progress', 'not_yet', 'passed', 'retake_due', 'waiting'])
-    expect(Object.keys(AFTER_QUIZ_COPY.en.finalExam.blocked).sort()).toEqual(['course_on_hold', 'no_courses', 'question_bank_short', 'setting_missing', 'try_referred'])
+    expect(Object.keys(AFTER_QUIZ_COPY.en.finalExam.blocked).sort()).toEqual(['course_on_hold', 'no_courses', 'question_bank_short', 'setting_missing', 'stop_chosen', 'try_referred'])
+    expect(Object.keys(AFTER_QUIZ_COPY.ar.finalExam.blocked).sort()).toEqual(['course_on_hold', 'no_courses', 'question_bank_short', 'setting_missing', 'stop_chosen', 'try_referred'])
+    expect(experienceStateLabel('revoked', 'en')).toBe('Revoked')
     // The API's states (RplLevelCertificateIssuer::staffState), by their API names.
     expect(Object.keys(AFTER_QUIZ_COPY.en.finalExam.level.states).sort()).toEqual(['awaiting_fee', 'fee_unusable', 'held', 'issued', 'not_due', 'queued'])
     expect(Object.keys(AFTER_QUIZ_COPY.ar.finalExam.level.states).sort()).toEqual(['awaiting_fee', 'fee_unusable', 'held', 'issued', 'not_due', 'queued'])
@@ -343,6 +348,17 @@ describe('the confirm form (S15)', () => {
     expect(STAFF_CANCEL_CATEGORIES).toContain('exchange_rate_outdated')
     expect(cancelCategoriesFor(sypCharge)).toContain('exchange_rate_outdated')
     expect(cancelCategoriesFor(usdCharge)).not.toContain('exchange_rate_outdated')
+  })
+
+  // J07-G2 (17 Oct 2026): the server says whether the rate in force differs from the request's own.
+  it('offers the out-of-date-rate category only while the rate in force differs from the request\'s, and reads the refusal', () => {
+    expect(cancelCategoriesFor({ ...sypCharge, exchange_rate_outdated: true })).toContain('exchange_rate_outdated')
+    expect(cancelCategoriesFor({ ...sypCharge, exchange_rate_outdated: false })).not.toContain('exchange_rate_outdated')
+    expect(cancelCategoriesFor({ ...sypCharge, exchange_rate_outdated: false })).toContain('payment_not_found')
+    expect(cancelCategoriesFor({ ...usdCharge, exchange_rate_outdated: true })).not.toContain('exchange_rate_outdated')
+    expect(rateUnchanged({ response: { status: 422, data: { reason_code: 'exchange_rate_unchanged' } } })).toBe(true)
+    expect(rateUnchanged({ response: { status: 422, data: { reason_code: 'amount_mismatch' } } })).toBe(false)
+    expect(rateUnchanged({ response: { status: 409, data: { reason_code: 'exchange_rate_unchanged' } } })).toBe(false)
   })
 
   it('reads the 503 exchange_rate_missing, and nothing else', () => {

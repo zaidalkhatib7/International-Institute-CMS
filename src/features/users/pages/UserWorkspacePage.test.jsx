@@ -11,9 +11,9 @@ import { LEGACY_POINTS } from '../../../utils/money'
  * Two rules now stand between staff and "create the RPL case": one open RPL
  * request per client (never overridable), and a waiting period after a declined
  * request, which staff may override with a written reason that the API audits.
- * And a request cannot be submitted without at least one work experience on the
- * client's profile, which an on-site client may have no way to record — so the
- * workspace records it for them.
+ * The workspace also records a client's work experiences for them, which an
+ * on-site client may have no way to do; since 17 Oct 2026 a request no longer
+ * needs one, but the employer check reads them.
  *
  * The HTTP client is mocked rather than the service module, so these tests pin
  * the real URLs and the real bodies the API contract names, not a function

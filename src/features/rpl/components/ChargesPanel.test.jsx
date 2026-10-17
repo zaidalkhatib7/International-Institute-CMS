@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ChargesPanel from './ChargesPanel'
-import { AFTER_QUIZ_COPY } from '../domain/afterQuiz'
+import { AFTER_QUIZ_COPY, chargeTitle } from '../domain/afterQuiz'
 import { LEGACY_POINTS } from '../../../utils/money'
 
 /*
@@ -268,6 +268,37 @@ describe('cancelling and refunding', () => {
     fireEvent.click(screen.getByRole('button', { name: EN.charges.cancelSubmit }))
 
     await waitFor(() => expect(mocks.cancelRplCharge).toHaveBeenCalledWith('charge-2', { lock_version: 2, reason: 'The rate moved since the request.', category: 'exchange_rate_outdated' }))
+  })
+
+  // J07-G2 (17 Oct 2026): the client is told the rate changed, so the category is offered only when it did.
+  it('does not offer the out-of-date-rate category on a pound request still at the rate in force', async () => {
+    mocks.fetchRplCharges.mockResolvedValue({ data: [charge({ public_id: 'charge-2', id: 2, type: 'final_exam_retake', cycle: 2, amount: SYP_AMOUNT, exchange_rate: RATE, exchange_rate_outdated: false })] })
+    renderPanel()
+
+    const card = within(await screen.findByRole('article', { name: 'Final-exam retake · round 2' }))
+    fireEvent.click(card.getByRole('button', { name: EN.charges.cancel }))
+    const category = screen.getByLabelText(EN.charges.category)
+    expect(within(category).queryByText(EN.cancelCategories.exchange_rate_outdated)).not.toBeInTheDocument()
+    expect(within(category).getByText(EN.cancelCategories.payment_not_found)).toBeInTheDocument()
+  })
+
+  it('says in the reader\'s language that the rate did not change when the server refuses the category, and reloads', async () => {
+    mocks.fetchRplCharges.mockResolvedValue({ data: [charge({ public_id: 'charge-2', id: 2, type: 'final_exam_retake', cycle: 2, amount: SYP_AMOUNT, exchange_rate: RATE, exchange_rate_outdated: true })] })
+    mocks.cancelRplCharge.mockRejectedValue({ response: { status: 422, data: {
+      message: 'The exchange rate in force is the rate this request was frozen at, so its amount in Syrian pounds is not out of date. Choose another category.',
+      reason_code: 'exchange_rate_unchanged',
+      errors: { category: ['The exchange rate in force is the rate this request was frozen at, so its amount in Syrian pounds is not out of date. Choose another category.'] },
+    } } })
+    renderPanel({ language: 'ar' })
+
+    const card = within(await screen.findByRole('article', { name: chargeTitle({ type: 'final_exam_retake', cycle: 2 }, 'ar') }))
+    fireEvent.click(card.getByRole('button', { name: AR.charges.cancel }))
+    fireEvent.change(screen.getByLabelText(AR.charges.category), { target: { value: 'exchange_rate_outdated' } })
+    fireEvent.change(screen.getByLabelText(AR.common.reason), { target: { value: 'The rate moved since the request.' } })
+    fireEvent.click(screen.getByRole('button', { name: AR.charges.cancelSubmit }))
+
+    expect(await screen.findByText(AR.charges.rateUnchanged)).toBeInTheDocument()
+    await waitFor(() => expect(mocks.fetchRplCharges).toHaveBeenCalledTimes(2))
   })
 
   it.each([

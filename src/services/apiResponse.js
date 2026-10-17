@@ -59,14 +59,38 @@ const genericErrors = {
  * because the top-level `message` is only the first one plus "(and 2 more
  * errors)" — and the ones it drops are usually the actionable ones.
  */
-function readValidationDetail(error) {
+/*
+ * FIXED SERVER LINES THE PLATFORM KNOWS (platform walk, 17 Oct 2026, UI-13).
+ *
+ * The rule above stands: a 422's own words are shown, whatever their language.
+ * A line the server writes from a fixed template, though, has an Arabic reading
+ * here, so the Arabic platform does not show it in English. A line not listed
+ * is shown as the server wrote it.
+ */
+const KNOWN_SERVER_LINES = [
+  {
+    pattern: /^Published package v(.+) is immutable\. Create a new version to modify content\.$/,
+    ar: (match) => `الإصدار ${match[1]} من هذه الحقيبة منشور ومحتواه ثابت: افتح إصدارًا جديدًا من الحقيبة لتعديل المحتوى.`,
+  },
+]
+
+export function translateServerLine(line, language = getAdminLanguage()) {
+  if (language !== 'ar' || typeof line !== 'string') return line
+  for (const known of KNOWN_SERVER_LINES) {
+    const match = known.pattern.exec(line.trim())
+    if (match) return known.ar(match)
+  }
+  return line
+}
+
+function readValidationDetail(error, language) {
   const errors = error?.response?.data?.errors
   if (! errors || typeof errors !== 'object') return ''
 
   const seen = new Set()
   for (const value of Object.values(errors)) {
     for (const line of [].concat(value)) {
-      if (typeof line === 'string' && line.trim() !== '') seen.add(line.trim())
+      if (typeof line === 'string' && line.trim() !== '') seen.add(translateServerLine(line.trim(), language))
     }
   }
 
@@ -99,7 +123,7 @@ export function readApiError(error, fallback, language = getAdminLanguage()) {
    * own language.
    */
   if (status === 422) {
-    const detail = readValidationDetail(error)
+    const detail = readValidationDetail(error, language)
     if (detail !== '') return copy.invalid + '\n\n' + detail
   }
 

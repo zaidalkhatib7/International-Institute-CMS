@@ -58,7 +58,7 @@ const copyByLanguage = {
     identity: 'هوية المنصة',
     integration: 'حالة التكامل',
     integrationText:
-      'تم ربط الواجهة بعقود API المتاحة في ملف التسليم. بعض وحدات RPL ما زالت تحتاج endpoints مخصصة في backend.',
+      'المنصة متصلة بالخادم، وتقرأ بياناته وتحفظها مباشرة.',
     rplStages: 'مراحل RPL',
   },
   en: {
@@ -75,7 +75,7 @@ const copyByLanguage = {
     identity: 'Platform Identity',
     integration: 'Integration Status',
     integrationText:
-      'The frontend is connected to the API contracts available in the handoff. Some RPL modules still need dedicated backend endpoints.',
+      'The platform is connected to the API and reads and saves its data directly.',
     rplStages: 'RPL stages',
   },
 }

@@ -263,8 +263,8 @@ describe('a scheduled interview', () => {
     await waitFor(() => expect(mocks.completeRplInterview).toHaveBeenCalledWith(15, { notes: 'Answered every question.', minutes_media_id: 55 }))
   })
 
-  it('is recorded as a no-show only after a confirmation', async () => {
-    renderPanel({ items: [scheduled()] })
+  it('is recorded as a no-show only after a confirmation, once its time has passed', async () => {
+    renderPanel({ items: [interview({ status: 'scheduled', chosen_mode: 'online', chosen_by_applicant: true, scheduled_at: '2026-01-05T08:30:00Z', location_or_url: 'https://meet.example.org/rpl-41' })] })
 
     fireEvent.click(await screen.findByRole('button', { name: EN.noShow }))
     expect(mocks.markRplInterviewNoShow).not.toHaveBeenCalled()
@@ -272,6 +272,17 @@ describe('a scheduled interview', () => {
     fireEvent.click(screen.getByRole('button', { name: EN.noShowSubmit }))
 
     await waitFor(() => expect(mocks.markRplInterviewNoShow).toHaveBeenCalledWith(15))
+  })
+
+  it('does not offer a no-show before the interview time (J03-F1)', async () => {
+    renderPanel({ items: [scheduled()] })
+
+    const button = await screen.findByRole('button', { name: EN.noShow })
+    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('title', EN.noShowNotYet)
+    fireEvent.click(button)
+    expect(screen.queryByText(EN.noShowConfirm)).toBeNull()
+    expect(mocks.markRplInterviewNoShow).not.toHaveBeenCalled()
   })
 
   it('is rescheduled without resending the mode', async () => {

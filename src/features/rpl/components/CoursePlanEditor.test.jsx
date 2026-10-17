@@ -182,7 +182,7 @@ describe('the proposal', () => {
     expect(mocks.fetchRplCoursePlan).toHaveBeenCalledWith('case-1')
     expect(screen.getByText('2 of the minimum 2 for Practitioner · 2 available to buy')).toBeInTheDocument()
     expect(screen.getByText(/Entry quiz passed: 72\.00% \(pass mark: more than 50%\)/)).toBeInTheDocument()
-    expect(screen.getByText('Minimums setting when generated: practitioner 2 · advanced_practitioner 7 · expert 10')).toBeInTheDocument()
+    expect(screen.getByText('Minimums setting when generated: Professional Practitioner 2 · Advanced Professional Practitioner 7 · Professional Expert 10')).toBeInTheDocument()
     // A minimum applies to a passed plan, so its top-up is in place: no warning.
     expect(screen.queryByText(/no minimum applies to this plan/)).not.toBeInTheDocument()
   })
@@ -684,6 +684,22 @@ describe('P6 on the plan', () => {
 
     expect(await screen.findByText(fill(EN.quizPassed, { percent: '72.00', mark: 50, level: 'Practitioner' }))).toBeInTheDocument()
     expect(screen.queryByText(/Entry quiz not passed/)).not.toBeInTheDocument()
+  })
+
+  // J09-F1 (17 Oct 2026): a plan closed because the case was completed with the experience certificate says so.
+  it('says a plan closed by the Experience Confirmation Certificate sells nothing more and leads to no final exam', async () => {
+    const closed = plan({
+      status: 'closed',
+      closed_reason: 'case_completed_with_experience_certificate',
+      closed_at: '2026-10-20T09:00:00Z',
+      items: [item(1, { status: 'purchased', purchased_at: '2026-10-16T09:00:00Z' }), item(2, { status: 'approved' })],
+    })
+    mocks.fetchRplCoursePlan.mockResolvedValue({ data: overview({ application: { public_id: 'case-1', status: 'completed' }, draft: null, approved: closed, can: { generate: false, regenerate: false, edit: false, approve: false, amend: false, discard: false } }) })
+    renderEditor({ application: { status: 'completed' } })
+
+    expect(await screen.findByText(EN.closedWithExperienceCertificate)).toBeInTheDocument()
+    expect(screen.queryByText(EN.learningComplete)).not.toBeInTheDocument()
+    expect(screen.queryByText(EN.learningCompleteClosedCase)).not.toBeInTheDocument()
   })
 
   it('shows what the client bought, the enrolment, the lessons and the course quiz, and a closed plan\'s message', async () => {

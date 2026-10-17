@@ -9,6 +9,7 @@ import {
   isMoney,
   toMinor,
 } from '../../../utils/money'
+import { businessTodayIso } from '../../../utils/businessDate'
 
 /*
  * AFTER THE ENTRY QUIZ (owner model of 15 Oct 2026, P6).
@@ -209,6 +210,7 @@ export const AFTER_QUIZ_COPY = {
       refundSubmit: 'إعادة المبلغ',
       refunded: 'أُعيد المبلغ.',
       stale: 'غيّر موظف آخر هذه الدفعة أثناء عملك عليها. أُعيد تحميلها: راجعها ثم أعد المحاولة. لم يُحفظ شيء مما أرسلته، وبقي ما كتبته.',
+      rateUnchanged: 'لم يتغيّر سعر الصرف منذ طلب الدفع هذا، فمبلغه بالليرة السورية ما زال صالحًا: اختر فئة أخرى. لم يُحفظ شيء.',
       certificationFeeNote: 'رسوم شهادة المستوى (قرار المالك، 15 أكتوبر 2026) تُضبط لكل مسار ومستوى في تبويب الرسوم. عند صفر تصدر شهادة المستوى تلقائيًا عند اجتياز الاختبار النهائي، وفوق الصفر تصدر تلقائيًا بعد دفع هذا البند.',
     },
     experience: {
@@ -223,7 +225,9 @@ export const AFTER_QUIZ_COPY = {
         awaiting_payment: 'بانتظار الدفع',
         awaiting_issue: 'بانتظار الإصدار',
         issued: 'صدرت',
+        revoked: 'مُلغاة',
       },
+      revokedNote: 'أُلغيت الشهادة الصادرة لهذا الطلب، ويراها العميل مُلغاة. لإصدار بديل استخدم "إعادة إصدار" في سجل الشهادات.',
       notEligible: {
         no_entry_quiz: 'لا يوجد لهذا الطلب اختبار دخول خاضع لحد النجاح، فلا تُعرض عليه الشهادة.',
         entry_quiz_not_passed: 'لم يجتز العميل اختبار الدخول (أو لم يُصحَّح)، فلا تُعرض عليه شهادة تثبيت الخبرة أبدًا.',
@@ -254,6 +258,8 @@ export const AFTER_QUIZ_COPY = {
       charge: 'الدفع: {amount} · {route} · {status}',
       frozenWording: 'الصيغة المثبتة عند الاعتماد: الإصدار {version} · {sha}',
       certificate: 'الشهادة {number}، صدرت في {at}',
+      certificateRevoked: 'الشهادة {number}، صدرت في {at} وأُلغيت في {revokedAt}',
+      certificateReissued: 'الشهادة {number} (إعادة إصدار)، صدرت في {at}',
       openCertificates: 'فتح سجل الشهادات',
       approvedBy: 'اعتمدها {name} في {at}',
       refusedBy: 'رفضها {name} في {at}',
@@ -298,13 +304,14 @@ export const AFTER_QUIZ_COPY = {
         course_on_hold: '{course} موقوفة بقرار حوكمة عن التقييمات الجديدة.',
         setting_missing: 'أحد إعدادات الاختبار النهائي غير مضبوط.',
         try_referred: 'أُحيلت محاولة إلى الموظفين بسبب خلل في المنصة: ألغِها أدناه ليبدأ العميل محاولة جديدة لا تُحتسب عليه.',
+        stop_chosen: 'اختار العميل إغلاق الطلب بشهادة تثبيت الخبرة ("الإنهاء")، فلا يبدأ الاختبار النهائي ما لم يغيّر اختياره إلى "المتابعة".',
         no_courses: 'لا توجد دورات مكتملة في الخطة المغلقة.',
       },
       plan: 'الخطة المغلقة: الإصدار {version}، أُغلقت في {at}',
       courses: 'الدورات المدروسة',
       course: '{code} · التسجيل رقم {enrollment} · إصدار الحقيبة {version} · اكتملت في {at}',
-      eligible: '{count} سؤالًا معتمدًا مؤهلًا للسحب',
-      eligibleShort: '{count} سؤالًا معتمدًا مؤهلًا، والسحب {k}: أقل من المطلوب.',
+      eligible: '{count|سؤال معتمد واحد مؤهل|سؤالان معتمدان مؤهلان|أسئلة معتمدة مؤهلة|سؤالًا معتمدًا مؤهلًا|سؤال معتمد مؤهل} للسحب',
+      eligibleShort: '{count|سؤال معتمد واحد مؤهل|سؤالان معتمدان مؤهلان|أسئلة معتمدة مؤهلة|سؤالًا معتمدًا مؤهلًا|سؤال معتمد مؤهل}، والسحب {k}: أقل من المطلوب.',
       settings: 'الإعدادات الحالية',
       passMark: 'حد النجاح: أكثر من {value}٪',
       questionsPerCourse: 'الأسئلة لكل دورة: {value}',
@@ -323,9 +330,9 @@ export const AFTER_QUIZ_COPY = {
         passed: 'ناجحة',
         closed: 'مغلقة',
       },
-      triesAllowed: '{count} محاولات',
+      triesAllowed: '{count|محاولة واحدة|محاولتان|محاولات|محاولة}',
       exhaustedAt: 'استُنفدت في {at}',
-      waitApplied: 'الانتظار المطبَّق: {days} يومًا',
+      waitApplied: 'الانتظار المطبَّق: {days|يوم واحد|يومان|أيام|يومًا|يوم}',
       eligibleFrom: 'تبدأ الجولة التالية اعتبارًا من {at}',
       passedAt: 'نجح في {at}',
       tryLabel: 'المحاولة {number}',
@@ -377,12 +384,20 @@ export const AFTER_QUIZ_COPY = {
           awaiting_fee: 'بانتظار رسوم الشهادة',
           issued: 'صدرت',
         },
+        // The issuance job's status (integration_outbox), in words (platform walk, 17 Oct 2026, UI-09).
+        outboxStates: {
+          pending: 'بانتظار التنفيذ',
+          processing: 'قيد التنفيذ',
+          processed: 'نُفِّذت',
+          failed: 'تعذّر تنفيذها',
+          cancelled: 'أُلغيت',
+        },
         held: 'تنتظر شهادة المستوى رفع إيقاف حوكمة، وتصدر بعد رفعه.',
         feeDue: 'رسوم شهادة هذا المستوى أكبر من صفر: تصدر الشهادة تلقائيًا بعد دفعها (قرار المالك، 15 أكتوبر 2026).',
         feeUnusable: 'اجتاز العميل الاختبار النهائي، لكن رسوم الشهادة في تبويب الرسوم لهذا المسار والمستوى ليست بالدولار الأمريكي. تبقى الحالة في الاختبار النهائي حتى تُدخَل الرسوم بالدولار أو تُجعل صفرًا.',
         feeFrozen: 'رسوم الشهادة المثبتة عند الاجتياز: {amount}',
         hold: 'الإيقاف رقم {id}: {program} الإصدار {version}',
-        outbox: 'مهمة الإصدار: {status}، {attempts} محاولات',
+        outbox: 'مهمة الإصدار: {status}، {attempts|محاولة واحدة|محاولتان|محاولات|محاولة}',
         lastError: 'آخر خطأ: {error}',
         availableAt: 'المحاولة التالية في {at}',
         certificate: 'الشهادة {number}، صدرت في {at}',
@@ -595,6 +610,7 @@ export const AFTER_QUIZ_COPY = {
       refundSubmit: 'Refund the payment',
       refunded: 'Payment refunded.',
       stale: 'Someone else changed this payment while you were working on it. It has been reloaded: check it and try again. Nothing you sent was saved, and what you typed is kept.',
+      rateUnchanged: 'The exchange rate has not changed since this request, so its amount in Syrian pounds is not out of date: choose another category. Nothing was saved.',
       certificationFeeNote: 'The level certification fee (owner decision, 15 Oct 2026) is set per pathway and level on the Fees tab. At 0 the level certificate is issued automatically when the final exam is passed; above 0 it is issued automatically once this charge is paid.',
     },
     experience: {
@@ -609,7 +625,9 @@ export const AFTER_QUIZ_COPY = {
         awaiting_payment: 'Awaiting payment',
         awaiting_issue: 'Awaiting issue',
         issued: 'Issued',
+        revoked: 'Revoked',
       },
+      revokedNote: 'The certificate issued for this request was revoked, and the client sees it as revoked. To issue a replacement, use "Reissue" in the certificate registry.',
       notEligible: {
         no_entry_quiz: 'This case has no entry quiz under the pass mark, so the certificate is not offered.',
         entry_quiz_not_passed: 'The client did not pass the entry quiz (or it is not marked), so the Experience Confirmation Certificate is never offered.',
@@ -640,6 +658,8 @@ export const AFTER_QUIZ_COPY = {
       charge: 'Payment: {amount} · {route} · {status}',
       frozenWording: 'Wording frozen at approval: version {version} · {sha}',
       certificate: 'Certificate {number}, issued on {at}',
+      certificateRevoked: 'Certificate {number}, issued on {at}, revoked on {revokedAt}',
+      certificateReissued: 'Certificate {number} (a reissue), issued on {at}',
       openCertificates: 'Open the certificate registry',
       approvedBy: 'Approved by {name} on {at}',
       refusedBy: 'Refused by {name} on {at}',
@@ -684,13 +704,14 @@ export const AFTER_QUIZ_COPY = {
         course_on_hold: '{course} is on a governance hold for new assessments.',
         setting_missing: 'A final-exam setting is not set.',
         try_referred: 'A try was referred to staff because of a platform fault: void it below so the client can start a new try that is not counted against them.',
+        stop_chosen: 'The client chose to close the request with the Experience Confirmation Certificate ("stop"), so the final exam does not start unless the choice changes to "continue".',
         no_courses: 'The closed plan holds no completed course.',
       },
       plan: 'Closed plan: version {version}, closed on {at}',
       courses: 'Studied courses',
       course: '{code} · enrolment #{enrollment} · package version {version} · completed on {at}',
-      eligible: '{count} approved questions eligible for the draw',
-      eligibleShort: '{count} approved questions eligible, and the draw takes {k}: too few.',
+      eligible: '{count|approved question|approved questions} eligible for the draw',
+      eligibleShort: '{count|approved question|approved questions} eligible, and the draw takes {k}: too few.',
       settings: 'Current settings',
       passMark: 'Pass mark: more than {value}%',
       questionsPerCourse: 'Questions per course: {value}',
@@ -709,9 +730,9 @@ export const AFTER_QUIZ_COPY = {
         passed: 'Passed',
         closed: 'Closed',
       },
-      triesAllowed: '{count} tries',
+      triesAllowed: '{count|try|tries}',
       exhaustedAt: 'Exhausted on {at}',
-      waitApplied: 'Waiting period applied: {days} days',
+      waitApplied: 'Waiting period applied: {days|day|days}',
       eligibleFrom: 'The next round may start from {at}',
       passedAt: 'Passed on {at}',
       tryLabel: 'Try {number}',
@@ -763,12 +784,19 @@ export const AFTER_QUIZ_COPY = {
           awaiting_fee: 'Awaiting the certification fee',
           issued: 'Issued',
         },
+        outboxStates: {
+          pending: 'waiting',
+          processing: 'in progress',
+          processed: 'done',
+          failed: 'failed',
+          cancelled: 'cancelled',
+        },
         held: 'The level certificate waits on a governance hold. It is issued once the hold is lifted.',
         feeDue: 'This level\'s certification fee is above 0: the certificate is issued automatically once it is paid (owner decision, 15 Oct 2026).',
         feeUnusable: 'The client passed the final exam, but the Fees tab\'s certification fee for this pathway and level is not in US dollars. The case stays in the final exam until the fee is entered in dollars or set to 0.',
         feeFrozen: 'Certification fee frozen at the pass: {amount}',
         hold: 'Hold #{id}: {program} version {version}',
-        outbox: 'Issuance job: {status}, {attempts} attempts',
+        outbox: 'Issuance job: {status}, {attempts|attempt|attempts}',
         lastError: 'Last error: {error}',
         availableAt: 'Next attempt at {at}',
         certificate: 'Certificate {number}, issued on {at}',
@@ -905,6 +933,11 @@ export function levelCertificateStateLabel(state, language) {
   return labelFrom(afterQuizCopy(language).finalExam.level.states, state)
 }
 
+/** The level certificate's issuance job status in words, never the raw outbox code (UI-09). */
+export function issuanceJobStatusLabel(status, language) {
+  return labelFrom(afterQuizCopy(language).finalExam.level.outboxStates, status)
+}
+
 /*
  * A CHARGE'S AMOUNT IN ONE LINE (contract 2.6: amount is a Money, frozen when the
  * client paid from his balance or asked to pay outside, with price_usd and the
@@ -944,9 +977,21 @@ export function chargePaidInLabel(charge, language) {
   return paidIn[currency] || paidIn.legacy
 }
 
-/** The categories staff may cancel this charge with: an out-of-date rate applies only to a request in Syrian pounds. */
+/*
+ * The categories staff may cancel this charge with. An out-of-date rate applies
+ * only to a request in Syrian pounds whose frozen rate is no longer the rate in
+ * force: the server says so in exchange_rate_outdated (J07-G2), and refuses the
+ * category otherwise (exchange_rate_unchanged), because the client is told the
+ * rate changed.
+ */
 export function cancelCategoriesFor(charge) {
-  return STAFF_CANCEL_CATEGORIES.filter((category) => category !== 'exchange_rate_outdated' || charge?.amount?.currency === 'SYP')
+  return STAFF_CANCEL_CATEGORIES.filter((category) => category !== 'exchange_rate_outdated'
+    || (charge?.amount?.currency === 'SYP' && charge?.exchange_rate_outdated !== false))
+}
+
+/** The 422 refusal of exchange_rate_outdated on a pound request still at the rate in force (J07-G2). */
+export function rateUnchanged(error) {
+  return Number(error?.response?.status) === 422 && error?.response?.data?.reason_code === 'exchange_rate_unchanged'
 }
 
 /** The 503 refusal while no exchange rate is set: nothing is charged in Syrian pounds (fail closed). */
@@ -1028,9 +1073,9 @@ export function emptyConfirmForm() {
   return { method: 'bank_transfer', reference: '', paid_at: '', amount_received: '', notes: '' }
 }
 
+/* Today on the institute's calendar (Asia/Damascus by default), as the server judges a date paid or received (J07-G1). */
 export function todayIso(now = new Date()) {
-  const pad = (value) => String(value).padStart(2, '0')
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  return businessTodayIso(now)
 }
 
 /** Whether staff can confirm an outside payment of this charge at all: only one in US dollars or Syrian pounds. */

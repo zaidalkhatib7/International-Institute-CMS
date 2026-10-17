@@ -4,9 +4,11 @@ import { useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Select } from '../../../components/ui'
 import Money from '../../../components/Money'
 import { readApiError } from '../../../services/apiResponse'
-import { formatLocalizedDate, formatLocalizedDateTime } from '../../../utils/localization'
+import { formatLocalizedDateTime } from '../../../utils/localization'
+import { formatRecordedDate } from '../../../utils/businessDate'
 import { LEGACY_POINTS } from '../../../utils/money'
-import { LEDGER_FILTERS, fillWallet, ledgerKindLabel, walletBalances, walletCopy } from '../domain/wallet'
+import { LEDGER_FILTERS, fillWallet, ledgerDescription, ledgerKindLabel, ledgerSubjectText, walletBalances, walletCopy } from '../domain/wallet'
+import { chargeTypeLabel } from '../../rpl/domain/afterQuiz'
 import { fetchUserWalletTransactions } from '../services/usersService'
 
 /*
@@ -69,9 +71,12 @@ export default function WalletCard({ userId, user, language, canManage = false, 
     const parts = []
     if (row.method) parts.push(copy.methods[row.method] || String(row.method).replaceAll('_', ' '))
     if (row.reference) parts.push(row.reference)
-    if (row.received_on) parts.push(formatLocalizedDate(row.received_on, language))
-    if (row.subject?.label) parts.push(row.subject.label)
-    if (row.description) parts.push(row.description)
+    // The date received, on the institute's calendar (J07-G1): shown as that date, never the day before.
+    if (row.received_on) parts.push(formatRecordedDate(row.received_on, language))
+    const subject = ledgerSubjectText(row.subject, language, chargeTypeLabel)
+    if (subject) parts.push(subject)
+    const description = ledgerDescription(row)
+    if (description) parts.push(description)
     if (row.notes) parts.push(row.notes)
     if (row.recorded_by?.name) parts.push(fillWallet(copy.by, { name: row.recorded_by.name }))
     return parts.join(' · ') || '—'

@@ -54,6 +54,43 @@ describe('CompletenessMeter', () => {
     }
   })
 
+  it('names a CV or an experience letter as ONE missing item, met by either (owner, 17 Oct 2026)', () => {
+    const categories = [
+      { id: 1, code: 'identity', labels: { en: 'Personal identity', ar: 'الهوية الشخصية' } },
+      { id: 2, code: 'curriculum_vitae', labels: { en: 'Curriculum vitae', ar: 'السيرة الذاتية' } },
+      { id: 3, code: 'professional_experience', labels: { en: 'Professional experience', ar: 'الخبرة المهنية' } },
+    ]
+    const group = (complete, provided = 0) => ({ code: 'experience_document', complete, any_of: [{ category_id: 2, code: 'curriculum_vitae', required: 1, provided, complete }, { category_id: 3, code: 'professional_experience', required: 1, provided: 0, complete: false }] })
+    const value = { percentage: 75, categories: [{ category_id: 1, code: 'identity', required: 1, provided: 1, complete: true }], evidence_groups: [group(false)], work_experience: { required: 0, provided: 0, complete: true }, declaration: { accepted: true } }
+    const { unmount } = render(<CompletenessMeter language="en" categories={categories} value={value} />)
+
+    expect(screen.getAllByText('Curriculum vitae or Professional experience')).toHaveLength(2)
+    expect(screen.getAllByText('Add one file to either')).toHaveLength(2)
+    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Curriculum vitae or Professional experienceAdd one file to either'])
+    expect(screen.queryByText('Work experience')).not.toBeInTheDocument()
+    unmount()
+
+    const arabic = render(<CompletenessMeter language="ar" categories={categories} value={value} />)
+    expect(screen.getAllByText('السيرة الذاتية أو الخبرة المهنية')).toHaveLength(2)
+    expect(screen.getAllByText('أضف ملفاً واحداً إلى أيٍّ منهما')).toHaveLength(2)
+    arabic.unmount()
+
+    // The CV alone meets it: nothing is left to list.
+    render(<CompletenessMeter language="en" categories={categories} value={{ ...value, percentage: 100, evidence_groups: [group(true, 1)] }} />)
+    expect(screen.queryByText('Still required for 100%')).not.toBeInTheDocument()
+    expect(screen.getByText('The portfolio is complete and ready for the next step.')).toBeInTheDocument()
+  })
+
+  it('lists the files, then the either-one item, then the declaration', () => {
+    const value = { percentage: 25, categories: [{ category_id: 1, code: 'identity', required: 1, provided: 0, complete: false }], evidence_groups: [{ code: 'experience_document', complete: false, any_of: [{ category_id: 2, code: 'curriculum_vitae', required: 1, provided: 0, complete: false }, { category_id: 3, code: 'professional_experience', required: 1, provided: 0, complete: false }] }], declaration: { accepted: false } }
+    render(<CompletenessMeter language="en" categories={[{ id: 1, code: 'identity', labels: { en: 'Personal identity' } }]} value={value} />)
+
+    // A member the reference data does not name falls back to its readable code.
+    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Personal identityAdd 1 more file(s)', 'Curriculum Vitae or Professional ExperienceAdd one file to either', 'Final declarationAccept the declaration',
+    ])
+  })
+
   it('shows no work-experience row when the item is met or not part of the case', () => {
     // A case submitted before the release has no work-experience item: required 0, complete.
     render(<CompletenessMeter language="en" value={{ percentage: 100, categories: [], work_experience: { required: 0, provided: 0, complete: true }, declaration: { accepted: true } }} />)

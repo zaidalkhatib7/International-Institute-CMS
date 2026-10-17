@@ -52,7 +52,7 @@ export const SCREENING_COPY = {
     documentPercent: '{percent}٪',
     partial: 'فرز جزئي',
     partialHint: 'لم تُفحص بعض الوثائق، فالمؤشر يغطي الوثائق المفحوصة فقط.',
-    coverage: 'قُرئت {read} من {total} وثيقة.',
+    coverage: 'قُرئت {read} من {total|وثيقة واحدة|وثيقتين|وثائق|وثيقة}.',
     completedNoFigure: 'اكتمل دون مؤشر: لم تُقيَّم أي وثيقة يمكن أن تحمل مؤشرًا (انظر «لم تُفحص» أدناه). وثائق الفئات المخصصة للاتساق، كالهوية، لا تحمل مؤشرًا أبدًا.',
     statusLabel: 'الحالة',
     trigger: 'سبب التشغيل',
@@ -95,6 +95,13 @@ export const SCREENING_COPY = {
     columnConsistency: 'الاتساق مع الادعاء',
     flags: 'ما رصده الفرز',
     signals: 'فحوص المنصة (دون ذكاء اصطناعي)',
+    caseSignalsTitle: 'فحوص المنصة على فترات العمل المصرّح بها (دون ذكاء اصطناعي)',
+    caseSignalsHint: 'محسوبة من الخبرات التي صرّح بها المتقدم عند تقديم الطلب، وأُرسلت إلى الفرز رموزًا فقط. تُعرض بجانب المؤشر ولا تدخل فيه.',
+    caseSignalCodes: {
+      employment_concurrent_overlap: 'وظائف كثيرة مصرّح بها في الوقت نفسه',
+      employment_starts_in_the_future: 'وظيفة تبدأ بعد تاريخ تقديم الطلب',
+      employment_ends_before_it_starts: 'وظيفة تنتهي قبل أن تبدأ',
+    },
     extracted: 'البيانات المستخرجة',
     rationale: 'التعليل',
     page: 'صفحة {page}',
@@ -131,6 +138,8 @@ export const SCREENING_COPY = {
       declaration_predates_screening: 'لم يُنفَّذ: قُدِّم هذا الطلب بموجب إقرار أقدم من النسخة 2، ولم يكن ذلك الإقرار يُعلم المتقدم بفرز الوثائق. يقرر الموظفون هذا الطلب دونه.',
       nothing_readable: 'لم يُنفَّذ: في الطلب ملفات، لكن لا يوجد بينها ملف بصيغة أو حجم يستطيع الفرز قراءته. لا يوجد مؤشر، وغيابه لا يعني شيئًا عن الوثائق.',
       provider_error: 'لم يُنفَّذ: لم يستجب مزوّد الذكاء الاصطناعي. لا يوجد مؤشر. أعد التشغيل لاحقًا.',
+      // No Gemini key on the server (UI-14): a re-run cannot work until it is configured, and none was spent.
+      provider_not_configured: 'لم يُنفَّذ: Gemini غير مُعَدّ على الخادم (لا يوجد مفتاح). لا يوجد مؤشر، ولن تنجح إعادة التشغيل قبل أن يُعِدّه مسؤول الخادم. لم يُحتسب هذا التشغيل من الحد اليومي.',
       unknown: 'لم يُنفَّذ ({code}). لا يوجد مؤشر.',
     },
     staleReasons: {
@@ -159,6 +168,7 @@ export const SCREENING_COPY = {
       declaration_predates_screening: 'لم يُنفَّذ التشغيل: الطلب مقدَّم بموجب إقرار أقدم من النسخة 2',
       nothing_readable: 'لم يُنفَّذ التشغيل: لا يوجد ملف قابل للقراءة',
       provider_error: 'لم يُنفَّذ التشغيل: لم يستجب مزوّد الذكاء الاصطناعي بنتيجة قابلة للحفظ',
+      provider_not_configured: 'لم يُنفَّذ التشغيل: Gemini غير مُعَدّ على الخادم',
     },
     confidence: { low: 'منخفضة', medium: 'متوسطة', high: 'مرتفعة' },
     consistency: { consistent: 'متسق', inconsistent: 'غير متسق', unclear: 'غير واضح' },
@@ -230,7 +240,7 @@ export const SCREENING_COPY = {
     documentPercent: '{percent}%',
     partial: 'Partial screen',
     partialHint: 'Some documents were not screened, so the figure covers only the documents that were.',
-    coverage: 'Read {read} of {total} documents.',
+    coverage: 'Read {read} of {total|document|documents}.',
     completedNoFigure: 'Completed without a figure: no document that can carry one was assessed (see "Not screened" below). Consistency-only categories such as identity never carry a figure.',
     statusLabel: 'Status',
     trigger: 'Started',
@@ -273,6 +283,13 @@ export const SCREENING_COPY = {
     columnConsistency: 'Consistency with the claim',
     flags: 'What the screen noticed',
     signals: 'Platform checks (no AI)',
+    caseSignalsTitle: 'Platform checks on the claimed employment periods (no AI)',
+    caseSignalsHint: 'Computed from the experience the applicant claimed at submission and sent to the screen as codes only. Shown beside the figure, never blended into it.',
+    caseSignalCodes: {
+      employment_concurrent_overlap: 'Too many positions claimed at the same time',
+      employment_starts_in_the_future: 'A position starts after the claim was made',
+      employment_ends_before_it_starts: 'A position ends before it starts',
+    },
     extracted: 'Extracted',
     rationale: 'Rationale',
     page: 'page {page}',
@@ -309,6 +326,7 @@ export const SCREENING_COPY = {
       declaration_predates_screening: 'Not run: this case was submitted under a declaration older than version 2, which did not tell the applicant about document screening. Staff decide this case without it.',
       nothing_readable: 'Not run: the case has files, but none is in a format or size the screen can read. No figure exists, and its absence says nothing about the documents.',
       provider_error: 'Not run: the AI provider did not answer. No figure exists. Re-run it later.',
+      provider_not_configured: 'Not run: Gemini is not configured on the server (no key). No figure exists, and a re-run cannot succeed until the server is configured. This run did not count against the daily limit.',
       unknown: 'Not run ({code}). No figure exists.',
     },
     staleReasons: {
@@ -337,6 +355,7 @@ export const SCREENING_COPY = {
       declaration_predates_screening: 'the run was not carried out: the case was submitted under a declaration older than version 2',
       nothing_readable: 'the run was not carried out: no file could be read',
       provider_error: 'the run was not carried out: the AI provider gave no answer that could be stored',
+      provider_not_configured: 'the run was not carried out: Gemini is not configured on the server',
     },
     confidence: { low: 'Low', medium: 'Medium', high: 'High' },
     consistency: { consistent: 'Consistent', inconsistent: 'Inconsistent', unclear: 'Unclear' },
@@ -483,9 +502,54 @@ export function claimedEmployersCopy(language) {
   return pick(CLAIMED_EMPLOYERS_COPY, language)
 }
 
-/** "{name}" placeholders, filled from values. A missing value leaves an empty string, never "undefined". */
+/*
+ * A COUNT AND ITS NOUN AGREE (platform walk, 17 Oct 2026, UI-16).
+ *
+ * "{count|f1|f2|…}" is a count with its noun. Two forms are English: "1 try",
+ * "3 tries". Four or five are Arabic, whose noun depends on the number: one and
+ * two are whole phrases without the figure ("محاولة واحدة", "محاولتان"); 3 to 10
+ * take the plural ("3 محاولات"); 11 to 99 the singular ("11 محاولة", "سؤالًا"
+ * where the accusative shows); the rest (0, 100, 101, …) the fifth form, or the
+ * fourth when none is given. The old templates used one form for every count:
+ * "قُرئت 3 من 3 وثيقة", "5 دورة", "1 محاولات".
+ */
+export function countPhrase(value, forms) {
+  const n = Number(value)
+  if (value == null || value === '' || !Number.isFinite(n) || !Array.isArray(forms) || forms.length < 2) return value == null ? '' : String(value)
+  if (forms.length === 2) return `${value} ${Math.abs(n) === 1 ? forms[0] : forms[1]}`
+  const [one, two, few, many, other = many] = forms
+  if (n === 1) return one
+  if (n === 2) return two
+  const hundreds = Math.abs(n) % 100
+  if (hundreds >= 3 && hundreds <= 10) return `${value} ${few}`
+  if (hundreds >= 11 && hundreds <= 99) return `${value} ${many}`
+  return `${value} ${other}`
+}
+
+/** "{name}" placeholders, filled from values, and "{count|forms}" counts (countPhrase). A missing value leaves an empty string, never "undefined". */
 export function fill(template, values = {}) {
-  return String(template ?? '').replace(/\{(\w+)\}/g, (_, key) => (values[key] == null ? '' : String(values[key])))
+  return String(template ?? '').replace(/\{(\w+)((?:\|[^|{}]*)*)\}/g, (_, key, forms) => {
+    if (values[key] == null) return ''
+    return forms ? countPhrase(values[key], forms.slice(1).split('|')) : String(values[key])
+  })
+}
+
+/*
+ * THE RATIONALE THE API WRITES ITSELF (platform walk, 17 Oct 2026, UI-13).
+ *
+ * For an extraction-only document (the identity document) the rationale is not
+ * the model's: the API writes one fixed English sentence
+ * (GeminiRplDocumentScreeningService::EXTRACTION_ONLY_RATIONALE). It is shown in
+ * the screen's language; a rationale the model wrote is shown as written.
+ */
+export const EXTRACTION_ONLY_RATIONALE = {
+  en: 'Read only to extract names and dates and compare them with the other documents and the claims. No judgement of whether this document is genuine is made or kept for this category; any disagreement found is listed in the flags.',
+  ar: 'قُرئت هذه الوثيقة لاستخراج الأسماء والتواريخ ومقارنتها بالوثائق الأخرى وبما صرّح به المتقدم فقط. لا يُصدَر أي حكم على أصالة وثائق هذه الفئة ولا يُحفظ؛ وأي اختلاف يُرصد مذكور فيما رصده الفرز.',
+}
+
+export function screeningRationaleText(rationale, language = 'en') {
+  if (typeof rationale !== 'string') return rationale ?? ''
+  return rationale.trim() === EXTRACTION_ONLY_RATIONALE.en ? EXTRACTION_ONLY_RATIONALE[language === 'ar' ? 'ar' : 'en'] : rationale
 }
 
 /** A machine code as words, for a code this copy does not know yet. Shown rather than hidden. */

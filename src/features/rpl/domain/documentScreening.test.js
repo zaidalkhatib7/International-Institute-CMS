@@ -71,6 +71,8 @@ const API_WITHHELD_REASONS = [
   'no_uploaded_file', 'unsupported_format', 'file_too_large', 'document_limit_reached', 'request_size_limit_reached', 'file_unreadable',
   'category_excluded', 'docx_text_not_extractable', 'not_read', 'not_assessed_by_model', 'not_assessable', 'no_supported_figure',
   'run_failed', 'screening_disabled', 'reading_disabled', 'declaration_predates_screening', 'nothing_readable', 'provider_error',
+  // Platform walk, 17 Oct 2026 (UI-14): no Gemini key is its own refusal.
+  'provider_not_configured',
 ]
 
 const API_EMPLOYER_FLAGS = [

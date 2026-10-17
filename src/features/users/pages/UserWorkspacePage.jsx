@@ -209,7 +209,7 @@ export const copyByLanguage = {
       "Required, 10 to 2,000 characters. It is recorded in the audit trail with the new request.",
     experiences: "Work experience",
     experiencesHint:
-      "At least one work experience is required before an RPL request can be submitted.",
+      "Optional: an RPL request no longer needs a work experience. The employer check uses the ones recorded here.",
     noExperiences: "No work experience is recorded for this client yet.",
     addExperience: "Add work experience",
     updateExperience: "Update work experience",
@@ -362,7 +362,7 @@ export const copyByLanguage = {
       "مطلوب، من 10 إلى 2000 حرف. يُسجَّل في سجل التدقيق مع الطلب الجديد.",
     experiences: "الخبرة العملية",
     experiencesHint:
-      "يجب تسجيل خبرة عملية واحدة على الأقل قبل أن يمكن تقديم طلب RPL.",
+      "اختيارية: لم يعد طلب RPL يحتاج إلى خبرة عملية. يستخدم فحص جهات العمل الخبرات المسجلة هنا.",
     noExperiences: "لم تُسجَّل أي خبرة عملية لهذا العميل بعد.",
     addExperience: "إضافة خبرة عملية",
     updateExperience: "تحديث الخبرة العملية",

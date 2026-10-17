@@ -38,9 +38,21 @@ function personName(person, copy) {
   return person?.name || copy.someone
 }
 
-/** The latest screen as staff need it at the moment of deciding: figure, coverage, staleness, or why there is none. */
-function ScreeningGlance({ screenings, copy, screeningText }) {
+/**
+ * The latest screen as staff need it at the moment of deciding: figure, coverage, staleness, or why there is none.
+ * Until the screens have loaded it says so: "no screening has run" is a statement about the case, never a guess
+ * made while the list is still on its way (platform walk, 17 Oct 2026, UI-07).
+ */
+function ScreeningGlance({ screenings, loading = false, error = '', copy, screeningText }) {
   const list = Array.isArray(screenings) ? screenings : []
+  if (!list.length && (loading || error)) {
+    return (
+      <section aria-label={copy.latestScreening} aria-busy={loading || undefined} className="space-y-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4 text-sm">
+        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]"><ScanSearch size={15} aria-hidden="true" />{copy.latestScreening}</p>
+        {loading ? <p role="status" className="flex items-center gap-2 text-[var(--color-text-muted)]"><LoaderCircle className="animate-spin" size={15} aria-hidden="true" />{copy.screeningLoading}</p> : <p className="whitespace-pre-line text-[var(--color-danger)]">{error}</p>}
+      </section>
+    )
+  }
   const latest = list[0] || null
   const completed = list.find((item) => item?.status === 'completed') || null
   const figure = completed ? caseFigureText(completed, screeningText) : null
@@ -157,6 +169,8 @@ export default function ScreeningDecisionCard({
   canViewScreening = false,
   canStartAssessment = false,
   screenings = [],
+  screeningsLoading = false,
+  screeningsError = '',
   declineCategories = DECLINE_CATEGORIES,
   language = 'en',
   onDecided,
@@ -228,7 +242,7 @@ export default function ScreeningDecisionCard({
         <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{copy.hint}</p>
       </CardHeader>
       <CardContent className="space-y-5 pt-6">
-        {canViewScreening ? <ScreeningGlance screenings={screenings} copy={copy} screeningText={screeningText} /> : null}
+        {canViewScreening ? <ScreeningGlance screenings={screenings} loading={screeningsLoading} error={screeningsError} copy={copy} screeningText={screeningText} /> : null}
 
         <fieldset>
           <legend className="mb-3 text-sm font-semibold text-[var(--color-text)]">{copy.decision}</legend>

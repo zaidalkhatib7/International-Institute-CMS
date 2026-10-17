@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import PaymentReconciliationPanel from './PaymentReconciliationPanel'
+import { businessTodayIso } from '../../../utils/businessDate'
 
 /*
  * THE COMMITTEE-PATH CERTIFICATION FEE (contract S17; owner decisions of 17 Oct
@@ -86,5 +87,15 @@ describe('the committee-path fee', () => {
     render(<PaymentReconciliationPanel application={application({ payment_status: 'paid', fee_snapshot: { amount: '150.00', currency: 'EUR' }, committee_fee_due: null })} language="ar" />)
     expect(screen.getByText('150.00 EUR')).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('undefined')
+  })
+
+  // J07-G1 (17 Oct 2026): the date paid is a date on the institute's calendar, recorded as 00:00 UTC of it.
+  it('shows the date paid as that calendar date, and limits the date field to the institute\'s today', () => {
+    const { unmount } = render(<PaymentReconciliationPanel application={application({ payment_status: 'paid', order: { paid_at: '2026-10-18T00:00:00.000000Z' } })} language="en" />)
+    expect(screen.getByText(/Paid · (Oct 18, 2026|18 Oct 2026)/)).toBeInTheDocument()
+    unmount()
+
+    const { container } = render(<PaymentReconciliationPanel application={application()} language="en" />)
+    expect(container.querySelector('input[type="date"]')).toHaveAttribute('max', businessTodayIso())
   })
 })

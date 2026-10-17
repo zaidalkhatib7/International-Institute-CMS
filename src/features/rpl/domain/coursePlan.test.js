@@ -260,7 +260,10 @@ describe('the plan items and a write', () => {
   })
 
   it('reads the minimums snapshot as one line', () => {
-    expect(minimumsText({ practitioner: 5, advanced_practitioner: 7, expert: 10 })).toBe('practitioner 5 · advanced_practitioner 7 · expert 10')
+    // The level names, never the codes (platform walk, 17 Oct 2026, UI-09).
+    expect(minimumsText({ practitioner: 5, advanced_practitioner: 7, expert: 10 })).toBe('Professional Practitioner 5 · Advanced Professional Practitioner 7 · Professional Expert 10')
+    expect(minimumsText({ practitioner: 5, advanced_practitioner: 7, expert: 10 }, 'ar')).toBe('ممارس مهني 5 · ممارس مهني متقدم 7 · خبير مهني 10')
+    expect(minimumsText({ unknown_level: 3 }, 'en')).toBe('unknown_level 3')
     expect(minimumsText(null)).toBe('')
   })
 })

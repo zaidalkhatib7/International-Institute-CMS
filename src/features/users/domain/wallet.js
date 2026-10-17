@@ -144,8 +144,9 @@ export const WALLET_COPY = {
     balances: 'أرصدة المحفظة',
     usdBalance: 'رصيد الدولار',
     sypBalance: 'رصيد الليرة السورية',
-    usdTotals: 'أرصدة الدولار الأمريكي',
-    sypTotals: 'أرصدة الليرة السورية',
+    // Over every open wallet, whatever the list's filter (money spec S6), and labelled so (UI-20).
+    usdTotals: 'أرصدة الدولار الأمريكي في كل المحافظ (لا تتبع التصفية)',
+    sypTotals: 'أرصدة الليرة السورية في كل المحافظ (لا تتبع التصفية)',
     totalsHint: 'مجموع أرصدة العملاء المفتوحة بهذه العملة، ولا يُجمع مع العملة الأخرى.',
     topUp: 'شحن الرصيد',
     deduct: 'خصم من الرصيد',
@@ -162,6 +163,8 @@ export const WALLET_COPY = {
     usdInvalid: 'أدخل مبلغًا أكبر من صفر بالدولار الأمريكي بخانتين عشريتين على الأكثر، مثل 49.99، ولا يتجاوز 1,000,000.00.',
     sypInvalid: 'أدخل عددًا صحيحًا من الليرات السورية أكبر من صفر، مثل 125000.',
     method: 'وسيلة الاستلام',
+    // What a movement was for, in words (UI-13): the API's own label is English.
+    subjects: { course: 'دورة', rplCharge: 'دفعة لطلب RPL', movement: 'حركة المحفظة رقم {id}' },
     methods: {
       cash: 'نقدًا',
       bank_transfer: 'حوالة بنكية',
@@ -244,8 +247,8 @@ export const WALLET_COPY = {
     balances: 'Wallet balances',
     usdBalance: 'US-dollar balance',
     sypBalance: 'Syrian-pound balance',
-    usdTotals: 'US-dollar balances',
-    sypTotals: 'Syrian-pound balances',
+    usdTotals: 'US-dollar balances, all wallets (not filtered)',
+    sypTotals: 'Syrian-pound balances, all wallets (not filtered)',
     totalsHint: 'All clients\' open balances in this currency, never added to the other.',
     topUp: 'Top up',
     deduct: 'Deduct',
@@ -262,6 +265,7 @@ export const WALLET_COPY = {
     usdInvalid: 'Enter an amount above zero in US dollars with at most two decimals, such as 49.99, and no more than 1,000,000.00.',
     sypInvalid: 'Enter a whole number of Syrian pounds above zero, such as 125000.',
     method: 'How it was received',
+    subjects: { course: 'Course', rplCharge: 'RPL payment', movement: 'Wallet movement #{id}' },
     methods: {
       cash: 'Cash',
       bank_transfer: 'Bank transfer',
@@ -369,6 +373,40 @@ export function walletRefusal(error, language) {
   }
   if (Number(error?.response?.status) === 503 && data.code === 'exchange_rate_missing') return copy.noRate
   return null
+}
+
+/*
+ * THE LEDGER'S DETAILS IN THE SCREEN'S LANGUAGE (platform walk, 17 Oct 2026, UI-13).
+ *
+ * The API writes each movement's description itself, in English ("Money received
+ * by the institute (bank transfer)", "Correction by the institute", "Enrolled in:
+ * …"), and its subject label too ("Course: …", "RPL payment: …"). For a movement
+ * of a known kind the kind, the method and the subject already say it, so the
+ * English description is not repeated; the subject is worded from the course's
+ * own titles and the charge's type. A legacy row keeps its description: nothing
+ * else says what it was.
+ */
+const SERVER_WORDED_KINDS = ['top_up', 'deduction', 'course_purchase', 'course_refund', 'rpl_payment', 'rpl_refund', 'conversion']
+
+export function ledgerDescription(row) {
+  if (!row?.description) return ''
+  return SERVER_WORDED_KINDS.includes(row?.kind) ? '' : String(row.description)
+}
+
+export function ledgerSubjectText(subject, language, chargeTypeLabel = (type) => type) {
+  if (!subject || typeof subject !== 'object') return ''
+  const copy = walletCopy(language).subjects
+  const lang = language === 'ar' ? 'ar' : 'en'
+  if (subject.type === 'enrollment') {
+    const title = subject.title && typeof subject.title === 'object' ? (subject.title[lang] || subject.title.en || subject.title.ar) : ''
+    return `${copy.course}: ${title || String(subject.label ?? '').replace(/^Course: /, '')}`
+  }
+  if (subject.type === 'rpl_charge') {
+    const type = subject.charge_type || String(subject.label ?? '').replace(/^RPL payment: /, '').replaceAll(' ', '_')
+    return `${copy.rplCharge}: ${chargeTypeLabel(type, language)}`
+  }
+  if (subject.type === 'wallet_transaction') return fillWallet(copy.movement, { id: subject.id })
+  return String(subject.label ?? '')
 }
 
 /** A ledger row's movement in words (kind NULL is a legacy points row). */

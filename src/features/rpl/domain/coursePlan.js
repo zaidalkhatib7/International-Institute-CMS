@@ -104,6 +104,8 @@ export const COURSE_PLAN_COPY = {
     inForceTitle: 'الإصدار {version} الساري',
     counter: '{count} من الحد الأدنى {minimum} للمستوى {level}',
     buyableCount: '{count} متاحة للشراء',
+    // A closed plan sells nothing: its counter says how many courses were completed (UI-17).
+    completedCount: '{count} مكتملة',
     minimumChanged: 'أُنشئ هذا الإصدار بحد أدنى {minimum}، والإعداد الآن {current}. أنشئ اقتراحًا جديدًا لتطبيقه.',
     belowMinimum: 'أقل من الحد الأدنى: {count} من {minimum}.',
     below: {
@@ -163,7 +165,7 @@ export const COURSE_PLAN_COPY = {
     purchasedOn: 'اشتُريت في {at}',
     completedOn: 'اكتملت في {at}',
     enrolment: 'التسجيل رقم {id} · إصدار الحقيبة {version}',
-    lessonsProgress: 'أُكمل {done} من {total} درسًا',
+    lessonsProgress: 'أُكمل {done} من {total|درس واحد|درسين|دروس|درسًا|درس}',
     courseQuizPassed: 'اجتاز اختبار الدورة',
     courseQuizNotPassed: 'لم يجتز اختبار الدورة بعد',
     onHold: 'موقوفة بقرار حوكمة',
@@ -176,11 +178,13 @@ export const COURSE_PLAN_COPY = {
     },
     approveHeld: 'تخضع {count} من هذه الدورات لإيقاف حوكمة ({codes}). يمكن الاعتماد، لكن لا يستطيع العميل شراءها أو الاختبار فيها حتى يُرفع الإيقاف.',
     learningComplete: 'اكتملت جميع الدورات، وأُغلقت الخطة، وفُتح الاختبار النهائي.',
+    learningCompleteClosedCase: 'اكتملت جميع الدورات وأُغلقت الخطة، وانتهى الاختبار النهائي.',
+    closedWithExperienceCertificate: 'اكتمل الطلب بشهادة تثبيت الخبرة، فأُغلقت الخطة: لم يعد بإمكان العميل شراء دوراتها التي لم يشترها، ولا يتبعها اختبار نهائي.',
     cancel: 'إلغاء',
     approve: 'اعتماد الخطة',
     approveTitle: 'اعتماد الإصدار {version}',
-    approveSummary: '{count} دورة، منها {buyable} متاحة للشراء. سيرى العميل هذه الخطة.',
-    approveBelow: 'تضم هذه الخطة {count} دورة، والحد الأدنى للمستوى {level} هو {minimum}.',
+    approveSummary: '{count|دورة واحدة|دورتان|دورات|دورة}، منها {buyable} متاحة للشراء. سيرى العميل هذه الخطة.',
+    approveBelow: 'تضم هذه الخطة {count|دورة واحدة|دورتين|دورات|دورة}، والحد الأدنى للمستوى {level} هو {minimum}.',
     belowMinimumReason: 'سبب اعتماد عدد أقل من الحد الأدنى (للموظفين فقط)',
     belowMinimumReasonHint: 'مطلوب، من 10 إلى 2000 حرف. يُحفظ في السجل، ولا يراه العميل أبدًا (قرار المالك، 12 أكتوبر 2026).',
     belowMinimumReasonRecorded: 'سبب اعتماد عدد أقل من الحد الأدنى: {reason}',
@@ -205,7 +209,7 @@ export const COURSE_PLAN_COPY = {
     view: 'عرض',
     hide: 'إخفاء',
     versionLoading: 'جارٍ تحميل الإصدار…',
-    versionCourses: '{count} دورة',
+    versionCourses: '{count|دورة واحدة|دورتان|دورات|دورة}',
     generatedBy: 'Gemini ({model}) في {at}',
     createdBy: 'أنشأه {name} في {at}',
     approvedBy: 'اعتمده {name} في {at}',
@@ -216,6 +220,8 @@ export const COURSE_PLAN_COPY = {
     awaitingPlan: 'ينتظر هذا الطلب خطة الدورات.',
     awaitingApproval: 'تنتظر خطة الدورات الاعتماد (الإصدار {version}).',
     inForce: 'الإصدار {version} من خطة الدورات ساري.',
+    // A plan closes when its courses are completed (the final exam opens) or the case closes; it keeps its approved slot (UI-17).
+    closedPlan: 'الإصدار {version} من خطة الدورات مغلق.',
     openPlan: 'فتح خطة الدورات',
     // The hint under the disabled next-status select in each course-plan status: the act is on the course plan tab, not in P3's decision, interview or decline.
     noTransitionsReview: 'لا توجد حالة أخرى يمكن تعيينها من هنا. استخدم تبويب خطة الدورات: اعتمد المسودة أو ألغِها.',
@@ -276,6 +282,7 @@ export const COURSE_PLAN_COPY = {
     inForceTitle: 'Version {version} in force',
     counter: '{count} of the minimum {minimum} for {level}',
     buyableCount: '{count} available to buy',
+    completedCount: '{count} completed',
     minimumChanged: 'This version was generated with the minimum {minimum}; the setting is now {current}. Generate a new proposal to apply it.',
     belowMinimum: 'Below the minimum: {count} of {minimum}.',
     below: {
@@ -335,7 +342,7 @@ export const COURSE_PLAN_COPY = {
     purchasedOn: 'Bought on {at}',
     completedOn: 'Completed on {at}',
     enrolment: 'Enrolment #{id} · package version {version}',
-    lessonsProgress: '{done} of {total} lessons completed',
+    lessonsProgress: '{done} of {total|lesson|lessons} completed',
     courseQuizPassed: 'Course quiz passed',
     courseQuizNotPassed: 'Course quiz not passed yet',
     onHold: 'On governance hold',
@@ -348,11 +355,13 @@ export const COURSE_PLAN_COPY = {
     },
     approveHeld: '{count} of these courses are on a governance hold ({codes}). Approving is allowed, but the client cannot buy or be examined on them until the hold is lifted.',
     learningComplete: 'Every course is completed. The plan is closed and the final exam is open.',
+    learningCompleteClosedCase: 'Every course is completed and the plan is closed; the final exam is over.',
+    closedWithExperienceCertificate: 'The case was completed with the Experience Confirmation Certificate, so the plan is closed: the client can no longer buy its courses not yet bought, and no final exam follows.',
     cancel: 'Cancel',
     approve: 'Approve the plan',
     approveTitle: 'Approve version {version}',
-    approveSummary: '{count} courses, {buyable} of them available to buy. The client will see this plan.',
-    approveBelow: 'This plan has {count} courses; the minimum for {level} is {minimum}.',
+    approveSummary: '{count|course|courses}, {buyable} of them available to buy. The client will see this plan.',
+    approveBelow: 'This plan has {count|course|courses}; the minimum for {level} is {minimum}.',
     belowMinimumReason: 'Why approve fewer than the minimum (staff only)',
     belowMinimumReasonHint: 'Required, 10 to 2,000 characters. Kept on the record; the client never sees it (owner decision, 12 Oct 2026).',
     belowMinimumReasonRecorded: 'Why fewer than the minimum were approved: {reason}',
@@ -377,7 +386,7 @@ export const COURSE_PLAN_COPY = {
     view: 'View',
     hide: 'Hide',
     versionLoading: 'Loading the version…',
-    versionCourses: '{count} courses',
+    versionCourses: '{count|course|courses}',
     generatedBy: 'Gemini ({model}) on {at}',
     createdBy: 'By {name} on {at}',
     approvedBy: 'Approved by {name} on {at}',
@@ -388,6 +397,7 @@ export const COURSE_PLAN_COPY = {
     awaitingPlan: 'This case awaits its course plan.',
     awaitingApproval: 'The course plan awaits approval (version {version}).',
     inForce: 'Course plan version {version} is in force.',
+    closedPlan: 'Version {version} of the course plan is closed.',
     openPlan: 'Open the course plan',
     noTransitionsReview: 'No other status can be set from here. Use the course plan tab: approve or discard the draft.',
     noTransitionsActive: 'No other status can be set from here. The course plan is in force; any change is an amendment on the course plan tab.',
@@ -577,6 +587,11 @@ export function isPlanLearningComplete(plan) {
   return plan?.status === 'closed' && plan?.closed_reason === 'learning_complete'
 }
 
+/** A plan closed because the case was completed with the Experience Confirmation Certificate ("stop"): its courses are no longer sold (J09-F1). */
+export function isPlanClosedWithExperienceCertificate(plan) {
+  return plan?.status === 'closed' && plan?.closed_reason === 'case_completed_with_experience_certificate'
+}
+
 /**
  * The overview after a write: the plan the server sent back takes its slot, and
  * the case status is the one the server reports. The `can` flags and the
@@ -604,9 +619,17 @@ export function applyCoursePlanWrite(overview, plan, applicationStatus) {
 }
 
 /** The minimums as one readable line, in the order given (the API sends rank order). */
-export function minimumsText(value) {
+/** The minimums map as words: each level's name in the screen language and its minimum, never the level code (UI-09). */
+export function minimumsText(value, language = 'en') {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return ''
-  return Object.entries(value).map(([code, minimum]) => `${code} ${minimum}`).join(' · ')
+  const lang = language === 'ar' ? 'ar' : 'en'
+  return Object.entries(value).map(([code, minimum]) => `${localize(PROFESSIONAL_LEVELS.find((level) => level.code === code)?.labels, lang) || code} ${minimum}`).join(' · ')
+}
+
+/** A professional level's name: the server's name when it sends one, else the fixed level list, else the code. */
+export function professionalLevelName(level, language = 'en') {
+  const lang = language === 'ar' ? 'ar' : 'en'
+  return localize(level?.name, lang) || localize(PROFESSIONAL_LEVELS.find((item) => item.code === level?.code)?.labels, lang) || level?.code || ''
 }
 
 /*

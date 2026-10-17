@@ -2,12 +2,13 @@ const text = {
   ar: {
     accreditationLevels: ['ممارس مهني', 'ممارس مهني متقدم', 'خبير مهني'],
     trainingProgramTypes: ['دورات قصيرة', 'حقائب تدريبية', 'دبلومات مهنية', 'ماجستير مهني', 'دكتوراه مهنية', 'برامج تجسير', 'برامج المؤسسات والوزارات', 'حقائب سد الفجوات', 'برامج تنفيذية', 'برامج مخصصة'],
+    // The professional RPL journey as it runs today (owner flow of 12 Oct and model of 15 Oct 2026; UI-11).
     rplWorkflowStages: [
-      ['application', 'بدء الطلب واختيار المسار', 'إنشاء الطلب وتحديد مجال أو مسار الاعتماد المهني المناسب.'],
-      ['evidence', 'بناء ملف الأدلة', 'رفع الأدلة المهنية وتصنيفها وربطها بمعايير الكفاءة.'],
-      ['assessment', 'التقييم والتحقق', 'مراجعة الأدلة والمقابلة المهنية والتقييم العملي عند الحاجة.'],
-      ['completion', 'تحليل الفجوات والاستكمال', 'تحديد فجوات الكفاءة وبناء خطة الاستكمال المهني.'],
-      ['decision', 'القرار وإصدار الاعتماد', 'مراجعة الملف وإصدار القرار والشهادة والسجل المهني.'],
+      ['application', 'الطلب والوثائق', 'يختار العميل مسار الاعتراف المهني (مع شهادة ثانوية أو دونها) والمستوى: ممارس مهني أو ممارس مهني متقدم أو خبير مهني، ويرفع وثائقه.'],
+      ['screening', 'الفرز والقرار', 'يفحص Gemini أصالة الوثائق ويتحقق من جهات العمل، ثم يقرر الموظفون: اختبار الدخول، أو مقابلة عبر الإنترنت أو في المكتب، أو الرفض مع إمكانية طلب جديد بعد مهلة الانتظار.'],
+      ['entry_quiz', 'اختبار تثبيت الخبرة', 'من ينجح يمكنه شراء شهادة تثبيت الخبرة والتوقف أو المتابعة؛ ومن يتابع أو لا ينجح ينتقل إلى خطة دورات يقترحها Gemini ويعتمدها الموظفون، بالحد الأدنى للمستوى.'],
+      ['course_plan', 'خطة الدورات والتعلّم', 'يشتري العميل الدورات المعتمدة في خطته فقط، ويجتاز اختبار كل دورة.'],
+      ['final_exam', 'الاختبار النهائي وشهادة المستوى', 'اختبار نهائي في الدورات التي درسها بثلاث محاولات، ثم انتظار وإعادة مدفوعة؛ وعند النجاح تصدر شهادة المستوى المختار تلقائيًا، بعد رسوم الشهادة إن وُجدت.'],
     ],
     publicSiteArchitecture: [
       ['home', 'الصفحة الرئيسية'],
@@ -48,11 +49,11 @@ const text = {
     accreditationLevels: ['Professional Practitioner', 'Advanced Professional Practitioner', 'Professional Expert'],
     trainingProgramTypes: ['Short courses', 'Training kits', 'Professional diplomas', 'Professional masters', 'Professional doctorates', 'Bridging programmes', 'Institution and ministry programs', 'Competency gap packages', 'Executive programmes', 'Custom programmes'],
     rplWorkflowStages: [
-      ['application', 'Application and pathway selection', 'Create the application and choose the relevant accreditation pathway.'],
-      ['evidence', 'Evidence portfolio', 'Upload, classify, and map professional evidence to competency standards.'],
-      ['assessment', 'Assessment and verification', 'Review evidence, conduct interviews, and run practical assessment when needed.'],
-      ['completion', 'Gap analysis and completion', 'Identify competency gaps and build the professional completion plan.'],
-      ['decision', 'Decision and accreditation', 'Review the file, issue the decision, certificate, and professional record.'],
+      ['application', 'Request and documents', 'The client chooses the professional RPL pathway (with or without a secondary certificate) and the level — Professional Practitioner, Advanced Professional Practitioner or Professional Expert — and uploads the documents.'],
+      ['screening', 'Screening and decision', 'Gemini screens the documents for authenticity and checks the employers; staff then decide: the entry quiz, an interview online or at the office, or a decline, with a new request allowed after the waiting period.'],
+      ['entry_quiz', 'Experience confirmation quiz', 'A client who passes may buy the Experience Confirmation Certificate and stop, or continue; a client who continues or does not pass moves to a course plan that Gemini proposes and staff approve, with the level\'s minimum.'],
+      ['course_plan', 'Course plan and learning', 'The client buys only the approved courses on the plan and passes each course quiz.'],
+      ['final_exam', 'Final exam and level certificate', 'A final exam over the studied courses, with three tries, then a wait and a paid retake; on a pass the certificate of the chosen level is issued automatically, after the certification fee when one is set.'],
     ],
     publicSiteArchitecture: [
       ['home', 'Home'],
@@ -143,7 +144,7 @@ export function getPlatformArchitecture(language = 'ar') {
         id: 'stages',
         label: language === 'ar' ? 'مراحل رحلة RPL' : 'RPL stages',
         value: rplWorkflowStages.length,
-        hint: language === 'ar' ? 'من الطلب إلى القرار' : 'From application to decision',
+        hint: language === 'ar' ? 'من الطلب إلى شهادة المستوى' : 'From the request to the level certificate',
         icon: 'stages',
       },
       {

@@ -16,6 +16,7 @@ import {
   safeExternalUrl,
   screeningCopy,
   statusExplanation,
+  screeningRationaleText,
 } from '../domain/documentScreening'
 import { acknowledgeRplScreening, requestRplScreening } from '../services/rplService'
 
@@ -81,6 +82,8 @@ function RunSummary({ screening, copy, language, categories, canAcknowledge, bus
   const partial = screening.status === 'completed' && isPartialScreen(screening)
   const coverage = screening.coverage || {}
   const instructions = (Array.isArray(screening.instructions_found_in_documents) ? screening.instructions_found_in_documents : []).filter(Boolean)
+  // The case-level employment signals (plan 5.3: shown to staff as their own column), beside the figure, never in it.
+  const caseSignals = (Array.isArray(screening.case_signals) ? screening.case_signals : []).filter((signal) => signal && typeof signal === 'object')
 
   return (
     <Card>
@@ -123,6 +126,25 @@ function RunSummary({ screening, copy, language, categories, canAcknowledge, bus
           </dl>
         ) : null}
 
+        {caseSignals.length ? (
+          <section aria-label={copy.caseSignalsTitle} data-case-signals="true" className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{copy.caseSignalsTitle}</p>
+            <p className="text-xs leading-5 text-[var(--color-text-muted)]">{copy.caseSignalsHint}</p>
+            <ul className="space-y-2">
+              {caseSignals.map((signal, index) => {
+                const hard = signal.severity === 'hard'
+                return (
+                  <li key={index} data-severity={hard ? 'hard' : 'indicator'} className={`rounded-xl border px-3 py-2 text-xs leading-5 ${hard ? 'border-red-300 bg-red-50 font-semibold text-red-800' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
+                    <span className="me-2 inline-flex rounded-full bg-white/70 px-2 py-0.5 font-bold">{labelFor(copy.severity, hard ? 'hard' : 'indicator')}</span>
+                    <strong>{labelFor(copy.caseSignalCodes, signal.code)}</strong>
+                    {signal.detail ? <span dir="auto" className="mt-1 block">{signal.detail}</span> : null}
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        ) : null}
+
         {/* Prompt injection made visible: text a document addressed to the model. Rendered as text, never as markup. */}
         {instructions.length ? (
           <section className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900" aria-label={copy.instructionsTitle}>
@@ -148,7 +170,7 @@ function RunSummary({ screening, copy, language, categories, canAcknowledge, bus
 }
 
 /* The extracted values are the model's own strings (dates included), shown as read rather than reformatted. */
-function DocumentDetails({ item, copy }) {
+function DocumentDetails({ item, copy, language }) {
   const flags = Array.isArray(item.flags) ? item.flags : []
   const signals = Array.isArray(item.deterministic_signals) ? item.deterministic_signals : []
   const extracted = item.extracted && typeof item.extracted === 'object' ? item.extracted : null
@@ -201,7 +223,7 @@ function DocumentDetails({ item, copy }) {
       {item.rationale ? (
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{copy.rationale}</p>
-          <p dir="auto" className="mt-2 whitespace-pre-wrap text-xs leading-5">{item.rationale}</p>
+          <p dir="auto" className="mt-2 whitespace-pre-wrap text-xs leading-5">{screeningRationaleText(item.rationale, language)}</p>
         </div>
       ) : null}
     </div>
@@ -232,7 +254,7 @@ function DocumentsCard({ screening, copy, language, categories }) {
                   const snapshot = item.evidence_snapshot || {}
                   const notScreened = item.read_status !== 'read'
                   const figure = showFigures && !notScreened && !item.extraction_only && item.fake_likelihood_percent != null ? fill(copy.documentPercent, { percent: Number(item.fake_likelihood_percent) }) : '—'
-                  const details = <DocumentDetails item={item} copy={copy} />
+                  const details = <DocumentDetails item={item} copy={copy} language={language} />
                   return (
                     <ScreeningRowGroup key={item.evidence_public_id || index} details={details} columns={5}>
                       <td className="px-3 py-3 align-top">

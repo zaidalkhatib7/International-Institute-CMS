@@ -102,6 +102,12 @@ export async function updateAdminProgram(id, payload) {
   return response.data
 }
 
+/** The price alone, published package or not (PB-06): PUT /admin/programs/{id}/price, audited by the API. */
+export async function updateAdminProgramPrice(id, payload) {
+  const response = await http.put(`/admin/programs/${id}/price`, payload)
+  return response.data
+}
+
 export async function createAdminProgram(payload) {
   const response = await http.post('/admin/programs', payload)
   return response.data

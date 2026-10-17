@@ -3,6 +3,7 @@ import { Banknote, BadgeCheck, LoaderCircle, RotateCcw, TriangleAlert, XCircle }
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, MoneyInput, Select, Textarea } from '../../../components/ui'
 import { readApiError, unwrapCollection } from '../../../services/apiResponse'
 import { formatLocalizedDateTime } from '../../../utils/localization'
+import { formatRecordedDate } from '../../../utils/businessDate'
 import { formatMoneyInline } from '../../../utils/money'
 import { fill } from '../domain/documentScreening'
 import {
@@ -24,6 +25,7 @@ import {
   isStaleConflict,
   personName,
   rateMissing,
+  rateUnchanged,
   serverAllows,
   settingMissingName,
   todayIso,
@@ -114,6 +116,10 @@ export default function ChargesPanel({ applicationId, language, canReconcile = f
         setNotice({ error: fill(copy.common.settingMissing, { setting: missing }), success: '' })
       } else if (rateMissing(error)) {
         setNotice({ error: copy.common.noRate, success: '' })
+      } else if (rateUnchanged(error)) {
+        // J07-G2: the rate did not change, so the request is not out of date; the reload drops the category.
+        setNotice({ error: text.rateUnchanged, success: '' })
+        load({ silent: true })
       } else {
         setNotice({ error: readApiError(error, copy.common.failed, language), success: '' })
       }
@@ -228,7 +234,8 @@ export default function ChargesPanel({ applicationId, language, canReconcile = f
           {charge.invoice_number ? <Line>{fill(text.invoice, { number: charge.invoice_number })}</Line> : null}
           {charge.requested_at ? <Line>{fill(text.requestedAt, { at: at(charge.requested_at) })}</Line> : null}
           {charge.payer_reference ? <Line><bdi>{fill(text.payerReference, { reference: charge.payer_reference })}</bdi></Line> : null}
-          {charge.paid_at ? <Line>{fill(text.paidAt, { at: at(charge.paid_at) })}</Line> : null}
+          {/* Paid outside: staff entered the DATE paid, on the institute's calendar, recorded as 00:00 UTC of it; it is shown as that date, never as a local time that can fall on the day before (UI-12, J07-G1). */}
+          {charge.paid_at ? <Line>{fill(text.paidAt, { at: charge.route === 'offline' ? formatRecordedDate(charge.paid_at, language) : at(charge.paid_at) })}</Line> : null}
           {charge.confirmed_at ? <Line>{fill(text.confirmedBy, { name: personName(charge.confirmed_by, language), at: at(charge.confirmed_at) })}</Line> : null}
           {charge.offline_reference ? <Line><bdi>{fill(text.offlineEvidence, { amount: formatMoneyInline(charge.offline_received, language), method: copy.methods[charge.offline_method] || charge.offline_method || '—', reference: charge.offline_reference })}</bdi></Line> : null}
           {charge.staff_notes ? <Line><span dir="auto">{fill(text.staffNotes, { notes: charge.staff_notes })}</span></Line> : null}

@@ -20,6 +20,7 @@ import {
   fromDateTimeLocalValue,
   interviewCopy,
   interviewStatus,
+  interviewTimeHasPassed,
   isActiveInterview,
   isCancelReasonValid,
   isFutureDateTimeLocal,
@@ -322,6 +323,8 @@ function CurrentInterview({ interview, applicationStatus, copy, decisionText, ca
   const status = interviewStatus(interview)
   const [open, setOpen] = useState(['offered', 'mode_chosen'].includes(status) ? 'schedule' : null)
   const canDecide = applicationStatus === 'interview_required' && !interview.decision && ['completed', 'no_show'].includes(status)
+  // J03-F1: nobody has missed an interview before its time; the API refuses an early no-show, so it is not offered.
+  const timePassed = interviewTimeHasPassed(interview)
   // Back returns to the default view: the schedule form while the interview still needs a time.
   const back = () => setOpen(status === 'scheduled' ? null : 'schedule')
 
@@ -337,7 +340,7 @@ function CurrentInterview({ interview, applicationStatus, copy, decisionText, ca
 
       {open === 'schedule' && ['offered', 'mode_chosen', 'scheduled'].includes(status) ? <ScheduleForm interview={interview} copy={copy} officeAddress={officeAddress} addressLanguage={addressLanguage} busy={busy} onBack={status === 'scheduled' ? back : null} onSubmit={(payload) => act(() => scheduleRplCaseInterview(interview.id, payload), copy.scheduledDone)} /> : null}
       {open === 'complete' && status === 'scheduled' ? <CompleteForm copy={copy} busy={busy} onBack={back} onSubmit={(payload) => act(() => completeRplInterview(interview.id, payload), copy.completedDone)} /> : null}
-      {open === 'noShow' && status === 'scheduled' ? (
+      {open === 'noShow' && status === 'scheduled' && timePassed ? (
         <section aria-label={copy.noShow} className="space-y-3 rounded-2xl border border-red-200 p-5">
           <p className="text-sm leading-6">{copy.noShowConfirm}</p>
           <div className="flex flex-wrap justify-end gap-2">
@@ -353,7 +356,7 @@ function CurrentInterview({ interview, applicationStatus, copy, decisionText, ca
           {status === 'scheduled' ? (
             <>
               <Button size="sm" onClick={() => setOpen('complete')} disabled={busy}><CheckCircle2 size={16} />{copy.completeSubmit}</Button>
-              <Button size="sm" variant="outline" onClick={() => setOpen('noShow')} disabled={busy}><UserX size={16} />{copy.noShow}</Button>
+              <Button size="sm" variant="outline" onClick={() => setOpen('noShow')} disabled={busy || !timePassed} title={timePassed ? undefined : copy.noShowNotYet}><UserX size={16} />{copy.noShow}</Button>
               <Button size="sm" variant="outline" onClick={() => setOpen('schedule')} disabled={busy}><CalendarClock size={16} />{copy.reschedule}</Button>
             </>
           ) : null}

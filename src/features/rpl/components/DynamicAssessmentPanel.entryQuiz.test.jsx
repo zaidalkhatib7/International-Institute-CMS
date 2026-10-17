@@ -306,6 +306,34 @@ describe('one attempt only: reopening (owner, 12 Oct 2026)', () => {
     expect(await screen.findByText(COPY.en.reissueDone)).toBeInTheDocument()
   })
 
+  it('offers the technical-failure reopen while the window is still running, and sends both reasons (E2E-J05-1)', async () => {
+    renderPanel(entryQuiz({ status: 'issued', answeredCount: 5, answers_submitted_at: null, opened_at: '2026-10-14T09:05:00Z', due_at: '2099-01-01T00:00:00Z' }))
+    mocks.reissueDynamicAssessment.mockResolvedValue({ data: {} })
+
+    const section = within(await screen.findByRole('region', { name: COPY.en.reissueTitle }))
+    expect(section.getByText(COPY.en.reissueWhyRunning)).toBeInTheDocument()
+    expect(section.getByText(EN.reopenOpenedRule)).toBeInTheDocument()
+    fireEvent.click(section.getByRole('button', { name: COPY.en.reissue }))
+    fireEvent.change(screen.getByLabelText(COPY.en.reissueReason), { target: { value: 'Power cut reported by phone.' } })
+    const confirm = screen.getByRole('button', { name: COPY.en.reissueConfirm })
+    expect(confirm).toBeDisabled()
+    fireEvent.change(screen.getByLabelText(EN.technicalFailureReason), { target: { value: 'Power cut in the district from minute 3, confirmed by phone.' } })
+    fireEvent.click(confirm)
+
+    await waitFor(() => expect(mocks.reissueDynamicAssessment).toHaveBeenCalledTimes(1))
+    expect(mocks.reissueDynamicAssessment.mock.calls[0]).toEqual([
+      7,
+      { reason: 'Power cut reported by phone.', technical_failure_reason: 'Power cut in the district from minute 3, confirmed by phone.' },
+    ])
+  })
+
+  it('does not offer the running-window reopen on a set sent before the pass-mark policy', async () => {
+    renderPanel(entryQuiz({ status: 'issued', answeredCount: 5, answers_submitted_at: null, opened_at: '2026-10-14T09:05:00Z', due_at: '2099-01-01T00:00:00Z', scoring_policy: null }))
+
+    await screen.findByRole('region', { name: COPY.en.progressTitle })
+    expect(screen.queryByRole('region', { name: COPY.en.reissueTitle })).not.toBeInTheDocument()
+  })
+
   it('sends the reason alone for a set nobody opened, and asks for no technical failure', async () => {
     renderPanel(entryQuiz({ status: 'issued', answeredCount: 0, answers_submitted_at: null, opened_at: null, due_at: null }))
     mocks.reissueDynamicAssessment.mockResolvedValue({ data: {} })

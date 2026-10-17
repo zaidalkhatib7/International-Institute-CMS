@@ -33,8 +33,16 @@ import { getCurrentLanguage, readLocalizedValue } from '../../../utils/localizat
 import { readApiError } from '../../../services/apiResponse'
 import { formatMoney, money } from '../../../utils/money'
 
+/*
+ * The list's columns fit a laptop (platform walk, 17 Oct 2026, UI-05): at 1280px
+ * the card is about 900px wide, and the old minimums (280+120+110+130+120+120+72
+ * plus gaps and padding, 1072px) pushed Status and Actions out of an
+ * overflow-hidden card. These add up to 832px; below that the table scrolls
+ * sideways inside the card, and every cell may shrink (min-w-0) instead of
+ * running into its neighbour.
+ */
 const PROGRAMS_TABLE_GRID =
-  'grid-cols-[minmax(280px,2.2fr)_minmax(120px,1fr)_minmax(110px,0.9fr)_minmax(130px,0.95fr)_minmax(120px,0.95fr)_minmax(120px,0.95fr)_72px]'
+  'grid-cols-[minmax(200px,2.2fr)_minmax(110px,1fr)_minmax(80px,0.8fr)_minmax(90px,0.8fr)_minmax(84px,0.8fr)_minmax(84px,0.8fr)_64px]'
 const VISIBILITY_FILTERS = new Set(['all', 'featured', 'active', 'inactive'])
 
 function readLocalized(value) {
@@ -179,25 +187,26 @@ function ProgramRow({
     <div
       className={`grid ${PROGRAMS_TABLE_GRID} items-center gap-3 border-t border-[var(--color-border)] px-6 py-5`}
     >
-      <div className="flex items-center gap-3">
-        <div className="h-14 w-14 rounded-2xl bg-[var(--color-primary)]/10" />
-        <div>
-          <h4 className="text-[1.75rem] font-semibold leading-tight text-[var(--color-text)]">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="h-12 w-12 shrink-0 rounded-2xl bg-[var(--color-primary)]/10" />
+        <div className="min-w-0">
+          <h4 className="break-words text-lg font-semibold leading-snug text-[var(--color-text)]">
             {title}
           </h4>
-          <p className="mt-1 max-w-[320px] truncate text-sm text-[var(--color-text-muted)]">
+          <p className="mt-1 truncate text-sm text-[var(--color-text-muted)]">
             {description}
           </p>
         </div>
       </div>
 
-      <div className="truncate text-lg text-[var(--color-text-body,#43474D)]">{categoryName}</div>
-      <div className="truncate text-lg text-[var(--color-text-body,#43474D)]">{duration}</div>
+      <div className="min-w-0 truncate text-base text-[var(--color-text-body,#43474D)]" title={categoryName || undefined}>{categoryName}</div>
+      <div className="min-w-0 truncate text-base text-[var(--color-text-body,#43474D)]">{duration}</div>
 
-      <div className="text-lg font-semibold text-[var(--color-text)]">
+      <div className="min-w-0 text-base font-semibold text-[var(--color-text)]">
         <bdi dir="ltr">{Number.isSafeInteger(program.price_usd_minor) ? formatMoney(money(program.price_usd_minor, 'USD')) : '—'}</bdi>
       </div>
 
+      <div className="min-w-0">
       <ToggleCell
         checked={Boolean(program.is_featured)}
         onToggle={() => onToggleFeatured(program)}
@@ -207,7 +216,9 @@ function ProgramRow({
         checkedClassName="bg-[var(--color-secondary)] text-[var(--color-accent-dark,#765A1F)] shadow-[0_0_0_1px_rgba(209,162,70,0.35),0_8px_22px_rgba(209,162,70,0.35)]"
         uncheckedClassName="bg-[var(--color-surface-muted)] text-[var(--color-text-muted)]"
       />
+      </div>
 
+      <div className="min-w-0">
       <ToggleCell
         checked={Boolean(program.is_active)}
         onToggle={() => onToggleActive(program)}
@@ -217,8 +228,9 @@ function ProgramRow({
         checkedClassName="bg-[#DCFCE7] text-[#166534] shadow-[0_0_0_1px_rgba(34,197,94,0.3),0_8px_22px_rgba(34,197,94,0.28)]"
         uncheckedClassName="bg-[#FEE2E2] text-[#991B1B] shadow-[inset_0_0_0_1px_rgba(248,113,113,0.35)]"
       />
+      </div>
 
-      <div className="flex items-center justify-end gap-1">
+      <div className="flex min-w-0 items-center justify-end gap-1">
         <button
           className="rounded-lg p-1.5 text-[var(--color-text-muted)] hover:bg-black/5"
           onClick={() => onEdit(program)}
@@ -652,6 +664,7 @@ export default function ProgramsPage() {
       </Card>
 
       <Card className="overflow-hidden">
+        <div className="overflow-x-auto" tabIndex="0">
         <div
           className={`grid ${PROGRAMS_TABLE_GRID} gap-3 bg-[var(--color-surface-muted)] px-6 py-4 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]`}
         >
@@ -661,7 +674,7 @@ export default function ProgramsPage() {
           <div>{copy.price}</div>
           <div>{copy.visibility}</div>
           <div>{copy.status}</div>
-          <div className="text-right">{copy.actions}</div>
+          <div className="text-end">{copy.actions}</div>
         </div>
 
         {isLoading ? (
@@ -686,6 +699,7 @@ export default function ProgramsPage() {
             />
           ))
         )}
+        </div>
 
         <div className="flex flex-col gap-4 border-t border-[var(--color-border)] px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--color-text-muted)]">

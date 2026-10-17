@@ -14,6 +14,7 @@ import {
   chargeStatusLabel,
   finalExamStateLabel,
   isAfterQuizReasonValid,
+  issuanceJobStatusLabel,
   isReopenableTry,
   isVoidableTry,
   levelCertificateStateLabel,
@@ -293,7 +294,7 @@ export default function FinalExamPanel({ applicationId, language, canManage = fa
         {level.state === 'awaiting_fee' ? <p className="leading-6 text-amber-900">{text.level.feeDue}</p> : null}
         {amountMinorOf(level.certification_fee) > 0 ? <Line><bdi>{fill(text.level.feeFrozen, { amount: formatMoneyInline(level.certification_fee, language) })}</bdi></Line> : null}
         {level.charge ? <Line><bdi>{fill(text.level.charge, { amount: chargePriceLine(level.charge, language), status: chargeStatusLabel(level.charge.status, language) })}</bdi></Line> : null}
-        {level.outbox ? <Line>{fill(text.level.outbox, { status: level.outbox.status || '—', attempts: level.outbox.attempts ?? 0 })}</Line> : null}
+        {level.outbox ? <Line>{fill(text.level.outbox, { status: level.outbox.status ? issuanceJobStatusLabel(level.outbox.status, language) : '—', attempts: level.outbox.attempts ?? 0 })}</Line> : null}
         {level.outbox?.last_error ? <Line><span dir="auto">{fill(text.level.lastError, { error: level.outbox.last_error })}</span></Line> : null}
         {level.outbox?.available_at && level.state !== 'issued' ? <Line>{fill(text.level.availableAt, { at: at(level.outbox.available_at) })}</Line> : null}
         {level.certificate ? <p className="font-semibold"><bdi>{fill(text.level.certificate, { number: level.certificate.number, at: at(level.certificate.issued_at) })}</bdi></p> : null}

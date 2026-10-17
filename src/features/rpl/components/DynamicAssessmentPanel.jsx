@@ -50,6 +50,7 @@ import {
   RESCORE_REASON_MIN,
   TECHNICAL_FAILURE_REASON_MAX,
   TECHNICAL_FAILURE_REASON_MIN,
+  canReopenRunningForTechnicalFailure,
   canRescoreEntryQuiz,
   entryQuizCopy,
   entryQuizItemMarks,
@@ -115,6 +116,8 @@ const copyByLanguage = {
     reissueWhyNeverOpened:
       "أُرسل التقييم ولم يفتحه المتقدم مطلقًا، فلم تبدأ المدة الزمنية أصلًا.",
     reissueWhyIncomplete: "هذا التقييم مُعلَّم «تمت الإجابة» ولا تزال فيه أسئلة بلا إجابة.",
+    reissueWhyRunning:
+      "لا تزال نافذة الإجابة جارية. لا يُعاد فتحها إلا لعطل تقني موثّق أبلغ عنه المتقدم: تُحفظ الإجابات المقدَّمة، ويتوقف العدّ، ويمنح البدء التالي نافذة كاملة.",
     reissueReason: "السبب — يُسجَّل في سجل التدقيق",
     reissuePlaceholder: "مثال: انقطع اتصال المتقدم أثناء النافذة.",
     reissueNote:
@@ -226,6 +229,8 @@ const copyByLanguage = {
       "The assessment was sent and the applicant never opened it, so the timer never started.",
     reissueWhyIncomplete:
       "This assessment is marked answered with questions still outstanding.",
+    reissueWhyRunning:
+      "The answering window is still running. Reopen it only for a documented technical failure the applicant reported: the answers given are kept, the countdown stops, and the next Start gives a full window.",
     reissueReason: "Reason — recorded in the audit trail",
     reissuePlaceholder: "For example: the applicant lost connection during the window.",
     reissueNote:
@@ -424,7 +429,9 @@ export default function DynamicAssessmentPanel({
   /*
    * The states the server will reopen from, mirrored so the control appears
    * exactly where the action exists. An `issued` set inside a running window is
-   * still answerable and must not be disturbed.
+   * still answerable and must not be disturbed, with one exception: an entry quiz
+   * the applicant reports a technical failure on reopens for that documented
+   * failure (owner D11; E2E-J05-1, 17 Oct 2026).
    *
    * `never opened` is the one that matters most in practice: `due_at` is written
    * when the applicant OPENS the assessment, not when it is sent, so a delivered
@@ -457,7 +464,9 @@ export default function DynamicAssessmentPanel({
    * application.status, so the control is not offered there and a note says why.
    */
   const caseClosed = isCaseClosed(assessment);
-  const canReissue = !caseClosed && (windowClosed || neverOpened || answeredIncomplete) && !hasQuizResult(assessment);
+  // E2E-J05-1: an entry quiz whose window is still running reopens for a documented technical failure (D11).
+  const runningTechnicalFailure = !windowClosed && canReopenRunningForTechnicalFailure(assessment);
+  const canReissue = !caseClosed && (windowClosed || neverOpened || answeredIncomplete || runningTechnicalFailure) && !hasQuizResult(assessment);
   const reissueNeedsTechnicalFailure = reopenNeedsTechnicalFailure(assessment);
   const quizMarks = entryQuizItemMarks(assessment);
   // Timer expiry closes the quiz as heard (plan R8 exception; D11(i), on the plan
@@ -478,7 +487,9 @@ export default function DynamicAssessmentPanel({
     ? copy.reissueWhyExpired
     : neverOpened
       ? copy.reissueWhyNeverOpened
-      : copy.reissueWhyIncomplete;
+      : runningTechnicalFailure
+        ? copy.reissueWhyRunning
+        : copy.reissueWhyIncomplete;
 
   if (state.loading) {
     return (

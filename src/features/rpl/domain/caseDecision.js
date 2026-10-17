@@ -74,9 +74,10 @@ export const CASE_DECISION_COPY = {
     hint: 'يقرر الموظفون الخطوة التالية. مؤشر الفرز استشاري: لا يقرر في الطلب أبدًا، ولا يراه المتقدم.',
     latestScreening: 'أحدث فرز للوثائق',
     noScreening: 'لم يُشغَّل أي فرز للوثائق على هذا الطلب.',
+    screeningLoading: 'جارٍ تحميل آخر فرز للوثائق…',
     noCurrentScreening: 'لا يوجد لهذا الطلب فرز مكتمل حالي. ما دام الفرز مفعّلًا، يطلب الخادم سببًا للتجاوز قبل أن يسجّل القرار.',
     staleScreening: 'تغيّرت الأدلة بعد تشغيل هذا الفرز، فلم يعد يصف الوثائق الحالية.',
-    coverage: 'قُرئت {read} من {total} وثيقة.',
+    coverage: 'قُرئت {read} من {total|وثيقة واحدة|وثيقتين|وثائق|وثيقة}.',
     decision: 'القرار',
     decisions: { pass_to_quiz: 'إحالة إلى الاختبار', interview_required: 'مقابلة', decline: 'رفض' },
     decisionHints: {
@@ -138,9 +139,10 @@ export const CASE_DECISION_COPY = {
     hint: 'Staff decide what happens next. The screening figure is advisory: it never decides the case, and the applicant never sees it.',
     latestScreening: 'Latest document screening',
     noScreening: 'No document screening has run on this case.',
+    screeningLoading: 'Loading the latest document screening…',
     noCurrentScreening: 'This case has no current completed screen. While screening is switched on, the server asks for an override reason before it records a decision.',
     staleScreening: 'Evidence changed after this screen ran, so it no longer describes the current documents.',
-    coverage: 'Read {read} of {total} documents.',
+    coverage: 'Read {read} of {total|document|documents}.',
     decision: 'Decision',
     decisions: { pass_to_quiz: 'Pass to quiz', interview_required: 'Interview', decline: 'Decline' },
     decisionHints: {
@@ -272,6 +274,7 @@ export const INTERVIEW_COPY = {
     noShowConfirm: 'هل تسجّل أن المتقدم لم يحضر؟ بعد ذلك يكون القرار الوحيد الممكن هو الرفض.',
     noShowSubmit: 'تسجيل عدم الحضور',
     noShowDone: 'سُجّل عدم الحضور.',
+    noShowNotYet: 'يمكن تسجيل عدم الحضور بعد موعد المقابلة فقط.',
     cancel: 'إلغاء المقابلة',
     cancelReason: 'السبب (للموظفين فقط)',
     cancelReasonHint: 'من 3 إلى 2000 حرف. لا يظهر للمتقدم أبدًا.',
@@ -365,6 +368,7 @@ export const INTERVIEW_COPY = {
     noShowConfirm: 'Record that the applicant did not attend? Afterwards the only decision is a decline.',
     noShowSubmit: 'Record the no-show',
     noShowDone: 'Recorded as a no-show.',
+    noShowNotYet: 'A no-show can be recorded only once the interview time has passed.',
     cancel: 'Cancel the interview',
     cancelReason: 'Reason (staff only)',
     cancelReasonHint: '3 to 2,000 characters. Never shown to the applicant.',
@@ -452,6 +456,15 @@ export function interviewStatus(interview, now = Date.now()) {
   if (status !== 'offered') return status
   const due = Date.parse(interview?.response_due_at || '')
   return Number.isFinite(due) && due < now ? 'expired' : status
+}
+
+/**
+ * J03-F1 (17 Oct 2026): a scheduled interview can be recorded as missed only
+ * once its time has passed; the API refuses an earlier no-show.
+ */
+export function interviewTimeHasPassed(interview, now = Date.now()) {
+  const scheduled = Date.parse(interview?.scheduled_at || '')
+  return Number.isFinite(scheduled) && scheduled <= now
 }
 
 export function isActiveInterview(interview, now = Date.now()) {

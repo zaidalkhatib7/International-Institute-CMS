@@ -183,13 +183,56 @@ export function declineCategoryLabel(code, language = 'en', categories = DECLINE
 }
 
 /*
- * THE STATUS EVENTS AFTER THE ENTRY QUIZ (owner model of 15 Oct 2026, P6).
+ * THE CASE TIMELINE, IN WORDS (platform walk, 17 Oct 2026, UI-03).
  *
- * The case timeline names each event in Arabic and English. An event this list
- * does not know keeps the old fallback (its title, else its code), so a label is
- * never hidden. credential.issued is shared with the committee path.
+ * Every event the API writes onto a case (rpl_status_events.event; the list
+ * App\Support\RplApplicantView::TIMELINE governs, plus the administrator's
+ * evidence correction), named in Arabic and English. Before, only the P6 events
+ * after the entry quiz (owner model of 15 Oct 2026) were here, and the intake,
+ * screening, decision, quiz and plan events of every case showed as dotted codes.
+ * An event this list does not know keeps the fallback (its title, else its code
+ * in words), so a label is never hidden. credential.issued is shared with the
+ * committee path.
  */
 export const TIMELINE_EVENT_LABELS = {
+  'application.created': { ar: 'أُنشئ الطلب', en: 'Request created' },
+  'application.created_by_administrator': { ar: 'أنشأ الموظفون الطلب للعميل', en: 'Request created by staff for the client' },
+  'application.submitted': { ar: 'قُدِّم الطلب', en: 'Request submitted' },
+  'application.transitioned': { ar: 'تغيّرت حالة الطلب', en: 'Case status changed' },
+  'administrative_review.started': { ar: 'بدأت المراجعة الإدارية', en: 'Administrative review started' },
+  'administrative_review.accepted': { ar: 'قُبل الطلب في المراجعة الإدارية', en: 'Accepted at administrative review' },
+  'administrative_review.information_requested': { ar: 'طُلبت معلومات إضافية في المراجعة الإدارية', en: 'More information requested at administrative review' },
+  'administrative_review.rejected': { ar: 'رُفض الطلب في المراجعة الإدارية', en: 'Rejected at administrative review' },
+  'information_request.created': { ar: 'أُرسل طلب معلومات إلى العميل', en: 'Information request sent to the client' },
+  'information_request.responded': { ar: 'ردّ العميل على طلب المعلومات', en: 'The client answered the information request' },
+  'information_request.closed': { ar: 'أُغلق طلب المعلومات', en: 'Information request closed' },
+  'evidence.clarification_requested': { ar: 'طُلب توضيح لدليل', en: 'Clarification requested on evidence' },
+  'evidence.corrected_by_administrator': { ar: 'صحّح أحد المديرين بيانات دليل', en: 'Evidence details corrected by an administrator' },
+  'payment.reconciled': { ar: 'سُجّلت تسوية الدفع', en: 'Payment reconciled' },
+  'assessor.assigned': { ar: 'أُسند الطلب إلى مقيّم', en: 'Assessor assigned' },
+  'admin.assessment.started': { ar: 'بدأ أحد المديرين التقييم', en: 'Assessment started by an administrator' },
+  'assessment.started': { ar: 'بدأ التقييم', en: 'Assessment started' },
+  'assessor.report_submitted': { ar: 'قدّم المقيّم تقريره', en: 'Assessor report submitted' },
+  'quality.review_completed': { ar: 'اكتملت مراجعة الجودة', en: 'Quality review completed' },
+  'quality.rework_opened': { ar: 'أُعيد الملف للتعديل بعد مراجعة الجودة', en: 'Returned for rework after quality review' },
+  'committee.decision_issued': { ar: 'أصدرت اللجنة قرارها', en: 'Committee decision issued' },
+  'appeal.window_opened': { ar: 'فُتحت مهلة التظلم', en: 'Appeal window opened' },
+  'appeal.submitted': { ar: 'قُدِّم تظلم', en: 'Appeal submitted' },
+  'appeal.decided': { ar: 'صدر قرار التظلم', en: 'Appeal decided' },
+  'appeal.remanded': { ar: 'أُعيد الملف إلى اللجنة بعد التظلم', en: 'Returned to the committee on appeal' },
+  'appeal.reassigned': { ar: 'أُعيد إسناد الملف بعد التظلم', en: 'Reassigned on appeal' },
+  'decision.finalized': { ar: 'أصبح القرار نهائيًا', en: 'Decision finalised' },
+  'interview.offered': { ar: 'عُرضت مقابلة على العميل', en: 'Interview offered to the client' },
+  'interview.mode_chosen': { ar: 'اختار العميل نمط المقابلة', en: 'The client chose the interview mode' },
+  'interview.scheduled': { ar: 'حُدِّد موعد المقابلة', en: 'Interview scheduled' },
+  'interview.cancelled': { ar: 'أُلغيت المقابلة', en: 'Interview cancelled' },
+  'interview.decided': { ar: 'سُجّل القرار بعد المقابلة', en: 'Decision recorded after the interview' },
+  'application.declined': { ar: 'رُفض الطلب', en: 'Request declined' },
+  'screening_decision.recorded': { ar: 'سُجّل القرار بعد فرز الوثائق', en: 'Decision recorded after document screening' },
+  'course_plan.generated': { ar: 'أُنشئت مسودة خطة الدورات', en: 'Course plan draft generated' },
+  'course_plan.approved': { ar: 'اعتُمدت خطة الدورات', en: 'Course plan approved' },
+  'course_plan.amended': { ar: 'فُتح تعديل على خطة الدورات', en: 'Course plan amendment opened' },
+  'course_plan.discarded': { ar: 'أُلغيت مسودة خطة الدورات', en: 'Course plan draft discarded' },
   'experience_certificate.requested': { ar: 'طُلبت شهادة تثبيت الخبرة', en: 'Experience Confirmation Certificate requested' },
   'experience_certificate.choice_changed': { ar: 'غيّر العميل اختياره بعد الشهادة', en: 'The client changed the choice after the certificate' },
   'experience_certificate.refused': { ar: 'رُفض إصدار شهادة تثبيت الخبرة وأُعيد المبلغ', en: 'Experience Confirmation Certificate refused; the payment was returned' },
@@ -208,6 +251,25 @@ export const TIMELINE_EVENT_LABELS = {
 export function timelineEventLabel(code, language = 'en') {
   if (!code || typeof code !== 'string') return ''
   return localize(TIMELINE_EVENT_LABELS[code], language === 'ar' ? 'ar' : 'en')
+}
+
+/**
+ * A timeline row's heading: the server's own title when it sends one, else the
+ * event's label (a generic status move names the status it moved to), else the
+ * code in words. Never a dotted code.
+ */
+export function timelineEventTitle(event, language = 'en') {
+  const lang = language === 'ar' ? 'ar' : 'en'
+  const code = event?.event || event?.type || ''
+  const title = localize(event?.title, lang)
+  if (title) return title
+  const label = timelineEventLabel(code, lang)
+  if (label && code === 'application.transitioned' && event?.to_status) {
+    const status = localize(APPLICATION_STATUS[event.to_status]?.labels, lang)
+    if (status) return `${label}: ${status}`
+  }
+  if (label) return label
+  return String(code).replaceAll('.', ' ').replaceAll('_', ' ').trim()
 }
 
 export const PROFESSIONAL_LEVELS = [
@@ -298,6 +360,32 @@ export function readApplicationDecline(application, language = 'en', categories 
     reapplyAvailableAt,
     reapplyDerived: !stamped && Boolean(reapplyAvailableAt),
     ...(applicantCategory ? { applicantCategory, applicantCategoryLabel: declineCategoryLabel(applicantCategory, language, categories) } : {}),
+  }
+}
+
+/** The statuses a case never leaves: no next status exists for it (UI-10). */
+export const CLOSED_APPLICATION_STATUSES = ['rejected', 'withdrawn', 'completed']
+
+/**
+ * WHO DECLINED, WHEN AND WHY, for staff (platform walk, 17 Oct 2026, UI-10).
+ *
+ * The rationale of a decline is staff-only: the applicant reads the category
+ * sentence and never this. It was hidden from staff too: the case carries it as
+ * `status_reason`, and the timeline's move into `rejected` names the decider and
+ * the moment, but nothing showed either. Null on a case that is not rejected.
+ */
+export function readDeclineRecord(application, timeline = []) {
+  if (application?.status !== 'rejected') return null
+  const events = Array.isArray(timeline) ? timeline : []
+  const move = [...events].reverse().find((event) => event?.event === 'application.declined')
+    || [...events].reverse().find((event) => event?.to_status === 'rejected')
+    || null
+  const rationale = String(application?.status_reason ?? move?.reason ?? '').trim()
+  if (!rationale && !move) return null
+  return {
+    rationale,
+    by: move?.actor ? (move.actor.name || move.actor.email || '') : '',
+    at: move?.created_at || application?.finalised_at || null,
   }
 }
 

@@ -32,11 +32,29 @@ export function getAdminLanguage() {
   return normalized
 }
 
+/*
+ * The browser tab names the platform in the interface language (platform walk,
+ * 17 Oct 2026, UI-20): index.html ships the Arabic title, and nothing changed it
+ * in English mode.
+ */
+export const DOCUMENT_TITLES = Object.freeze({
+  ar: 'ICPC | نظام إدارة الاعتماد المهني',
+  en: 'ICPC | Professional Accreditation Management System',
+})
+
+/** The page's language, direction and tab title, for the given interface language. */
+export function applyDocumentLanguage(language) {
+  const normalized = normalizeAdminLanguage(language)
+  document.documentElement.lang = normalized
+  document.documentElement.dir = ADMIN_LANGUAGE_METADATA[normalized].direction
+  document.title = DOCUMENT_TITLES[normalized]
+  return normalized
+}
+
 export function setAdminLanguage(language) {
   const normalized = normalizeAdminLanguage(language)
   localStorage.setItem(apiConfig.languageStorageKey, normalized)
-  document.documentElement.lang = normalized
-  document.documentElement.dir = ADMIN_LANGUAGE_METADATA[normalized].direction
+  applyDocumentLanguage(normalized)
 }
 
 export function getNextAdminLanguage(currentLanguage) {

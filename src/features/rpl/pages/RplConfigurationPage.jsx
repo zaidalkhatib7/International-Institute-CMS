@@ -4,6 +4,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, DataTableShell
 import { readApiError, unwrapApiData, unwrapCollection } from '../../../services/apiResponse'
 import { amountMinorOf, formatMoney, isMoney, moneyFromDecimal } from '../../../utils/money'
 import { getAdminLanguage } from '../../../services/languageStorage'
+import { formatLocalizedDate } from '../../../utils/localization'
 import { fetchUsers } from '../../users/services/usersService'
 import { APPLICATION_STATUS, EVIDENCE_EXTENSIONS, localize } from '../domain/rpl'
 import { SCREENING_IDENTITY_CATEGORY, SCREENING_MODEL_MAX_LENGTH, SCREENING_SETTING_KEYS, screeningSettingsCopy } from '../domain/documentScreening'
@@ -94,12 +95,12 @@ function readOfficeAddress(value) {
 
 const copyByLanguage = {
   ar: {
-    title: 'إعدادات ومعايير RPL', description: 'إدارة مرجعيات محرك RPL التشغيلية بنماذج مطابقة للواجهات البرمجية.',
+    title: 'إعدادات ومعايير RPL', description: 'إدارة مسارات RPL ومستوياتها ومعاييرها ورسومها وضوابطها.',
     pathways: 'المسارات', levels: 'المستويات', standards: 'المعايير', competencies: 'الكفاءات', categories: 'فئات الأدلة', rubrics: 'نماذج التقييم', declarations: 'الإقرارات', outcomes: 'النتائج', actions: 'إجراءات اللجنة', fees: 'الرسوم', committees: 'اللجان', workflow: 'الضوابط', certificate_wording: 'صيغة الشهادة',
     feesFinalExamHint: 'رسوم الشهادة لكل مسار ومستوى بالدولار الأمريكي، وتسري أيضًا في مسار الاختبار النهائي (قرارا المالك، 15 و17 أكتوبر 2026): عند صفر تصدر شهادة المستوى تلقائيًا عند اجتياز الاختبار النهائي، وفوق الصفر يدفع العميل الرسوم أولًا، بالدولار أو بالليرة السورية بسعر الصرف عند الدفع، ثم تصدر الشهادة تلقائيًا.',
     feeCurrencyUsd: 'تُحصَّل الرسوم بالدولار الأمريكي.', feeAmountUsd: 'المبلغ (بالدولار الأمريكي)', feeAmountInvalid: 'أدخل صفرًا، أو مبلغًا من 1.00 إلى 1,000,000.00 دولار بخانتين عشريتين على الأكثر.', feeLegacyCurrency: 'ليست بالدولار الأمريكي ({currency}): أعد إدخال هذه الرسوم بالدولار. ولا يمكن تحصيلها حتى ذلك.',
     add: 'إضافة سجل', edit: 'تعديل', delete: 'حذف', save: 'حفظ', cancel: 'إلغاء', active: 'فعال', inactive: 'غير فعال', code: 'الرمز', name: 'الاسم', descriptionField: 'الوصف', status: 'الحالة', actionsLabel: 'الإجراءات', empty: 'لا توجد سجلات.',
-    pathway: 'المسار', standard: 'المعيار', level: 'المستوى', slug: 'المعرف', rank: 'الرتبة', version: 'النسخة', order: 'الترتيب', behavior: 'السلوك', quorum: 'النصاب', quorumSingleOnly: 'النصاب مثبت على 1: النصاب الأكبر يتطلب تسجيل أصوات متعددة، وشاشة التصويت غير مبنية بعد، ولا يوجد إلغاء — فتُحبس الحالة نهائيًا.', amount: 'المبلغ', currency: 'العملة', effectiveFrom: 'ساري من', effectiveUntil: 'ساري حتى',
+    pathway: 'المسار', standard: 'المعيار', level: 'المستوى', slug: 'المعرف', rank: 'الرتبة', version: 'النسخة', order: 'الترتيب', behavior: 'السلوك', quorum: 'النصاب', quorumSingleOnly: 'النصاب مثبت على 1: النصاب الأكبر يتطلب تسجيل أصوات متعددة، وشاشة التصويت غير مبنية بعد، ولا يوجد إلغاء — فتُحبس الحالة نهائيًا.', amount: 'المبلغ', currency: 'العملة', effectiveFrom: 'ساري من', effectiveUntil: 'ساري حتى', feeAllLevels: 'كل المستويات (عام)', feeInForce: 'مدة السريان', feeOpenEnded: 'دون تاريخ انتهاء', feeChoosePathway: 'اختر المسار أولًا لتظهر مستوياته.',
     examples: 'أمثلة، كل مثال في سطر', extensions: 'الامتدادات', maxSize: 'الحد الأقصى (MB)', minimum: 'الحد الأدنى', maximum: 'الحد الأقصى', files: 'يقبل ملفات', urls: 'يقبل روابط', requiredDefault: 'مطلوب افتراضيًا',
     criteria: 'معايير النموذج', addCriterion: 'إضافة معيار تقييم', competency: 'الكفاءة', maximumScore: 'النقطة القصوى', passScore: 'نقطة النجاح', required: 'إلزامي', evidenceCategories: 'فئات الأدلة للمعيار', members: 'أعضاء اللجنة', addMember: 'إضافة عضو', member: 'العضو', role: 'الدور',
     draft: 'مسودة', published: 'منشور', retired: 'متقاعد', chair: 'رئيس اللجنة', committeeMember: 'عضو', secretary: 'أمين السر', requiresGapPlan: 'يتطلب خطة لسد الفجوات', credentialEligible: 'مؤهل لإصدار اعتماد',
@@ -112,12 +113,12 @@ const copyByLanguage = {
     cooldownTitle: 'مهلة إعادة التقديم بعد الرفض', cooldownHint: 'إعداد محكوم يقرره المالك، ولا قيمة افتراضية له في الشيفرة. يُثبَّت تاريخ إعادة التقديم على الطلب لحظة رفضه، فلا يغيّر تعديل هذه القيمة لاحقًا تاريخًا أُعطي للعميل. تسري المهلة على العميل في مساري RPL كليهما.', cooldownDays: 'مدة المهلة (يوم، من 0 إلى 365)', cooldownScope: 'ما الذي يبدأ المهلة', cooldownScopeAll: 'كل رفض لطلب RPL، بما فيه قرار اللجنة والتظلم', cooldownScopeNarrow: 'رفض الفرز أو المقابلة أو الاختبار فقط', cooldownMissing: 'غير مضبوط: يُرفض كل قرار رفض حتى يُحدَّد هذا الإعداد.',
   },
   en: {
-    title: 'RPL Standards & Configuration', description: 'Manage every operational RPL reference with forms that match the backend contract.',
+    title: 'RPL Standards & Configuration', description: 'Manage the RPL pathways, levels, standards, fees and controls.',
     pathways: 'Pathways', levels: 'Levels', standards: 'Standards', competencies: 'Competencies', categories: 'Evidence categories', rubrics: 'Rubrics', declarations: 'Declarations', outcomes: 'Outcomes', actions: 'Committee actions', fees: 'Fee schedules', committees: 'Committees', workflow: 'Controls', certificate_wording: 'Certificate wording',
     feesFinalExamHint: 'The certification fee per pathway and level is in US dollars and also applies on the final-exam path (owner decisions, 15 and 17 Oct 2026): at 0 the level certificate is issued automatically when the final exam is passed; above 0 the client pays the fee first, in dollars or in Syrian pounds at the rate when he pays, and the certificate is then issued automatically.',
     feeCurrencyUsd: 'The fee is charged in US dollars.', feeAmountUsd: 'Amount (US dollars)', feeAmountInvalid: 'Enter 0, or an amount from 1.00 to 1,000,000.00 US dollars with at most two decimals.', feeLegacyCurrency: 'Not in US dollars ({currency}): re-enter this fee in dollars. Until then it cannot be charged.',
     add: 'Add record', edit: 'Edit', delete: 'Delete', save: 'Save', cancel: 'Cancel', active: 'Active', inactive: 'Inactive', code: 'System code', name: 'Name', descriptionField: 'Description', status: 'Status', actionsLabel: 'Actions', empty: 'No records have been configured.',
-    pathway: 'Pathway', standard: 'Standard', level: 'Level', slug: 'Slug', rank: 'Rank', version: 'Version', order: 'Sort order', behavior: 'Behaviour', quorum: 'Quorum', quorumSingleOnly: 'Quorum is fixed at 1: a higher quorum needs multiple recorded votes, the vote panel is not built yet, and there is no cancel — the case would be stuck permanently.', amount: 'Amount', currency: 'Currency', effectiveFrom: 'Effective from', effectiveUntil: 'Effective until',
+    pathway: 'Pathway', standard: 'Standard', level: 'Level', slug: 'Slug', rank: 'Rank', version: 'Version', order: 'Sort order', behavior: 'Behaviour', quorum: 'Quorum', quorumSingleOnly: 'Quorum is fixed at 1: a higher quorum needs multiple recorded votes, the vote panel is not built yet, and there is no cancel — the case would be stuck permanently.', amount: 'Amount', currency: 'Currency', effectiveFrom: 'Effective from', effectiveUntil: 'Effective until', feeAllLevels: 'All levels (general)', feeInForce: 'In force', feeOpenEnded: 'no end date', feeChoosePathway: 'Choose the pathway first to list its levels.',
     examples: 'Examples, one per line', extensions: 'Allowed extensions', maxSize: 'Maximum size (MB)', minimum: 'Minimum items', maximum: 'Maximum items', files: 'Accept files', urls: 'Accept URLs', requiredDefault: 'Required by default',
     criteria: 'Rubric criteria', addCriterion: 'Add criterion', competency: 'Competency', maximumScore: 'Maximum score', passScore: 'Pass score', required: 'Required', evidenceCategories: 'Standard evidence categories', members: 'Committee members', addMember: 'Add member', member: 'Member', role: 'Role',
     draft: 'Draft', published: 'Published', retired: 'Retired', chair: 'Chair', committeeMember: 'Member', secretary: 'Secretary', requiresGapPlan: 'Requires a competency-gap plan', credentialEligible: 'Eligible for credential issuance',
@@ -171,14 +172,36 @@ function isLegacyFeeRow(row) {
  */
 function feeFormFrom(base, row) {
   const legacy = String(row?.currency ?? 'USD').toUpperCase() !== 'USD'
-  return { ...base, ...row, currency: 'USD', legacy_currency: legacy ? String(row.currency).toUpperCase() : '', amount: legacy ? '' : (feeRowMoney(row)?.amount ?? '') }
+  return { ...base, ...formFields(row), currency: 'USD', legacy_currency: legacy ? String(row.currency).toUpperCase() : '', amount: legacy ? '' : (feeRowMoney(row)?.amount ?? '') }
+}
+
+/*
+ * A stored row as form values (platform walk, 17 Oct 2026, UI-04 and UI-19): a
+ * relation the row does not set (null) is the select's empty choice '', never
+ * null, which React refuses on a controlled <select>; a date the API sends as an
+ * ISO datetime ("2026-10-17T00:00:00.000000Z") is the yyyy-mm-dd a date input
+ * shows, so editing a row keeps its dates.
+ */
+const SELECT_FIELDS = ['rpl_pathway_id', 'rpl_standard_id', 'rpl_level_id', 'parent_id']
+const DATE_FIELDS = ['effective_from', 'effective_until']
+
+function dateInputValue(value) {
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(String(value ?? ''))
+  return match ? match[1] : ''
+}
+
+function formFields(row) {
+  const fields = { ...row }
+  for (const key of SELECT_FIELDS) if (key in fields) fields[key] = fields[key] == null ? '' : fields[key]
+  for (const key of DATE_FIELDS) if (key in fields) fields[key] = dateInputValue(fields[key])
+  return fields
 }
 
 function formFrom(resource, row) {
   const base = emptyForm(resource)
   if (resource === 'fee-schedules') return feeFormFrom(base, row)
   return {
-    ...base, ...row,
+    ...base, ...formFields(row),
     name: typeof row.name === 'object' ? arEnOnly(row.name, localized()) : { ...localized(), en: row.name || '' },
     description: typeof row.description === 'object' ? arEnOnly(row.description, localized()) : { ...localized(), en: row.description || '' },
     content: typeof row.content === 'object' ? arEnOnly(row.content, localized()) : { ...localized(), en: row.content || '' },
@@ -524,18 +547,34 @@ export default function RplConfigurationPage() {
     )
   }
 
-  const columns = [
+  const pathwayName = (id) => localize(pathways.find((item) => Number(item.id) === Number(id))?.name, language)
+  const levelName = (id) => localize(levels.find((item) => Number(item.id) === Number(id))?.name, language)
+  const feeDate = (value) => (value ? formatLocalizedDate(value, language, { dateStyle: 'medium', timeZone: 'UTC' }) : '')
+
+  // The Fees tab names each row by its pathway and level (UI-04): the generic code/name columns read "USD | $ 0.00" on every row.
+  const feeColumns = [
+    { key: 'pathway', label: copy.pathway, render: (row) => <span className="font-semibold">{pathwayName(row.rpl_pathway_id) || `#${row.rpl_pathway_id}`}</span> },
+    { key: 'level', label: copy.level, render: (row) => (row.rpl_level_id == null || row.rpl_level_id === '' ? <span className="text-[var(--color-text-muted)]">{copy.feeAllLevels}</span> : <span>{levelName(row.rpl_level_id) || `#${row.rpl_level_id}`}</span>) },
+    { key: 'amount', label: copy.amount, render: (row) => <div><span className="font-bold"><bdi dir="ltr">{formatMoney(feeRowMoney(row), language)}</bdi></span>{isLegacyFeeRow(row) ? <p className="mt-1"><Badge variant="warning">{copy.feeLegacyCurrency.replace('{currency}', String(row.money?.currency ?? row.currency ?? ''))}</Badge></p> : null}</div> },
+    { key: 'in_force', label: copy.feeInForce, render: (row) => <span className="text-sm text-[var(--color-text-muted)]">{row.effective_from || row.effective_until ? `${feeDate(row.effective_from) || '—'} – ${feeDate(row.effective_until) || copy.feeOpenEnded}` : '—'}</span> },
+  ]
+
+  const columns = tab.resource === 'fee-schedules' ? [...feeColumns, ...genericColumns().slice(2)] : genericColumns()
+
+  function genericColumns() { return [
     { key: 'code', label: copy.code, render: (row) => <code className="rounded-lg bg-[var(--color-surface-muted)] px-2 py-1 text-xs font-semibold">{row.code || row.currency || `#${row.id}`}</code> },
     { key: 'name', label: copy.name, render: (row) => <div><span className="font-bold">{localize(row.name || row.content, language) || (row.amount != null || row.money ? <bdi dir="ltr">{formatMoney(feeRowMoney(row), language)}</bdi> : '—')}</span>{tab.resource === 'fee-schedules' && isLegacyFeeRow(row) ? <p className="mt-1"><Badge variant="warning">{copy.feeLegacyCurrency.replace('{currency}', String(row.money?.currency ?? row.currency ?? ''))}</Badge></p> : null}<p className="mt-1 max-w-lg text-xs leading-5 text-[var(--color-text-muted)]">{localize(row.description, language)}</p></div> },
     { key: 'status', label: copy.status, render: (row) => row.status ? <Badge variant={row.status === 'published' ? 'success' : 'neutral'}>{row.status}</Badge> : <Badge variant={row.is_active !== false ? 'success' : 'neutral'}>{row.is_active !== false ? copy.active : copy.inactive}</Badge> },
     { key: 'actions', label: copy.actionsLabel, render: (row) => <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => openForm(row)}><Pencil size={15} />{copy.edit}</Button>{!tab.immutable ? <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(row)}><Trash2 size={15} /><span className="sr-only">{copy.delete}</span></Button> : null}</div> },
-  ]
+  ] }
 
   function relationFields() {
     return <>
-      {['levels', 'standards', 'fees'].includes(activeTab) ? <Select label={copy.pathway} value={form.rpl_pathway_id} onChange={(event) => setForm((current) => ({ ...current, rpl_pathway_id: event.target.value, rpl_level_id: '' }))}><option value="">—</option>{pathways.map((item) => <option key={item.id} value={item.id}>{localize(item.name, language)}</option>)}</Select> : null}
-      {['competencies', 'rubrics'].includes(activeTab) ? <Select label={copy.standard} value={form.rpl_standard_id} onChange={(event) => setForm((current) => ({ ...current, rpl_standard_id: event.target.value }))}><option value="">—</option>{standards.map((item) => <option key={item.id} value={item.id}>{localize(item.name, language)} · v{item.version}</option>)}</Select> : null}
-      {['rubrics', 'fees'].includes(activeTab) ? <Select label={copy.level} value={form.rpl_level_id} onChange={(event) => setForm((current) => ({ ...current, rpl_level_id: event.target.value }))}><option value="">—</option>{levels.filter((item) => !form.rpl_pathway_id || Number(item.rpl_pathway_id) === Number(form.rpl_pathway_id)).map((item) => <option key={item.id} value={item.id}>{localize(item.name, language)}</option>)}</Select> : null}
+      {['levels', 'standards', 'fees'].includes(activeTab) ? <Select label={copy.pathway} value={form.rpl_pathway_id ?? ''} onChange={(event) => setForm((current) => ({ ...current, rpl_pathway_id: event.target.value, rpl_level_id: '' }))}><option value="">—</option>{pathways.map((item) => <option key={item.id} value={item.id}>{localize(item.name, language)}</option>)}</Select> : null}
+      {['competencies', 'rubrics'].includes(activeTab) ? <Select label={copy.standard} value={form.rpl_standard_id ?? ''} onChange={(event) => setForm((current) => ({ ...current, rpl_standard_id: event.target.value }))}><option value="">—</option>{standards.map((item) => <option key={item.id} value={item.id}>{localize(item.name, language)} · v{item.version}</option>)}</Select> : null}
+      {/* A fee's levels are its pathway's own; a rubric lists every level, each naming its pathway, since both pathways use the same level names (UI-04). */}
+      {activeTab === 'fees' ? <Select label={copy.level} value={form.rpl_level_id ?? ''} hint={!form.rpl_pathway_id ? copy.feeChoosePathway : undefined} onChange={(event) => setForm((current) => ({ ...current, rpl_level_id: event.target.value }))}><option value="">{copy.feeAllLevels}</option>{levels.filter((item) => form.rpl_pathway_id && Number(item.rpl_pathway_id) === Number(form.rpl_pathway_id)).map((item) => <option key={item.id} value={item.id}>{localize(item.name, language)}</option>)}</Select> : null}
+      {activeTab === 'rubrics' ? <Select label={copy.level} value={form.rpl_level_id ?? ''} onChange={(event) => setForm((current) => ({ ...current, rpl_level_id: event.target.value }))}><option value="">—</option>{levels.map((item) => <option key={item.id} value={item.id}>{localize(item.name, language)} · {pathwayName(item.rpl_pathway_id)}</option>)}</Select> : null}
     </>
   }
 

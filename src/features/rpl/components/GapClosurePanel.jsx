@@ -4,6 +4,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '../../.
 import { fetchGapClosurePlan } from '../services/rplService'
 import { readApiError } from '../../../services/apiResponse'
 import { localize } from '../domain/rpl'
+import { professionalLevelName } from '../domain/coursePlan'
 
 /*
  * GAP CLOSURE ENGINE — owner specification, 5 Aug 2026.
@@ -122,7 +123,7 @@ export default function GapClosurePanel({ applicationPublicId, language, crossCh
             <Target className="h-5 w-5" aria-hidden="true" /> {copy.title}{crossCheck ? <span className="text-sm font-semibold text-[var(--color-text-muted)]"> · {copy.crossCheckTitle}</span> : null}
           </CardTitle>
           {plan?.target_level?.code ? (
-            <Badge variant="neutral">{plan.target_level.code}</Badge>
+            <Badge variant="neutral">{professionalLevelName(plan.target_level, language)}</Badge>
           ) : null}
         </div>
         <p className="mt-2 max-w-3xl text-sm text-[var(--color-text-muted)]">{copy.subtitle}</p>

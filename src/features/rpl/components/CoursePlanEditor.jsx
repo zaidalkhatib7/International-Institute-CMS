@@ -18,10 +18,12 @@ import {
   isCoursePlanStateRefusal,
   isItemRemovable,
   isMinimumSettingMissing,
+  isPlanClosedWithExperienceCertificate,
   isPlanLearningComplete,
   isStaleConflict,
   itemHolds,
   minimumsText,
+  professionalLevelName,
   removedPlanItems,
   topUpsBeyondMinimum,
   topUpsWithoutMinimum,
@@ -75,6 +77,7 @@ function planCounts(plan) {
   const active = activePlanItems(plan)
   return {
     active: plan?.counts?.active ?? active.length,
+    completed: active.filter((item) => item?.status === 'completed').length,
     buyable: plan?.counts?.buyable ?? active.filter((item) => item?.program?.buyable === true).length,
     removed: plan?.counts?.removed ?? removedPlanItems(plan).length,
   }
@@ -133,7 +136,7 @@ function ItemProgress({ item, copy, language }) {
   return <p className="text-xs leading-5 text-[var(--color-text-muted)]">{lines.map((line, index) => <span key={line}>{index ? ' · ' : ''}<bdi>{line}</bdi></span>)}</p>
 }
 
-function ItemCard({ item, copy, language, evidenceTitles, removable, removeForm, busy, onOpenRemove, onRemoveChange, onRemoveCancel, onRemoveSubmit }) {
+function ItemCard({ item, copy, language, evidenceTitles, competencyNames, removable, removeForm, busy, onOpenRemove, onRemoveChange, onRemoveCancel, onRemoveSubmit }) {
   const program = item?.program || {}
   const title = localize(program.title, language) || program.official_code || `#${program.id ?? item?.id}`
   const competencies = Array.isArray(item?.competency_codes) ? item.competency_codes : []
@@ -155,7 +158,7 @@ function ItemCard({ item, copy, language, evidenceTitles, removable, removeForm,
         <p className="leading-6"><strong>{copy.staffReason}:</strong> <span dir="auto">{item.added_reason}</span>{item.added_by ? <span className="block text-xs text-[var(--color-text-muted)]">{fill(copy.addedBy, { name: personName(item.added_by, copy) })}</span> : null}</p>
       ) : null}
       {competencies.length ? (
-        <div className="flex flex-wrap items-center gap-2"><span className="text-xs font-semibold text-[var(--color-text-muted)]">{copy.competencies}:</span>{competencies.map((code) => <Badge key={code} variant="neutral"><bdi>{code}</bdi></Badge>)}</div>
+        <div className="flex flex-wrap items-center gap-2"><span className="text-xs font-semibold text-[var(--color-text-muted)]">{copy.competencies}:</span>{competencies.map((code) => <Badge key={code} variant="neutral"><bdi title={code}>{localize(competencyNames?.[code], language) || code}</bdi></Badge>)}</div>
       ) : null}
       {evidenceIds.length ? (
         <p className="text-xs leading-5 text-[var(--color-text-muted)]"><strong>{copy.evidenceConsidered}:</strong> {evidenceIds.map((id, index) => <span key={id}>{index ? ' · ' : ''}<bdi>{evidenceTitles.get(String(id)) || `#${id}`}</bdi></span>)}</p>
@@ -191,7 +194,7 @@ function ReadOnlyItems({ plan, copy, language }) {
   )
 }
 
-export default function CoursePlanEditor({ applicationId, application, evidence = [], canManage = true, language, onCaseChanged, onForbidden }) {
+export default function CoursePlanEditor({ applicationId, application, evidence = [], competencyNames = {}, canManage = true, language, onCaseChanged, onForbidden }) {
   const copy = coursePlanCopy(language)
   const [state, setState] = useState({ loading: true, error: '', overview: null })
   const [busy, setBusy] = useState('')
@@ -396,7 +399,7 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
 
   function renderCounter(current) {
     const counts = planCounts(current)
-    const levelName = localize(current?.target_level?.name, language) || current?.target_level?.code || '—'
+    const levelName = professionalLevelName(current?.target_level, language) || '—'
     const showChanged = current === draft && !amendment && current?.entry_quiz_result === 'passed' && generation.live_minimum != null && Number(generation.live_minimum) !== Number(current?.minimum_required)
     const topUps = topUpsWithoutMinimum(current)
     const extraTopUps = topUpsBeyondMinimum(current)
@@ -404,12 +407,14 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
     const noMinimum = current?.minimum_applies === false || (current?.minimum_required != null && Number(current.minimum_required) === 0)
     // The "hybrid" rule after a failed quiz (owner, 15 Oct 2026): gaps first, then top-ups to this minimum.
     const failedHybrid = !noMinimum && current?.entry_quiz_result === 'failed' && current?.minimum_required != null
+    // A closed plan offers nothing for sale (UI-17): it counts the courses completed instead.
+    const saleCount = current?.status === 'closed' ? fill(copy.completedCount, { count: counts.completed }) : fill(copy.buyableCount, { count: counts.buyable })
     return (
       <div className="space-y-3">
         <p className="rounded-xl bg-[var(--color-surface-muted)] p-3 text-sm font-semibold">
           {noMinimum
-            ? <>{copy.noMinimum}{' · '}{fill(copy.buyableCount, { count: counts.buyable })}</>
-            : <>{fill(copy.counter, { count: counts.active, minimum: current?.minimum_required ?? '—', level: levelName })}{' · '}{fill(copy.buyableCount, { count: counts.buyable })}</>}
+            ? <>{copy.noMinimum}{' · '}{saleCount}</>
+            : <>{fill(copy.counter, { count: counts.active, minimum: current?.minimum_required ?? '—', level: levelName })}{' · '}{saleCount}</>}
         </p>
         {failedHybrid ? <p className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-900">{fill(copy.failedMinimum, { minimum: current.minimum_required })}</p> : null}
         {current?.below_minimum ? (
@@ -456,7 +461,7 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
     const held = heldPlanItems(draft)
     const empty = counts.active === 0
     const needsReason = Boolean(draft.below_minimum)
-    const levelName = localize(draft.target_level?.name, language) || draft.target_level?.code || '—'
+    const levelName = professionalLevelName(draft.target_level, language) || '—'
     const ready = !empty && (!needsReason || isCoursePlanReasonValid(forms.belowMinimumReason))
 
     return (
@@ -485,7 +490,7 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
         {current?.model && current?.created_by ? <p>{fill(copy.createdBy, { name: personName(current.created_by, copy), at: formatLocalizedDateTime(current.created_at, language) })}</p> : null}
         {current?.approved_at ? <p>{fill(copy.approvedBy, { name: personName(current.approved_by, copy), at: formatLocalizedDateTime(current.approved_at, language) })}</p> : null}
         {current?.source !== 'amendment' && current?.minimum_required != null ? <p>{fill(copy.minimumSent, { minimum: current.minimum_required })}</p> : null}
-        {snapshot?.value ? <p>{fill(copy.settingsSnapshot, { value: minimumsText(snapshot.value) })}</p> : null}
+        {snapshot?.value ? <p>{fill(copy.settingsSnapshot, { value: minimumsText(snapshot.value, language) })}</p> : null}
       </section>
     )
   }
@@ -502,7 +507,10 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
           {current.source ? <span className="text-xs text-[var(--color-text-muted)]">{copy.planSource[current.source] || humanizeCode(current.source)}</span> : null}
         </div>
         {current.creation_reason ? <p className="text-sm leading-6 text-[var(--color-text-muted)]" dir="auto">{fill(copy.creationReason, { reason: current.creation_reason })}</p> : null}
-        {isPlanLearningComplete(current) ? <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm font-semibold leading-6 text-green-900">{copy.learningComplete}</p> : null}
+        {/* The final exam is open only while the case is in it: once the case is completed it is over (UI-17). */}
+        {isPlanLearningComplete(current) ? <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm font-semibold leading-6 text-green-900">{caseStatus === 'completed' ? copy.learningCompleteClosedCase : copy.learningComplete}</p> : null}
+        {/* J09-F1: closed by the Experience Confirmation Certificate ("stop"): its courses not bought are no longer sold, and no final exam follows. */}
+        {isPlanClosedWithExperienceCertificate(current) ? <p role="status" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 text-sm font-semibold leading-6">{copy.closedWithExperienceCertificate}</p> : null}
         {renderCounter(current)}
         {items.length ? (
           <div className="space-y-3">
@@ -512,6 +520,7 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
                 item={item}
                 copy={copy}
                 language={language}
+                competencyNames={competencyNames}
                 evidenceTitles={evidenceTitles}
                 removable={isDraft && isItemRemovable(item, editable)}
                 removeForm={forms.remove}

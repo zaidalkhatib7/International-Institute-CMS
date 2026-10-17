@@ -36,11 +36,20 @@ import { approveRplExperienceCertificate, fetchRplExperienceCertificate, refuseR
  * and is never the level certificate. The panel loads itself; a 403 hides it.
  */
 
-const STATE_VARIANT = { not_eligible: 'neutral', unavailable: 'warning', available: 'info', awaiting_payment: 'warning', awaiting_issue: 'info', issued: 'success' }
+const STATE_VARIANT = { not_eligible: 'neutral', unavailable: 'warning', available: 'info', awaiting_payment: 'warning', awaiting_issue: 'info', issued: 'success', revoked: 'danger' }
 const STATUS_VARIANT = { requested: 'warning', approved: 'info', issued: 'success', refused: 'danger', cancelled: 'neutral' }
 
 function Line({ children }) {
   return <p className="text-xs leading-5 text-[var(--color-text-muted)]">{children}</p>
+}
+
+/*
+ * The certificate line as it stands now (J09-F3): the replacement after a reissue,
+ * and a revoked certificate says so, with when, beside the registry's own status.
+ */
+function certificateLine(certificate, text, at) {
+  if (certificate.status === 'revoked') return fill(text.certificateRevoked, { number: certificate.number, at: at(certificate.issued_at), revokedAt: at(certificate.revoked_at) })
+  return fill(certificate.reissued ? text.certificateReissued : text.certificate, { number: certificate.number, at: at(certificate.issued_at) })
 }
 
 function CertificateRow({ row, copy, language }) {
@@ -60,7 +69,7 @@ function CertificateRow({ row, copy, language }) {
       {row.wording ? <Line><span title={row.wording.sha256 || undefined}>{fill(text.frozenWording, { version: row.wording.version ?? '—', sha: shortHash(row.wording.sha256) })}</span></Line> : null}
       {row.refused_at ? <Line>{fill(text.refusedBy, { name: personName(row.refused_by, language), at: at(row.refused_at) })}{row.refusal_category ? ` · ${text.refusalCategories[row.refusal_category] || row.refusal_category}` : ''}</Line> : null}
       {row.refusal_reason ? <Line><span dir="auto">{fill(text.refusalReason, { reason: row.refusal_reason })}</span></Line> : null}
-      {row.certificate ? <p className="text-sm font-semibold"><bdi>{fill(text.certificate, { number: row.certificate.number, at: at(row.certificate.issued_at) })}</bdi> <Link className="text-[var(--color-primary)] underline underline-offset-2" to="/certificates">{text.openCertificates}</Link></p> : null}
+      {row.certificate ? <p className={`text-sm font-semibold${row.certificate.status === 'revoked' ? ' text-[var(--color-danger)]' : ''}`}><bdi>{certificateLine(row.certificate, text, at)}</bdi> <Link className="text-[var(--color-primary)] underline underline-offset-2" to="/certificates">{text.openCertificates}</Link></p> : null}
       {row.case_closed_at ? <Line>{fill(text.caseClosed, { at: at(row.case_closed_at) })}</Line> : null}
       {row.stop_not_applied_reason ? <Line>{text.stopNotApplied[row.stop_not_applied_reason] || row.stop_not_applied_reason}</Line> : null}
     </div>
@@ -176,6 +185,7 @@ export default function ExperienceCertificatePanel({ applicationId, language, ca
           <Badge variant={STATE_VARIANT[overview.state] || 'neutral'}>{experienceStateLabel(overview.state, language)}</Badge>
         </div>
         {reasonSentence()}
+        {overview.state === 'revoked' ? <p role="status" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 text-sm leading-6">{text.revokedNote}</p> : null}
         {overview.eligible !== false ? (
           <div className="space-y-1">
             {/* The live price (contract S18): US dollars, and Syrian pounds at today's rate while a rate is set. */}

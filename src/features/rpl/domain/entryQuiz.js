@@ -281,6 +281,18 @@ export function reopenNeedsTechnicalFailure(set) {
   return entryAttemptOpened(set)
 }
 
+/**
+ * E2E-J05-1 (17 Oct 2026): an entry quiz whose answering window is still running
+ * reopens for a documented technical failure the applicant reported (owner D11),
+ * as the API allows. Only a P4 entry quiz (sent under a scoring policy), only
+ * while it is issued and unmarked; the server re-checks every condition.
+ */
+export function canReopenRunningForTechnicalFailure(set, now = Date.now()) {
+  if (!set || set.is_entry_quiz !== true || !set.scoring_policy || set.status !== 'issued' || hasQuizResult(set)) return false
+  const due = set.due_at ? new Date(set.due_at).getTime() : Number.NaN
+  return Number.isFinite(due) && due >= now
+}
+
 /*
  * F4: THE CASE STATUSES THAT ARE CLOSED, mirroring the API's
  * RplApplicationStatus::isClosed(). On a closed case nothing is reopened for the

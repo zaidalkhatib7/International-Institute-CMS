@@ -105,13 +105,19 @@ a {
   transform: translateY(0);
 }
 
+/*
+ * The entrance plays from its first frame (backwards) and keeps NOTHING once it
+ * has played. Kept, its end frame's transform made this wrapper the containing
+ * block of every position:fixed dialog inside a page, which then opened
+ * off-screen on a scrolled page (platform walk, 17 Oct 2026, UI-02).
+ */
 .app-page-enter {
-  animation: app-page-enter 260ms ease-out both;
+  animation: app-page-enter 260ms ease-out backwards;
 }
 
 @keyframes app-page-enter {
   from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
 
 .app-card {

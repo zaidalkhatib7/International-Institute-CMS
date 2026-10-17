@@ -3,7 +3,7 @@ import { BadgeCheck, Banknote, Loader2 } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, MoneyInput, Select, Textarea } from '../../../components/ui'
 import { reconcileRplPayment } from '../services/rplService'
 import { readApiError } from '../../../services/apiResponse'
-import { formatLocalizedDateTime } from '../../../utils/localization'
+import { businessTodayIso, formatRecordedDate } from '../../../utils/businessDate'
 import { amountMinorOf, exchangeRateText, formatMoney, formatMoneyInline, isMoney, moneyFromDecimal, readsLeftToRight, toMinor } from '../../../utils/money'
 import { rateMissing } from '../domain/afterQuiz'
 
@@ -247,8 +247,9 @@ export default function PaymentReconciliationPanel({ application, language = 'en
           <p className="flex items-center gap-2 text-sm text-emerald-700">
             <BadgeCheck className="h-4 w-4" aria-hidden="true" />
             {copy.paid}
-            {application.paid_at
-              ? ` · ${formatLocalizedDateTime(application.paid_at, language)}`
+            {/* The date paid, on the institute's calendar, recorded as 00:00 UTC of it (J07-G1): shown as that date. */}
+            {(application.order?.paid_at || application.paid_at)
+              ? ` · ${formatRecordedDate(application.order?.paid_at || application.paid_at, language)}`
               : ''}
           </p>
         ) : (
@@ -293,6 +294,7 @@ export default function PaymentReconciliationPanel({ application, language = 'en
                 {copy.paidAt}
                 <Input
                   type="date"
+                  max={businessTodayIso()}
                   value={form.paid_at}
                   onChange={(event) => setForm((c) => ({ ...c, paid_at: event.target.value }))}
                 />

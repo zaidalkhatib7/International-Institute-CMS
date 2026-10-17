@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import AppSidebar from '../components/layout/AppSidebar'
 import AppTopbar from '../components/layout/AppTopbar'
 import RouteScrollReset from '../components/layout/RouteScrollReset'
-import { getAdminLanguage } from '../services/languageStorage'
+import { applyDocumentLanguage, getAdminLanguage } from '../services/languageStorage'
 
 export default function DashboardLayout({ children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -12,9 +12,8 @@ export default function DashboardLayout({ children }) {
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), [])
 
   useEffect(() => {
-    document.documentElement.dir = isArabic ? 'rtl' : 'ltr'
-    document.documentElement.lang = language
-  }, [isArabic, language])
+    applyDocumentLanguage(language)
+  }, [language])
 
   return (
     <div dir={isArabic ? 'rtl' : 'ltr'} className="min-h-screen bg-[var(--color-background)]">

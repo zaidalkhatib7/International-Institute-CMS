@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Award, Banknote, BookOpenCheck, ClipboardCheck, Clock3, FileCheck2, FilterX, FolderSearch, GraduationCap, RefreshCw, Search, Stamp } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, CardContent, DataTableShell, Input, PageHeader, Select, StatCard } from '../../../components/ui'
 import { readApiError, readPagination, unwrapApiData, unwrapCollection } from '../../../services/apiResponse'
 import { getAdminLanguage } from '../../../services/languageStorage'
@@ -101,9 +101,11 @@ export default function RplApplicationsPage() {
 
   const columns = [
     {
-      key: 'reference', label: copy.reference, render: (row) => (
-        <div><span className="font-bold text-[var(--color-primary)]">{row.case_reference || row.reference_number || row.case_number || `RPL-${row.id}`}</span><p className="mt-1 text-xs text-[var(--color-text-muted)]">#{row.id}</p></div>
-      ),
+      // The reference opens the case: the first column is always on screen, where the last one is not at a laptop width (UI-18).
+      key: 'reference', label: copy.reference, render: (row) => {
+        const reference = row.case_reference || row.reference_number || row.case_number || `RPL-${row.id}`
+        return <div><Link to={`/rpl/applications/${row.public_id || row.id}`} aria-label={`${copy.open} ${reference}`} className="whitespace-nowrap font-bold text-[var(--color-primary)] underline-offset-2 hover:underline">{reference}</Link><p className="mt-1 text-xs text-[var(--color-text-muted)]">#{row.id}</p></div>
+      },
     },
     {
       key: 'applicant', label: copy.applicant, render: (row) => {
@@ -116,9 +118,9 @@ export default function RplApplicationsPage() {
         <div><span className="font-semibold">{localize(row.pathway?.name || row.standard?.name, language) || '—'}</span><p className="mt-1 text-xs text-[var(--color-text-muted)]">{localize(row.target_level?.name || row.requested_level?.name || row.requestedLevel?.name, language) || row.target_level || '—'}</p></div>
       ),
     },
-    { key: 'status', label: copy.status, render: (row) => <RplStatusBadge status={row.status} language={language} /> },
+    // The last update sits under the status, one column fewer (UI-18).
+    { key: 'status', label: copy.status, render: (row) => <div><RplStatusBadge status={row.status} language={language} /><p className="mt-1 whitespace-nowrap text-xs text-[var(--color-text-muted)]">{copy.updated}: {formatLocalizedDate(row.updated_at, language)}</p></div> },
     { key: 'completeness', label: copy.completeness, render: (row) => <CompletenessMeter compact value={row.completeness?.percentage ?? row.completeness_percentage ?? 0} language={language} /> },
-    { key: 'updated', label: copy.updated, render: (row) => <span className="text-sm text-[var(--color-text-muted)]">{formatLocalizedDate(row.updated_at, language)}</span> },
     { key: 'actions', label: copy.actions, render: (row) => <Button size="sm" variant="outline" onClick={() => navigate(`/rpl/applications/${row.public_id || row.id}`)}>{copy.open}</Button> },
   ]
 
@@ -164,7 +166,7 @@ export default function RplApplicationsPage() {
       </Card>
 
       <RplPageState loading={state.loading} error={state.error} onRetry={load} language={language}>
-        <DataTableShell title={copy.queue} description={copy.queueDescription} columns={columns} rows={state.rows} emptyText={copy.empty} emptyDescription={copy.emptyHint} emptyAction={filters.search || filters.status ? <Button variant="outline" size="sm" onClick={clearFilters}><FilterX size={16} />{copy.clear}</Button> : null} />
+        <DataTableShell density="compact" title={copy.queue} description={copy.queueDescription} columns={columns} rows={state.rows} emptyText={copy.empty} emptyDescription={copy.emptyHint} emptyAction={filters.search || filters.status ? <Button variant="outline" size="sm" onClick={clearFilters}><FilterX size={16} />{copy.clear}</Button> : null} />
       </RplPageState>
 
       {state.pagination.lastPage > 1 ? (

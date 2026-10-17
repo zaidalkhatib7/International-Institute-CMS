@@ -26,6 +26,7 @@ import { readApiError, unwrapApiData, unwrapCollection } from '../../../services
 import { getAdminLanguage } from '../../../services/languageStorage'
 import {
   APPLICATION_STATUS,
+  CLOSED_APPLICATION_STATUSES,
   EVIDENCE_CATEGORIES,
   getApplicationEvidenceCategories,
   localize,
@@ -33,7 +34,8 @@ import {
   readApplicationDecline,
   readApplicationDeclarationAccepted,
   readDeclineCategories,
-  timelineEventLabel,
+  readDeclineRecord,
+  timelineEventTitle,
 } from '../domain/rpl'
 import { CASE_DECISION_PERMISSIONS, caseDecisionCopy } from '../domain/caseDecision'
 import {
@@ -94,7 +96,7 @@ const copyByLanguage = {
     contact: 'بيانات التواصل', email: 'البريد الإلكتروني', phone: 'الهاتف', nationality: 'الجنسية', country: 'بلد الإقامة', profession: 'المجال المهني',
     initialReview: 'المراجعة الإدارية الأولية', accepted: 'مقبول للتحقق', needsInformation: 'معلومات إضافية مطلوبة', rejected: 'مرفوض', subject: 'الموضوع', message: 'الرسالة للمتقدم', dueAt: 'موعد الرد', saveReview: 'حفظ المراجعة', reviewSaved: 'تمت المراجعة الإدارية.', requests: 'طلبات المعلومات الناقصة', createRequest: 'إرسال طلب', requestSaved: 'تم إرسال طلب المعلومات.', closeRequest: 'إغلاق', noRequests: 'لا توجد طلبات مفتوحة.',
     workflow: 'إدارة حالة الطلب', nextStatus: 'الحالة التالية', note: 'ملاحظة انتقال الحالة', saveTransition: 'تحديث الحالة', transitionSaved: 'تم تحديث حالة الطلب.',
-    noTransitions: 'لا توجد حالة أخرى يمكن تعيينها من هنا. استخدم إجراءات القرار أو المقابلة أو الرفض.', applicantCategory: 'ما أُبلغ به المتقدم',
+    noTransitions: 'لا توجد حالة أخرى يمكن تعيينها من هنا. استخدم إجراءات القرار أو المقابلة أو الرفض.', closedCase: 'هذا الطلب مغلق: لا توجد حالة أخرى يمكن تعيينها له.', declineRecordTitle: 'قرار الرفض', declinedBy: 'رفضه {name} في {at}', declinedAt: 'رُفض في {at}', declineRationale: 'تعليل الرفض (للموظفين فقط، ولا يراه العميل)', applicantCategory: 'ما أُبلغ به المتقدم',
     closingWithdrawsSets: 'تُسحب مع الطلب أي مجموعة أسئلة ما زالت بانتظار الإجابة، ويُصحَّح اختبار الدخول المفتوح الذي يجري وقته عند انتهاء الوقت.',
     assessorTitle: 'إسناد ومتابعة المقيّمين', assessorHint: 'لا يجوز للمقيّم اتخاذ قرار الاعتماد أو إصدار الشهادة.', assessor: 'المقيّم', role: 'الدور', assign: 'إسناد المقيّم', assigned: 'تم إسناد المقيّم.', noAssignments: 'لا يوجد مقيّم مسند حاليًا.', acceptAssignment: 'قبول الإسناد', noConflict: 'لا يوجد تعارض', reportConflict: 'إفصاح عن تعارض', conflictDetails: 'تفاصيل تعارض المصالح', startAssessment: 'بدء التقييم', conflictSaved: 'تم حفظ إفصاح تعارض المصالح.',
     assessments: 'تقارير التقييم', noAssessments: 'لا توجد جلسات تقييم لهذا الملف بعد.', openAssessment: 'فتح التقييم',
@@ -112,7 +114,7 @@ const copyByLanguage = {
     contact: 'Contact and profile', email: 'Email', phone: 'Phone', nationality: 'Nationality', country: 'Country of residence', profession: 'Professional field',
     initialReview: 'Initial administrative review', accepted: 'Accepted for verification', needsInformation: 'More information required', rejected: 'Rejected', subject: 'Subject', message: 'Message to applicant', dueAt: 'Response due', saveReview: 'Save review', reviewSaved: 'Initial review completed.', requests: 'Missing-information requests', createRequest: 'Send request', requestSaved: 'Information request sent.', closeRequest: 'Close', noRequests: 'No information requests exist.',
     workflow: 'Application workflow', nextStatus: 'Next status', note: 'Transition note', saveTransition: 'Update status', transitionSaved: 'Application status updated.',
-    noTransitions: 'No other status can be set from here. Use the decision, interview or decline actions.', applicantCategory: 'What the applicant was told',
+    noTransitions: 'No other status can be set from here. Use the decision, interview or decline actions.', closedCase: 'This case is closed: no further status can be set.', declineRecordTitle: 'The decline', declinedBy: 'Declined by {name} on {at}', declinedAt: 'Declined on {at}', declineRationale: 'Decline rationale (staff only; the applicant never sees it)', applicantCategory: 'What the applicant was told',
     closingWithdrawsSets: 'A question set still awaiting answers is withdrawn with the case; an opened entry quiz whose time is running is marked when its time runs out.',
     assessorTitle: 'Assessor assignment and oversight', assessorHint: 'An assessor cannot make the accreditation decision or issue a certificate.', assessor: 'Assessor', role: 'Role', assign: 'Assign assessor', assigned: 'Assessor assigned.', noAssignments: 'No assessor is currently assigned.', acceptAssignment: 'Accept assignment', noConflict: 'Declare no conflict', reportConflict: 'Report conflict', conflictDetails: 'Conflict-of-interest details', startAssessment: 'Start assessment', conflictSaved: 'Conflict declaration saved.',
     assessments: 'Assessment reports', noAssessments: 'No assessment sessions exist for this case yet.', openAssessment: 'Open assessment', adminEvaluation: 'Gemini-assisted administrator evaluation', adminEvaluationHint: 'No external assessor is required. Gemini prepares a draft; only the administrator who starts it can review, edit, and submit it.', startAdminEvaluation: 'Start administrator evaluation', adminEvaluationStarted: 'Administrator evaluation started. Generate the Gemini draft, then review and edit it.',
@@ -147,6 +149,9 @@ function valueOf(result, fallback) {
 function applicantOf(application) {
   return application?.applicant || application?.user || application?.professional_profile?.user || {}
 }
+
+/** From the final exam on, the plan in the approved slot is closed: its courses are completed, or the case closed (P6). */
+const PLAN_CLOSED_STATUSES = ['final_exam', 'completed']
 
 function Definition({ label, value }) {
   return <div><dt className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{label}</dt><dd className="mt-1 break-words font-semibold text-[var(--color-text)]">{value || '—'}</dd></div>
@@ -209,8 +214,9 @@ export default function RplCaseWorkspacePage() {
     },
     en: { title: 'Gemini-assisted administrator evaluation', hint: 'No external assessor is required. Gemini prepares a draft; only the administrator who starts it can review, edit, and submit it.', start: 'Start administrator evaluation', open: 'Open administrator evaluation', started: 'Administrator evaluation started. Generate the Gemini draft, then review and edit it.' },
   }[language] || copyByLanguage.en
-  const [screening, setScreening] = useState({ loading: false, error: '', forbidden: false, items: [] })
-  const [state, setState] = useState({ loading: true, error: '', auxiliaryWarning: false, application: null, evidence: [], categories: EVIDENCE_CATEGORIES, timeline: [], assessments: [], assignments: [], assessors: [], levels: [], committees: [], committeeActions: [], outcomes: [], declineCategories: readDeclineCategories(null) })
+  // `loaded` tells "not read yet" from "read, and empty" (UI-07): until the first answer, no card says no screening has run.
+  const [screening, setScreening] = useState({ loading: false, loaded: false, error: '', forbidden: false, items: [] })
+  const [state, setState] = useState({ loading: true, error: '', auxiliaryWarning: false, application: null, evidence: [], categories: EVIDENCE_CATEGORIES, timeline: [], assessments: [], assignments: [], assessors: [], levels: [], committees: [], committeeActions: [], outcomes: [], competencyNames: {}, declineCategories: readDeclineCategories(null) })
   // The course plan tab (P5): needs rpl.applications.view, and a 403 from the server removes it.
   const [coursePlanForbidden, setCoursePlanForbidden] = useState(false)
   // The final exam tab (P6): the same rule, and a 403 from the server removes it.
@@ -275,6 +281,8 @@ export default function RplCaseWorkspacePage() {
       evidence: unwrapCollection(valueOf(results[1], [])),
       categories,
       levels: unwrapCollection(reference.pathways || []).flatMap((pathway) => pathway.levels || []),
+      // The RPL competencies by code, so a plan course names the competency it closes rather than its code (UI-09).
+      competencyNames: Object.fromEntries(unwrapCollection(reference.pathways || []).flatMap((pathway) => pathway.standards || []).flatMap((standard) => standard.competencies || []).filter((competency) => competency?.code).map((competency) => [competency.code, competency.name])),
       committees: unwrapCollection(reference.committees || []),
       committeeActions: unwrapCollection(reference.committee_actions || []),
       outcomes: unwrapCollection(reference.outcomes || []),
@@ -302,10 +310,10 @@ export default function RplCaseWorkspacePage() {
     setScreening((current) => ({ ...current, loading: true, error: '' }))
     try {
       const response = await fetchRplScreenings(applicationId)
-      setScreening({ loading: false, error: '', forbidden: false, items: unwrapCollection(response) })
+      setScreening({ loading: false, loaded: true, error: '', forbidden: false, items: unwrapCollection(response) })
     } catch (error) {
-      if (Number(error?.response?.status) === 403) setScreening({ loading: false, error: '', forbidden: true, items: [] })
-      else setScreening((current) => ({ ...current, loading: false, error: readApiError(error, screeningText.loadError) }))
+      if (Number(error?.response?.status) === 403) setScreening({ loading: false, loaded: true, error: '', forbidden: true, items: [] })
+      else setScreening((current) => ({ ...current, loading: false, loaded: true, error: readApiError(error, screeningText.loadError) }))
     }
   }, [applicationId, canViewScreening, screeningText.loadError])
 
@@ -335,7 +343,9 @@ export default function RplCaseWorkspacePage() {
   const selectedNextStatus = nextStatuses.includes(transition.status) ? transition.status : ''
   // With nothing to set: a course-plan status points to the course plan tab, where its acts are (P5);
   // there no decision, interview or decline applies. Every other status keeps P3's sentence.
-  const noTransitionsHint = { course_plan_review: coursePlanText.noTransitionsReview, course_plan_active: coursePlanText.noTransitionsActive, final_exam: afterQuizText.finalExam.noTransitions }[application.status] || copy.noTransitions
+  // A closed case points to no action at all: the decision, interview and decline actions are not possible on it (UI-10).
+  const noTransitionsHint = CLOSED_APPLICATION_STATUSES.includes(application.status) ? copy.closedCase : ({ course_plan_review: coursePlanText.noTransitionsReview, course_plan_active: coursePlanText.noTransitionsActive, final_exam: afterQuizText.finalExam.noTransitions }[application.status] || copy.noTransitions)
+  const declineRecord = readDeclineRecord(application, state.timeline)
 
   const tabLabels = useMemo(() => ({ overview: copy.overview, evidence: copy.evidence, screening: screeningText.tab, decision: decisionText.tab, assessment: copy.assessment, course_plan: coursePlanText.tab, final_exam: afterQuizText.finalExam.tab, governance: copy.governance, timeline: copy.timeline }), [copy, screeningText.tab, decisionText.tab, coursePlanText.tab, afterQuizText.finalExam.tab])
 
@@ -518,7 +528,8 @@ export default function RplCaseWorkspacePage() {
     const lines = []
     if (application.status === 'assessment_in_progress' && ['passed', 'failed'].includes(summary.entry_quiz_result) && !live) lines.push(coursePlanText.awaitingPlan)
     if (summary.draft_version != null) lines.push(fill(coursePlanText.awaitingApproval, { version: summary.draft_version }))
-    if (summary.in_force_version != null) lines.push(fill(coursePlanText.inForce, { version: summary.in_force_version }))
+    // The summary's in_force_version is the plan in the approved slot, which a closed plan keeps: from the final exam on, it is closed (UI-17).
+    if (summary.in_force_version != null) lines.push(fill(PLAN_CLOSED_STATUSES.includes(application.status) ? coursePlanText.closedPlan : coursePlanText.inForce, { version: summary.in_force_version }))
     if (!lines.length) return null
     return (
       <Card>
@@ -564,10 +575,15 @@ export default function RplCaseWorkspacePage() {
   function renderCoursePlan() {
     return (
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-        <CoursePlanEditor applicationId={applicationId} application={application} evidence={state.evidence} canManage={hasPermission(COURSE_PLAN_PERMISSIONS.manage)} language={screenLanguage} onCaseChanged={coursePlanChanged} onForbidden={onCoursePlanForbidden} />
+        <CoursePlanEditor applicationId={applicationId} application={application} evidence={state.evidence} competencyNames={state.competencyNames} canManage={hasPermission(COURSE_PLAN_PERMISSIONS.manage)} language={screenLanguage} onCaseChanged={coursePlanChanged} onForbidden={onCoursePlanForbidden} />
         <div><GapClosurePanel applicationPublicId={applicationId} language={screenLanguage} crossCheck /></div>
       </div>
     )
+  }
+
+  function declineRecordLine(record) {
+    const at = record.at ? formatLocalizedDateTime(record.at, language) : ''
+    return record.by ? fill(copy.declinedBy, { name: record.by, at: at || '—' }) : fill(copy.declinedAt, { at })
   }
 
   function renderOverview() {
@@ -585,6 +601,8 @@ export default function RplCaseWorkspacePage() {
                 <Definition label={copy.experience} value={application.years_of_experience ?? applicant.years_of_experience} />
                 <Definition label={copy.submitted} value={formatLocalizedDateTime(application.submitted_at, language)} />
                 {decline ? <Definition label={copy.declineReason} value={decline.reason} /> : null}
+                {declineRecord?.rationale ? <Definition label={copy.declineRationale} value={<span dir="auto" className="whitespace-pre-wrap">{declineRecord.rationale}</span>} /> : null}
+                {declineRecord && (declineRecord.by || declineRecord.at) ? <Definition label={copy.declineRecordTitle} value={declineRecordLine(declineRecord)} /> : null}
                 {decline?.applicantCategoryLabel ? <Definition label={copy.applicantCategory} value={decline.applicantCategoryLabel} /> : null}
                 {decline ? <Definition label={copy.reapplyFrom} value={decline.reapplyDerived ? `${formatLocalizedDateTime(decline.reapplyAvailableAt, language)} (${copy.reapplyDerived})` : formatLocalizedDateTime(decline.reapplyAvailableAt, language)} /> : null}
               </dl>
@@ -643,8 +661,19 @@ export default function RplCaseWorkspacePage() {
   function renderDecision() {
     return (
       <div className="space-y-6">
-        <ScreeningDecisionCard applicationId={applicationId} status={application.status} canDecide={canDecide} canViewScreening={canViewScreeningData} canStartAssessment={isAdministrator} screenings={screening.items} declineCategories={state.declineCategories} language={screenLanguage} onDecided={screeningDecided} />
+        <ScreeningDecisionCard applicationId={applicationId} status={application.status} canDecide={canDecide} canViewScreening={canViewScreeningData} canStartAssessment={isAdministrator} screenings={screening.items} screeningsLoading={!screening.loaded || screening.loading} screeningsError={screening.error} declineCategories={state.declineCategories} language={screenLanguage} onDecided={screeningDecided} />
         <InterviewPanel applicationId={applicationId} application={application} canManage={canManageInterviews} canRecordLegacy={canRecordLegacyInterviews} viewer={viewer} canReadSettings={canReadSettings} declineCategories={state.declineCategories} language={screenLanguage} refreshKey={caseVersion} onChanged={({ message }) => caseChanged({ message, reloadLists: false })} />
+        {/* A direct decline writes no screening decision: the decline itself is the record staff read here (UI-10). */}
+        {declineRecord ? (
+          <Card>
+            <CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.declineRecordTitle}</CardTitle></CardHeader>
+            <CardContent className="space-y-3 pt-6 text-sm">
+              {declineRecord.by || declineRecord.at ? <p className="text-xs text-[var(--color-text-muted)]">{declineRecordLine(declineRecord)}</p> : null}
+              {declineRecord.rationale ? <div><p className="text-xs font-semibold text-[var(--color-text-muted)]">{copy.declineRationale}</p><p dir="auto" className="mt-1 whitespace-pre-wrap leading-6 text-[var(--color-text)]">{declineRecord.rationale}</p></div> : null}
+              {decline?.applicantCategoryLabel ? <div><p className="text-xs font-semibold text-[var(--color-text-muted)]">{copy.applicantCategory}</p><p className="mt-1 leading-6">{decline.applicantCategoryLabel}</p></div> : null}
+            </CardContent>
+          </Card>
+        ) : null}
         <ScreeningDecisionHistory applicationId={applicationId} canView={canViewScreeningData} refreshKey={caseVersion} language={screenLanguage} />
         {!canViewScreeningData && application.latest_screening_decision ? <ScreeningDecisionEntry decision={application.latest_screening_decision} language={screenLanguage} /> : null}
       </div>
@@ -703,7 +732,7 @@ export default function RplCaseWorkspacePage() {
   }
 
   function renderTimeline() {
-    return <Card><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.events}</CardTitle></CardHeader><CardContent className="pt-7">{state.timeline.length ? <ol className="relative space-y-6 before:absolute before:bottom-2 before:start-[17px] before:top-2 before:w-px before:bg-[var(--color-border)]">{state.timeline.map((event, index) => <li key={event.id || index} className="relative flex gap-4"><span className="relative z-10 mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-white"><CheckCircle2 size={17} /></span><div className="min-w-0 flex-1 rounded-2xl border border-[var(--color-border)] p-4"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-bold text-[var(--color-text)]">{localize(event.title, language) || timelineEventLabel(event.event || event.type, language) || localize(event.event, language) || String(event.type || event.event || copy.event).replaceAll('_', ' ')}</h3><time className="text-xs text-[var(--color-text-muted)]">{formatLocalizedDateTime(event.created_at, language)}</time></div>{event.description || event.notes ? <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{localize(event.description || event.notes, language)}</p> : null}{event.actor ? <p className="mt-2 text-xs text-[var(--color-text-muted)]">{copy.actor}: {event.actor.name || event.actor.email}</p> : null}</div></li>)}</ol> : <p className="py-12 text-center text-[var(--color-text-muted)]">{copy.emptyTimeline}</p>}</CardContent></Card>
+    return <Card><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.events}</CardTitle></CardHeader><CardContent className="pt-7">{state.timeline.length ? <ol className="relative space-y-6 before:absolute before:bottom-2 before:start-[17px] before:top-2 before:w-px before:bg-[var(--color-border)]">{state.timeline.map((event, index) => <li key={event.id || index} className="relative flex gap-4"><span className="relative z-10 mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-white"><CheckCircle2 size={17} /></span><div className="min-w-0 flex-1 rounded-2xl border border-[var(--color-border)] p-4"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-bold text-[var(--color-text)]">{timelineEventTitle(event, language) || copy.event}</h3><time className="text-xs text-[var(--color-text-muted)]">{formatLocalizedDateTime(event.created_at, language)}</time></div>{event.description || event.notes ? <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{localize(event.description || event.notes, language)}</p> : null}{/* The note or rationale staff recorded with the move (a decline's rationale among them): staff-only, and this timeline is staff's (UI-10). */}{!event.description && !event.notes && typeof event.reason === 'string' && event.reason.trim() ? <p dir="auto" className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--color-text-muted)]">{event.reason}</p> : null}{event.actor ? <p className="mt-2 text-xs text-[var(--color-text-muted)]">{copy.actor}: {event.actor.name || event.actor.email}</p> : null}</div></li>)}</ol> : <p className="py-12 text-center text-[var(--color-text-muted)]">{copy.emptyTimeline}</p>}</CardContent></Card>
   }
 
   return (

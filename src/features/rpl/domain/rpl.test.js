@@ -16,6 +16,7 @@ import {
   declineCategoryLabel,
   TIMELINE_EVENT_LABELS,
   timelineEventLabel,
+  timelineEventTitle,
   validateEvidenceFile,
 } from './rpl'
 
@@ -245,7 +246,7 @@ describe('the P6 status and timeline labels', () => {
   })
 
   it('labels every P6 status event in Arabic and English only', () => {
-    expect(Object.keys(TIMELINE_EVENT_LABELS).sort()).toEqual([
+    expect(Object.keys(TIMELINE_EVENT_LABELS)).toEqual(expect.arrayContaining([
       'charge.cancelled',
       'charge.paid',
       'charge.refunded',
@@ -258,7 +259,7 @@ describe('the P6 status and timeline labels', () => {
       'final_exam.passed',
       'final_exam.round_opened',
       'final_exam.try_scored',
-    ])
+    ]))
     for (const labels of Object.values(TIMELINE_EVENT_LABELS)) {
       expect(Object.keys(labels).sort()).toEqual(['ar', 'en'])
       expect(labels.ar.trim()).not.toBe('')
@@ -267,5 +268,52 @@ describe('the P6 status and timeline labels', () => {
     expect(timelineEventLabel('course_plan.completed', 'en')).toBe('Course plan completed; the final exam is open')
     expect(timelineEventLabel('final_exam.passed', 'nl')).toBe('Final exam passed')
     expect(timelineEventLabel('something.else', 'en')).toBe('')
+  })
+})
+
+/*
+ * EVERY EVENT ON THE CASE TIMELINE IS NAMED (platform walk, 17 Oct 2026, UI-03).
+ *
+ * The label map knew only the twelve P6 events, so the Arabic and English
+ * timelines of every professional case showed dotted codes for the rest:
+ * application.created, administrative_review.started, screening_decision.recorded,
+ * admin.assessment.started, course_plan.generated, application.declined, … This
+ * is every event the API writes onto a case (rpl_status_events.event, the list
+ * App\Support\RplApplicantView::TIMELINE governs, plus the administrator's
+ * evidence correction).
+ */
+const API_TIMELINE_EVENTS = [
+  'application.created', 'application.created_by_administrator', 'application.submitted', 'application.transitioned',
+  'administrative_review.started', 'administrative_review.accepted', 'administrative_review.information_requested', 'administrative_review.rejected',
+  'information_request.created', 'information_request.responded', 'information_request.closed',
+  'evidence.clarification_requested', 'evidence.corrected_by_administrator', 'payment.reconciled', 'assessor.assigned',
+  'admin.assessment.started', 'assessment.started', 'assessor.report_submitted', 'quality.review_completed', 'quality.rework_opened',
+  'committee.decision_issued', 'appeal.window_opened', 'appeal.submitted', 'appeal.decided', 'appeal.remanded', 'appeal.reassigned',
+  'decision.finalized', 'credential.issued',
+  'interview.offered', 'interview.mode_chosen', 'interview.scheduled', 'interview.cancelled', 'interview.decided',
+  'application.declined', 'screening_decision.recorded',
+  'course_plan.generated', 'course_plan.approved', 'course_plan.amended', 'course_plan.discarded',
+  'experience_certificate.requested', 'experience_certificate.choice_changed', 'experience_certificate.refused', 'experience_certificate.issued',
+  'charge.paid', 'charge.cancelled', 'charge.refunded', 'course_plan.completed',
+  'final_exam.round_opened', 'final_exam.try_scored', 'final_exam.passed',
+]
+
+describe('the case timeline names every event the API writes', () => {
+  it.each(API_TIMELINE_EVENTS)('%s has an Arabic and an English label', (code) => {
+    const ar = timelineEventLabel(code, 'ar')
+    const en = timelineEventLabel(code, 'en')
+    expect(ar).not.toBe('')
+    expect(en).not.toBe('')
+    expect(/[ء-ي]/.test(ar)).toBe(true)
+    expect(ar).not.toMatch(/[a-z]+\.[a-z_]+/)
+    expect(en).not.toContain('_')
+  })
+
+  it('names the status a generic transition moved the case to', () => {
+    expect(timelineEventTitle({ event: 'application.transitioned', to_status: 'withdrawn' }, 'en')).toBe(`${TIMELINE_EVENT_LABELS['application.transitioned'].en}: ${APPLICATION_STATUS.withdrawn.labels.en}`)
+    expect(timelineEventTitle({ event: 'application.declined' }, 'ar')).toBe(TIMELINE_EVENT_LABELS['application.declined'].ar)
+    // The server's own title, when it sends one, still comes first; an unknown code is shown in words.
+    expect(timelineEventTitle({ event: 'application.created', title: { ar: 'عنوان', en: 'Title' } }, 'en')).toBe('Title')
+    expect(timelineEventTitle({ event: 'brand.new_event' }, 'en')).toBe('brand new event')
   })
 })

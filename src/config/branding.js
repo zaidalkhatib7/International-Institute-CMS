@@ -12,8 +12,9 @@ export const branding = {
     fullText: 'ICPC',
     subText: 'اللجنة الدولية لحماية المدنيين',
   },
-  accreditationLevels: ['أساسي', 'متقدم', 'خبير'],
-  accreditationLevelsEnglish: ['Foundation', 'Advanced', 'Expert'],
+  // The three levels of the professional RPL pathway, named as the pathway names them (platform walk, 17 Oct 2026, UI-11).
+  accreditationLevels: ['ممارس مهني', 'ممارس مهني متقدم', 'خبير مهني'],
+  accreditationLevelsEnglish: ['Professional Practitioner', 'Advanced Professional Practitioner', 'Professional Expert'],
   locales: ['ar', 'en'],
 }
 

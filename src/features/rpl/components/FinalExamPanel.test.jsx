@@ -103,7 +103,8 @@ describe('what staff see', () => {
     renderPanel()
 
     expect(await screen.findByText(EN.autoIssue)).toBeInTheDocument()
-    expect(screen.getByText(EN.states.available)).toBeInTheDocument()
+    // The header renders before the read: wait for the state the read brings (a race under a loaded run).
+    expect(await screen.findByText(EN.states.available)).toBeInTheDocument()
     const round = within(screen.getByRole('article', { name: 'Round 1' }))
     expect(round.getByText(EN.kinds.included)).toBeInTheDocument()
     expect(round.getByText('3 tries')).toBeInTheDocument()
@@ -141,6 +142,20 @@ describe('what staff see', () => {
     expect(screen.getByText(EN.states.blocked)).toBeInTheDocument()
   })
 
+  // J09-F2 (17 Oct 2026): the server reads blocked / stop_chosen while the client's "stop" holds the exam back.
+  it('says why the final exam does not start while the client has chosen "stop", in both languages', async () => {
+    mocks.fetchRplFinalExam.mockResolvedValue({ data: exam({ state: 'blocked', blocked_reason: 'stop_chosen', blocked_program: null }) })
+    const { unmount } = renderPanel()
+
+    expect(await screen.findByText(EN.blocked.stop_chosen)).toBeInTheDocument()
+    expect(screen.getByText(EN.states.blocked)).toBeInTheDocument()
+    unmount()
+
+    renderPanel({ language: 'ar' })
+    expect(await screen.findByText(AR.blocked.stop_chosen)).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('stop_chosen')
+  })
+
   it('lists the holds a level certificate waits on', async () => {
     mocks.fetchRplFinalExam.mockResolvedValue({
       data: exam({
@@ -154,7 +169,7 @@ describe('what staff see', () => {
     expect(card.getByText(EN.level.states.held)).toBeInTheDocument()
     expect(card.getByText(EN.level.held)).toBeInTheDocument()
     expect(card.getByText('Hold #3: CGP-PSD-010 version 1.0')).toBeInTheDocument()
-    expect(card.getByText('Issuance job: pending, 2 attempts')).toBeInTheDocument()
+    expect(card.getByText('Issuance job: waiting, 2 attempts')).toBeInTheDocument()
     expect(card.getByText('Last error: Held: credential_issuance hold #3.')).toBeInTheDocument()
   })
 

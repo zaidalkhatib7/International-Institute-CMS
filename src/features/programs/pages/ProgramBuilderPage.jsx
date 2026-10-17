@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   FileText,
   FolderOpen,
@@ -26,6 +26,7 @@ import {
   fetchAdminProgramById,
   toggleAdminProgramActive,
   updateAdminProgram,
+  updateAdminProgramPrice,
 } from '../services/programsService'
 import { getCurrentLanguage, readLocalizedValue, readStoredEnglish } from '../../../utils/localization'
 import { MAX_PRICE_USD_MINOR, MIN_PRICE_USD_MINOR, formatMoney, formatMoneyInline, fromMinor, money, sypPreview, toMinor } from '../../../utils/money'
@@ -235,6 +236,22 @@ function buildProgramPayload(formData) {
     is_featured: Boolean(formData.is_featured),
     ...(formData.program_type ? { program_type: formData.program_type } : {}),
   }
+}
+
+/*
+ * A PUBLISHED PACKAGE'S CONTENT IS FROZEN; ITS PRICE IS NOT (platform walk,
+ * 17 Oct 2026, PB-06). The save payload without its price, as one comparable
+ * string: built by the same function from the loaded programme and from the
+ * form, so "unchanged" means unchanged, whatever the server stores.
+ */
+function frozenContentOf(payload) {
+  const content = { ...payload }
+  delete content.price_usd_minor
+  return JSON.stringify(content)
+}
+
+function isPublishedPackage(program) {
+  return Boolean(program?.competency_gap_group_id && program?.package_published_at)
 }
 
 function LanguageTabs({ activeLanguage, onChange }) {
@@ -1050,6 +1067,8 @@ export default function ProgramBuilderPage() {
         persistPublicationError: 'تعذر حفظ حالة النشر. حاول مرة أخرى.',
         persistFeaturedError: 'تعذر حفظ حالة التمييز. حاول مرة أخرى.',
         saveFailed: 'فشل حفظ تغييرات البرنامج.',
+        publishedFrozen: 'هذا الإصدار من الحقيبة منشور: محتواه ثابت. يمكن تغيير السعر وحده، ويُسجَّل التغيير في سجل التدقيق؛ ولتغيير المحتوى افتح إصدارًا جديدًا من الحقيبة.',
+        publishedContentChanged: 'هذا الإصدار من الحقيبة منشور: محتواه ثابت، ولم يُحفظ شيء. أعد المحتوى كما كان واحفظ السعر وحده، أو افتح إصدارًا جديدًا من الحقيبة لتغيير المحتوى.',
         savedSuccess: 'تم حفظ تغييرات البرنامج بنجاح.',
         createdSuccess: 'تم إنشاء البرنامج بنجاح.',
         publishUpdatedSuccess: 'تم حفظ البرنامج ونشره بنجاح (نشط ومميز).',
@@ -1182,6 +1201,8 @@ export default function ProgramBuilderPage() {
       persistPublicationError: 'Publication status could not be persisted. Please try again.',
       persistFeaturedError: 'Featured status could not be persisted. Please try again.',
       saveFailed: 'Failed to save program changes.',
+      publishedFrozen: 'This package version is published: its content is frozen. The price alone can change, and the change is audited; open a new package version to change the content.',
+      publishedContentChanged: 'This package version is published: its content is frozen, and nothing was saved. Put the content back and save the price alone, or open a new package version to change the content.',
       savedSuccess: 'Program changes saved successfully.',
       createdSuccess: 'Program created successfully.',
       publishUpdatedSuccess:
@@ -1335,6 +1356,9 @@ export default function ProgramBuilderPage() {
   // The server's publication verdict, returned on every programme fetch.
   const [readiness, setReadiness] = useState(null)
   const [contentStatus, setContentStatus] = useState('')
+  // A published package (PB-06): its content as loaded, to tell a price-only save from a content change.
+  const [packageFrozen, setPackageFrozen] = useState(false)
+  const frozenBaseline = useRef('')
   const [categories, setCategories] = useState([])
 
   const [formData, setFormData] = useState({
@@ -1377,6 +1401,8 @@ export default function ProgramBuilderPage() {
         // mapProgramToFormData is about editable fields and drops it.
         setReadiness(program?.catalog_readiness || null)
         setContentStatus(program?.content_status || '')
+        setPackageFrozen(isPublishedPackage(program))
+        frozenBaseline.current = frozenContentOf(buildProgramPayload(mapProgramToFormData(program)))
       } catch (err) {
         setError(readApiError(err, copy.loadProgramError))
       } finally {
@@ -1433,21 +1459,30 @@ export default function ProgramBuilderPage() {
       setSaveError(copy.priceInvalid)
       return
     }
+    const desiredFeatured = publish ? true : Boolean(formData.is_featured)
+    const desiredActive = publish ? true : Boolean(formData.is_active)
+    const payload = buildProgramPayload({
+      ...formData,
+      is_featured: desiredFeatured,
+    })
+    // A published package saves its price alone; any other change is stopped here, in the screen's language (PB-06).
+    const priceOnly = Boolean(programId) && packageFrozen
+    if (priceOnly && frozenContentOf(payload) !== frozenBaseline.current) {
+      setSaveMessage('')
+      setSaveError(copy.publishedContentChanged)
+      return
+    }
     setIsSaving(true)
     setSaveError('')
     setSaveMessage('')
 
     try {
       const wasEditMode = Boolean(programId)
-      const desiredFeatured = publish ? true : Boolean(formData.is_featured)
-      const desiredActive = publish ? true : Boolean(formData.is_active)
-      const payload = buildProgramPayload({
-        ...formData,
-        is_featured: desiredFeatured,
-      })
       let targetProgramId = programId
 
-      if (targetProgramId) {
+      if (targetProgramId && priceOnly) {
+        await updateAdminProgramPrice(targetProgramId, { price_usd_minor: payload.price_usd_minor })
+      } else if (targetProgramId) {
         await updateAdminProgram(targetProgramId, payload)
       } else {
         const createdProgramResult = await createAdminProgram(payload)
@@ -1488,6 +1523,8 @@ export default function ProgramBuilderPage() {
       }
 
       setFormData(mapProgramToFormData(finalProgram))
+      setPackageFrozen(isPublishedPackage(finalProgram))
+      frozenBaseline.current = frozenContentOf(buildProgramPayload(mapProgramToFormData(finalProgram)))
       // Re-read the verdict after saving, so the checklist reflects what was
       // just fixed instead of the state the page was opened in.
       if (finalProgram?.catalog_readiness) setReadiness(finalProgram.catalog_readiness)
@@ -1693,6 +1730,12 @@ export default function ProgramBuilderPage() {
           </p>
         ) : null}
 
+        {packageFrozen ? (
+          <p role="note" className="max-w-3xl rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-900">
+            {copy.publishedFrozen}
+          </p>
+        ) : null}
+
         {saveMessage ? (
           <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-700">
             {saveMessage}
@@ -1700,7 +1743,7 @@ export default function ProgramBuilderPage() {
         ) : null}
 
         {saveError ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-600">
+          <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-600">
             {saveError}
           </div>
         ) : null}
