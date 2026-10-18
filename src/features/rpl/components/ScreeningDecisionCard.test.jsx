@@ -292,6 +292,25 @@ describe('the decision history', () => {
     expect(screen.getByText(/Reviewer Example/)).toBeInTheDocument()
   })
 
+  it('counts employers that cannot be identified, and reads 0 from a snapshot taken before the result existed', async () => {
+    const current = { ...decision, id: 6, screening_snapshot: { ...decision.screening_snapshot, fake_likelihood_percent: 64, score_out_of_10: 6.4, employer_summary: { found_consistent: 0, found_inconsistent: 0, not_found_online: 0, not_identifiable: 1, ambiguous: 0, not_checked: 0 } } }
+    mocks.fetchRplScreeningDecisions.mockResolvedValue({ data: [current, decision] })
+    render(<ScreeningDecisionHistory applicationId="case-41" canView language="en" />)
+
+    expect(await screen.findByText('Employers: 0 consistent, 0 inconsistent, 0 not found online, 1 cannot be identified, 0 ambiguous, 0 not checked.')).toBeInTheDocument()
+    // The older snapshot has five keys: the sixth reads 0, never "undefined".
+    expect(screen.getByText('Employers: 1 consistent, 0 inconsistent, 2 not found online, 0 cannot be identified, 0 ambiguous, 0 not checked.')).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('undefined')
+  })
+
+  it('counts them in Arabic too', async () => {
+    const current = { ...decision, screening_snapshot: { ...decision.screening_snapshot, employer_summary: { ...decision.screening_snapshot.employer_summary, not_identifiable: 1 } } }
+    mocks.fetchRplScreeningDecisions.mockResolvedValue({ data: [current] })
+    render(<ScreeningDecisionHistory applicationId="case-41" canView language="ar" />)
+
+    expect(await screen.findByText(/1 لا يمكن تحديد هويتها/)).toBeInTheDocument()
+  })
+
   it('is never requested without rpl.screening.view', async () => {
     const { container } = render(<ScreeningDecisionHistory applicationId="case-41" canView={false} language="en" />)
 

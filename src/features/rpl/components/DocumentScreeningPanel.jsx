@@ -5,18 +5,32 @@ import { readApiError, unwrapApiData } from '../../../services/apiResponse'
 import { formatLocalizedDate, formatLocalizedDateTime } from '../../../utils/localization'
 import { getCategory, localize } from '../domain/rpl'
 import {
+  ISSUER_CONTACT_FIELDS,
+  ISSUER_PRESENCE_FIELDS,
+  RISK_BAND_VARIANT,
   SCREENING_STALLED_AFTER_MINUTES,
   caseFigureText,
+  claimConfidenceLabel,
   fill,
   humanizeCode,
+  isOlderRulesRun,
   isPartialScreen,
+  isRiskModelRun,
   isStalledRun,
   labelFor,
+  namedInText,
   regionName,
+  riskBandLabel,
+  riskComponentText,
+  riskNoteText,
   safeExternalUrl,
   screeningCopy,
+  screeningDocumentTitle,
+  sortRiskComponents,
+  sourcesAreNotOwn,
   statusExplanation,
   screeningRationaleText,
+  topRiskReason,
 } from '../domain/documentScreening'
 import { acknowledgeRplScreening, requestRplScreening } from '../services/rplService'
 
@@ -30,6 +44,11 @@ import { acknowledgeRplScreening, requestRplScreening } from '../services/rplSer
  * It reads and acknowledges; it never sets an evidence status and never moves
  * the case, because the screen may not either. The figure is shown only for a
  * COMPLETED run, so a refusal or a failure can never read as a low risk.
+ *
+ * A run that carries risk_breakdown (rpl-risk-v1, owner report of 18 Oct 2026)
+ * also shows the band beside the figure, what raised it most, how it was
+ * reached, the issuer details of each document and the platform's confidence
+ * in each employer claim. Any other run renders as it always did.
  */
 
 /* Completed is deliberately neutral, not green: a finished run is not good news. */
@@ -80,6 +99,10 @@ function RunSummary({ screening, copy, language, categories, canAcknowledge, bus
   const figure = caseFigureText(screening, copy)
   const explanation = statusExplanation(screening, copy)
   const partial = screening.status === 'completed' && isPartialScreen(screening)
+  // rpl-risk-v1 only, and only beside a figure: the band, and the one line saying what raised it most.
+  const band = figure ? screening.risk_breakdown?.band : null
+  const bandLabel = figure ? riskBandLabel(screening, copy) : null
+  const headline = figure ? topRiskReason(screening, copy) : null
   const coverage = screening.coverage || {}
   const instructions = (Array.isArray(screening.instructions_found_in_documents) ? screening.instructions_found_in_documents : []).filter(Boolean)
   // The case-level employment signals (plan 5.3: shown to staff as their own column), beside the figure, never in it.
@@ -92,9 +115,11 @@ function RunSummary({ screening, copy, language, categories, canAcknowledge, bus
           <div className="flex flex-wrap items-center gap-3">
             <ScanSearch size={26} className="text-[var(--color-primary)]" aria-hidden="true" />
             <p className="text-2xl font-bold text-[var(--color-text)]">{figure}</p>
+            {bandLabel ? <span data-band={band}><Badge variant={RISK_BAND_VARIANT[band] || 'neutral'}>{bandLabel}</Badge></span> : null}
             {partial ? <Badge variant="warning">{copy.partial}</Badge> : null}
           </div>
         ) : null}
+        {headline ? <p data-risk-headline="true" className="text-sm font-semibold leading-6 text-[var(--color-text)]">{headline}</p> : null}
         {explanation ? <p className={`rounded-2xl border px-4 py-3 text-sm leading-6 ${screening.status === 'refused' || screening.status === 'failed' || isStalledRun(screening) ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-sky-200 bg-sky-50 text-sky-900'}`}>{explanation}</p> : null}
         {screening.status === 'completed' && coverage.documents_total != null ? (
           <p className="text-sm text-[var(--color-text-muted)]">{fill(copy.coverage, { read: coverage.read ?? 0, total: coverage.documents_total })}{partial ? ` ${copy.partialHint}` : ''}</p>
@@ -169,6 +194,58 @@ function RunSummary({ screening, copy, language, categories, canAcknowledge, bus
   )
 }
 
+function isPlainObject(value) {
+  return value != null && typeof value === 'object' && !Array.isArray(value)
+}
+
+/* missing marks the checklist item; highlight only colours a row that belongs to one (phone, email and website are "contact"). */
+function IssuerRow({ field, label, value, missing = false, highlight = missing }) {
+  return (
+    <div className="contents" data-field={field} data-missing={missing ? 'true' : undefined}>
+      <dt className={highlight ? 'font-semibold text-amber-800' : 'text-[var(--color-text-muted)]'}>{label}</dt>
+      <dd dir="auto" className={`break-words font-semibold ${highlight ? 'text-amber-800' : ''}`}>{value}</dd>
+    </div>
+  )
+}
+
+/*
+ * The issuer as the document shows it (rpl-screen-v3: extracted.issuer_check).
+ * An empty value is "not shown"; on an experience letter the details the server
+ * counted as missing are marked. Phone, email and website are one checklist item
+ * ("contact"), so they are marked together. A presence the model did not report
+ * is a dash, never "absent": the server gives it the benefit of the doubt too.
+ */
+function IssuerDetails({ issuerCheck, item, extracted, copy }) {
+  const details = item.risk?.class === 'experience_letter'
+    ? (Array.isArray(item.risk.components) ? item.risk.components : []).find((component) => component?.code === 'issuer_details_missing')
+    : null
+  const missing = new Set(Array.isArray(details?.missing) ? details.missing : [])
+  const text = (field) => (typeof issuerCheck[field] === 'string' && issuerCheck[field].trim() !== '' ? issuerCheck[field] : copy.notShown)
+  const row = (field) => <IssuerRow key={field} field={field} label={copy.issuerFields[field]} value={text(field)} missing={missing.has(field)} />
+  const identifiable = typeof issuerCheck.issuer_identifiable === 'string' ? issuerCheck.issuer_identifiable : null
+
+  return (
+    <div data-issuer-check="true">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{copy.issuerTitle}</p>
+      <dl className="mt-2 grid gap-x-4 gap-y-1 text-xs sm:grid-cols-[max-content_minmax(0,1fr)]">
+        {['legal_name', 'registration_number', 'address'].map(row)}
+        <div className="contents" data-field="contact" data-missing={missing.has('contact') ? 'true' : undefined}>
+          {ISSUER_CONTACT_FIELDS.map((field) => <IssuerRow key={field} field={field} label={copy.issuerFields[field]} value={text(field)} highlight={missing.has('contact')} />)}
+        </div>
+        {['signatory_name', 'signatory_title'].map(row)}
+        {ISSUER_PRESENCE_FIELDS.map((field) => <IssuerRow key={field} field={field} label={copy.issuerFields[field]} value={issuerCheck[field] ? labelFor(copy.presence, issuerCheck[field]) : '—'} missing={missing.has(field)} />)}
+        {missing.has('issue_date') ? <IssuerRow field="issue_date" label={copy.extractedFields.issue_date} value={extracted?.issue_date || copy.notShown} missing /> : null}
+      </dl>
+      {identifiable ? (
+        <p className="mt-2 text-xs leading-5" data-issuer-identifiable={identifiable}>
+          <strong className={identifiable === 'no' ? 'text-amber-800' : ''}>{labelFor(copy.issuerIdentifiable, identifiable)}</strong>
+          {issuerCheck.issuer_identifiable_reason ? <span dir="auto" className="mt-1 block text-[var(--color-text-muted)]">{issuerCheck.issuer_identifiable_reason}</span> : null}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 /* The extracted values are the model's own strings (dates included), shown as read rather than reformatted. */
 function DocumentDetails({ item, copy, language }) {
   const flags = Array.isArray(item.flags) ? item.flags : []
@@ -183,8 +260,10 @@ function DocumentDetails({ item, copy, language }) {
     ['job_titles', (extracted.job_titles || []).filter(Boolean).join(' · ')],
     ['period', extracted.period?.from || extracted.period?.to ? `${extracted.period?.from || '—'} – ${extracted.period?.to || '—'}` : null],
   ].filter(([, value]) => value) : []
+  // Optional: rows from before rpl-screen-v3 have no issuer_check key at all.
+  const issuerCheck = isPlainObject(extracted?.issuer_check) ? extracted.issuer_check : null
 
-  if (!flags.length && !signals.length && !extractedRows.length && !item.rationale) return null
+  if (!flags.length && !signals.length && !extractedRows.length && !issuerCheck && !item.rationale) return null
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -220,6 +299,7 @@ function DocumentDetails({ item, copy, language }) {
           </dl>
         </div>
       ) : null}
+      {issuerCheck ? <IssuerDetails issuerCheck={issuerCheck} item={item} extracted={extracted} copy={copy} /> : null}
       {item.rationale ? (
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{copy.rationale}</p>
@@ -230,11 +310,87 @@ function DocumentDetails({ item, copy, language }) {
   )
 }
 
+function percentOrNull(value) {
+  if (value == null || value === '') return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function RiskComponentItem({ component, documentTitle, caseLevel, copy }) {
+  const text = riskComponentText(component, { documentTitle, caseLevel }, copy)
+  return (
+    <li data-component={component.code} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-950">
+      <strong className="block">{text.title}</strong>
+      {text.reason ? <span dir="auto" className="mt-1 block">{text.reason}</span> : null}
+      {text.weight ? <span className="mt-1 block font-semibold">{text.weight}</span> : null}
+      {text.sources ? <span className="mt-1 block text-amber-900">{text.sources}</span> : null}
+    </li>
+  )
+}
+
+/*
+ * HOW THE FIGURE WAS REACHED (rpl-risk-v1). The server's arithmetic, as stored
+ * with the run: per document, the model's reading and each platform component
+ * with its weight and who raised it, then the document's figure; then the
+ * case-level components and the case line. Shown, never recomputed here.
+ */
+function RiskBreakdownCard({ screening, copy }) {
+  if (screening.status !== 'completed' || !isRiskModelRun(screening)) return null
+  const breakdown = screening.risk_breakdown
+  const documents = (Array.isArray(breakdown.documents) ? breakdown.documents : []).filter(isPlainObject)
+  const caseComponents = sortRiskComponents(breakdown.case_components)
+  const casePercent = percentOrNull(breakdown.case_percent)
+  const highest = percentOrNull(breakdown.highest_document_percent)
+
+  return (
+    <Card role="region" aria-label={copy.riskTitle} data-risk-breakdown="true">
+      <CardHeader className="border-b border-[var(--color-border)]">
+        <CardTitle>{copy.riskTitle}</CardTitle>
+        <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{copy.riskCombination}</p>
+      </CardHeader>
+      <CardContent className="space-y-4 pt-6">
+        {documents.map((entry, index) => {
+          const title = screeningDocumentTitle(screening, entry.evidence_public_id, copy)
+          const modelPercent = percentOrNull(entry.model_percent)
+          const documentPercent = percentOrNull(entry.document_percent)
+          const components = sortRiskComponents(entry.components)
+          const notes = (Array.isArray(entry.notes) ? entry.notes : []).filter((note) => typeof note === 'string' && note)
+          return (
+            <section key={entry.evidence_public_id || index} aria-label={title} data-risk-document={entry.evidence_public_id || ''} className="space-y-2 rounded-2xl border border-[var(--color-border)] p-4 text-sm">
+              <p dir="auto" className="font-semibold text-[var(--color-text)]">{title}</p>
+              {entry.model_percent_unsupported ? <p className="text-xs leading-5 text-[var(--color-text-muted)]" data-model-dropped="true">{copy.riskModelDropped}</p>
+                : modelPercent != null ? <p className="text-xs leading-5 text-[var(--color-text-muted)]">{fill(copy.riskModelPart, { percent: modelPercent })}</p> : null}
+              {components.length ? <ul className="space-y-2">{components.map((component, componentIndex) => <RiskComponentItem key={`${component.code}-${componentIndex}`} component={component} documentTitle={title} caseLevel={false} copy={copy} />)}</ul> : null}
+              {documentPercent != null ? <p className="font-bold text-[var(--color-text)]">{fill(copy.riskDocumentFigure, { percent: documentPercent })}</p> : null}
+              {notes.map((note) => <p key={note} data-note={note} className="text-xs leading-5 text-[var(--color-text-muted)]">{riskNoteText(note, copy)}</p>)}
+            </section>
+          )
+        })}
+
+        {caseComponents.length ? (
+          <section aria-label={copy.riskCaseComponentsTitle} data-risk-case="true" className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{copy.riskCaseComponentsTitle}</p>
+            <ul className="space-y-2">{caseComponents.map((component, index) => <RiskComponentItem key={`${component.code}-${index}`} component={component} caseLevel copy={copy} />)}</ul>
+          </section>
+        ) : null}
+
+        <p data-risk-case-line="true" className="border-t border-[var(--color-border)] pt-4 text-sm font-bold text-[var(--color-text)]">
+          {casePercent != null
+            ? fill(copy.riskCaseLine, { max: highest ?? casePercent, withCase: caseComponents.length ? copy.riskCaseLineWith : '', percent: casePercent })
+            : copy.riskCaseNoFigure}
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
+
 function DocumentsCard({ screening, copy, language, categories }) {
   const items = Array.isArray(screening.items) ? screening.items : []
   const withheld = Array.isArray(screening.coverage?.withheld) ? screening.coverage.withheld : []
   // A refused or failed run never shows a percentage, whatever its rows hold.
   const showFigures = screening.status === 'completed'
+  // rpl-risk-v1: the figure combines the model's reading with the platform's signals; the confidence beside it is the model's, in its reading.
+  const confidenceHeading = isRiskModelRun(screening) ? copy.columnModelConfidence : copy.columnConfidence
   if (!items.length && !withheld.length) return null
 
   return (
@@ -246,7 +402,7 @@ function DocumentsCard({ screening, copy, language, categories }) {
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--color-border)]">
-                  {[copy.columnDocument, copy.columnRead, copy.columnFigure, copy.columnConfidence, copy.columnConsistency].map((heading) => <th key={heading} scope="col" className="px-3 py-2 text-start text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{heading}</th>)}
+                  {[copy.columnDocument, copy.columnRead, copy.columnFigure, confidenceHeading, copy.columnConsistency].map((heading) => <th key={heading} scope="col" className="px-3 py-2 text-start text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{heading}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -313,23 +469,33 @@ function SearchSuggestions({ html, title }) {
   return <iframe title={title} sandbox="allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer" srcDoc={frameDocument} className="h-24 w-full rounded-xl border border-[var(--color-border)] bg-white" />
 }
 
+/*
+ * On an rpl-risk-v1 run the confidence column is the platform's confidence in
+ * the CLAIM (never above Medium), and the model's confidence in its own
+ * classification moves into the details: under "Confidence" it read as
+ * confidence in the employer. The pages a search returned for an employer that
+ * cannot be identified, or was not found, are said not to be its own.
+ */
 function EmployersCard({ screening, copy, language }) {
   const checks = Array.isArray(screening.employer_checks) ? screening.employer_checks : []
   if (screening.status !== 'completed' && !checks.length) return null
+  const riskRun = isRiskModelRun(screening)
 
   return (
     <Card>
       <CardHeader className="border-b border-[var(--color-border)]">
         <CardTitle>{copy.employersTitle}</CardTitle>
         <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{copy.employersHint}</p>
+        {riskRun ? <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">{copy.employersHintIdentity}</p> : null}
       </CardHeader>
       <CardContent className="space-y-5 pt-6">
         {checks.length ? (
           <div className="overflow-x-auto">
+            {riskRun ? <p data-hint="claim-confidence" className="mb-3 text-xs leading-5 text-[var(--color-text-muted)]">{copy.claimConfidenceHint}</p> : null}
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--color-border)]">
-                  {[copy.columnEmployer, copy.columnLocation, copy.columnResult, copy.columnMethod, copy.columnConfidence, copy.columnSources].map((heading) => <th key={heading} scope="col" className="px-3 py-2 text-start text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{heading}</th>)}
+                  {[copy.columnEmployer, copy.columnLocation, copy.columnResult, copy.columnMethod, riskRun ? copy.columnClaimConfidence : copy.columnConfidence, copy.columnSources].map((heading) => <th key={heading} scope="col" className="px-3 py-2 text-start text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{heading}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -337,10 +503,15 @@ function EmployersCard({ screening, copy, language }) {
                   const sources = (Array.isArray(check.sources) ? check.sources : []).filter((source) => source?.uri)
                   const queries = (Array.isArray(check.search_queries) ? check.search_queries : []).filter(Boolean)
                   const flags = (Array.isArray(check.flags) ? check.flags : []).filter(Boolean)
-                  const details = flags.length || queries.length || check.rationale ? (
+                  const modelConfidence = riskRun && check.confidence ? fill(copy.modelConfidence, { value: labelFor(copy.confidence, check.confidence) }) : null
+                  const namedIn = riskRun ? namedInText(check, screening, copy) : null
+                  const notOwnSources = riskRun && sourcesAreNotOwn(check)
+                  const details = flags.length || queries.length || check.rationale || modelConfidence || namedIn ? (
                     <div className="space-y-3 text-xs leading-5">
+                      {namedIn ? <p data-named-in="true">{namedIn}</p> : null}
                       {flags.map((flag) => <p key={flag} data-flag={flag} className={flag === 'privacy_query_breach' ? 'flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-3 py-2 font-semibold text-red-800' : 'rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900'}>{flag === 'privacy_query_breach' ? <ShieldAlert size={15} aria-hidden="true" /> : null}{labelFor(copy.employerFlags, flag)}</p>)}
                       {queries.length ? <p><span className="font-semibold text-[var(--color-text-muted)]">{copy.searchQueries}: </span>{queries.map((query, queryIndex) => <bdi key={queryIndex} className="me-2 rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5">{query}</bdi>)}</p> : null}
+                      {modelConfidence ? <p data-model-confidence={check.confidence}>{modelConfidence}</p> : null}
                       {check.rationale ? <p dir="auto" className="whitespace-pre-wrap"><span className="font-semibold text-[var(--color-text-muted)]">{copy.rationale}: </span>{check.rationale}</p> : null}
                     </div>
                   ) : null
@@ -353,8 +524,15 @@ function EmployersCard({ screening, copy, language }) {
                       </td>
                       <td className="px-3 py-3 align-top" data-result={check.result}>{labelFor(copy.employerResult, check.result) || '—'}</td>
                       <td className="px-3 py-3 align-top">{labelFor(copy.employerMethod, check.method) || '—'}</td>
-                      <td className="px-3 py-3 align-top">{labelFor(copy.confidence, check.confidence) || '—'}</td>
-                      <td className="px-3 py-3 align-top text-xs">{sources.length ? <ul className="space-y-1">{sources.map((source, sourceIndex) => <li key={sourceIndex}><ExternalAnchor href={source.uri}>{source.title || source.uri}</ExternalAnchor></li>)}</ul> : copy.noSources}</td>
+                      {riskRun
+                        ? <td className="px-3 py-3 align-top" data-claim-confidence={check.claim_confidence || undefined}>{claimConfidenceLabel(check, copy) || '—'}</td>
+                        : <td className="px-3 py-3 align-top">{labelFor(copy.confidence, check.confidence) || '—'}</td>}
+                      <td className="px-3 py-3 align-top text-xs">{sources.length ? (
+                        <>
+                          {notOwnSources ? <p data-sources-not-own="true" className="mb-1 text-[var(--color-text-muted)]">{copy.sourcesNotThisEmployer}</p> : null}
+                          <ul className="space-y-1">{sources.map((source, sourceIndex) => <li key={sourceIndex}><ExternalAnchor href={source.uri}>{source.title || source.uri}</ExternalAnchor></li>)}</ul>
+                        </>
+                      ) : copy.noSources}</td>
                     </ScreeningRowGroup>
                   )
                 })}
@@ -453,6 +631,9 @@ export default function DocumentScreeningPanel({ applicationId, screenings = [],
       {selected ? (
         <>
           <RunSummary screening={selected} categories={categories} copy={copy} language={lang} canAcknowledge={selected.status === 'completed'} busy={action.busy} onAcknowledge={acknowledge} />
+          {/* A run on instructions that did not check the issuer's identity: its figure stands as stored, and a re-run applies the current checks. */}
+          {canRun && isOlderRulesRun(selected) ? <p data-older-rules="true" className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-900">{fill(copy.olderRules, { version: selected.prompt_version })}</p> : null}
+          <RiskBreakdownCard screening={selected} copy={copy} />
           <DocumentsCard screening={selected} copy={copy} language={lang} categories={categories} />
           <EmployersCard screening={selected} copy={copy} language={lang} />
         </>

@@ -20,7 +20,7 @@ import {
   snapshotFigureText,
   toDateTimeLocalValue,
 } from './caseDecision'
-import { SCREENING_COPY } from './documentScreening'
+import { SCREENING_COPY, fill } from './documentScreening'
 
 /*
  * THE RULES BEHIND THE DECISION CARD AND THE INTERVIEW PANEL
@@ -190,6 +190,19 @@ describe('the screening as staff saw it at the decision', () => {
     expect(snapshotFigureText({ state: 'none', fake_likelihood_percent: 0 }, SCREENING_COPY.en)).toBeNull()
     expect(snapshotFigureText({ state: 'screening_disabled' }, SCREENING_COPY.en)).toBeNull()
     expect(snapshotFigureText({ state: 'completed', fake_likelihood_percent: null }, SCREENING_COPY.en)).toBeNull()
+  })
+
+  // RplEmployerCheck::RESULTS since rpl-screen-v3 (owner report of 18 Oct 2026): six counts, in the API's order.
+  it.each(['ar', 'en'])('counts every employer result the API sends, "cannot be identified" included, in %s', (language) => {
+    const template = CASE_DECISION_COPY[language].employerSummary
+    const keys = [...template.matchAll(/\{(\w+)\}/g)].map(([, key]) => key)
+    expect(keys).toEqual(['found_consistent', 'found_inconsistent', 'not_found_online', 'not_identifiable', 'ambiguous', 'not_checked'])
+  })
+
+  it('words the "cannot be identified" count as the screen does', () => {
+    const counts = { found_consistent: 0, found_inconsistent: 0, not_found_online: 1, not_identifiable: 2, ambiguous: 0, not_checked: 0 }
+    expect(fill(CASE_DECISION_COPY.en.employerSummary, counts)).toBe('Employers: 0 consistent, 0 inconsistent, 1 not found online, 2 cannot be identified, 0 ambiguous, 0 not checked.')
+    expect(fill(CASE_DECISION_COPY.ar.employerSummary, counts)).toContain('2 لا يمكن تحديد هويتها')
   })
 })
 

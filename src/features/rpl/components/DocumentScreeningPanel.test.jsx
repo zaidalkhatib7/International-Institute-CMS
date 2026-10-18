@@ -448,6 +448,352 @@ describe('the employer checks', () => {
   })
 })
 
+/*
+ * THE OWNER'S CASE ON THE CURRENT RULES (report of 18 Oct 2026; rpl-screen-v3,
+ * rpl-risk-v1; spec W1b). A letter from "Tourism Company" on plain paper read
+ * "0%" under v2. Now the server combines the model's 0 with the generic name
+ * (45) and nearly all issuer details missing (35): 64 (6.4/10), "high
+ * attention". The payload is the API's contract (spec 7.1), mocked here.
+ */
+const W1B_MISSING = ['registration_number', 'address', 'contact', 'signatory_name', 'stamp_or_seal', 'letterhead']
+
+function letterRisk(overrides = {}) {
+  return {
+    class: 'experience_letter',
+    model_percent: 0,
+    model_percent_unsupported: false,
+    // Sent in another order than the API's list: the panel lists them in RISK_COMPONENTS order.
+    components: [
+      { code: 'issuer_details_missing', weight: 35, level: 'nearly_all', missing: W1B_MISSING, missing_count: 6, contact_route: false },
+      { code: 'organisation_name_generic', weight: 45, names: ['Tourism Company'], sources: ['platform_word_check', 'employer_search'] },
+    ],
+    document_percent: 64,
+    notes: [],
+    ...overrides,
+  }
+}
+
+function v3Screening(overrides = {}) {
+  const cvRisk = { class: 'cv', model_percent: 0, model_percent_unsupported: false, components: [], document_percent: 0, notes: [] }
+  return screening({
+    prompt_version: 'rpl-screen-v3',
+    requested_model: 'gemini-flash-latest',
+    responding_model: 'gemini-3.8-flash',
+    fake_likelihood_percent: 64,
+    score_out_of_10: 6.4,
+    risk_breakdown: {
+      version: 'rpl-risk-v1',
+      word_lists: 'org-names-v1',
+      case_percent: 64,
+      model_case_percent: 0,
+      highest_document_percent: 64,
+      band: 'high',
+      documents: [{ evidence_public_id: 'ev-1', ...letterRisk() }, { evidence_public_id: 'ev-3', ...cvRisk }],
+      case_components: [],
+    },
+    items: [
+      letter({
+        evidence_snapshot: { title: 'Experience letter', category_code: 'professional_experience', issuer: 'Tourism Company', issued_on: '2023-06-01', document_number: null },
+        extracted: {
+          holder_name: 'Applicant Example', issuer: 'Tourism Company', issue_date: '2023-06-01', document_number: null, employer_names: ['Tourism Company'], job_titles: ['Tour coordinator'], period: { from: '2019-03', to: '2023-05' },
+          issuer_check: {
+            issued_by_an_employer: true, legal_name: 'Tourism Company', registration_number: null, address: null, phone: null, email: null, website: null,
+            signatory_name: null, signatory_title: 'Manager', signature: 'present', stamp_or_seal: 'absent', letterhead: 'absent',
+            issuer_identifiable: 'no', issuer_identifiable_reason: 'The name is only a sector word and a legal form.',
+          },
+        },
+        fake_likelihood_percent: 64,
+        confidence: 'medium',
+        flags: [],
+        deterministic_signals: [],
+        consistency_with_claim: 'unclear',
+        rationale: 'No contradiction was observed in the letter. The issuer check found a name that identifies no organisation and no way to contact the issuer.',
+        risk: letterRisk(),
+      }),
+      letter({
+        evidence_public_id: 'ev-2',
+        evidence_snapshot: { title: 'Passport', category_code: 'identity', issuer: 'Civil Status Department', issued_on: '2021-05-04', document_number: 'P123' },
+        extracted: { holder_name: 'Applicant Example', issuer: null, issue_date: '2021-05-04', document_number: 'P123', employer_names: [], job_titles: [], period: { from: null, to: null }, issuer_check: null },
+        extraction_only: true, fake_likelihood_percent: null, confidence: null, flags: [], deterministic_signals: [], consistency_with_claim: 'consistent',
+        rationale: 'Name and dates agree with the other documents.', risk: null,
+      }),
+      letter({
+        evidence_public_id: 'ev-3',
+        evidence_snapshot: { title: 'Curriculum vitae', category_code: 'curriculum_vitae', issuer: null, issued_on: null, document_number: null },
+        extracted: { holder_name: 'Applicant Example', issuer: null, issue_date: null, document_number: null, employer_names: ['Tourism Company'], job_titles: ['Tour coordinator'], period: { from: '2019-03', to: '2023-05' } },
+        fake_likelihood_percent: 0, confidence: 'medium', flags: [], deterministic_signals: [], consistency_with_claim: 'unclear',
+        rationale: 'The CV agrees with the letter.', risk: { ...cvRisk },
+      }),
+    ],
+    employer_checks: [
+      {
+        claimed_name: 'Tourism Company', country: 'AE', city: null, website: null, claim_source: 'evidence', evidence_public_ids: ['ev-1', 'ev-3'],
+        result: 'not_identifiable', method: 'web_search', confidence: 'high', claim_confidence: 'low',
+        sources: [{ uri: 'https://www.yellowpages-uae.com/tourism', title: 'yellowpages-uae.com' }, { uri: 'https://www.tourradar.com/d/united-arab-emirates', title: 'tourradar.com' }],
+        search_queries: ['"Tourism Company" UAE', '"Tourism Company LLC" UAE'], flags: ['name_generic_platform_check'],
+        rationale: 'No distinct public presence for an entity operating solely under the generic name; searches returned only sector directories and unrelated businesses.',
+      },
+      {
+        claimed_name: 'Al Rawda Trading LLC', country: 'JO', city: 'Amman', website: null, claim_source: 'profile', evidence_public_ids: [],
+        result: 'found_consistent', method: 'web_search', confidence: 'high', claim_confidence: 'medium',
+        sources: [{ uri: 'https://alrawda-trading.example/', title: 'alrawda-trading.example' }],
+        search_queries: ['Al Rawda Trading LLC Amman'], flags: [], rationale: 'A company site matches the name and city.',
+      },
+    ],
+    ...overrides,
+  })
+}
+
+/* A document title appears in the table and in the breakdown card: the table row is the one inside a <tr>. */
+function tableRowOf(title) {
+  return screen.getAllByText(title).map((node) => node.closest('tr')).find(Boolean)
+}
+
+function employersTable() {
+  return screen.getByText('Al Rawda Trading LLC').closest('table')
+}
+
+describe('the owner\'s case on the current rules (rpl-screen-v3, rpl-risk-v1)', () => {
+  it('heads the screen with 64% (6.4/10), the band "high attention" and what raised it most', () => {
+    renderPanel({ screenings: [v3Screening()] })
+
+    expect(screen.getByText('Authenticity risk 64% (6.4/10)')).toBeInTheDocument()
+    const band = screen.getByText('High attention').closest('[data-band]')
+    expect(band).toHaveAttribute('data-band', 'high')
+    expect(band.innerHTML).toContain('bg-[#FDECEC]')
+    const headline = document.querySelector('[data-risk-headline]')
+    expect(headline).toHaveTextContent('What raised it most: "Tourism Company" on "Experience letter" does not single out one organisation')
+  })
+
+  it('shows how the figure was reached: the model\'s reading, each component with its weight and who raised it, the document and case figures', () => {
+    renderPanel({ screenings: [v3Screening()] })
+
+    const card = screen.getByRole('region', { name: EN.riskTitle })
+    expect(within(card).getByText(EN.riskCombination)).toBeInTheDocument()
+    const block = within(card).getByRole('region', { name: 'Experience letter' })
+    expect(block).toHaveTextContent(fill(EN.riskModelPart, { percent: 0 }))
+    expect([...block.querySelectorAll('[data-component]')].map((node) => node.getAttribute('data-component'))).toEqual(['organisation_name_generic', 'issuer_details_missing'])
+
+    const generic = block.querySelector('[data-component="organisation_name_generic"]')
+    expect(generic).toHaveTextContent(EN.riskComponents.organisation_name_generic.title)
+    expect(generic).toHaveTextContent('"Tourism Company" on "Experience letter" does not single out one organisation')
+    expect(generic).toHaveTextContent('Weight 45%: on its own it would put the document at 45%.')
+    expect(generic).toHaveTextContent("Raised by: the platform's word check (no AI), the employer search")
+
+    const details = block.querySelector('[data-component="issuer_details_missing"]')
+    expect(details).toHaveTextContent(EN.riskComponents.issuer_details_missing.title)
+    expect(details).toHaveTextContent('Weight 35%: on its own it would put the document at 35%.')
+    expect(details).toHaveTextContent('6 of 9 details are missing')
+    expect(details).toHaveTextContent("Missing: registration or licence number, address, phone, email or website, signatory's name, stamp or seal, letterhead.")
+    expect(details).not.toHaveTextContent('Raised by')
+
+    expect(block).toHaveTextContent('Document figure: 64%')
+    expect(within(card).getByRole('region', { name: 'Curriculum vitae' })).toHaveTextContent('Document figure: 0%')
+    // The identity document is never scored, so it is not in the breakdown.
+    expect(within(card).queryByRole('region', { name: 'Passport' })).toBeNull()
+    expect(card.querySelector('[data-risk-case-line]')).toHaveTextContent('Case figure: the highest document figure (64%), giving 64%.')
+  })
+
+  it('shows the issuer details as the letter shows them, "not shown" where empty, and marks the six missing items', () => {
+    renderPanel({ screenings: [v3Screening()] })
+
+    const issuer = tableRowOf('Experience letter').nextElementSibling.querySelector('[data-issuer-check]')
+    expect(within(issuer).getByText(EN.issuerTitle)).toBeInTheDocument()
+    // Registration, address, phone, email, website and the signatory's name.
+    expect(within(issuer).getAllByText(EN.notShown)).toHaveLength(6)
+    expect([...issuer.querySelectorAll('[data-missing="true"]')].map((node) => node.getAttribute('data-field'))).toEqual(W1B_MISSING)
+    expect(issuer.querySelector('[data-field="legal_name"]')).toHaveTextContent('Tourism Company')
+    expect(issuer.querySelector('[data-field="signatory_title"]')).toHaveTextContent('Manager')
+    expect(issuer.querySelector('[data-field="signatory_title"]')).not.toHaveAttribute('data-missing')
+    expect(issuer.querySelector('[data-field="signature"]')).toHaveTextContent(EN.presence.present)
+    expect(issuer.querySelector('[data-field="stamp_or_seal"]')).toHaveTextContent(EN.presence.absent)
+    expect(issuer.querySelector('[data-field="letterhead"]')).toHaveTextContent(EN.presence.absent)
+    expect(within(issuer).getByText(EN.issuerIdentifiable.no)).toBeInTheDocument()
+    expect(issuer).toHaveTextContent('The name is only a sector word and a legal form.')
+    // The identity document has no issuer block (D20(c)).
+    expect(tableRowOf('Passport').nextElementSibling.querySelector('[data-issuer-check]')).toBeNull()
+  })
+
+  it('reads the employer as "cannot be identified", with the platform\'s low confidence in the claim and the model\'s own confidence in the details', () => {
+    renderPanel({ screenings: [v3Screening()] })
+
+    const table = employersTable()
+    expect(within(table).getByRole('columnheader', { name: EN.columnClaimConfidence })).toBeInTheDocument()
+    expect(within(table).queryByRole('columnheader', { name: EN.columnConfidence })).toBeNull()
+    expect(screen.getByText(EN.claimConfidenceHint)).toBeInTheDocument()
+    expect(screen.getByText(EN.employersHintIdentity)).toBeInTheDocument()
+
+    const row = within(table).getByText('Tourism Company').closest('tr')
+    expect(within(row).getByText(EN.employerResult.not_identifiable)).toBeInTheDocument()
+    expect(row.querySelector('[data-result]')).toHaveAttribute('data-result', 'not_identifiable')
+    expect(row.querySelector('[data-claim-confidence]')).toHaveTextContent(/^Low$/)
+    expect(row).not.toHaveTextContent('High')
+    const sources = row.querySelectorAll('td')[5]
+    expect(sources.firstElementChild).toHaveTextContent(EN.sourcesNotThisEmployer)
+    expect(within(sources).getByRole('link', { name: 'yellowpages-uae.com' })).toBeInTheDocument()
+
+    const details = row.nextElementSibling
+    expect(details).toHaveTextContent("The model's confidence in this classification: High")
+    expect(details).toHaveTextContent('Named in: Experience letter, Curriculum vitae')
+    expect(details).toHaveTextContent(EN.employerFlags.name_generic_platform_check)
+    expect(details).toHaveTextContent('"Tourism Company" UAE')
+
+    // A found employer: Medium at most, and its pages are not prefixed.
+    const found = within(table).getByText('Al Rawda Trading LLC').closest('tr')
+    expect(found.querySelector('[data-claim-confidence]')).toHaveTextContent(/^Medium$/)
+    expect(found.querySelectorAll('td')[5]).not.toHaveTextContent(EN.sourcesNotThisEmployer)
+  })
+
+  it('says the same in Arabic, in Arabic words', () => {
+    renderPanel({ language: 'ar', screenings: [v3Screening()] })
+
+    expect(screen.getByText('مؤشر خطر الأصالة 64٪ (6.4/10)')).toBeInTheDocument()
+    expect(screen.getByText(AR.riskBand.high).closest('[data-band]')).toHaveAttribute('data-band', 'high')
+    expect(document.querySelector('[data-risk-headline]')).toHaveTextContent('أكثر ما رفع المؤشر: «Tourism Company» في «Experience letter»')
+
+    const card = screen.getByRole('region', { name: AR.riskTitle })
+    const block = within(card).getByRole('region', { name: 'Experience letter' })
+    expect(block.querySelector('[data-component="organisation_name_generic"]')).toHaveTextContent('وزنها 45٪: لو كانت وحدها لكان مؤشر الوثيقة 45٪.')
+    expect(block.querySelector('[data-component="organisation_name_generic"]')).toHaveTextContent('رصدها: فحص المنصة للكلمات (دون ذكاء اصطناعي)، البحث عن جهة العمل')
+    expect(block.querySelector('[data-component="issuer_details_missing"]')).toHaveTextContent('الناقص: رقم السجل التجاري أو الترخيص، العنوان، هاتف أو بريد إلكتروني أو موقع، اسم الموقّع، الختم، الترويسة.')
+    expect(card.querySelector('[data-risk-case-line]')).toHaveTextContent('مؤشر الطلب: أعلى مؤشر وثيقة (64٪)، أي 64٪.')
+
+    const issuer = tableRowOf('Experience letter').nextElementSibling.querySelector('[data-issuer-check]')
+    expect(within(issuer).getByText(AR.issuerTitle)).toBeInTheDocument()
+    expect(within(issuer).getAllByText(AR.notShown)).toHaveLength(6)
+    expect(issuer.querySelectorAll('[data-missing="true"]')).toHaveLength(6)
+
+    const table = employersTable()
+    expect(within(table).getByRole('columnheader', { name: AR.columnClaimConfidence })).toBeInTheDocument()
+    const row = within(table).getByText('Tourism Company').closest('tr')
+    expect(within(row).getByText(AR.employerResult.not_identifiable)).toBeInTheDocument()
+    expect(row.querySelector('[data-claim-confidence]')).toHaveTextContent(/^منخفضة$/)
+    expect(row.querySelectorAll('td')[5].firstElementChild).toHaveTextContent(AR.sourcesNotThisEmployer)
+    expect(row.nextElementSibling).toHaveTextContent('ثقة النموذج في هذا التصنيف: مرتفعة')
+    expect(row.nextElementSibling).toHaveTextContent('مذكورة في: Experience letter، Curriculum vitae')
+    expect(row.nextElementSibling).toHaveTextContent(AR.employerFlags.name_generic_platform_check)
+
+    expect(document.body.textContent).not.toContain('undefined')
+    expect(document.body.textContent).not.toMatch(/organisation_name_generic|issuer_details_missing|nearly_all|not_identifiable|name_generic_platform_check|platform_word_check/)
+  })
+
+  it('never uses a verdict word on such a run, in either language', () => {
+    for (const language of ['en', 'ar']) {
+      const { unmount } = renderPanel({ language, screenings: [v3Screening()] })
+      expect(document.body.textContent).not.toMatch(/fake|fraud|forged|clean/i)
+      expect(document.body.textContent.replace(/[ً-ْٰ]/g, '')).not.toMatch(/وهمي|مزور|تزوير|احتيال|محتال|كاذب|كذاب/)
+      unmount()
+    }
+  })
+
+  it('reads a letter whose model percentage was not kept at its platform figure, and says why (spec W7)', () => {
+    const w7 = letterRisk({
+      model_percent: null,
+      model_percent_unsupported: true,
+      components: [{ code: 'issuer_details_missing', weight: 25, level: 'no_contact_route', missing: ['registration_number', 'address', 'contact'], missing_count: 3, contact_route: false }],
+      document_percent: 25,
+    })
+    renderPanel({ screenings: [v3Screening({ fake_likelihood_percent: 25, score_out_of_10: 2.5, risk_breakdown: { ...v3Screening().risk_breakdown, case_percent: 25, highest_document_percent: 25, band: 'attention', documents: [{ evidence_public_id: 'ev-1', ...w7 }] } })] })
+
+    expect(screen.getByText('Worth attention').closest('[data-band]')).toHaveAttribute('data-band', 'attention')
+    const block = screen.getByRole('region', { name: EN.riskTitle }).querySelector('[data-risk-document="ev-1"]')
+    expect(block).toHaveTextContent(EN.riskModelDropped)
+    expect(block).not.toHaveTextContent(fill(EN.riskModelPart, { percent: 0 }))
+    expect(block).toHaveTextContent('No registration number, address, phone, email or website: there is no way to contact or check the issuer (3 of 9 missing).')
+    expect(block).toHaveTextContent('Document figure: 25%')
+  })
+
+  it('shows a letter read without issuer details as "not checked", and a generic profile claim at case level', () => {
+    const run = v3Screening({
+      fake_likelihood_percent: 36,
+      score_out_of_10: 3.6,
+      risk_breakdown: {
+        ...v3Screening().risk_breakdown,
+        case_percent: 36,
+        highest_document_percent: 8,
+        band: 'attention',
+        documents: [{ evidence_public_id: 'ev-1', class: 'experience_letter', model_percent: 8, model_percent_unsupported: false, components: [], document_percent: 8, notes: ['issuer_details_not_reported'] }],
+        case_components: [{ code: 'claimed_employer_name_generic', weight: 30, names: ['Trading Company LLC'], sources: ['platform_word_check'] }],
+      },
+    })
+    renderPanel({ screenings: [run] })
+
+    const card = screen.getByRole('region', { name: EN.riskTitle })
+    expect(card.querySelector('[data-note="issuer_details_not_reported"]')).toHaveTextContent(EN.riskNoteDetailsNotReported)
+    const caseBlock = within(card).getByRole('region', { name: EN.riskCaseComponentsTitle })
+    const claimed = caseBlock.querySelector('[data-component="claimed_employer_name_generic"]')
+    expect(claimed).toHaveTextContent('"Trading Company LLC" does not single out one organisation, and no document read identifies it. The claim is unverified.')
+    expect(claimed).toHaveTextContent('Weight 30% at case level.')
+    expect(card.querySelector('[data-risk-case-line]')).toHaveTextContent('Case figure: the highest document figure (8%), with the case-level signals, giving 36%.')
+    expect(document.querySelector('[data-risk-headline]')).toHaveTextContent('What raised it most: "Trading Company LLC" does not single out one organisation')
+  })
+
+  it('has no figure when no document can carry one, and still lists the case-level signal (spec W10)', () => {
+    const run = v3Screening({
+      fake_likelihood_percent: null,
+      score_out_of_10: null,
+      risk_breakdown: { ...v3Screening().risk_breakdown, case_percent: null, highest_document_percent: null, band: null, documents: [], case_components: [{ code: 'claimed_employer_name_generic', weight: 30, names: ['Trading Company LLC'], sources: ['platform_word_check'] }] },
+    })
+    renderPanel({ screenings: [run] })
+
+    expect(screen.getByText(EN.completedNoFigure)).toBeInTheDocument()
+    expect(document.querySelector('[data-band]')).toBeNull()
+    expect(document.querySelector('[data-risk-headline]')).toBeNull()
+    const card = screen.getByRole('region', { name: EN.riskTitle })
+    expect(card.querySelector('[data-component="claimed_employer_name_generic"]')).toBeInTheDocument()
+    expect(card.querySelector('[data-risk-case-line]')).toHaveTextContent(EN.riskCaseNoFigure)
+  })
+
+  it('says nothing about older rules on a run that applied them', () => {
+    renderPanel({ screenings: [v3Screening()] })
+
+    expect(document.querySelector('[data-older-rules]')).toBeNull()
+  })
+})
+
+describe('a run on older instructions (rpl-screen-v1, v2)', () => {
+  it('renders as before: no band, no breakdown, no issuer block, and the model\'s confidence under "Confidence"', () => {
+    renderPanel({ screenings: [screening({ prompt_version: 'rpl-screen-v2', employer_checks: [{ ...screening().employer_checks[1], sources: [{ uri: 'https://www.yellowpages.example/freight', title: 'yellowpages.example' }] }, screening().employer_checks[0]] })] })
+
+    expect(screen.getByText('Authenticity risk 30% (3/10)')).toBeInTheDocument()
+    expect(document.querySelector('[data-band]')).toBeNull()
+    expect(document.querySelector('[data-risk-headline]')).toBeNull()
+    expect(screen.queryByRole('region', { name: EN.riskTitle })).toBeNull()
+    expect(document.querySelector('[data-issuer-check]')).toBeNull()
+
+    const table = screen.getByText('Desert Freight Co').closest('table')
+    expect(within(table).getByRole('columnheader', { name: EN.columnConfidence })).toBeInTheDocument()
+    expect(within(table).queryByRole('columnheader', { name: EN.columnClaimConfidence })).toBeNull()
+    expect(within(table).getByText('Amman Logistics LLC').closest('tr').querySelectorAll('td')[4]).toHaveTextContent(/^High$/)
+    expect(screen.queryByText(EN.claimConfidenceHint)).toBeNull()
+    expect(screen.queryByText(EN.employersHintIdentity)).toBeNull()
+    expect(screen.queryByText(EN.sourcesNotThisEmployer)).toBeNull()
+    expect(document.body.textContent).not.toMatch(/model's confidence in this classification|Named in:/)
+  })
+
+  it.each(['rpl-screen-v1', 'rpl-screen-v2'])('offers a re-run under the current checks for a %s run, to staff who may run one', (version) => {
+    renderPanel({ screenings: [screening({ prompt_version: version })] })
+
+    const notice = document.querySelector('[data-older-rules]')
+    expect(notice).toHaveTextContent(fill(EN.olderRules, { version }))
+  })
+
+  it('says so in Arabic too', () => {
+    renderPanel({ language: 'ar', screenings: [screening({ prompt_version: 'rpl-screen-v2' })] })
+
+    expect(document.querySelector('[data-older-rules]')).toHaveTextContent(fill(AR.olderRules, { version: 'rpl-screen-v2' }))
+  })
+
+  it('says nothing about older rules to staff who cannot re-run, or for a run without a result', () => {
+    const { unmount } = renderPanel({ canRun: false, screenings: [screening({ prompt_version: 'rpl-screen-v2' })] })
+    expect(document.querySelector('[data-older-rules]')).toBeNull()
+    unmount()
+
+    renderPanel({ screenings: [screening({ prompt_version: 'rpl-screen-v2', status: 'refused', refusal_code: 'screening_disabled' })] })
+    expect(document.querySelector('[data-older-rules]')).toBeNull()
+  })
+})
+
 describe('re-run', () => {
   it('posts for the case and puts the queued run on top', async () => {
     const queued = screening({ public_id: 'scr-2', status: 'queued', trigger: 'staff_rerun', requested_by: { id: 1, name: 'Admin Example' }, fake_likelihood_percent: null, score_out_of_10: null, items: [], employer_checks: [] })
@@ -640,5 +986,46 @@ describe('the run list', () => {
 
     expect(screen.getByText('Re-run by Reviewer Example')).toBeInTheDocument()
     expect(screen.getByText('gemini-3-pro-preview, answered by gemini-3-pro-preview-0925')).toBeInTheDocument()
+  })
+})
+
+describe('the review of 18 Oct 2026 on the current rules', () => {
+  it('heads the documents table\'s confidence as the model\'s, in its reading, beside the combined figure; an older run keeps "Confidence"', () => {
+    const { unmount } = renderPanel({ screenings: [v3Screening()] })
+    const documents = tableRowOf('Experience letter').closest('table')
+    expect(within(documents).getByRole('columnheader', { name: EN.columnModelConfidence })).toBeInTheDocument()
+    expect(within(documents).queryByRole('columnheader', { name: EN.columnConfidence })).toBeNull()
+    unmount()
+
+    renderPanel({ screenings: [screening({ prompt_version: 'rpl-screen-v2' })] })
+    expect(screen.getAllByRole('columnheader', { name: EN.columnConfidence }).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('columnheader', { name: EN.columnModelConfidence })).toBeNull()
+  })
+
+  it('shows the pages the search tied to a generic name without calling them someone else\'s, and says why the result stands', () => {
+    const base = v3Screening()
+    renderPanel({ screenings: [v3Screening({ employer_checks: [
+      { ...base.employer_checks[0], confidence: null, flags: ['name_generic_platform_check', 'result_set_by_generic_name_rule', 'generic_name_found_by_search'] },
+      base.employer_checks[1],
+    ] })] })
+
+    const row = within(employersTable()).getByText('Tourism Company').closest('tr')
+    expect(row.querySelectorAll('td')[5]).not.toHaveTextContent(EN.sourcesNotThisEmployer)
+    expect(row.querySelector('[data-sources-not-own]')).toBeNull()
+    expect(within(row.querySelectorAll('td')[5]).getByRole('link', { name: 'yellowpages-uae.com' })).toBeInTheDocument()
+    expect(row.nextElementSibling.querySelector('[data-flag="generic_name_found_by_search"]')).toHaveTextContent(EN.employerFlags.generic_name_found_by_search)
+    expect(row.querySelector('[data-claim-confidence]')).toHaveTextContent(/^Low$/)
+  })
+
+  it('shows a not_identifiable only the search gave, in Arabic words', () => {
+    const base = v3Screening()
+    renderPanel({ language: 'ar', screenings: [v3Screening({ employer_checks: [
+      { ...base.employer_checks[0], claimed_name: 'مؤسسة جبل الشيخ للنقل', flags: ['name_not_identifiable_search_only'] },
+      base.employer_checks[1],
+    ] })] })
+
+    const row = within(employersTable()).getByText('مؤسسة جبل الشيخ للنقل').closest('tr')
+    expect(row.nextElementSibling.querySelector('[data-flag="name_not_identifiable_search_only"]')).toHaveTextContent(AR.employerFlags.name_not_identifiable_search_only)
+    expect(document.body.textContent).not.toContain('name_not_identifiable_search_only')
   })
 })
