@@ -140,14 +140,16 @@ beforeEach(() => {
 })
 
 describe('the final exam tab', () => {
-  it('shows in final_exam, with the status badge and the next-status hint, and loads only when opened', async () => {
+  it('shows in final_exam, with the status badge and the Next step, and loads only when opened', async () => {
     mocks.fetchRplApplication.mockResolvedValue({ data: application({ status: 'final_exam', after_quiz: afterQuiz({ final_exam_state: 'available' }) }) })
     renderCase()
 
     expect(await screen.findByText('Case summary')).toBeInTheDocument()
     expect(tabButton(A.finalExam.tab)).toBeInTheDocument()
     expect(screen.getAllByText('Final exam').length).toBeGreaterThan(1)
-    expect(screen.getByText(A.finalExam.noTransitions)).toBeInTheDocument()
+    // The Next step card says what happens now; with no move offered there is no hand status form.
+    expect(within(screen.getByRole('region', { name: 'Next step' })).getByText('The final exam is open to the client.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Next status')).not.toBeInTheDocument()
     expect(mocks.fetchRplFinalExam).not.toHaveBeenCalled()
 
     fireEvent.click(tabButton(A.finalExam.tab))
@@ -188,39 +190,64 @@ describe('the final exam tab', () => {
   })
 })
 
-describe('the overview panels', () => {
-  it('shows the payments and the Experience Confirmation Certificate, each loading itself', async () => {
-    renderCase()
+/*
+ * The payments and the certificates leave the overview for their own tab
+ * (PLATFORM-JOURNEY-SPEC D-11): the confirm button was about four screens down.
+ */
+describe('the Payments & certificates tab', () => {
+  it('holds the payments and the Experience Confirmation Certificate, each loading itself; the overview no longer does', async () => {
+    const { unmount } = renderCase()
+    expect(await screen.findByText('Case summary')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: A.charges.title })).not.toBeInTheDocument()
+    expect(mocks.fetchRplCharges).not.toHaveBeenCalled()
+    unmount()
 
+    renderCase('/rpl/applications/case-41?tab=payments')
     expect(await screen.findByRole('heading', { name: A.charges.title })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: A.experience.title })).toBeInTheDocument()
     await waitFor(() => expect(mocks.fetchRplCharges).toHaveBeenCalledWith('case-41'))
     await waitFor(() => expect(mocks.fetchRplExperienceCertificate).toHaveBeenCalledWith('case-41'))
-    // The committee-path fee panel is titled as such, never mistaken for these.
-    expect(screen.getByText('Certification fee (committee path)')).toBeInTheDocument()
+    // The committee path's fee card says nothing when no fee is due and nothing was paid (D-28).
+    expect(screen.queryByText('Certificate fee (pre-flow committee path)')).not.toBeInTheDocument()
   })
 
-  it('shows neither panel on a case still before the entry quiz result', async () => {
+  it('keeps the committee path\'s fee card when a fee is due', async () => {
+    mocks.fetchRplApplication.mockResolvedValue({ data: application({ fee_snapshot: { amount: '900.00', currency: 'USD' }, payment_status: 'pending' }) })
+    renderCase('/rpl/applications/case-41?tab=payments')
+    expect(await screen.findByText('Certificate fee (pre-flow committee path)')).toBeInTheDocument()
+  })
+
+  it('is absent on a case still before the entry quiz result', async () => {
     mocks.fetchRplApplication.mockResolvedValue({ data: application({ status: 'evidence_verification', course_plan: { entry_quiz_result: null, draft_version: null, in_force_version: null, has_plan: false }, after_quiz: afterQuiz({ experience_certificate_state: 'not_eligible' }) }) })
-    renderCase()
+    renderCase('/rpl/applications/case-41?tab=payments')
 
     await screen.findByText('Case summary')
+    expect(tabButton('Payments & certificates')).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: A.charges.title })).not.toBeInTheDocument()
     expect(mocks.fetchRplExperienceCertificate).not.toHaveBeenCalled()
   })
 
-  it('shows neither panel on a case whose detail carries no after_quiz summary', async () => {
+  it('is absent on a case whose detail carries no after_quiz summary', async () => {
     mocks.fetchRplApplication.mockResolvedValue({ data: application({ after_quiz: undefined }) })
-    renderCase()
+    renderCase('/rpl/applications/case-41?tab=payments')
 
     await screen.findByText('Case summary')
-    expect(screen.queryByRole('heading', { name: A.charges.title })).not.toBeInTheDocument()
+    expect(tabButton('Payments & certificates')).not.toBeInTheDocument()
     expect(mocks.fetchRplCharges).not.toHaveBeenCalled()
     expect(mocks.fetchRplExperienceCertificate).not.toHaveBeenCalled()
   })
 
-  it('re-reads the case and tells the certificate panel to read again after a payment is confirmed', async () => {
+  it('adds the Also line for a payment waiting, and opens the tab from it', async () => {
+    mocks.fetchRplApplication.mockResolvedValue({ data: application({ work_queue: 'learning', after_quiz: afterQuiz({ charges_pending: 1 }) }) })
     renderCase()
+    const next = await screen.findByRole('region', { name: 'Next step' })
+    expect(within(next).getByText('A payment is waiting for confirmation')).toBeInTheDocument()
+    fireEvent.click(within(next).getByRole('button', { name: 'Payments & certificates' }))
+    expect(await screen.findByRole('heading', { name: A.charges.title })).toBeInTheDocument()
+  })
+
+  it('re-reads the case and tells the certificate panel to read again after a payment is confirmed', async () => {
+    renderCase('/rpl/applications/case-41?tab=payments')
 
     fireEvent.click(await screen.findByRole('button', { name: A.charges.confirm }))
     const form = within(screen.getByRole('region', { name: A.charges.confirmTitle }))
@@ -253,9 +280,10 @@ describe('in Arabic', () => {
   it('renders the P6 parts without a literal "undefined"', async () => {
     language.current = 'ar'
     mocks.fetchRplApplication.mockResolvedValue({ data: application({ status: 'final_exam', after_quiz: afterQuiz({ final_exam_state: 'available' }) }) })
-    renderCase()
+    renderCase('/rpl/applications/case-41?tab=payments')
 
     expect(await screen.findByRole('heading', { name: AFTER_QUIZ_COPY.ar.charges.title })).toBeInTheDocument()
+    expect(tabButton('المدفوعات والشهادات')).toHaveAttribute('aria-current', 'page')
     expect(tabButton(AFTER_QUIZ_COPY.ar.finalExam.tab)).toBeInTheDocument()
     await screen.findByText(AFTER_QUIZ_COPY.ar.experience.states.available)
     expect(document.body.textContent).not.toContain('undefined')

@@ -6,23 +6,25 @@ import { cn } from '../../utils/cn'
  * section, smooth-scrolls to its anchor. Turns a 1500-line scroll into a
  * navigable workspace without restructuring the page.
  */
-export default function SectionAnchorNav({ sections = [], className = '' }) {
+export default function SectionAnchorNav({ sections = [], className = '', ariaLabel, title }) {
   const [active, setActive] = useState('')
 
   const jump = (id) => {
     setActive(id)
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    document.getElementById(id)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
   }
 
   if (!sections.length) return null
 
   return (
     <nav
+      aria-label={ariaLabel}
       className={cn(
         'sticky top-2 z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white/95 p-2 shadow-[var(--shadow-card)] backdrop-blur',
         className,
       )}
     >
+      {title ? <span className="px-2 text-[13px] font-semibold text-[var(--color-text-muted)]">{title}</span> : null}
       {sections.map((section) => (
         <button
           key={section.id}

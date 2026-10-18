@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { AuthorizationContext } from '../../auth/context/authorizationContext'
+import { getRouteAccess } from '../../../routes/routeAccess'
 import {
   ChevronDown, ChevronLeft, FileQuestion, FileText, Layers3, Loader2, PencilLine, Plus, Save, Trash2, Zap,
 } from 'lucide-react'
@@ -72,6 +74,8 @@ const COPY = {
     deleteActivity: 'حذف',
     deleteActivityConfirm: 'حذف هذا النشاط؟ يُرفض الحذف إذا كان المتدربون قد سلّموا عملًا فيه، حفاظًا على العمل المسلَّم.',
     newActivityTitle: 'نشاط جديد',
+    lessonTypes: { text: 'نصي', video: 'فيديو', both: 'نص وفيديو' },
+    allUnits: 'كل الوحدات', allLessons: 'كل الدروس',
   },
   en: {
     title: 'Course content',
@@ -95,6 +99,8 @@ const COPY = {
     deleteActivity: 'Delete',
     deleteActivityConfirm: 'Delete this activity? Refused if learners have already submitted work to it, so that submitted work is kept.',
     newActivityTitle: 'New activity',
+    lessonTypes: { text: 'Text', video: 'Video', both: 'Text and video' },
+    allUnits: 'All units', allLessons: 'All lessons',
   },
 }
 
@@ -211,6 +217,8 @@ function ActivityEditor({ activity, copy, language, onSaved, onDeleted }) {
 export default function ProgramContentPage() {
   const language = getCurrentLanguage()
   const copy = COPY[language] || COPY.en
+  const authorization = useContext(AuthorizationContext)
+  const canAccess = authorization?.canAccess || (() => true)
   const navigate = useNavigate()
 
   const [programs, setPrograms] = useState([])
@@ -275,7 +283,8 @@ export default function ProgramContentPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={copy.title} description={copy.subtitle} />
+      {/* The flat lists stay reachable from here (§3.4): every unit and every lesson across courses. */}
+      <PageHeader title={copy.title} description={copy.subtitle} actions={<>{canAccess(getRouteAccess('/sections')) ? <Link to="/sections" className="inline-flex items-center rounded-xl border border-[var(--color-border)] px-3.5 py-2 text-sm font-semibold text-[var(--color-primary)] hover:bg-[var(--color-surface-muted)]">{copy.allUnits}</Link> : null}{canAccess(getRouteAccess('/lessons')) ? <Link to="/lessons" className="inline-flex items-center rounded-xl border border-[var(--color-border)] px-3.5 py-2 text-sm font-semibold text-[var(--color-primary)] hover:bg-[var(--color-surface-muted)]">{copy.allLessons}</Link> : null}</>} />
 
       <Card>
         <CardContent className="space-y-4 p-6">
@@ -359,7 +368,7 @@ export default function ProgramContentPage() {
                               {lesson.sort_order}. {readLocalized(lesson.title, language)}
                             </span>
                             <div className="flex flex-wrap items-center gap-2">
-                              <Badge variant="neutral">{lesson.type}</Badge>
+                              <Badge variant="neutral">{copy.lessonTypes[lesson.type] || <bdi>{lesson.type}</bdi>}</Badge>
                               <Badge variant={badge.variant}>{badge.label}</Badge>
                               <Button variant="outline" onClick={() => navigate(`/lessons/edit?id=${lesson.id}`)}>
                                 <PencilLine className="h-4 w-4" aria-hidden="true" /> {copy.editLesson}

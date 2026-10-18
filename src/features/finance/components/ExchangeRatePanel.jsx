@@ -40,7 +40,7 @@ function readHistory(history) {
   }
 }
 
-export default function ExchangeRatePanel({ language, canManage }) {
+export default function ExchangeRatePanel({ language, canManage, showHeader = true }) {
   const copy = exchangeRateCopy(language)
   const authorization = useContext(AuthorizationContext)
   const mayManage = canManage ?? canManageExchangeRate(authorization)
@@ -193,10 +193,13 @@ export default function ExchangeRatePanel({ language, canManage }) {
 
   return (
     <Card>
-      <CardHeader className="border-b border-[var(--color-border)]">
-        <CardTitle className="flex items-center gap-2"><ArrowLeftRight size={20} aria-hidden="true" />{copy.title}</CardTitle>
-        <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{copy.hint}</p>
-      </CardHeader>
+      {/* On its own page the page header already names the rate and explains it; the panel does not say it twice. */}
+      {showHeader ? (
+        <CardHeader className="border-b border-[var(--color-border)]">
+          <CardTitle className="flex items-center gap-2"><ArrowLeftRight size={20} aria-hidden="true" />{copy.title}</CardTitle>
+          <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{copy.hint}</p>
+        </CardHeader>
+      ) : null}
       <CardContent className="space-y-5 pt-6">
         {notice.error ? <p role="alert" className="whitespace-pre-line [unicode-bidi:plaintext] rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{notice.error}</p> : null}
         {notice.success ? <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">{notice.success}</p> : null}

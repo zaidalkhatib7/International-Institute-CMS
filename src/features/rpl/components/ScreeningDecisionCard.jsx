@@ -220,7 +220,7 @@ export default function ScreeningDecisionCard({
       setForm(emptyForm)
       setOverrideAsked('')
       setConfirmingDecline(false)
-      onDecided?.({ decision, result, assessment, message: startError || copy.recorded[decision], failed: Boolean(startError) })
+      onDecided?.({ decision, result, assessment, message: startError || (assessment ? copy.recordedAndStarted : copy.recorded[decision]), failed: Boolean(startError) })
     } catch (error) {
       const asked = overrideReasonRequest(error)
       setConfirmingDecline(false)

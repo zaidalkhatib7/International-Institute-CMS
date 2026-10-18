@@ -75,3 +75,29 @@ describe('localized API error contract', () => {
     expect(readApiError(error, undefined, 'en')).toBe('The data is incomplete.')
   })
 })
+
+// Walk of 18 Oct 2026: the Arabic platform appended the server's English sentences to its own.
+describe('the first path fixed server lines in Arabic', () => {
+  function validation(errors) {
+    return { message: 'Request failed', response: { status: 422, data: { message: 'Invalid.', errors } } }
+  }
+
+  it('reads "Gemini is not configured" in Arabic, and keeps it in English', () => {
+    const error = validation({ gemini_not_configured: ['Gemini is not configured in the backend environment.'] })
+    const ar = readApiError(error, undefined, 'ar')
+    expect(ar).toContain('لم يُضبط Gemini على الخادم')
+    expect(ar).not.toMatch(/backend environment/)
+    expect(readApiError(error, undefined, 'en')).toContain('Gemini is not configured in the backend environment.')
+  })
+
+  it('reads an incomplete office draft and its completion in Arabic, with the figures', () => {
+    const ar = readApiError(validation({
+      application: ['The RPL application is incomplete. Choose the target accreditation level, upload the required evidence (an identity document and either a CV or a professional experience document), and accept the current declaration.'],
+      completeness: ['Current completion is 25.00% (1 of 4 requirements complete).'],
+    }), undefined, 'ar')
+    expect(ar).toContain('الطلب غير مكتمل')
+    expect(ar).toContain('نسبة الاكتمال الآن 25.00٪ (اكتمل 1 من 4 متطلبات).')
+    expect(ar).not.toMatch(/[A-Za-z]{4,}/)
+  })
+})
+

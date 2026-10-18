@@ -116,7 +116,7 @@ export const AFTER_QUIZ_COPY = {
       reason: 'السبب (للموظفين فقط)',
       reasonHint: 'من 10 إلى 2000 حرف. يُحفظ في سجل التدقيق.',
       reasonInvalid: 'اكتب ما بين 10 و2000 حرف.',
-      settingMissing: 'إعداد لازم لهذا الإجراء غير مضبوط: {setting}. اضبطه في إعدادات RPL ثم أعد المحاولة.',
+      settingMissing: 'إعداد لازم لهذا الإجراء غير مضبوط: {setting}. يُضبط في «إعدادات المسار المهني» (يضبطه مدير المنصة إن لم تكن لديك الصلاحية)، ثم أعد المحاولة.',
       ownCase: 'لا يؤكد الموظف دفعة ولا يعتمد شهادة ولا يرفضها في طلبه الشخصي.',
       noRate: 'لم يُضبط سعر صرف: لا يمكن لأحد الدفع بالليرة السورية حتى يُضبط. ولا يتأثر الدفع بالدولار.',
       by: '{name} في {at}',
@@ -163,7 +163,7 @@ export const AFTER_QUIZ_COPY = {
     charges: {
       title: 'المدفوعات بعد اختبار الدخول',
       hint: 'يدفع العميل السعر بالدولار من رصيده بالدولار أو بالليرة، أو خارج المنصة. ويُحسب المبلغ بالليرة من السعر بالدولار مضروبًا في سعر الصرف لحظة الدفع من الرصيد أو لحظة طلب الدفع الخارجي، ويُثبَّت عندها.',
-      empty: 'لا توجد مدفوعات لهذا الطلب بعد.',
+      empty: 'لا توجد مدفوعات لهذا الطلب بعد. يختار العميل من الموقع ما يشتريه (شهادة تثبيت الخبرة أو دورات الخطة)، ويظهر هنا.',
       cycle: 'الجولة {cycle}',
       amount: 'المبلغ',
       route: 'طريقة الدفع',
@@ -212,12 +212,12 @@ export const AFTER_QUIZ_COPY = {
       refunded: 'أُعيد المبلغ.',
       stale: 'غيّر موظف آخر هذه الدفعة أثناء عملك عليها. أُعيد تحميلها: راجعها ثم أعد المحاولة. لم يُحفظ شيء مما أرسلته، وبقي ما كتبته.',
       rateUnchanged: 'لم يتغيّر سعر الصرف منذ طلب الدفع هذا، فمبلغه بالليرة السورية ما زال صالحًا: اختر فئة أخرى. لم يُحفظ شيء.',
-      certificationFeeNote: 'رسوم شهادة المستوى (قرار المالك، 15 أكتوبر 2026) تُضبط لكل مسار ومستوى في تبويب الرسوم. عند صفر تصدر شهادة المستوى تلقائيًا عند اجتياز الاختبار النهائي، وفوق الصفر تصدر تلقائيًا بعد دفع هذا البند.',
+      certificationFeeNote: 'رسوم شهادة المستوى تُضبط لكل مسار ومستوى في تبويب الرسوم. عند صفر تصدر شهادة المستوى تلقائيًا عند اجتياز الاختبار النهائي، وفوق الصفر تصدر تلقائيًا بعد دفع هذا البند.',
     },
     experience: {
       title: 'شهادة تثبيت الخبرة',
       hint: 'تؤكد الخبرة التي قُيّمت في الطلب، وليست شهادة المستوى. يشتريها فقط من اجتاز اختبار الدخول.',
-      approveHint: 'يعتمد موظف واحد بعد الدفع (قرار المالك، 15 أكتوبر 2026). تصدر الشهادة بالصيغة المعتمدة، ومع خيار "الإنهاء" يُغلق الطلب.',
+      approveHint: 'يعتمد موظف واحد بعد الدفع. تصدر الشهادة بالصيغة المعتمدة، ومع خيار "الإنهاء" يُغلق الطلب.',
       refuseHint: 'يؤدي الرفض إلى إعادة المبلغ. لا يرى العميل إلا الفئة، ولا يرى السبب الذي تكتبه.',
       states: {
         not_eligible: 'غير مؤهل',
@@ -291,7 +291,7 @@ export const AFTER_QUIZ_COPY = {
     finalExam: {
       tab: 'الاختبار النهائي',
       title: 'الاختبار النهائي',
-      autoIssue: 'تُصدر المحاولة الناجحة شهادة المستوى تلقائيًا: دون اعتماد موظف أو تقرير مقيّم أو مراجعة جودة أو لجنة (قرار المالك، 15 أكتوبر 2026). وإذا كانت رسوم شهادة المستوى أكبر من صفر، تصدر الشهادة تلقائيًا بعد دفعها.',
+      autoIssue: 'تُصدر المحاولة الناجحة شهادة المستوى تلقائيًا: دون اعتماد موظف أو تقرير مقيّم أو مراجعة جودة أو لجنة. وإذا كانت رسوم شهادة المستوى أكبر من صفر، تصدر الشهادة تلقائيًا بعد دفعها.',
       states: {
         not_yet: 'لم يبدأ بعد',
         available: 'متاح',
@@ -397,7 +397,7 @@ export const AFTER_QUIZ_COPY = {
           cancelled: 'أُلغيت',
         },
         held: 'تنتظر شهادة المستوى رفع إيقاف حوكمة، وتصدر بعد رفعه.',
-        feeDue: 'رسوم شهادة هذا المستوى أكبر من صفر: تصدر الشهادة تلقائيًا بعد دفعها (قرار المالك، 15 أكتوبر 2026).',
+        feeDue: 'رسوم شهادة هذا المستوى أكبر من صفر: تصدر الشهادة تلقائيًا بعد دفعها.',
         feeUnusable: 'اجتاز العميل الاختبار النهائي، لكن رسوم الشهادة في تبويب الرسوم لهذا المسار والمستوى ليست بالدولار الأمريكي. تبقى الحالة في الاختبار النهائي حتى تُدخَل الرسوم بالدولار أو تُجعل صفرًا.',
         feeFrozen: 'رسوم الشهادة المثبتة عند الاجتياز: {amount}',
         hold: 'الإيقاف رقم {id}: {program} الإصدار {version}',
@@ -414,10 +414,10 @@ export const AFTER_QUIZ_COPY = {
     },
     settings: {
       title: 'بعد اختبار الدخول',
-      hint: 'إعدادات محكومة يقررها المالك (15 أكتوبر 2026)، ولا قيمة افتراضية لها في الشيفرة. كل قيمة تُثبَّت حيث تُستخدم: يحتفظ كل شراء بسعره، وتحتفظ كل محاولة بحد نجاحها.',
+      hint: 'إعدادات محكومة يقررها المالك، ولا قيمة افتراضية لها في الشيفرة. كل قيمة تُثبَّت حيث تُستخدم: يحتفظ كل شراء بسعره، وتحتفظ كل محاولة بحد نجاحها.',
       fields: {
         price: { label: 'سعر شهادة تثبيت الخبرة (بالدولار الأمريكي، من 1.00 إلى 1,000,000.00)', hint: 'بالدولار الأمريكي، وتُقبل السنتات. فارغ: الشهادة غير معروضة.' },
-        passMark: { label: 'حد النجاح في الاختبار النهائي (٪، من 1 إلى 99)', hint: 'تنجح المحاولة فقط فوق هذه الدرجة، على الكسر الدقيق (قرار المالك، 15 أكتوبر 2026؛ القيمة الأولية 50).' },
+        passMark: { label: 'حد النجاح في الاختبار النهائي (٪، من 1 إلى 99)', hint: 'تنجح المحاولة فقط فوق هذه الدرجة، على الكسر الدقيق (القيمة الأولية 50).' },
         questionsPerCourse: { label: 'عدد الأسئلة لكل دورة مدروسة (من 1 إلى 50)', hint: 'عدد الأسئلة المسحوبة من كل دورة مدروسة. فارغ: لا يبدأ أي اختبار نهائي.' },
         waitDays: { label: 'أيام الانتظار قبل الإعادة (من 0 إلى 365)', hint: 'الأيام بعد المحاولة الثالثة الفاشلة قبل ثلاث محاولات جديدة. فارغ: لا تبدأ أي إعادة.' },
         retakeFee: { label: 'رسوم إعادة الاختبار النهائي (بالدولار الأمريكي، من 1.00 إلى 1,000,000.00)', hint: 'بالدولار الأمريكي، وتُقبل السنتات. فارغ: لا تُباع أي إعادة.' },
@@ -431,14 +431,14 @@ export const AFTER_QUIZ_COPY = {
     wording: {
       tab: 'صيغة الشهادة',
       title: 'صيغة شهادة تثبيت الخبرة',
-      hint: 'صيغة محكومة ومؤرّخة بإصدارات (قرار المالك، 15 أكتوبر 2026). يعتمد دور المالك وحده (super-admin) إصدارًا، ويُسجَّل الاعتماد في سجل التدقيق. لا يتغير إصدار معتمد أبدًا: التعديل يُنشئ مسودة جديدة تحتاج إلى اعتماد من جديد. لا تُباع الشهادة ولا تصدر ما دام لا يوجد إصدار معتمد.',
+      hint: 'صيغة محكومة ومؤرّخة بإصدارات. يعتمد المالك وحده إصدارًا، ويُسجَّل الاعتماد في سجل التدقيق. لا يتغير إصدار معتمد أبدًا: التعديل يُنشئ مسودة جديدة تحتاج إلى اعتماد من جديد. لا تُباع الشهادة ولا تصدر ما دام لا يوجد إصدار معتمد.',
       notApproved: 'غير معتمدة: لا يمكن بيع شهادة تثبيت الخبرة ولا إصدارها حتى يعتمد المالك هذه الصيغة.',
       empty: 'لا توجد صيغة بعد.',
       version: 'الإصدار {version}',
       statuses: {
         draft: 'مسودة',
         approved: 'معتمدة',
-        retired: 'متقاعدة',
+        retired: 'متوقف العمل بها',
       },
       sha: 'البصمة: {sha}',
       titleLabel: 'العنوان',
@@ -453,7 +453,7 @@ export const AFTER_QUIZ_COPY = {
       approvedBy: 'اعتمده {name} في {at}',
       approvalNoteRecorded: 'ملاحظة الاعتماد: {note}',
       retiredAt: 'تقاعد في {at}',
-      readOnly: 'إصدار معتمد أو متقاعد: لا يتغير أبدًا.',
+      readOnly: 'إصدار معتمد أو متوقف العمل به: لا يتغير أبدًا.',
       edit: 'تعديل المسودة',
       save: 'حفظ المسودة',
       saved: 'حُفظت المسودة.',
@@ -462,27 +462,32 @@ export const AFTER_QUIZ_COPY = {
       draftSubmit: 'أنشئ المسودة',
       drafted: 'أُنشئت مسودة جديدة.',
       approve: 'اعتماد هذا الإصدار',
-      approveHint: 'يصبح هذا الإصدار الصيغة المطبوعة على كل شهادة تثبيت خبرة تصدر من الآن، ويتقاعد الإصدار المعتمد السابق.',
+      approveHint: 'يصبح هذا الإصدار الصيغة المطبوعة على كل شهادة تثبيت خبرة تصدر من الآن، ويتوقف العمل بالإصدار المعتمد السابق.',
       approvalNote: 'ملاحظة الاعتماد (من 10 إلى 2000 حرف)',
       approveSubmit: 'اعتمد الصيغة',
       approved: 'اعتُمدت الصيغة.',
-      approverOnly: 'يعتمد دور المالك وحده (super-admin) الصيغة.',
+      approverOnly: 'يعتمد المالك وحده الصيغة.',
       stale: 'غيّر موظف آخر هذه الصيغة أثناء عملك عليها. أُعيد تحميلها: راجعها ثم أعد المحاولة. لم يُحفظ شيء مما أرسلته، وبقي ما كتبته.',
     },
     queue: {
       payments: {
         title: 'مدفوعات بانتظار التأكيد',
-        description: 'الدفعات خارج المنصة التي تنتظر تأكيد الموظفين: شهادة تثبيت الخبرة، وإعادة الاختبار النهائي، ورسوم شهادة المستوى. يُؤكَّد كل منها من ملف الطلب.',
-        empty: 'لا توجد مدفوعات مطابقة.',
+        description: 'الدفعات خارج المنصة التي تنتظر تأكيد الموظفين: شهادة تثبيت الخبرة، وإعادة الاختبار النهائي، ورسوم شهادة المستوى. يُؤكَّد كل منها هنا، في بطاقته.',
+        empty: 'لا توجد مدفوعات خارجية بانتظار التأكيد. مشتريات المحفظة لا تحتاج تأكيدًا.',
       },
       experience_certificates: {
         title: 'شهادات تثبيت الخبرة',
-        description: 'الشهادات المدفوعة التي تنتظر اعتماد موظف واحد، وسجل ما سبق.',
-        empty: 'لا توجد شهادات مطابقة.',
+        description: 'الشهادات المدفوعة التي تنتظر اعتماد موظف واحد، وسجل ما سبق. تُعتمد كل منها هنا، في صفها.',
+        empty: 'لا توجد شهادات مدفوعة بانتظار الاعتماد.',
       },
       attention: {
-        title: 'متابعة ما بعد اختبار الدخول',
-        description: 'ما يحتاج إلى تدخل الموظفين: اختبارات نهائية متوقفة، وشهادات مستوى موقوفة أو تنتظر تصحيح رسومها، ومدفوعات على طلبات مغلقة.',
+        title: 'تحتاج متابعة',
+        description: 'ما يحتاج إلى تدخل الموظفين: اختبارات نهائية متوقفة، وشهادات مستوى موقوفة أو تنتظر تصحيح رسومها، وشهادات تثبيت خبرة معتمدة لم تصدر، ومدفوعات على طلبات مغلقة.',
+        notIssued: 'شهادات تثبيت خبرة معتمدة لم تصدر',
+        notIssuedHint: 'معتمدة منذ أكثر من 15 دقيقة ولم تصدر بعد؛ تحقّق من عامل الخلفية أو تواصل مع الدعم الفني.',
+        approvedAt: 'اعتُمدت في',
+        allEmpty: 'لا شيء يحتاج متابعة.',
+        noneIn: 'لا شيء في: {lists}.',
         blocked: 'اختبارات نهائية متوقفة',
         held: 'شهادات مستوى موقوفة بقرار حوكمة',
         feeUnusable: 'شهادات مستوى تنتظر تصحيح رسوم الشهادة',
@@ -508,6 +513,15 @@ export const AFTER_QUIZ_COPY = {
       holds: 'الإيقافات',
       action: 'الإجراء',
       open: 'فتح الطلب',
+      eyebrow: 'المسار المهني',
+      reviewApprove: 'مراجعة واعتماد',
+      hideReview: 'إخفاء',
+      reviewOf: 'مراجعة {reference}',
+      doneSeparator: ': ',
+      emptyFiltered: 'لا توجد سجلات مطابقة لهذا الفلتر.',
+      clearFilter: 'مسح الفلتر',
+      exchangeRate: 'سعر الصرف',
+      feeSettings: 'إعدادات الرسوم',
     },
   },
   en: {
@@ -522,7 +536,7 @@ export const AFTER_QUIZ_COPY = {
       reason: 'Reason (staff only)',
       reasonHint: '10 to 2,000 characters. Kept in the audit trail.',
       reasonInvalid: 'Write between 10 and 2,000 characters.',
-      settingMissing: 'A setting this act needs is not set: {setting}. Set it in the RPL settings, then try again.',
+      settingMissing: 'A setting this act needs is not set: {setting}. It is set in Professional path settings (ask a platform administrator if you cannot open them), then try again.',
       ownCase: 'Staff cannot confirm, approve or refuse a payment or certificate on their own case.',
       noRate: 'No exchange rate is set: nobody can pay in Syrian pounds until one is set. Dollar payments are not affected.',
       by: '{name} on {at}',
@@ -569,7 +583,7 @@ export const AFTER_QUIZ_COPY = {
     charges: {
       title: 'Payments after the entry quiz',
       hint: 'The client pays the dollar price from his dollar or pound balance, or outside the platform. A pound amount is the dollar price × the rate at the moment he pays from his balance or asks to pay outside, and it is frozen then.',
-      empty: 'No payments exist for this case yet.',
+      empty: 'No payments on this case yet. The client chooses on the website what to buy (the experience certificate or the plan\'s courses), and it shows here.',
       cycle: 'round {cycle}',
       amount: 'Amount',
       route: 'Route',
@@ -618,12 +632,12 @@ export const AFTER_QUIZ_COPY = {
       refunded: 'Payment refunded.',
       stale: 'Someone else changed this payment while you were working on it. It has been reloaded: check it and try again. Nothing you sent was saved, and what you typed is kept.',
       rateUnchanged: 'The exchange rate has not changed since this request, so its amount in Syrian pounds is not out of date: choose another category. Nothing was saved.',
-      certificationFeeNote: 'The level certification fee (owner decision, 15 Oct 2026) is set per pathway and level on the Fees tab. At 0 the level certificate is issued automatically when the final exam is passed; above 0 it is issued automatically once this charge is paid.',
+      certificationFeeNote: 'The level certification fee is set per pathway and level on the Fees tab. At 0 the level certificate is issued automatically when the final exam is passed; above 0 it is issued automatically once this charge is paid.',
     },
     experience: {
       title: 'Experience Confirmation Certificate',
       hint: 'It confirms the experience assessed in the request and is not the level certificate. Only a client whose entry quiz passed may buy it.',
-      approveHint: 'One member of staff approves after payment (owner decision, 15 Oct 2026). The certificate is issued with the approved wording, and with "stop" the case closes.',
+      approveHint: 'One member of staff approves after payment. The certificate is issued with the approved wording, and with "stop" the case closes.',
       refuseHint: 'Refusing returns the payment. The client sees only the category, never your reason.',
       states: {
         not_eligible: 'Not eligible',
@@ -696,7 +710,7 @@ export const AFTER_QUIZ_COPY = {
     finalExam: {
       tab: 'Final exam',
       title: 'Final exam',
-      autoIssue: 'A passed try issues the level certificate automatically: no staff approval, assessor report, quality review or committee (owner decision, 15 Oct 2026). When the level\'s certification fee is above 0, the certificate is issued automatically once that fee is paid.',
+      autoIssue: 'A passed try issues the level certificate automatically: no staff approval, assessor report, quality review or committee. When the level\'s certification fee is above 0, the certificate is issued automatically once that fee is paid.',
       states: {
         not_yet: 'Not started yet',
         available: 'Available',
@@ -801,7 +815,7 @@ export const AFTER_QUIZ_COPY = {
           cancelled: 'cancelled',
         },
         held: 'The level certificate waits on a governance hold. It is issued once the hold is lifted.',
-        feeDue: 'This level\'s certification fee is above 0: the certificate is issued automatically once it is paid (owner decision, 15 Oct 2026).',
+        feeDue: 'This level\'s certification fee is above 0: the certificate is issued automatically once it is paid.',
         feeUnusable: 'The client passed the final exam, but the Fees tab\'s certification fee for this pathway and level is not in US dollars. The case stays in the final exam until the fee is entered in dollars or set to 0.',
         feeFrozen: 'Certification fee frozen at the pass: {amount}',
         hold: 'Hold #{id}: {program} version {version}',
@@ -818,10 +832,10 @@ export const AFTER_QUIZ_COPY = {
     },
     settings: {
       title: 'After the entry quiz',
-      hint: 'Governed settings the owner decides (15 Oct 2026); the code holds no default. Each value is frozen where it is used: a purchase keeps its price, and a try keeps its pass mark.',
+      hint: 'Governed settings the owner decides; the code holds no default. Each value is frozen where it is used: a purchase keeps its price, and a try keeps its pass mark.',
       fields: {
         price: { label: 'Experience Confirmation Certificate price (US dollars, 1.00 to 1,000,000.00)', hint: 'In US dollars, cents allowed. Empty: the certificate is not offered.' },
-        passMark: { label: 'Final-exam pass mark (%, 1 to 99)', hint: 'A try passes only above this mark, on the exact fraction (owner decision, 15 Oct 2026; seeded 50).' },
+        passMark: { label: 'Final-exam pass mark (%, 1 to 99)', hint: 'A try passes only above this mark, on the exact fraction (seeded 50).' },
         questionsPerCourse: { label: 'Questions per studied course (1 to 50)', hint: 'Questions drawn from each studied course. Empty: no final exam can start.' },
         waitDays: { label: 'Retake waiting days (0 to 365)', hint: 'Days after the third failed try before three new tries. Empty: no retake can start.' },
         retakeFee: { label: 'Final-exam retake fee (US dollars, 1.00 to 1,000,000.00)', hint: 'In US dollars, cents allowed. Empty: no retake is sold.' },
@@ -835,7 +849,7 @@ export const AFTER_QUIZ_COPY = {
     wording: {
       tab: 'Certificate wording',
       title: 'Experience Confirmation Certificate wording',
-      hint: 'A governed, versioned wording (owner decision, 15 Oct 2026). Only the owner\'s role (super-admin) approves a version, and the approval is recorded in the audit trail. An approved version never changes: editing makes a new draft that needs approval again. The certificate is not sold or issued while no version is approved.',
+      hint: 'A governed, versioned wording. Only the owner approves a version, and the approval is recorded in the audit trail. An approved version never changes: editing makes a new draft that needs approval again. The certificate is not sold or issued while no version is approved.',
       notApproved: 'Not approved: the Experience Confirmation Certificate cannot be sold or issued until the owner approves this wording.',
       empty: 'No wording exists yet.',
       version: 'Version {version}',
@@ -870,23 +884,28 @@ export const AFTER_QUIZ_COPY = {
       approvalNote: 'Approval note (10 to 2,000 characters)',
       approveSubmit: 'Approve the wording',
       approved: 'Wording approved.',
-      approverOnly: 'Only the owner\'s role (super-admin) approves the wording.',
+      approverOnly: 'Only the owner approves the wording.',
       stale: 'Someone else changed this wording while you were working on it. It has been reloaded: check it and try again. Nothing you sent was saved, and what you typed is kept.',
     },
     queue: {
       payments: {
         title: 'Payments to confirm',
-        description: 'Payments made outside the platform that wait for staff to confirm them: the Experience Confirmation Certificate, a final-exam retake and the level certification fee. Each is confirmed on its case.',
-        empty: 'No payments match.',
+        description: 'Payments made outside the platform that wait for staff to confirm them: the Experience Confirmation Certificate, a final-exam retake and the level certification fee. Each is confirmed here, on its card.',
+        empty: 'No outside payments are waiting. Wallet purchases need no confirmation.',
       },
       experience_certificates: {
         title: 'Experience Confirmation Certificates',
-        description: 'Paid certificates waiting for one member of staff to approve their issue, and the earlier ones.',
-        empty: 'No certificates match.',
+        description: 'Paid certificates waiting for one member of staff to approve their issue, and the earlier ones. Each is approved here, in its row.',
+        empty: 'No paid certificates are waiting for approval.',
       },
       attention: {
-        title: 'After-quiz attention',
-        description: 'What needs staff: blocked final exams, level certificates on hold or waiting for their fee to be corrected, and paid charges on closed cases.',
+        title: 'Needs attention',
+        description: 'What needs staff: blocked final exams, level certificates on hold or waiting for their fee to be corrected, approved experience certificates not issued, and paid charges on closed cases.',
+        notIssued: 'Approved experience certificates not issued',
+        notIssuedHint: 'Approved more than 15 minutes ago and not issued yet; check the background worker or contact technical support.',
+        approvedAt: 'Approved at',
+        allEmpty: 'Nothing needs attention.',
+        noneIn: 'Nothing in: {lists}.',
         blocked: 'Blocked final exams',
         held: 'Level certificates on governance hold',
         feeUnusable: 'Level certificates waiting for the certification fee to be corrected',
@@ -912,9 +931,35 @@ export const AFTER_QUIZ_COPY = {
       holds: 'Holds',
       action: 'Action',
       open: 'Open the case',
+      eyebrow: 'Professional path',
+      reviewApprove: 'Review and approve',
+      hideReview: 'Hide',
+      reviewOf: 'Review of {reference}',
+      doneSeparator: ': ',
+      emptyFiltered: 'Nothing matches this filter.',
+      clearFilter: 'Clear filter',
+      exchangeRate: 'Exchange rate',
+      feeSettings: 'Fee settings',
     },
   },
 }
+
+/*
+ * The case summary's codes the journey reads (the case's Next step card,
+ * PLATFORM-JOURNEY-SPEC §4.3). journey.js reads them only from here, never spelling
+ * a code itself; each is a key of its label map below (a test pins that).
+ */
+export const AFTER_QUIZ_STATES = Object.freeze({
+  finalExamNotYet: 'not_yet',
+  finalExamBlocked: 'blocked',
+  finalExamWaiting: 'waiting',
+  finalExamRetakeDue: 'retake_due',
+  finalExamPassed: 'passed',
+  levelHeld: 'held',
+  levelFeeUnusable: 'fee_unusable',
+  levelAwaitingFee: 'awaiting_fee',
+  experienceAwaitingIssue: 'awaiting_issue',
+})
 
 export function afterQuizCopy(language) {
   return AFTER_QUIZ_COPY[language === 'ar' ? 'ar' : 'en']
@@ -1175,9 +1220,14 @@ export function confirmPayload(form, charge) {
   }
 }
 
-/** Another charge of the same type and round is already paid: warn before a second confirmation. */
+/**
+ * Another charge of the same type and round on the SAME case is already paid: warn
+ * before a second confirmation. In the payments queue the list holds many cases,
+ * so a charge is only ever compared with its own case's (18 Oct 2026).
+ */
 export function hasPaidChargeForSlot(charges, charge) {
-  return (Array.isArray(charges) ? charges : []).some((other) => other && other !== charge && other.public_id !== charge?.public_id && other.type === charge?.type && Number(other.cycle) === Number(charge?.cycle) && other.status === 'paid')
+  const caseOf = (row) => row?.application?.public_id ?? null
+  return (Array.isArray(charges) ? charges : []).some((other) => other && other !== charge && other.public_id !== charge?.public_id && caseOf(other) === caseOf(charge) && other.type === charge?.type && Number(other.cycle) === Number(charge?.cycle) && other.status === 'paid')
 }
 
 /*

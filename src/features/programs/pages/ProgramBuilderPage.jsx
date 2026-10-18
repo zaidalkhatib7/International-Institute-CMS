@@ -1140,7 +1140,7 @@ export default function ProgramBuilderPage() {
           'يحدد البرنامج عنوان الاختبار النهائي ونسبة النجاح، بينما تحدد بنوك الأسئلة عدد الأسئلة المساهمة من كل قسم.',
         pricingGuidance: 'إرشادات التسعير',
         pricingGuidanceBody:
-          'لكل برنامج سعر واحد بالدولار الأمريكي (قرار المالك، 17 أكتوبر 2026). يدفع العميل من رصيده بالدولار، أو من رصيده بالليرة السورية بسعر الصرف عند الدفع، ويُثبَّت ما دفعه على طلبه. لا يغيّر تعديل السعر أي شراء تم.',
+          'لكل برنامج سعر واحد بالدولار الأمريكي. يدفع العميل من رصيده بالدولار، أو من رصيده بالليرة السورية بسعر الصرف عند الدفع، ويُثبَّت ما دفعه على طلبه. لا يغيّر تعديل السعر أي شراء تم.',
         featuredImage: 'الصورة الرئيسية',
         recommended: 'المقاس الموصى به',
         imageResolution: '1920×1080',
@@ -1165,7 +1165,7 @@ export default function ProgramBuilderPage() {
         activeProgramDescription:
           'البرامج غير النشطة تبقى في لوحة الإدارة وتكون مخفية عن العرض العام.',
         publicationSummary: 'ملخص النشر',
-        loadedFromApi: 'تم التحميل من الـ API',
+        loadedFromApi: 'محمَّل',
         readyToPublish: 'جاهز للنشر',
         publishFootnote:
           'يمكن إبقاء البرنامج غير نشط في الإدارة وإعادة تفعيله في أي وقت.',
@@ -1276,7 +1276,7 @@ export default function ProgramBuilderPage() {
         'Programs now own the learner-facing final quiz title, pass percentage, and duration timer. Section question banks control how many questions they contribute per attempt.',
       pricingGuidance: 'Pricing Guidance',
       pricingGuidanceBody:
-        'Each programme has one price, in US dollars (owner decision, 17 Oct 2026). The client pays from his dollar balance, or from his Syrian-pound balance at the exchange rate when he pays, and what he paid is frozen on his order. Changing the price never changes a purchase already made.',
+        'Each programme has one price, in US dollars. The client pays from his dollar balance, or from his Syrian-pound balance at the exchange rate when he pays, and what he paid is frozen on his order. Changing the price never changes a purchase already made.',
       featuredImage: 'Featured Image',
       recommended: 'Recommended',
       imageResolution: '1920×1080',
@@ -1301,7 +1301,7 @@ export default function ProgramBuilderPage() {
       activeProgramDescription:
         'Inactive programs remain in admin and are hidden from public availability.',
       publicationSummary: 'Publication Summary',
-      loadedFromApi: 'Loaded from API',
+      loadedFromApi: 'Loaded',
       readyToPublish: 'Ready to Publish',
       publishFootnote:
         'Inactive programs remain visible in admin and can be reactivated at any time.',

@@ -27,7 +27,7 @@ describe('RplSourceOfTruthPage', () => {
     localStorage.setItem('icpc_admin_language', 'ar')
     render(<MemoryRouter><RplSourceOfTruthPage /></MemoryRouter>)
 
-    expect(await screen.findByRole('heading', { name: 'مصدر الحقيقة المعتمد لـ RPL وGemini' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'مرجع قواعد المسار المهني وGemini' })).toBeInTheDocument()
     expect(screen.getByText('لا يحمل شهادة ثانوية عامة')).toBeInTheDocument()
     expect(screen.getByText('المؤهلات المهنية')).toBeInTheDocument()
     expect(screen.getByText(/CGP-ETH-001/)).toBeInTheDocument()
@@ -39,7 +39,7 @@ describe('RplSourceOfTruthPage', () => {
     localStorage.setItem('icpc_admin_language', 'nl')
     render(<MemoryRouter><RplSourceOfTruthPage /></MemoryRouter>)
 
-    expect(await screen.findByRole('heading', { name: 'RPL & Gemini source of truth' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Professional path and Gemini rules reference' })).toBeInTheDocument()
     expect(localStorage.getItem('icpc_admin_language')).toBe('en')
     /*
      * A card on this page once said a degree sends the applicant down a

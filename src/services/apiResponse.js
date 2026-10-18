@@ -72,6 +72,35 @@ const KNOWN_SERVER_LINES = [
     pattern: /^Published package v(.+) is immutable\. Create a new version to modify content\.$/,
     ar: (match) => `الإصدار ${match[1]} من هذه الحقيبة منشور ومحتواه ثابت: افتح إصدارًا جديدًا من الحقيبة لتعديل المحتوى.`,
   },
+  /*
+   * The first path's fixed lines met on the walk of 18 Oct 2026: Gemini without a
+   * key (course plan, entry quiz, screening), and an office draft sent before it
+   * is complete (RplCompletenessService::assertReadyForSubmission).
+   */
+  {
+    pattern: /^Gemini is not configured in the backend environment\.$/,
+    ar: () => 'لم يُضبط Gemini على الخادم، فلا يمكن تشغيله الآن. اطلب من مسؤول المنصة ضبطه ثم أعد المحاولة.',
+  },
+  {
+    pattern: /^Gemini model is not configured in the backend environment\.$/,
+    ar: () => 'لم يُحدَّد نموذج Gemini على الخادم. اطلب من مسؤول المنصة ضبطه ثم أعد المحاولة.',
+  },
+  {
+    pattern: /^The RPL application is incomplete\. Choose the target accreditation level, upload the required evidence \(an identity document and either a CV or a professional experience document\), and accept the current declaration\.$/,
+    ar: () => 'الطلب غير مكتمل: اختر المستوى المطلوب، وارفع الوثائق المطلوبة (وثيقة هوية، وسيرة ذاتية أو وثيقة خبرة مهنية)، واقبل الإقرار الحالي.',
+  },
+  {
+    pattern: /^Current completion is ([\d.]+)% \((\d+) of (\d+) requirements complete\)\.$/,
+    ar: (match) => `نسبة الاكتمال الآن ${match[1]}٪ (اكتمل ${match[2]} من ${match[3]} متطلبات).`,
+  },
+  {
+    pattern: /^All open information requests must be resolved before assessment\.$/,
+    ar: () => 'أغلق طلبات المعلومات المفتوحة كلها قبل التقييم.',
+  },
+  {
+    pattern: /^The applicable RPL fee must be reconciled before the application can be submitted\.$/,
+    ar: () => 'يجب تأكيد دفع الرسوم المستحقة قبل إرسال الطلب.',
+  },
 ]
 
 export function translateServerLine(line, language = getAdminLanguage()) {

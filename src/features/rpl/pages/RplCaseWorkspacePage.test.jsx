@@ -54,6 +54,8 @@ const mocks = vi.hoisted(() => ({
   cancelRplInterview: vi.fn(),
   decideRplInterview: vi.fn(),
   updateRplInterview: vi.fn(),
+  // The entry quiz tab mounts the dynamic assessment panel (D-09).
+  fetchDynamicAssessments: vi.fn(),
 }))
 
 const language = vi.hoisted(() => ({ current: 'en' }))
@@ -113,6 +115,7 @@ beforeEach(() => {
   mocks.fetchRplScreeningDecisions.mockResolvedValue({ data: [] })
   mocks.fetchRplInterviews.mockResolvedValue({ data: [] })
   mocks.fetchRplSettings.mockResolvedValue({ data: {} })
+  mocks.fetchDynamicAssessments.mockResolvedValue({ data: [] })
 })
 
 describe('the decline stamp on the case summary', () => {
@@ -206,14 +209,26 @@ describe('a refused action on the case', () => {
   })
 })
 
-describe('the document screening tab', () => {
-  const screeningTab = () => screen.queryByRole('button', { name: SCREENING_COPY.en.tab })
+/*
+ * The document screen now opens the Screening & decision tab (PLATFORM-JOURNEY-SPEC
+ * D-10): the screen on top, the decision below; ?tab=screening still opens it.
+ */
+describe('the document screen in the Screening & decision tab', () => {
+  const tabBar = () => screen.getByRole('navigation', { name: 'Case' })
+  const screeningTab = () => within(tabBar()).queryByRole('button', { name: CASE_DECISION_COPY.en.tab })
 
   it('is shown to an administrator, who loads the case screens by its public id', async () => {
     renderCase()
 
-    expect(await screen.findByRole('button', { name: SCREENING_COPY.en.tab })).toBeInTheDocument()
+    expect(await within(await screen.findByRole('navigation', { name: 'Case' })).findByRole('button', { name: CASE_DECISION_COPY.en.tab })).toBeInTheDocument()
+    expect(within(tabBar()).queryByRole('button', { name: SCREENING_COPY.en.tab })).not.toBeInTheDocument()
     await waitFor(() => expect(mocks.fetchRplScreenings).toHaveBeenCalledWith('41'))
+  })
+
+  it('rewrites the old tab key to the merged tab', async () => {
+    renderCase('/rpl/applications/41?tab=screening')
+    expect(await screen.findByText(SCREENING_COPY.en.disclaimer)).toBeInTheDocument()
+    expect(within(tabBar()).getByRole('button', { name: CASE_DECISION_COPY.en.tab })).toHaveAttribute('aria-current', 'page')
   })
 
   it('is shown to any account holding rpl.screening.view, without Re-run unless it also holds rpl.screening.run', async () => {
@@ -242,15 +257,26 @@ describe('the document screening tab', () => {
     expect(mocks.fetchRplScreenings).not.toHaveBeenCalled()
   })
 
-  it('disappears when the server answers 403, without an error or the supporting-data warning', async () => {
+  it('leaves the tab when the server answers 403, without the screen, an error or the supporting-data warning', async () => {
+    mocks.fetchRplScreenings.mockRejectedValue({ response: { status: 403, data: { message: 'This action is unauthorized.' } } })
+    renderCase('/rpl/applications/41?tab=screening')
+
+    await waitFor(() => expect(mocks.fetchRplScreenings).toHaveBeenCalled())
+    await waitFor(() => expect(screen.queryByText(SCREENING_COPY.en.disclaimer)).not.toBeInTheDocument())
+    // The decision still lives in the tab, so an administrator keeps it.
+    expect(screeningTab()).toBeInTheDocument()
+    expect(screen.queryByText(/supporting data is temporarily unavailable/)).not.toBeInTheDocument()
+    expect(screen.queryByText(SCREENING_COPY.en.loadError)).not.toBeInTheDocument()
+  })
+
+  it('removes the tab with the 403 for a role whose only reason to see it was the screen', async () => {
+    auth.current = createAuthorization({ id: 7, roles: [{ slug: 'quality-reviewer', permissions: ['rpl.applications.view', 'rpl.screening.view'] }] })
     mocks.fetchRplScreenings.mockRejectedValue({ response: { status: 403, data: { message: 'This action is unauthorized.' } } })
     renderCase('/rpl/applications/41?tab=screening')
 
     await waitFor(() => expect(mocks.fetchRplScreenings).toHaveBeenCalled())
     await waitFor(() => expect(screeningTab()).not.toBeInTheDocument())
     expect(await screen.findByText('Case summary')).toBeInTheDocument()
-    expect(screen.queryByText(/supporting data is temporarily unavailable/)).not.toBeInTheDocument()
-    expect(screen.queryByText(SCREENING_COPY.en.loadError)).not.toBeInTheDocument()
   })
 
   it('keeps the tab and says so when the screens fail to load for another reason', async () => {
@@ -273,7 +299,7 @@ describe('the document screening tab', () => {
     })
     renderCase()
 
-    fireEvent.click(await screen.findByRole('button', { name: SCREENING_COPY.en.tab }))
+    fireEvent.click(await within(await screen.findByRole('navigation', { name: 'Case' })).findByRole('button', { name: CASE_DECISION_COPY.en.tab }))
 
     expect(await screen.findByText('Authenticity risk 30% (3/10)')).toBeInTheDocument()
   })
@@ -355,7 +381,7 @@ describe('the claimed employers on the overview', () => {
     const { unmount } = renderCase()
 
     expect(await screen.findByText(CLAIMED_EMPLOYERS_COPY.ar.title)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: SCREENING_COPY.ar.tab })).toBeInTheDocument()
+    expect(within(screen.getByRole('navigation', { name: 'ملف طلب' })).getByRole('button', { name: CASE_DECISION_COPY.ar.tab })).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('undefined')
     unmount()
 
@@ -364,7 +390,7 @@ describe('the claimed employers on the overview', () => {
 
     expect(await screen.findByText(CLAIMED_EMPLOYERS_COPY.en.title)).toBeInTheDocument()
     expect(screen.getByText(CLAIMED_EMPLOYERS_COPY.en.snapshotHint)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: SCREENING_COPY.en.tab })).toBeInTheDocument()
+    expect(within(screen.getByRole('navigation', { name: 'Case' })).getByRole('button', { name: CASE_DECISION_COPY.en.tab })).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('undefined')
   })
 })
@@ -425,14 +451,21 @@ describe('the next-status select', () => {
     expect(screen.getByText('تُسحب مع الطلب أي مجموعة أسئلة ما زالت بانتظار الإجابة، ويُصحَّح اختبار الدخول المفتوح الذي يجري وقته عند انتهاء الوقت.')).toBeInTheDocument()
   })
 
-  it('says so when nothing can be set from here', async () => {
+  // The generic move is a collapsed "Advanced" block (D-30), absent when the server offers no move.
+  it('sits inside the collapsed Advanced block, and is absent when nothing can be set from here', async () => {
+    open({ allowed_transitions: ['withdrawn'] })
+    const { unmount } = renderCase()
+    const select = await screen.findByLabelText('Next status')
+    expect(select.closest('details')).not.toBeNull()
+    expect(select.closest('details')).not.toHaveAttribute('open')
+    expect(screen.getByText('Advanced: change the status by hand')).toBeInTheDocument()
+    unmount()
+
     open({ allowed_transitions: [] })
     renderCase()
-
-    const select = await screen.findByLabelText('Next status')
-    expect(select).toBeDisabled()
-    expect(screen.getByText('No other status can be set from here. Use the decision, interview or decline actions.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Update status' })).toBeDisabled()
+    expect(await screen.findByText('Case summary')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Next status')).not.toBeInTheDocument()
+    expect(screen.queryByText('Advanced: change the status by hand')).not.toBeInTheDocument()
   })
 
   it('labels interview_required wherever a status is shown', async () => {
@@ -504,12 +537,14 @@ describe('the decision tab', () => {
     data: application({ status, finalised_at: null, decline_reason_code: null, reapply_available_at: null, allowed_transitions: [], ...overrides }),
   })
 
-  it('leads an administrator from the overview to the decision while the evidence is under verification', async () => {
+  it('leads an administrator from the Next step card to the decision while the evidence is under verification', async () => {
     caseIn('evidence_verification')
     renderCase()
 
-    expect(await screen.findByText(DT.awaitingDecision)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: DT.goToDecision }))
+    const next = await screen.findByRole('region', { name: 'Next step' })
+    expect(within(next).getByText('Decide: entry quiz, interview, or decline.')).toBeInTheDocument()
+    expect(within(next).getByText('Your move')).toBeInTheDocument()
+    fireEvent.click(within(next).getByRole('button', { name: DT.tab }))
 
     expect(await screen.findByText(DT.title)).toBeInTheDocument()
     expect(screen.getAllByRole('radio')).toHaveLength(3)
@@ -556,7 +591,7 @@ describe('the decision tab', () => {
     caseIn('interview_required')
     renderCase()
 
-    fireEvent.click(await screen.findByRole('button', { name: DT.goToInterview }))
+    fireEvent.click(within(await screen.findByRole('region', { name: 'Next step' })).getByRole('button', { name: DT.tab }))
 
     expect(await screen.findByText(INTERVIEW_COPY.en.title)).toBeInTheDocument()
     await waitFor(() => expect(mocks.fetchRplInterviews).toHaveBeenCalledWith('41'))
@@ -599,9 +634,14 @@ describe('the decision tab', () => {
     await waitFor(() => expect(mocks.fetchRplScreeningDecisions).toHaveBeenCalledTimes(2))
   })
 
-  it('passes to quiz and opens the new assessment for an administrator', async () => {
+  // D-09: the entry quiz now lives in the case, so "Pass to quiz and start" keeps the case open, on its entry quiz tab.
+  it('passes to quiz, starts the entry quiz, and stays on the case\'s entry quiz tab for an administrator', async () => {
     caseIn('evidence_verification')
-    mocks.recordRplScreeningDecision.mockResolvedValue({ data: { decision: { id: 1, decision: 'pass_to_quiz' }, application_status: 'ready_for_assessment', interview: null } })
+    mocks.recordRplScreeningDecision.mockImplementation(async () => {
+      caseIn('ready_for_assessment', { latest_screening_decision: { id: 1, decision: 'pass_to_quiz', rationale: 'All required evidence is verified.' } })
+      mocks.fetchRplAssessments.mockResolvedValue({ data: [{ id: 77, rpl_assessor_assignment_id: null, status: 'in_progress' }] })
+      return { data: { decision: { id: 1, decision: 'pass_to_quiz' }, application_status: 'ready_for_assessment', interview: null } }
+    })
     mocks.startAdminRplAssessment.mockResolvedValue({ data: { id: 77 } })
     renderCase('/rpl/applications/41?tab=decision')
 
@@ -609,8 +649,11 @@ describe('the decision tab', () => {
     fireEvent.change(screen.getByLabelText(DT.rationale), { target: { value: 'All required evidence is verified.' } })
     fireEvent.click(screen.getByRole('button', { name: DT.passAndStart }))
 
-    expect(await screen.findByText('Assessment page')).toBeInTheDocument()
-    expect(mocks.startAdminRplAssessment).toHaveBeenCalledWith('41')
+    await waitFor(() => expect(mocks.startAdminRplAssessment).toHaveBeenCalledWith('41'))
+    expect(await screen.findByRole('button', { name: /Create the entry quiz/ })).toBeInTheDocument()
+    expect(within(screen.getByRole('navigation', { name: 'Case' })).getByRole('button', { name: 'Entry quiz' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: /Full assessment page/ })).toHaveAttribute('href', '/rpl/assessments/77')
+    expect(screen.queryByText('Assessment page')).not.toBeInTheDocument()
   })
 })
 
@@ -623,7 +666,12 @@ describe('the decline action', () => {
   it('declines a case waiting for its interview with a category and a rationale', async () => {
     caseIn('interview_required')
     mocks.declineRplApplication.mockResolvedValue({ data: { application_status: 'rejected', decline: { reason_code: 'screening_declined', applicant_category: 'requirements_not_met', reapply_available_at: '2026-10-21T10:00:00+00:00' } } })
-    renderCase()
+    // The decline moved from the overview to the end of the Screening & decision tab.
+    const { unmount } = renderCase()
+    expect(await screen.findByText('Case summary')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: DC.action })).not.toBeInTheDocument()
+    unmount()
+    renderCase('/rpl/applications/41?tab=decision')
 
     fireEvent.click(await screen.findByRole('button', { name: DC.action }))
     const dialog = screen.getByRole('dialog', { name: DC.title })
@@ -640,9 +688,9 @@ describe('the decline action', () => {
   it('needs rpl.screening.decide', async () => {
     auth.current = createAuthorization({ id: 7, roles: [{ slug: 'evidence-reviewer', permissions: ['rpl.applications.view', 'rpl.interviews.manage'] }] })
     caseIn('interview_required')
-    renderCase()
+    renderCase('/rpl/applications/41?tab=decision')
 
-    expect(await screen.findByText('Case summary')).toBeInTheDocument()
+    expect(await screen.findByText(INTERVIEW_COPY.en.title)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: DC.action })).not.toBeInTheDocument()
   })
 
@@ -670,7 +718,7 @@ describe('the decision on the overview', () => {
     expect(await screen.findByText('Two letters carry the same reference number.')).toBeInTheDocument()
     expect(screen.queryByText(/Authenticity risk/)).not.toBeInTheDocument()
     // The sentence the applicant was given, beside the staff reason.
-    expect(screen.getByText('What the applicant was told')).toBeInTheDocument()
+    expect(screen.getByText('What the client was told')).toBeInTheDocument()
     expect(screen.getByText('The documents submitted could not be verified.')).toBeInTheDocument()
     unmount()
 

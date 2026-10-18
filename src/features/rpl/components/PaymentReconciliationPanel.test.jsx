@@ -79,9 +79,11 @@ describe('the committee-path fee', () => {
     expect(mocks.reconcileRplPayment.mock.calls[0][1]).toMatchObject({ currency_paid: 'USD', amount_paid_minor: 15000 })
   })
 
-  it('shows an earlier fee in its own currency as history, and says when nothing is due', () => {
-    const { unmount } = render(<PaymentReconciliationPanel application={application({ fee_snapshot: { amount: 0, currency: 'EUR' }, committee_fee_due: null })} language="en" />)
-    expect(screen.getByText('This case has no payable fee.')).toBeInTheDocument()
+  // D-28 (18 Oct 2026): with no fee due and nothing paid the card renders nothing; it stood as "no fee" on every case.
+  it('shows an earlier fee in its own currency as history, and renders nothing when nothing is due', () => {
+    const { container, unmount } = render(<PaymentReconciliationPanel application={application({ fee_snapshot: { amount: 0, currency: 'EUR' }, committee_fee_due: null })} language="en" />)
+    expect(container).toBeEmptyDOMElement()
+    expect(screen.queryByText('This case has no payable fee.')).not.toBeInTheDocument()
     unmount()
 
     render(<PaymentReconciliationPanel application={application({ payment_status: 'paid', fee_snapshot: { amount: '150.00', currency: 'EUR' }, committee_fee_due: null })} language="ar" />)

@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import RplConfigurationPage, { COPY } from './RplConfigurationPage'
@@ -89,7 +90,7 @@ beforeEach(() => {
 })
 
 async function openControls(copy = COPY.en) {
-  render(<RplConfigurationPage />)
+  render(<MemoryRouter><RplConfigurationPage /></MemoryRouter>)
   fireEvent.click(await screen.findByRole('button', { name: copy.workflow }))
   return screen.findByRole('region', { name: copy === COPY.ar ? AFTER_QUIZ_COPY.ar.settings.title : S.title })
 }
@@ -212,9 +213,10 @@ describe('the failed-client minimums (O1)', () => {
 })
 
 describe('the certificate wording tab (O3)', () => {
+  // Opened by its URL (?tab=), as the case's links and the header open the settings (D-18).
   it('opens the wording panel, which loads itself', async () => {
-    render(<RplConfigurationPage />)
-    fireEvent.click(await screen.findByRole('button', { name: COPY.en.certificate_wording }))
+    render(<MemoryRouter initialEntries={['/rpl/configuration?tab=certificate_wording']}><RplConfigurationPage /></MemoryRouter>)
+    expect(await screen.findByRole('button', { name: COPY.en.certificate_wording })).toHaveAttribute('aria-current', 'page')
 
     expect(await screen.findByText(AFTER_QUIZ_COPY.en.wording.notApproved)).toBeInTheDocument()
     expect(mocks.fetchRplCertificateWordings).toHaveBeenCalledWith('rpl_experience_confirmation')

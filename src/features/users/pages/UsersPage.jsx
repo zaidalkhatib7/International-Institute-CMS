@@ -239,7 +239,7 @@ export default function UsersPage() {
   const language = getCurrentLanguage()
   const audience = location.pathname === '/users/website' ? 'website' : location.pathname === '/users/onsite' ? 'onsite' : 'administration'
   const audienceMeta = {
-    administration: language === 'ar' ? { title: 'الإدارة والأدوار', description: 'إدارة الموظفين والمديرين والمقيّمين والمدربين وصلاحياتهم التشغيلية.', add: true } : { title: 'Administration & roles', description: 'Manage staff, administrators, assessors, trainers, and their operational permissions.', add: true },
+    administration: language === 'ar' ? { title: 'الموظفون والصلاحيات', description: 'إدارة الموظفين والمديرين والمقيّمين والمدربين وصلاحياتهم التشغيلية.', add: true } : { title: 'Staff & roles', description: 'Manage staff, administrators, assessors, trainers, and their operational permissions.', add: true },
     website: language === 'ar' ? { title: 'عملاء الموقع', description: 'الحسابات التي سجلت ذاتياً عبر الموقع وتدير خدماتها إلكترونياً.', add: false } : { title: 'Website clients', description: 'Self-service clients who registered online and manage their own website accounts.', add: false },
     onsite: language === 'ar' ? { title: 'عملاء المكتب', description: 'العملاء الذين تم تسجيلهم أو خدمتهم داخل مكتب ICPC.', add: true } : { title: 'On-site clients', description: 'Clients registered and assisted at an ICPC office. Staff manage their service journey here.', add: true },
   }[audience]
@@ -274,7 +274,7 @@ export default function UsersPage() {
         totalFilteredUsers: 'إجمالي المستخدمين المفلترين',
         adminAccounts: 'حسابات المدير',
         allUsers: 'كل المستخدمين',
-        liveData: 'بيانات حية مقسمة من واجهة الإدارة',
+        liveData: 'قائمة محدّثة',
         exportCsv: 'تصدير CSV',
         exporting: 'جاري التصدير...',
         filters: 'عوامل التصفية',
@@ -302,7 +302,7 @@ export default function UsersPage() {
         prev: 'السابق',
         next: 'التالي',
         onsiteNoEmail: 'حساب مسجّل في المكتب · دون بريد إلكتروني',
-        tabAdministration: 'الإدارة والأدوار',
+        tabAdministration: 'الموظفون والصلاحيات',
         tabWebsite: 'عملاء الموقع',
         tabOnsite: 'عملاء المكتب',
         registrationChannel: 'قناة التسجيل',
@@ -346,7 +346,7 @@ export default function UsersPage() {
       totalFilteredUsers: 'Total Filtered Users',
       adminAccounts: 'Admin Accounts',
       allUsers: 'All Users',
-      liveData: 'Live paginated data from admin API',
+      liveData: 'Up-to-date list',
       exportCsv: 'Export CSV',
       exporting: 'Exporting...',
       filters: 'Filters',
@@ -374,7 +374,7 @@ export default function UsersPage() {
       prev: 'Prev',
       next: 'Next',
       onsiteNoEmail: 'On-site account · no email',
-      tabAdministration: 'Administration & roles',
+      tabAdministration: 'Staff & roles',
       tabWebsite: 'Website clients',
       tabOnsite: 'On-site clients',
       registrationChannel: 'Registration channel',
@@ -965,9 +965,11 @@ export default function UsersPage() {
               language={language}
               copy={copy}
               walletText={walletText}
-              onOpenWorkspace={(targetUser) => navigate(`/users/${targetUser.id}`)}
-              onTopUp={canManageWallet ? (targetUser) => openWalletAction(targetUser, 'top-up') : null}
-              onDeduct={canManageWallet ? (targetUser) => openWalletAction(targetUser, 'deduct') : null}
+              // A staff member opened from this tab stays under Staff & roles in the sidebar and the top bar.
+              onOpenWorkspace={(targetUser) => navigate(`/users/${targetUser.id}`, audience === 'administration' ? { state: { navFrom: '/users' } } : undefined)}
+              // Wallets are the clients' (F-21, 18 Oct 2026): the staff tab offers no top-up or deduction.
+              onTopUp={canManageWallet && audience !== 'administration' ? (targetUser) => openWalletAction(targetUser, 'top-up') : null}
+              onDeduct={canManageWallet && audience !== 'administration' ? (targetUser) => openWalletAction(targetUser, 'deduct') : null}
             />
           ))
         )}

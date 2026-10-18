@@ -60,7 +60,7 @@ vi.mock('../../../services/languageStorage', async (importOriginal) => ({
   getAdminLanguage: () => language.current,
 }))
 vi.mock('../../auth/context/useAuthorization', () => ({
-  useAuthorization: () => ({ isAdministrator: true }),
+  useAuthorization: () => ({ isAdministrator: true, hasPermission: () => true }),
 }))
 
 function assessment(overrides = {}) {
@@ -134,7 +134,7 @@ describe('why the Generate-advisory button is disabled', () => {
       }),
     )
 
-    expect(await screen.findByText(/لم يُرسل إلى هذا المتقدم أي تقييم كفاءة بعد/)).toBeInTheDocument()
+    expect(await screen.findByText(/لم يُرسل إلى هذا العميل أي تقييم كفاءة بعد/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /إنشاء مسودة Gemini/ })).toBeDisabled()
     expect(document.body.textContent).not.toContain('undefined')
     // Mojibake guard: Arabic must survive the render intact.
@@ -179,7 +179,7 @@ describe('why the Generate-advisory button is disabled', () => {
       }),
     )
 
-    expect(await screen.findByText(/لم يُجب المتقدم بعد عن كل الأسئلة المُرسلة/)).toBeInTheDocument()
+    expect(await screen.findByText(/لم يُجب العميل بعد عن كل الأسئلة المُرسلة/)).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('undefined')
   })
 
@@ -423,5 +423,45 @@ describe('the interview card', () => {
 
     expect(await screen.findByText('/rpl/applications/case-41?tab=decision')).toBeInTheDocument()
     expect(mocks.scheduleRplInterview).not.toHaveBeenCalled()
+  })
+})
+
+describe('Back (review of 18 Oct 2026)', () => {
+  function Probe() {
+    const location = useLocation()
+    return <p data-testid="probe">{location.pathname}{location.search}|{location.state?.from?.label || ''}</p>
+  }
+
+  function renderFrom(entry, payload) {
+    mocks.fetchRplAssessment.mockResolvedValue({ data: payload })
+    return render(
+      <MemoryRouter initialEntries={[entry]}>
+        <Routes>
+          <Route path="/rpl/assessments/:assessmentId" element={<RplAssessmentsPage />} />
+          <Route path="*" element={<Probe />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+  }
+
+  it('returns to the case it was opened from, with the list that case came from', async () => {
+    language.current = 'en'
+    renderFrom({ pathname: '/rpl/assessments/12', state: { navFrom: '/rpl/applications', from: { pathname: '/rpl/applications/case-1', search: '?tab=entry_quiz', label: 'the case', caseFrom: { pathname: '/rpl/applications', search: '?stage=entry_quiz', label: 'To prepare and send' } } } }, assessment({ application: { ...assessment().application, public_id: 'case-1' } }))
+    fireEvent.click(await screen.findByRole('button', { name: /Back to the case/ }))
+    expect(screen.getByTestId('probe')).toHaveTextContent('/rpl/applications/case-1?tab=entry_quiz|To prepare and send')
+  })
+
+  it('returns an administrator\'s own assessment to its case\'s entry quiz when opened directly', async () => {
+    language.current = 'en'
+    renderFrom('/rpl/assessments/12', assessment({ application: { ...assessment().application, public_id: 'case-2' } }))
+    fireEvent.click(await screen.findByRole('button', { name: /Back to the case/ }))
+    expect(screen.getByTestId('probe')).toHaveTextContent('/rpl/applications/case-2?tab=entry_quiz')
+  })
+
+  it('keeps an assessor\'s pre-flow assessment on the assessments list', async () => {
+    language.current = 'ar'
+    renderFrom('/rpl/assessments/12', assessment({ rpl_assessor_assignment_id: 4, application: { ...assessment().application, public_id: 'case-3' } }))
+    fireEvent.click(await screen.findByRole('button', { name: /العودة إلى التقييمات/ }))
+    expect(screen.getByTestId('probe')).toHaveTextContent('/rpl/assessments')
   })
 })

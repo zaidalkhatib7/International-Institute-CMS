@@ -13,6 +13,10 @@ import {
   fetchAcademicReferenceData, generateAcademicDiagnostic, recordAcademicRecommendation,
 } from '../services/academicRplService'
 import ReadinessPanel from '../components/ReadinessPanel'
+import { useAuthorization } from '../../auth/context/useAuthorization'
+import { getRouteAccess } from '../../../routes/routeAccess'
+import JourneyStepper from '../../rpl/components/JourneyStepper'
+import { academicJourney, academicStatusLabel, academicSteps } from '../domain/academicJourney'
 
 /*
  * The case workspace — the owner's eight stages in the order they happen.
@@ -34,7 +38,7 @@ const COPY = {
     requestedTrack: 'المسار المطلوب',
     route: 'مسوّغ الأهلية',
     bridged: 'قادم من حالة RPL',
-    eligTitle: 'تأكيد الأهلية (المرحلة 2)',
+    eligTitle: 'تأكيد الأهلية (المرحلة 1)',
     eligSubtitle: 'فعل بشري محكوم. هو الموضع الوحيد الذي يُسجَّل فيه إثبات الأهلية، وتُفحص فيه قاعدة عدم الاعتراف مرتين بالتعلّم نفسه.',
     eligRoute: 'مسوّغ الأهلية',
     eligSource: 'حالة RPL المصدر (مطلوبة لمسار الممارس الخبير)',
@@ -47,7 +51,7 @@ const COPY = {
     eligSelectRoute: 'اختر مسوّغ الأهلية',
     evidence: 'الأدلة المرفوعة',
     noEvidence: 'لم يرفع المتقدم أي أدلة بعد.',
-    analysisTitle: 'تحليل الأدلة (المرحلة 4)',
+    analysisTitle: 'تحليل الأدلة (المرحلة 2)',
     analysisSubtitle: 'يقرأ Gemini الملفات ويستخرج المؤهلات وسنوات الخبرة والمجالات ومؤشرات الكفاءات. لا يُصدر أي درجة.',
     runAnalysis: 'حلّل الأدلة',
     analysing: 'جارٍ التحليل…',
@@ -59,7 +63,7 @@ const COPY = {
     missing: 'ما ينقص للمراجعة',
     documentsRead: 'ملفًا قُرئ',
     strippedWarning: 'حاول النموذج إصدار درجة رغم المنع، وأُزيلت. راجع المخرجات بعناية.',
-    diagnosticTitle: 'الاختبار التشخيصي (المرحلة 5)',
+    diagnosticTitle: 'الاختبار التشخيصي (المرحلة 3)',
     diagnosticSubtitle: 'اختبار مبني على مجالات المتقدم المستخرجة، لا اختبار موحد. كل سؤال يحتاج مراجعة بشرية قبل الإصدار.',
     diagnosticNeedsAnalysis: 'لا يمكن توليد الاختبار قبل تحليل الأدلة: بدونه لا توجد مجالات، فيصبح الاختبار عامًا.',
     noDiagnostic: 'لم يُولَّد اختبار بعد.',
@@ -67,13 +71,13 @@ const COPY = {
     items: 'سؤالًا',
     awaitingReview: 'بانتظار المراجعة',
     review: 'مراجعة',
-    recommendTitle: 'تسجيل التوصية (المرحلة 7)',
+    recommendTitle: 'تسجيل التوصية (المرحلة 4)',
     recommendSubtitle: 'يحفظ درجات المسارات الثلاثة ويصدر توصية. ليست قرار قبول.',
     rationale: 'مسوّغ التوصية',
     rationalePlaceholder: 'اذكر ما استندت إليه في هذه التوصية (20 حرفًا على الأقل).',
     record: 'سجّل التوصية',
     recording: 'جارٍ التسجيل…',
-    gapTitle: 'خطة سد الفجوات (المرحلة 8)',
+    gapTitle: 'خطة سد الفجوات (المرحلة 5)',
     computeGap: 'احسب خطة الفجوات',
     unmet: 'كفاءات غير مستوفاة',
     blocking: 'حاجبة',
@@ -89,7 +93,7 @@ const COPY = {
     requestedTrack: 'Requested track',
     route: 'Eligibility route',
     bridged: 'Bridged from RPL case',
-    eligTitle: 'Confirm eligibility (stage 2)',
+    eligTitle: 'Confirm eligibility (step 1)',
     eligSubtitle: 'A governed human act. This is the only place eligibility is recorded, and the only place the anti-double-recognition check runs.',
     eligRoute: 'Eligibility route',
     eligSource: 'Source RPL case (required for the Expert Practitioner bridge)',
@@ -102,7 +106,7 @@ const COPY = {
     eligSelectRoute: 'Select an eligibility route',
     evidence: 'Uploaded evidence',
     noEvidence: 'The applicant has not uploaded any evidence yet.',
-    analysisTitle: 'Evidence analysis (stage 4)',
+    analysisTitle: 'Evidence analysis (step 2)',
     analysisSubtitle: 'Gemini reads the files and extracts qualifications, years, domains and competency signals. It produces no score.',
     runAnalysis: 'Analyse the evidence',
     analysing: 'Analysing…',
@@ -114,7 +118,7 @@ const COPY = {
     missing: 'Missing for review',
     documentsRead: 'documents read',
     strippedWarning: 'The model attempted to emit a score despite the rules; it was stripped. Read the output carefully.',
-    diagnosticTitle: 'Diagnostic assessment (stage 5)',
+    diagnosticTitle: 'Diagnostic assessment (step 3)',
     diagnosticSubtitle: 'A paper built from the applicant’s extracted domains, not a standard one. Every question needs a human review before issue.',
     diagnosticNeedsAnalysis: 'The diagnostic cannot be generated before the evidence analysis: without it there are no domains, and the paper would be generic.',
     noDiagnostic: 'No diagnostic has been generated yet.',
@@ -122,13 +126,13 @@ const COPY = {
     items: 'items',
     awaitingReview: 'awaiting review',
     review: 'Review',
-    recommendTitle: 'Record the recommendation (stage 7)',
+    recommendTitle: 'Record the recommendation (step 4)',
     recommendSubtitle: 'Saves the scores for all three tracks and issues a recommendation. Not an admission decision.',
     rationale: 'Rationale',
     rationalePlaceholder: 'State what this recommendation rests on (at least 20 characters).',
     record: 'Record recommendation',
     recording: 'Recording…',
-    gapTitle: 'Gap closure plan (stage 8)',
+    gapTitle: 'Gap closure plan (step 5)',
     computeGap: 'Compute the gap plan',
     unmet: 'Unmet competencies',
     blocking: 'Blocking',
@@ -145,6 +149,10 @@ export default function AcademicCasePage() {
   const navigate = useNavigate()
   const language = getAdminLanguage()
   const copy = COPY[language] || COPY.en
+  // The diagnostic page and its generation need rpl.applications.manage (D-21): a viewer of the case
+  // without it sees each diagnostic's status, never a button to a page it would be refused.
+  const { canAccess } = useAuthorization()
+  const canOpenDiagnostic = canAccess(getRouteAccess('/academic-rpl/diagnostics/0'))
 
   const [state, setState] = useState({ loading: true, error: '', application: null, tracks: [], routes: [] })
   const [action, setAction] = useState({ busy: false, error: '', success: '' })
@@ -174,7 +182,8 @@ export default function AcademicCasePage() {
   }, [applicationId])
 
   useEffect(() => {
-    load()
+    const timer = window.setTimeout(load, 0)
+    return () => window.clearTimeout(timer)
   }, [load])
 
   async function run(request, success) {
@@ -191,6 +200,8 @@ export default function AcademicCasePage() {
 
   const application = state.application
   const analysis = application?.analyses?.[0]
+  // A status as a word; a code with no word is shown as itself, isolated, never bare.
+  const statusWord = (code) => academicStatusLabel(code, language) || <bdi>{code}</bdi>
   const extraction = analysis?.extraction
 
   if (state.loading) {
@@ -223,8 +234,11 @@ export default function AcademicCasePage() {
             <bdi>{application.case_reference}</bdi>
           </h1>
         </div>
-        <Badge variant="neutral">{application.status}</Badge>
+        <Badge variant="neutral">{statusWord(application.status)}</Badge>
       </div>
+
+      {/* The same stepper as the professional path (§8): five steps, from what the case carries. */}
+      <JourneyStepper steps={academicSteps(language)} states={academicJourney(application, { gapPlan }).states} language={language} />
 
       {action.error ? (
         <p className="whitespace-pre-line rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -368,7 +382,7 @@ export default function AcademicCasePage() {
                       {localize(evidence.category?.name, language)}
                     </span>
                   </span>
-                  <Badge variant={evidence.status === 'verified' ? 'success' : 'neutral'}>{evidence.status}</Badge>
+                  <Badge variant={evidence.status === 'verified' ? 'success' : 'neutral'}>{statusWord(evidence.status)}</Badge>
                 </li>
               ))}
             </ul>
@@ -468,7 +482,7 @@ export default function AcademicCasePage() {
                 >
                   <span className="flex flex-wrap items-center gap-2">
                     <Badge variant={diagnostic.status === 'issued' ? 'success' : 'warning'}>
-                      {diagnostic.status}
+                      {statusWord(diagnostic.status)}
                     </Badge>
                     <span>{(diagnostic.items || []).length} {copy.items}</span>
                     {/* The count that decides whether it can be issued. */}
@@ -477,13 +491,15 @@ export default function AcademicCasePage() {
                       {copy.awaitingReview}
                     </span>
                   </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => navigate(`/academic-rpl/diagnostics/${diagnostic.id}`)}
-                  >
-                    {copy.review}
-                  </Button>
+                  {canOpenDiagnostic ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(`/academic-rpl/diagnostics/${diagnostic.id}`)}
+                    >
+                      {copy.review}
+                    </Button>
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -493,7 +509,7 @@ export default function AcademicCasePage() {
 
           {/* Disabled without an analysis, because the server refuses anyway —
               and the reason belongs next to the button, not in an error toast. */}
-          <div className="flex flex-wrap items-center gap-3">
+          {canOpenDiagnostic ? <div className="flex flex-wrap items-center gap-3">
             {state.tracks.map((track) => (
               <Button
                 key={track.id}
@@ -514,8 +530,8 @@ export default function AcademicCasePage() {
                 <Sparkles size={16} /> {copy.generateFor} {localize(track.name, language)}
               </Button>
             ))}
-          </div>
-          {!analysis ? (
+          </div> : null}
+          {canOpenDiagnostic && !analysis ? (
             <p className="text-xs text-amber-800">{copy.diagnosticNeedsAnalysis}</p>
           ) : null}
         </CardContent>

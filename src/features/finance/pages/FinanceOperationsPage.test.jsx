@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import FinanceOperationsPage from './FinanceOperationsPage'
@@ -80,7 +81,7 @@ describe('FinanceOperationsPage', () => {
   })
 
   it('reports each currency on its own row, the points last as earlier records, and the new money tiles', async () => {
-    render(<FinanceOperationsPage />)
+    render(<MemoryRouter><FinanceOperationsPage /></MemoryRouter>)
 
     expect(await screen.findByRole('heading', { name: 'Finance operations' })).toBeInTheDocument()
     expect(await screen.findByText('Paid orders')).toBeInTheDocument()
@@ -104,7 +105,7 @@ describe('FinanceOperationsPage', () => {
   })
 
   it('shows product prices in US dollars, flags a price in another currency, and saves a new one as US cents', async () => {
-    render(<FinanceOperationsPage />)
+    render(<MemoryRouter><FinanceOperationsPage /></MemoryRouter>)
 
     fireEvent.click(await screen.findByRole('tab', { name: /Products & prices/ }))
     expect(await screen.findByText('RPL Assessment Fee')).toBeInTheDocument()
@@ -127,7 +128,7 @@ describe('FinanceOperationsPage', () => {
   })
 
   it('opens the exchange-rate tab, which loads its own panel', async () => {
-    render(<FinanceOperationsPage />)
+    render(<MemoryRouter><FinanceOperationsPage /></MemoryRouter>)
 
     fireEvent.click(await screen.findByRole('tab', { name: /Exchange rate/ }))
     await waitFor(() => expect(fetchExchangeRates).toHaveBeenCalledWith({ page: 1 }))
@@ -142,7 +143,7 @@ describe('FinanceOperationsPage', () => {
         description: { en: 'One assessment', ar: 'تقييم واحد', nl: 'Eén beoordeling' },
       }],
     })
-    render(<FinanceOperationsPage />)
+    render(<MemoryRouter><FinanceOperationsPage /></MemoryRouter>)
 
     fireEvent.click(await screen.findByRole('tab', { name: /Products & prices/ }))
     fireEvent.click(await screen.findByRole('button', { name: 'Edit' }))
@@ -157,5 +158,20 @@ describe('FinanceOperationsPage', () => {
     expect(payload.name).toEqual({ en: 'RPL Assessment Fee', ar: 'رسوم تقييم RPL' })
     expect(payload.description).toEqual({ en: 'One assessment', ar: 'تقييم واحد' })
     expect(JSON.stringify(payload)).not.toContain('"nl"')
+  })
+
+  // D-20 (18 Oct 2026): the tab is in the URL, so the payments queue and the settings open the rate inside Finance.
+  it('opens the tab named in ?tab=, and writes the chosen tab back', async () => {
+    fetchExchangeRates.mockResolvedValue({ data: [] })
+    render(<MemoryRouter initialEntries={['/finance?tab=exchange_rate']}><FinanceOperationsPage /></MemoryRouter>)
+
+    expect(await screen.findByRole('tab', { name: /Exchange rate/ })).toHaveAttribute('aria-selected', 'true')
+    fireEvent.click(screen.getByRole('tab', { name: /Products & prices/ }))
+    expect(screen.getByRole('tab', { name: /Products & prices/ })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('falls back to the overview for an unknown tab', async () => {
+    render(<MemoryRouter initialEntries={['/finance?tab=nonsense']}><FinanceOperationsPage /></MemoryRouter>)
+    expect(await screen.findByRole('tab', { name: /Finance overview/ })).toHaveAttribute('aria-selected', 'true')
   })
 })

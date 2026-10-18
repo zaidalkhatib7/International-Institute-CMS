@@ -108,6 +108,42 @@ describe('the users list', () => {
   })
 })
 
+// F-21 (18 Oct 2026): wallets are the clients'; the staff tab lists balances but offers no top-up or deduction.
+describe('the staff tab', () => {
+  it('offers no top-up or deduction, and calls the list up to date, never "API"', async () => {
+    render(
+      <MemoryRouter initialEntries={['/users']}>
+        <Routes><Route path="/users" element={<UsersPage />} /></Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('button', { name: 'Amina Saleh' })
+    expect(screen.queryByRole('button', { name: EN.topUp })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: EN.deduct })).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/admin API/)
+  })
+
+  it('is named Staff & roles, as its sidebar row, and opens a staff member under that row', async () => {
+    function Where() {
+      const location = useLocation()
+      return <p data-testid="staff-where">{location.pathname}|{location.state?.navFrom || ''}</p>
+    }
+    render(
+      <MemoryRouter initialEntries={['/users']}>
+        <Routes>
+          <Route path="/users" element={<UsersPage />} />
+          <Route path="/users/:id" element={<Where />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    const row = await screen.findByRole('button', { name: 'Amina Saleh' })
+    expect(screen.getByRole('heading', { name: 'Staff & roles' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Staff & roles' })).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/Administration & roles/)
+    fireEvent.click(row)
+    expect(screen.getByTestId('staff-where')).toHaveTextContent('/users/7|/users')
+  })
+})
+
 describe('the wallet helpers', () => {
   it('writes one CSV column per balance, as decimal strings', () => {
     const lines = buildUsersCsv(USERS, 'en').split('\n')

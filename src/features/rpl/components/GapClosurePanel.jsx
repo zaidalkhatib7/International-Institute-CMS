@@ -84,7 +84,7 @@ const COPY = {
  * `crossCheck` (owner flow of 12 Oct 2026, P5): beside the course plan, the engine
  * is a gap-only cross-check, never the plan, and the panel says so.
  */
-export default function GapClosurePanel({ applicationPublicId, language, crossCheck = false }) {
+export default function GapClosurePanel({ applicationPublicId, language, crossCheck = false, onEmptyChange }) {
   const copy = COPY[language] || COPY.en
 
   const [plan, setPlan] = useState(null)
@@ -110,7 +110,18 @@ export default function GapClosurePanel({ applicationPublicId, language, crossCh
     load()
   }, [load])
 
-  if (!applicationPublicId) return null
+  /*
+   * Beside the course plan, a cross-check with no gaps says nothing useful (it
+   * always read "no gaps recorded" on a current-flow case): it renders nothing,
+   * and tells the page so its column can give way (D-29). A pre-flow case with
+   * gaps keeps it.
+   */
+  const emptyCrossCheck = crossCheck && !loading && !error && plan != null && Number(plan.gap_count) === 0
+  useEffect(() => {
+    onEmptyChange?.(emptyCrossCheck)
+  }, [emptyCrossCheck, onEmptyChange])
+
+  if (!applicationPublicId || emptyCrossCheck) return null
 
   const readiness = plan?.catalogue_readiness
   const percentage = plan?.progress?.percentage ?? 0

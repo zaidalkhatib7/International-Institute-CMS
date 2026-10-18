@@ -8,7 +8,8 @@ import AuthorizationProvider from '../features/auth/context/AuthorizationProvide
 import { getRouteAccess } from './routeAccess'
 import { getAdminLanguage } from '../services/languageStorage'
 
-const WorkspaceOverviewPage = lazy(() => import('../features/dashboard/pages/WorkspaceOverviewPage'))
+// Today: the role-aware work queue (owner, 18 Oct 2026; PLATFORM-JOURNEY-SPEC §4.1).
+const TodayPage = lazy(() => import('../features/dashboard/pages/TodayPage'))
 const UsersPage = lazy(() => import('../features/users/pages/UsersPage'))
 const UserWorkspacePage = lazy(() => import('../features/users/pages/UserWorkspacePage'))
 const UserWalletActionPage = lazy(() => import('../features/users/pages/UserWalletActionPage'))
@@ -26,8 +27,6 @@ const AiQuizSettingsPage = lazy(() => import('../features/quizzes/pages/AiQuizSe
 const ProgramQuestionBankPage = lazy(() => import('../features/quizzes/pages/ProgramQuestionBankPage'))
 const ProgramContentPage = lazy(() => import('../features/content/pages/ProgramContentPage'))
 const SettingsPage = lazy(() => import('../features/settings/pages/SettingsPage'))
-const ApiModulePage = lazy(() => import('../features/platform/pages/ApiModulePage'))
-const PublicSiteArchitecturePage = lazy(() => import('../features/content/pages/PublicSiteArchitecturePage'))
 const RplApplicationsPage = lazy(() => import('../features/rpl/pages/RplApplicationsPage'))
 const RplCaseWorkspacePage = lazy(() => import('../features/rpl/pages/RplCaseWorkspacePage'))
 const RplEvidencePage = lazy(() => import('../features/rpl/pages/RplEvidencePage'))
@@ -78,14 +77,6 @@ function AdminRoute({ children }) {
   )
 }
 
-const moduleWorkspacePaths = [
-  '/content/pages',
-  '/content/news',
-  '/content/experts',
-  '/reports',
-  '/notifications',
-]
-
 export default function AppRouter() {
   /*
    * basename follows the build's base path, so one source tree serves both from
@@ -119,7 +110,7 @@ export default function AppRouter() {
           path="/dashboard"
           element={
             <AdminRoute>
-              <WorkspaceOverviewPage />
+              <TodayPage />
             </AdminRoute>
           }
         />
@@ -294,15 +285,6 @@ export default function AppRouter() {
           }
         />
 
-        <Route
-          path="/content/architecture"
-          element={
-            <AdminRoute>
-              <PublicSiteArchitecturePage />
-            </AdminRoute>
-          }
-        />
-
         <Route path="/academic-rpl/applications" element={<AdminRoute><AcademicApplicationsPage /></AdminRoute>} />
         <Route path="/academic-rpl/applications/:applicationId" element={<AdminRoute><AcademicCasePage /></AdminRoute>} />
         <Route path="/academic-rpl/framework" element={<AdminRoute><AcademicFrameworkPage /></AdminRoute>} />
@@ -328,18 +310,12 @@ export default function AppRouter() {
         <Route path="/finance" element={<AdminRoute><FinanceOperationsPage /></AdminRoute>} />
         <Route path="/finance/exchange-rate" element={<AdminRoute><ExchangeRatePage /></AdminRoute>} />
 
-        {moduleWorkspacePaths.map((path) => (
-          <Route
-            key={path}
-            path={path}
-            element={
-              <AdminRoute>
-                <ApiModulePage />
-              </AdminRoute>
-            }
-          />
-        ))}
-
+        {/*
+          The developer probes and static maps (/content/architecture, /content/pages,
+          /content/news, /content/experts, /reports, /notifications) were removed on
+          18 Oct 2026 (PLATFORM-JOURNEY-SPEC §3.2): they edited nothing. Their paths
+          now reach the not-found screen below, which leads back to Today.
+        */}
         <Route
           path="*"
           element={

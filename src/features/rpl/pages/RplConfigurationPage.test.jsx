@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import RplConfigurationPage, { COPY } from './RplConfigurationPage'
@@ -60,7 +61,7 @@ beforeEach(() => {
 })
 
 async function openControls(copy = COPY.en) {
-  render(<RplConfigurationPage />)
+  render(<MemoryRouter><RplConfigurationPage /></MemoryRouter>)
   fireEvent.click(await screen.findByRole('button', { name: copy.workflow }))
 
   return screen.findByRole('checkbox', { name: new RegExp(copy.evidenceDocuments) })
@@ -473,7 +474,7 @@ describe('the document screening controls', () => {
 
   it('renders in Arabic and in English, never "undefined"', async () => {
     language.current = 'ar'
-    const { unmount } = render(<RplConfigurationPage />)
+    const { unmount } = render(<MemoryRouter><RplConfigurationPage /></MemoryRouter>)
     fireEvent.click(await screen.findByRole('button', { name: COPY.ar.workflow }))
 
     expect(await screen.findByText(SCREENING_SETTINGS_COPY.ar.title)).toBeInTheDocument()
@@ -482,7 +483,7 @@ describe('the document screening controls', () => {
     unmount()
 
     language.current = 'en'
-    render(<RplConfigurationPage />)
+    render(<MemoryRouter><RplConfigurationPage /></MemoryRouter>)
     fireEvent.click(await screen.findByRole('button', { name: COPY.en.workflow }))
 
     expect(await screen.findByText(SC.title)).toBeInTheDocument()

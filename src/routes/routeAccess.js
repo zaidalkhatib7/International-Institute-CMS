@@ -1,4 +1,5 @@
 const permission = (slug) => ({ allPermissions: [slug] })
+const allPermissions = (...slugs) => ({ allPermissions: slugs })
 const anyPermission = (...slugs) => ({ anyPermissions: slugs })
 
 export const routeAccess = Object.freeze({
@@ -20,19 +21,16 @@ export const routeAccess = Object.freeze({
   '/categories': permission('programs.manage'),
   '/lessons': permission('learning.manage'),
   '/lessons/edit': permission('learning.manage'),
-  '/sections': permission('learning.manage'),
-  '/sections/edit': permission('learning.manage'),
-  '/quizzes': permission('learning.manage'),
-  '/quizzes/bank': permission('learning.manage'),
+  // These read the programmes (GET /admin/programs is programs.manage), so they need both (§3.3).
+  '/sections': allPermissions('learning.manage', 'programs.manage'),
+  '/sections/edit': allPermissions('learning.manage', 'programs.manage'),
+  '/quizzes': allPermissions('learning.manage', 'programs.manage'),
+  '/quizzes/bank': allPermissions('learning.manage', 'programs.manage'),
   '/quizzes/units': permission('learning.manage'),
-  '/content/course': permission('learning.manage'),
+  '/content/course': allPermissions('learning.manage', 'programs.manage'),
   '/quizzes/edit': permission('learning.manage'),
   '/ai-settings': permission('learning.manage'),
   '/settings': null,
-  '/content/architecture': permission('content.manage'),
-  '/content/pages': permission('content.manage'),
-  '/content/news': permission('content.manage'),
-  '/content/experts': anyPermission('experts.view', 'experts.manage', 'consultations.manage'),
   '/rpl/applications': permission('rpl.applications.view'),
   '/rpl/evidence': permission('rpl.evidence.view'),
   '/rpl/assessments': permission('rpl.applications.view'),
@@ -52,14 +50,20 @@ export const routeAccess = Object.freeze({
   '/finance': anyPermission('finance.reports.view', 'finance.catalog.manage'),
   // The USD -> SYP rate (owner, 17 Oct 2026): read by every finance and payment role; only the owner's role sets it (the panel decides).
   '/finance/exchange-rate': anyPermission('finance.exchange_rates.manage', 'finance.manage', 'finance.reports.view', 'finance.catalog.manage', 'rpl.payments.reconcile'),
-  '/reports': anyPermission('applications.review', 'experts.view', 'cpd.review', 'audit.view'),
-  '/notifications': null,
+  // The pages under a list, by id (§3.3): each follows the API read it makes.
+  '/users/:id': permission('users.view'),
+  '/academic-rpl/applications/:id': permission('rpl.applications.view'),
+  '/academic-rpl/diagnostics/:id': permission('rpl.applications.manage'),
 })
 
 export function getRouteAccess(pathname) {
   if (!pathname) return undefined
+  if (Object.prototype.hasOwnProperty.call(routeAccess, pathname)) return routeAccess[pathname]
   if (/^\/rpl\/applications\/[^/]+$/.test(pathname)) return routeAccess['/rpl/applications']
   if (/^\/rpl\/assessments\/[^/]+$/.test(pathname)) return routeAccess['/rpl/assessments']
   if (/^\/users\/[^/]+\/wallet$/.test(pathname)) return routeAccess['/users/:id/wallet']
-  return routeAccess[pathname]
+  if (/^\/users\/[^/]+$/.test(pathname)) return routeAccess['/users/:id']
+  if (/^\/academic-rpl\/applications\/[^/]+$/.test(pathname)) return routeAccess['/academic-rpl/applications/:id']
+  if (/^\/academic-rpl\/diagnostics\/[^/]+$/.test(pathname)) return routeAccess['/academic-rpl/diagnostics/:id']
+  return undefined
 }

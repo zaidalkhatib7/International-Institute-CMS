@@ -50,7 +50,7 @@ vi.mock('../../../services/languageStorage', async (importOriginal) => ({
   getAdminLanguage: () => language.current,
 }))
 vi.mock('../../auth/context/useAuthorization', () => ({
-  useAuthorization: () => ({ isAdministrator: true }),
+  useAuthorization: () => ({ isAdministrator: true, hasPermission: () => true }),
 }))
 
 const EN = GEMINI_COPY.advisory.en

@@ -46,7 +46,7 @@ import { useModalDialog } from '../../../hooks/useModalDialog'
 
 const copyByLanguage = {
   ar: {
-    title: 'مركز رفع الأدلة والتحقق', subtitle: 'ارفع عدة ملفات، أكمل بياناتها، ثم أرسلها للمراجعة ضمن ملف RPL.',
+    title: 'مركز رفع الأدلة والتحقق', subtitle: 'ارفع عدة ملفات، أكمل بياناتها، ثم أرسلها للمراجعة ضمن ملف الطلب.',
     dropTitle: 'اسحب الملفات وأفلتها هنا', dropHint: 'أو اختر الملفات من جهازك. يمكن رفع عدة ملفات دفعة واحدة.',
     choose: 'اختيار الملفات', formats: 'PDF، JPG، PNG، DOCX، XLSX، PPTX، MP4، MP3 — بحد أقصى 50 MB لكل ملف.',
     category: 'فئة الدليل', examples: 'أمثلة', queue: 'قائمة الرفع', uploadAll: 'رفع الملفات الجاهزة', uploading: 'جارٍ الرفع',
@@ -61,12 +61,12 @@ const copyByLanguage = {
     link: 'الرابط الإلكتروني', addLink: 'إضافة الرابط', linkSaved: 'تمت إضافة الرابط المهني.',
     declarationTitle: 'الإقرار النهائي', declarationText: 'أقر بأن جميع الوثائق والمعلومات المرفوعة صحيحة، وأوافق على قيام جهة الاعتماد بالتحقق منها والتواصل مع الجهات المصدرة عند الحاجة.',
     declarationMethod: 'طريقة توثيق الموافقة', inPerson: 'حضوريًا', signedDocument: 'وثيقة موقعة', remoteConfirmation: 'تأكيد مسجل عن بعد', attestationReference: 'مرجع إثبات الموافقة',
-    declarationSave: 'حفظ الإقرار', declarationSaved: 'تم حفظ الإقرار النهائي.', selectApplication: 'اختر طلب RPL أولاً لرفع الأدلة أو حفظ الإقرار.',
+    declarationSave: 'حفظ الإقرار', declarationSaved: 'تم حفظ الإقرار النهائي.', selectApplication: 'اختر طلبًا أولًا لرفع الأدلة أو حفظ الإقرار.',
     statusHistory: 'سجل حالة الدليل', noHistory: 'لا توجد تغييرات حالة مسجلة.', loadingHistory: 'جارٍ تحميل السجل...',
     noCategories: 'لا توجد فئات أدلة مفعّلة لهذا المعيار. يجب إعداد المعيار قبل رفع الملفات.',
   },
   en: {
-    title: 'Evidence & Verification Upload Center', subtitle: 'Upload multiple files, complete their metadata, and submit them for review in the RPL case.',
+    title: 'Evidence & Verification Upload Center', subtitle: 'Upload multiple files, complete their metadata, and submit them for review in the case.',
     dropTitle: 'Drag and drop files here', dropHint: 'Or choose files from your device. Multiple files are supported.',
     choose: 'Choose files', formats: 'PDF, JPG, PNG, DOCX, XLSX, PPTX, MP4, MP3 — maximum 50 MB per file.',
     category: 'Evidence category', examples: 'Examples', queue: 'Upload queue', uploadAll: 'Upload ready files', uploading: 'Uploading',
@@ -81,7 +81,7 @@ const copyByLanguage = {
     link: 'Electronic link', addLink: 'Add link', linkSaved: 'Professional link added.',
     declarationTitle: 'Final declaration', declarationText: 'I declare that all attached documents and information are correct, and I consent to the accreditation body verifying them and contacting issuing organisations when needed.',
     declarationMethod: 'Consent recording method', inPerson: 'In person', signedDocument: 'Signed document', remoteConfirmation: 'Recorded remote confirmation', attestationReference: 'Consent evidence reference',
-    declarationSave: 'Save declaration', declarationSaved: 'Final declaration saved.', selectApplication: 'Select an RPL application before uploading evidence or saving the declaration.',
+    declarationSave: 'Save declaration', declarationSaved: 'Final declaration saved.', selectApplication: 'Select a case before uploading evidence or saving the declaration.',
     statusHistory: 'Evidence status history', noHistory: 'No status changes are recorded.', loadingHistory: 'Loading history...',
     noCategories: 'No evidence categories are enabled for this standard. Configure the standard before uploading files.',
   },

@@ -36,7 +36,7 @@ vi.mock('../../../services/languageStorage', async (importOriginal) => ({
   getAdminLanguage: () => language.current,
 }))
 vi.mock('../../auth/context/useAuthorization', () => ({
-  useAuthorization: () => ({ hasPermission: () => true }),
+  useAuthorization: () => ({ hasPermission: () => true, canAccess: () => true }),
 }))
 
 const REAPPLY_AT = '2026-10-19T10:00:00+00:00'

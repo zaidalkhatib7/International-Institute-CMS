@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import RplConfigurationPage, { COPY } from './RplConfigurationPage'
@@ -85,7 +86,7 @@ beforeEach(() => {
 })
 
 async function openControls(copy = COPY.en, first = label('Professional Practitioner')) {
-  render(<RplConfigurationPage />)
+  render(<MemoryRouter><RplConfigurationPage /></MemoryRouter>)
   fireEvent.click(await screen.findByRole('button', { name: copy.workflow }))
   return screen.findByLabelText(first)
 }

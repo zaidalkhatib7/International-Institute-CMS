@@ -74,6 +74,8 @@ beforeEach(() => {
       id: 41,
       case_reference: 'RPL-2026-ENTRYQUIZ',
       status: 'assessment_in_progress',
+      // The hand status move sits in the collapsed Advanced block, offered when the server lists a move.
+      allowed_transitions: ['quality_review', 'withdrawn'],
       user: { name: 'Applicant Example', email: 'applicant@example.test' },
       submitted_at: '2026-10-01T09:00:00+00:00',
     },

@@ -13,6 +13,7 @@ import {
   approveAcademicDiagnosticItem, fetchAcademicDiagnostic, issueAcademicDiagnostic,
   rejectAcademicDiagnosticItem, updateAcademicDiagnosticItem,
 } from '../services/academicRplService'
+import { academicStatusLabel } from '../domain/academicJourney'
 
 /*
  * THE DIAGNOSTIC REVIEW WORKSPACE — owner spec stage 5.
@@ -145,7 +146,8 @@ export default function AcademicDiagnosticPage() {
   }, [diagnosticId])
 
   useEffect(() => {
-    load()
+    const timer = window.setTimeout(load, 0)
+    return () => window.clearTimeout(timer)
   }, [load])
 
   const diagnostic = state.diagnostic
@@ -223,7 +225,7 @@ export default function AcademicDiagnosticPage() {
           <h1 className="mt-2 text-2xl font-bold">{copy.title}</h1>
           <p className="mt-1 max-w-3xl text-sm text-[var(--color-text-muted)]">{copy.subtitle}</p>
         </div>
-        <Badge variant={locked ? 'neutral' : 'warning'}>{diagnostic.status}</Badge>
+        <Badge variant={locked ? 'neutral' : 'warning'}>{academicStatusLabel(diagnostic.status, language) || <bdi>{diagnostic.status}</bdi>}</Badge>
       </div>
 
       {notice ? (

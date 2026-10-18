@@ -10,8 +10,8 @@ function NavigationHarness() {
   return (
     <>
       <p>{location.pathname}</p>
-      <button type="button" onClick={() => navigate('/content/architecture')}>
-        Open architecture
+      <button type="button" onClick={() => navigate('/programs')}>
+        Open programmes
       </button>
     </>
   )
@@ -37,9 +37,9 @@ describe('RouteScrollReset', () => {
     )
 
     expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: 'auto' })
-    fireEvent.click(screen.getByRole('button', { name: 'Open architecture' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open programmes' }))
 
-    await waitFor(() => expect(screen.getByText('/content/architecture')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('/programs')).toBeInTheDocument())
     expect(window.scrollTo).toHaveBeenCalledTimes(2)
     expect(onRouteChange).toHaveBeenCalledTimes(2)
   })

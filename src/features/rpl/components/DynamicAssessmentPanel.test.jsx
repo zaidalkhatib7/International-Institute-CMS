@@ -149,7 +149,7 @@ describe('the applicant files the questions will be built from', () => {
 
     // The kill switch is a deliberate human choice, and the server does NOT
     // refuse under it. Claiming a refusal here would make the switch unusable.
-    expect(await screen.findByText(/switched off in RPL settings/)).toBeInTheDocument()
+    expect(await screen.findByText(/switched off in Professional path settings/)).toBeInTheDocument()
     expect(screen.queryByText(/generation will be refused/i)).not.toBeInTheDocument()
   })
 
@@ -407,7 +407,7 @@ describe('a withdrawn question set is history, not the current state', () => {
   it('offers Create when the only container is withdrawn', async () => {
     renderRows([withdrawnRow()])
 
-    expect(await screen.findByRole('button', { name: /Create dynamic assessment/ })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /Create the entry quiz/ })).toBeInTheDocument()
     // The withdrawn row is never opened as the current one: it is terminal, and
     // the server would build a fresh container rather than reuse it.
     expect(mocks.fetchDynamicAssessment).not.toHaveBeenCalled()
@@ -431,7 +431,7 @@ describe('a withdrawn question set is history, not the current state', () => {
     expect(mocks.fetchDynamicAssessment).toHaveBeenCalledWith(7)
     expect(screen.getByRole('region', { name: COPY.en.withdrawnTitle })).toBeInTheDocument()
     // A live set is present, so Create would be the wrong offer here.
-    expect(screen.queryByRole('button', { name: /Create dynamic assessment/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Create the entry quiz/ })).not.toBeInTheDocument()
   })
 
   it('does not latch on when the row is withdrawn between the list and the read', async () => {
@@ -441,7 +441,7 @@ describe('a withdrawn question set is history, not the current state', () => {
     renderRows([{ id: 7, status: 'issued' }], withdrawnRow({ id: 7 }))
 
     expect(
-      await screen.findByRole('button', { name: /Create dynamic assessment/ }),
+      await screen.findByRole('button', { name: /Create the entry quiz/ }),
     ).toBeInTheDocument()
     expect(screen.getByRole('region', { name: COPY.en.withdrawnTitle })).toBeInTheDocument()
   })
@@ -462,7 +462,7 @@ describe('a withdrawn question set is history, not the current state', () => {
     fireEvent.click(screen.getByRole('button', { name: COPY.en.withdrawConfirm }))
 
     expect(
-      await screen.findByRole('button', { name: /Create dynamic assessment/ }),
+      await screen.findByRole('button', { name: /Create the entry quiz/ }),
     ).toBeInTheDocument()
     expect(await screen.findByText(COPY.en.withdrawDone)).toBeInTheDocument()
   })

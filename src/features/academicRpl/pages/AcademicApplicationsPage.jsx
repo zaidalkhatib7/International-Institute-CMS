@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GraduationCap, RefreshCw, Search, ShieldAlert } from 'lucide-react'
+import { RefreshCw, Search, ShieldAlert } from 'lucide-react'
 import {
   Badge, Button, Card, CardContent, DataTableShell, Input, PageHeader, Select,
 } from '../../../components/ui'
@@ -9,6 +9,7 @@ import { getAdminLanguage } from '../../../services/languageStorage'
 import { localize } from '../../rpl/domain/rpl'
 import { fetchAcademicApplications, fetchAcademicReferenceData } from '../services/academicRplService'
 import { formatLocalizedDate } from '../../../utils/localization'
+import { academicStatusLabel } from '../domain/academicJourney'
 
 /*
  * The case list for the Professional Academic RPL pathway.
@@ -22,36 +23,40 @@ import { formatLocalizedDate } from '../../../utils/localization'
 
 const COPY = {
   ar: {
-    title: 'المسار الأكاديمي المهني',
+    title: 'طلبات المسار الأكاديمي',
     subtitle: 'طلبات الدبلوم والماجستير والدكتوراه المهنية. مؤهلات مهنية، وليست درجات جامعية حكومية.',
     search: 'ابحث برقم الحالة أو الاسم أو البريد',
     allTracks: 'كل المسارات',
     allStatuses: 'كل الحالات',
     refresh: 'تحديث',
-    case: 'الحالة',
-    applicant: 'المتقدم',
+    case: 'الطلب',
+    applicant: 'العميل',
     track: 'المسار المطلوب',
     status: 'الحالة',
     submitted: 'تاريخ الإرسال',
-    empty: 'لا توجد طلبات في هذا المسار بعد.',
+    table: 'الطلبات',
+    empty: 'لا توجد طلبات أكاديمية بعد. يُفتح الطلب الأكاديمي من صفحة العميل في «العملاء».',
+    emptyFiltered: 'لا توجد طلبات مطابقة للفلاتر الحالية.',
     open: 'فتح',
     frameworkBlocked: 'إطار الكفاءات غير معتمد: لا تُحتسب أي جاهزية ولا يمكن توليد اختبار تشخيصي.',
     frameworkLink: 'اذهب إلى إطار الكفاءات',
     notSet: 'لم يُحدَّد',
   },
   en: {
-    title: 'Professional Academic RPL',
+    title: 'Academic cases',
     subtitle: 'Applications for the Professional Diploma, Master and Doctorate. Professional qualifications, not government academic degrees.',
     search: 'Search by case reference, name or email',
     allTracks: 'All tracks',
     allStatuses: 'All statuses',
     refresh: 'Refresh',
     case: 'Case',
-    applicant: 'Applicant',
+    applicant: 'Client',
     track: 'Requested track',
     status: 'Status',
     submitted: 'Submitted',
-    empty: 'No applications on this pathway yet.',
+    table: 'Cases',
+    empty: "No academic cases yet. An academic case is opened from the client's page in Clients.",
+    emptyFiltered: 'No cases match the current filters.',
     open: 'Open',
     frameworkBlocked: 'The competency framework is not approved: no readiness is scored and no diagnostic can be generated.',
     frameworkLink: 'Go to the competency framework',
@@ -103,6 +108,15 @@ export default function AcademicApplicationsPage() {
   const framework = state.reference?.framework
   const tracks = state.reference?.tracks || []
 
+  const columns = [
+    { key: 'case', label: copy.case, render: (row) => <button type="button" onClick={() => navigate(`/academic-rpl/applications/${row.public_id}`)} className="font-mono text-xs font-bold text-[var(--color-primary)] underline-offset-2 hover:underline"><bdi>{row.case_reference}</bdi></button> },
+    { key: 'client', label: copy.applicant, render: (row) => <div><p className="font-semibold"><bdi>{row.user?.name || '—'}</bdi></p><p className="text-xs text-[var(--color-text-muted)]"><bdi>{row.user?.email}</bdi></p></div> },
+    { key: 'track', label: copy.track, render: (row) => (row.requested_track ? localize(row.requested_track.name, language) : <span className="text-[var(--color-text-muted)]">{copy.notSet}</span>) },
+    { key: 'status', label: copy.status, render: (row) => <Badge variant="neutral">{academicStatusLabel(row.status, language) || <bdi>{row.status}</bdi>}</Badge> },
+    { key: 'submitted', label: copy.submitted, render: (row) => <span className="text-xs text-[var(--color-text-muted)]">{row.submitted_at ? formatLocalizedDate(row.submitted_at, language) : '—'}</span> },
+    { key: 'open', label: '', render: (row) => <Button size="sm" variant="outline" onClick={() => navigate(`/academic-rpl/applications/${row.public_id}`)}>{copy.open}</Button> },
+  ]
+
   return (
     <div className="space-y-6">
       <PageHeader title={copy.title} description={copy.subtitle} />
@@ -151,7 +165,7 @@ export default function AcademicApplicationsPage() {
           >
             <option value="">{copy.allStatuses}</option>
             {STATUSES.map((status) => (
-              <option key={status} value={status}>{status}</option>
+              <option key={status} value={status}>{academicStatusLabel(status, language) || status}</option>
             ))}
           </Select>
           <Button variant="outline" onClick={load}>
@@ -164,53 +178,17 @@ export default function AcademicApplicationsPage() {
         <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{state.error}</p>
       ) : null}
 
+      {/*
+        The rows, through the table's own columns: the list was handed as children
+        the table never drew, so it read empty whatever the server sent (18 Oct 2026).
+      */}
       <DataTableShell
-        loading={state.loading}
-        empty={!state.loading && state.rows.length === 0}
-        emptyState={{ icon: GraduationCap, title: copy.empty }}
-      >
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-start text-xs uppercase text-[var(--color-text-muted)]">
-              <th className="p-3 text-start">{copy.case}</th>
-              <th className="p-3 text-start">{copy.applicant}</th>
-              <th className="p-3 text-start">{copy.track}</th>
-              <th className="p-3 text-start">{copy.status}</th>
-              <th className="p-3 text-start">{copy.submitted}</th>
-              <th className="p-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {state.rows.map((row) => (
-              <tr key={row.public_id} className="border-t border-[var(--color-border)]">
-                <td className="p-3 font-mono text-xs"><bdi>{row.case_reference}</bdi></td>
-                <td className="p-3">
-                  <p className="font-semibold">{row.user?.name}</p>
-                  <p className="text-xs text-[var(--color-text-muted)]"><bdi>{row.user?.email}</bdi></p>
-                </td>
-                <td className="p-3">
-                  {row.requested_track
-                    ? localize(row.requested_track.name, language)
-                    : <span className="text-[var(--color-text-muted)]">{copy.notSet}</span>}
-                </td>
-                <td className="p-3"><Badge variant="neutral">{row.status}</Badge></td>
-                <td className="p-3 text-xs text-[var(--color-text-muted)]">
-                  {row.submitted_at ? formatLocalizedDate(row.submitted_at, language) : '—'}
-                </td>
-                <td className="p-3 text-end">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => navigate(`/academic-rpl/applications/${row.public_id}`)}
-                  >
-                    {copy.open}
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </DataTableShell>
+        density="compact"
+        title={copy.table}
+        columns={columns}
+        rows={state.loading ? [] : state.rows.map((row) => ({ ...row, id: row.public_id }))}
+        emptyText={state.loading ? '…' : filters.q || filters.track || filters.status ? copy.emptyFiltered : copy.empty}
+      />
     </div>
   )
 }

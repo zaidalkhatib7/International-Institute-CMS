@@ -140,11 +140,12 @@ describe('the copy', () => {
   })
 
   it('carries the spec\'s fixed sentences word for word', () => {
-    expect(AFTER_QUIZ_COPY.en.experience.approveHint).toBe('One member of staff approves after payment (owner decision, 15 Oct 2026). The certificate is issued with the approved wording, and with "stop" the case closes.')
+    // Owner-decision dates left the visible hints on 18 Oct 2026 (PLATFORM-JOURNEY-SPEC §6 rule 5); the sentences stay.
+    expect(AFTER_QUIZ_COPY.en.experience.approveHint).toBe('One member of staff approves after payment. The certificate is issued with the approved wording, and with "stop" the case closes.')
     expect(AFTER_QUIZ_COPY.en.charges.confirmHint).toBe('Confirm only money the institute has received. The reference must be unique.')
     expect(AFTER_QUIZ_COPY.en.wording.notApproved).toBe('Not approved: the Experience Confirmation Certificate cannot be sold or issued until the owner approves this wording.')
     expect(AFTER_QUIZ_COPY.ar.wording.notApproved).toBe('غير معتمدة: لا يمكن بيع شهادة تثبيت الخبرة ولا إصدارها حتى يعتمد المالك هذه الصيغة.')
-    expect(AFTER_QUIZ_COPY.en.finalExam.autoIssue).toMatch(/^A passed try issues the level certificate automatically: no staff approval, assessor report, quality review or committee \(owner decision, 15 Oct 2026\)\./)
+    expect(AFTER_QUIZ_COPY.en.finalExam.autoIssue).toMatch(/^A passed try issues the level certificate automatically: no staff approval, assessor report, quality review or committee\./)
     // O2: the certification fee, when above 0, is paid before the automatic issue.
     expect(AFTER_QUIZ_COPY.en.finalExam.autoIssue).toMatch(/certification fee is above 0/)
     expect(AFTER_QUIZ_COPY.en.settings.fields.price.hint).toBe('In US dollars, cents allowed. Empty: the certificate is not offered.')
@@ -158,7 +159,7 @@ describe('the copy', () => {
 
   it('names no II Points anywhere, in either language', () => {
     expect(JSON.stringify(AFTER_QUIZ_COPY)).not.toMatch(/II Points|نقاط II|POINTS/)
-    expect(AFTER_QUIZ_COPY.en.settings.fields.passMark.hint).toBe('A try passes only above this mark, on the exact fraction (owner decision, 15 Oct 2026; seeded 50).')
+    expect(AFTER_QUIZ_COPY.en.settings.fields.passMark.hint).toBe('A try passes only above this mark, on the exact fraction (seeded 50).')
   })
 
   it('never names the admin app anything but the platform', () => {
