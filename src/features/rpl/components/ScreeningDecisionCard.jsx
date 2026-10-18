@@ -113,7 +113,7 @@ export function ScreeningDecisionEntry({ decision, language = 'en', showSnapshot
           <p className="font-semibold">{copy.seenAtDecision}: {labelFor(copy.snapshotState, snapshot.state)}{snapshot.is_stale && snapshot.state !== 'stale' ? ` · ${copy.snapshotState.stale}` : ''}</p>
           {figure ? <p className="mt-1 text-sm font-bold text-[var(--color-text)]">{figure}</p> : null}
           {snapshot.coverage?.documents_total != null ? <p className="mt-1">{fill(copy.coverage, { read: snapshot.coverage.read ?? 0, total: snapshot.coverage.documents_total })}</p> : null}
-          {employers ? <p className="mt-1">{fill(copy.employerSummary, { found_consistent: employers.found_consistent ?? 0, found_inconsistent: employers.found_inconsistent ?? 0, not_found_online: employers.not_found_online ?? 0, ambiguous: employers.ambiguous ?? 0, not_checked: employers.not_checked ?? 0 })}</p> : null}
+          {employers ? <p className="mt-1">{fill(copy.employerSummary, { found_consistent: employers.found_consistent ?? 0, found_inconsistent: employers.found_inconsistent ?? 0, not_found_online: employers.not_found_online ?? 0, not_identifiable: employers.not_identifiable ?? 0, ambiguous: employers.ambiguous ?? 0, not_checked: employers.not_checked ?? 0 })}</p> : null}
         </div>
       ) : null}
     </article>

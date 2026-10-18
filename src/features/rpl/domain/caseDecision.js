@@ -127,7 +127,8 @@ export const CASE_DECISION_COPY = {
     overrideRecorded: 'سبب التجاوز',
     seenAtDecision: 'الفرز كما رآه الموظف عند القرار',
     snapshotState: { completed: 'فرز مكتمل', stale: 'فرز قديم', none: 'لا يوجد فرز مكتمل', screening_disabled: 'كان الفرز موقوفًا' },
-    employerSummary: 'جهات العمل: {found_consistent} متسقة، {found_inconsistent} غير متسقة، {not_found_online} لم يُعثر عليها على الإنترنت، {ambiguous} غير حاسمة، {not_checked} لم تُفحص.',
+    // "cannot be identified" since rpl-screen-v3 (owner report of 18 Oct 2026); an older snapshot reads 0.
+    employerSummary: 'جهات العمل: {found_consistent} متسقة، {found_inconsistent} غير متسقة، {not_found_online} لم يُعثر عليها على الإنترنت، {not_identifiable} لا يمكن تحديد هويتها، {ambiguous} غير حاسمة، {not_checked} لم تُفحص.',
     latestDecisionTitle: 'قرار ما بعد الفرز',
     noDecisionYet: 'لم يُسجَّل أي قرار بعد الفرز على هذا الطلب.',
     awaitingDecision: 'ينتظر هذا الطلب قرار ما بعد فرز الوثائق.',
@@ -193,7 +194,7 @@ export const CASE_DECISION_COPY = {
     overrideRecorded: 'Override reason',
     seenAtDecision: 'Screening as staff saw it at the decision',
     snapshotState: { completed: 'Completed screen', stale: 'Stale screen', none: 'No completed screen', screening_disabled: 'Screening was switched off' },
-    employerSummary: 'Employers: {found_consistent} consistent, {found_inconsistent} inconsistent, {not_found_online} not found online, {ambiguous} ambiguous, {not_checked} not checked.',
+    employerSummary: 'Employers: {found_consistent} consistent, {found_inconsistent} inconsistent, {not_found_online} not found online, {not_identifiable} cannot be identified, {ambiguous} ambiguous, {not_checked} not checked.',
     latestDecisionTitle: 'Screening decision',
     noDecisionYet: 'No screening decision has been recorded on this case.',
     awaitingDecision: 'This case awaits the screening decision.',

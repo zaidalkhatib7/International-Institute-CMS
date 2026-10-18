@@ -7,15 +7,29 @@ import { getLocaleForLanguage } from '../../../utils/localization'
  * the employers the applicant named. What staff see here, and what they must
  * never be led to believe:
  *
- *   - ONE figure (D1(a)): the case percentage is the server's maximum over the
- *     documents it read, and the /10 is that percentage divided by ten. Shown as
- *     "authenticity risk", never as a verdict. Only a COMPLETED run has a figure;
- *     a refused or failed run shows why, never a percentage and never a zero.
+ *   - ONE figure (D1(a)): the case percentage is the server's figure, and the
+ *     /10 is that percentage divided by ten. Shown as "authenticity risk", never
+ *     as a verdict. Only a COMPLETED run has a figure; a refused or failed run
+ *     shows why, never a percentage and never a zero.
+ *   - The server's figure (owner report of 18 Oct 2026, rpl-risk-v1): each
+ *     document's model reading combined with the platform's identity signals (a
+ *     generic or unnamed issuer or employer, missing issuer details on an
+ *     experience letter), each signal raising what is left; the case the highest
+ *     document, combined the same way with the case-level signals. Such a run
+ *     carries risk_breakdown, and the panel shows its band and how the figure was
+ *     reached. A run on older instructions (rpl-screen-v1, v2) keeps the figure
+ *     it stored, the maximum of the model's readings, and renders as it always
+ *     did; the platform never recomputes it.
  *   - A document that was not read is "not screened". Having no figure says
  *     nothing about it.
  *   - Identity documents are read for names and dates only (D20(c)) and never
  *     carry a figure.
- *   - "Not found online" never means "does not exist".
+ *   - "Not found online" never means "does not exist". "Cannot be identified"
+ *     means the name singles out no organisation: the claim is unverified,
+ *     never that the organisation does not exist.
+ *   - Confidence in the claim is the platform's reading of the employer search,
+ *     never above Medium: an employer online does not show employment. The
+ *     model's own confidence is in its classification, and stays in the details.
  *   - Only administrators and evidence reviewers see any of it (D17(a)); the
  *     applicant never does.
  *
@@ -92,6 +106,8 @@ export const SCREENING_COPY = {
     columnRead: 'القراءة',
     columnFigure: 'مؤشر خطر الأصالة',
     columnConfidence: 'درجة الثقة',
+    // rpl-risk-v1: beside the combined figure, the model's confidence is in its own reading only.
+    columnModelConfidence: 'ثقة النموذج في قراءته',
     columnConsistency: 'الاتساق مع الادعاء',
     flags: 'ما رصده الفرز',
     signals: 'فحوص المنصة (دون ذكاء اصطناعي)',
@@ -204,6 +220,7 @@ export const SCREENING_COPY = {
       found_consistent: 'عُثر عليها على الإنترنت، ومتسقة مع الادعاء',
       found_inconsistent: 'عُثر عليها على الإنترنت، لكن التفاصيل تختلف عن الادعاء',
       not_found_online: 'لم يُعثر على حضور عام لها على الإنترنت. هذا لا يعني أن الجهة غير موجودة.',
+      not_identifiable: 'لا يمكن تحديد هويتها: اسمها لا يميّز منشأة واحدة عن غيرها، فلا يمكن التحقق من الادعاء. تعامل معه بوصفه غير مُتحقَّق منه.',
       ambiguous: 'غير حاسم: تعذّرت مطابقة النتائج بثقة',
       not_checked: 'لم تُفحص',
     },
@@ -223,7 +240,93 @@ export const SCREENING_COPY = {
       employer_search_failed: 'تعذّر إكمال البحث عن هذه الجهة، فلم يُعثر على شيء ولم يُستنتج شيء. افحصها يدويًا.',
       not_searched_names_applicant: 'لم يُبحث عنها: اسم الجهة يتضمن اسم العميل أو بيانات التواصل معه، ولا يُرسل البحث أي بيانات عن العميل. افحصها يدويًا.',
       website_not_sent_names_applicant: 'لم يُرسل الموقع الإلكتروني لأنه يتضمن اسم العميل؛ بُحث عنها بالاسم والموقع فقط.',
+      name_generic_platform_check: 'وجد فحص المنصة للكلمات (دون ذكاء اصطناعي) أن الاسم كلمات نشاط وشكل قانوني فقط.',
+      result_set_by_generic_name_rule: 'صنّف البحث هذه الجهة تصنيفًا آخر، لكن المنصة اعتمدت «لا يمكن تحديد هويتها» لأن فحصها للكلمات وجد أن اسمها لا يميّز منشأة بعينها.',
+      name_not_identifiable_document_reading: 'رأت قراءة الوثائق أن هذا الاسم لا يحدد منشأة بعينها.',
+      generic_name_found_by_search: 'قال البحث إنه عثر على هذه الجهة، وربط بها الصفحات المعروضة في المصادر. اعتمدت المنصة «لا يمكن تحديد هويتها» لأن الاسم كلمات نشاط وشكل قانوني فقط. افتح الصفحات: إن كانت صفحات هذه الجهة نفسها فالاسم يحدّدها، والقرار للموظفين.',
+      name_not_identifiable_search_only: 'رأى البحث وحده أن هذا الاسم لا يحدد منشأة بعينها؛ لم يجد فحص المنصة للكلمات ذلك، ولم تره قراءة الوثائق كذلك. قارنه بالوثائق قبل الاعتماد عليه.',
     },
+
+    // Owner report of 18 Oct 2026 (rpl-risk-v1): shown only on a run that carries risk_breakdown.
+    listSeparator: '، ',
+    employersHintIdentity: 'الاسم الذي يجده فحص المنصة للكلمات عامًّا يُسجَّل «لا يمكن تحديد هويتها» مهما أرجع البحث. والاسم الذي رأت قراءة الوثائق أو البحث وحده أنه لا يحدد منشأة بعينها يبقى بنتيجة البحث مع إشارة توضّح ذلك. وفي الحالتين تكون الثقة بالادعاء «منخفضة».',
+    columnClaimConfidence: 'الثقة بالادعاء',
+    claimConfidence: { medium: 'متوسطة', undetermined: 'غير محسومة', low: 'منخفضة' },
+    claimConfidenceHint: 'الثقة بالادعاء تقدير المنصة لما يعنيه البحث للادعاء نفسه، ولا ترتفع فوق «متوسطة» أبدًا: وجود الجهة على الإنترنت لا يثبت أن العميل عمل فيها.',
+    modelConfidence: 'ثقة النموذج في هذا التصنيف: {value}',
+    sourcesNotThisEmployer: 'صفحات أرجعها البحث، ولا تخص هذه الجهة تحديدًا:',
+    namedIn: 'مذكورة في: {documents}',
+    riskBand: { none: 'لا مؤشر خطر', low: 'منخفض', attention: 'يستحق الانتباه', high: 'انتباه مرتفع', very_high: 'انتباه مرتفع جدًا' },
+    riskNone: 'لم يُرصد مؤشر خطر في الوثائق المقروءة. هذا لا يعني أنها تحققت؛ القرار للموظفين.',
+    riskHeadlineReason: 'أكثر ما رفع المؤشر: {reason}',
+    riskHeadlineModel: 'قراءة النموذج لـ«{document}»: {percent}٪',
+    olderRules: 'شُغّل هذا الفرز بنسخة تعليمات أقدم ({version}) لا تفحص هوية جهة الإصدار ولا بيانات خطابات الخبرة. أعد تشغيل الفرز لتطبيق الفحص الحالي.',
+    riskTitle: 'كيف حُسب المؤشر',
+    riskCombination: 'يُحسب مؤشر كل وثيقة من قراءة النموذج وإشارات المنصة معًا: كل إشارة ترفع ما تبقّى، فلا يتجاوز المجموع 100٪. مؤشر الطلب أعلى مؤشر وثيقة، وتُضاف إليه إشارات الطلب بالطريقة نفسها.',
+    riskModelPart: 'قراءة النموذج للوثيقة: {percent}٪',
+    riskModelDropped: 'لم يُحتفظ بنسبة النموذج لهذه الوثيقة لأنها لم تستند إلى ملاحظة مرصودة؛ مؤشرها من إشارات المنصة وحدها.',
+    riskDocumentFigure: 'مؤشر الوثيقة: {percent}٪',
+    riskWeight: 'وزنها {weight}٪: لو كانت وحدها لكان مؤشر الوثيقة {weight}٪.',
+    riskCaseWeight: 'وزنها {weight}٪ على مستوى الطلب.',
+    riskSources: 'رصدها: {sources}',
+    riskSource: { platform_word_check: 'فحص المنصة للكلمات (دون ذكاء اصطناعي)', document_reading: 'قراءة الوثائق', employer_search: 'البحث عن جهة العمل' },
+    riskCaseComponentsTitle: 'إشارات على مستوى الطلب',
+    riskCaseLine: 'مؤشر الطلب: أعلى مؤشر وثيقة ({max}٪){withCase}، أي {percent}٪.',
+    riskCaseLineWith: '، مع إشارات الطلب',
+    riskNoteDetailsNotReported: 'لم تُرجع قراءة الوثيقة بيانات جهة الإصدار، فلم تُفحص.',
+    riskCaseNoFigure: 'لا مؤشر للطلب لأنه لم تُقيَّم أي وثيقة تحمل مؤشرًا؛ إشارات الطلب معروضة للاطلاع.',
+    riskComponents: {
+      organisation_name_generic: {
+        title: 'اسم الجهة لا يحدد منشأة بعينها',
+        reason: '«{names}» في «{document}» لا يميّز منشأة واحدة عن غيرها، فلا يمكن معرفة الجهة ولا التحقق مما تشهد به الوثيقة. تعامل معه بوصفه غير مُتحقَّق منه.',
+      },
+      issuer_not_named: {
+        title: 'الخطاب لا يذكر الجهة التي أصدرته',
+        reason: 'لا يظهر في «{document}» اسم أي جهة، فلا يمكن معرفة من أصدره ولا التحقق منه.',
+      },
+      issuer_details_missing: {
+        title: 'بيانات جهة الإصدار ناقصة',
+        reason: 'الناقص: {missing}.',
+      },
+      claimed_employer_name_generic: {
+        title: 'جهة عمل مصرّح بها لا يحدد اسمها منشأة بعينها',
+        reason: '«{names}» لا يميّز منشأة واحدة، ولا تحمل أي وثيقة مقروءة ما يعرّف بها. الادعاء غير مُتحقَّق منه.',
+      },
+    },
+    riskDetailsLevel: {
+      several: 'تنقص {count} من 9 بيانات تعرّف بجهة الإصدار، لكن في الخطاب وسيلة للتواصل معها أو التحقق منها.',
+      most: 'تنقص {count} من 9 بيانات تعرّف بجهة الإصدار، ولا يبقى إلا القليل للتواصل معها أو التحقق منها.',
+      no_contact_route: 'لا رقم سجل ولا عنوان ولا هاتف أو بريد أو موقع: لا سبيل للتواصل مع جهة الإصدار أو التحقق منها ({count} من 9 ناقصة).',
+      nearly_all: 'لا يكاد الخطاب يحمل ما يعرّف بجهة الإصدار: لا سبيل للتواصل معها أو التحقق منها، و{count} من 9 بيانات ناقصة.',
+    },
+    issuerChecklist: {
+      registration_number: 'رقم السجل التجاري أو الترخيص',
+      address: 'العنوان',
+      contact: 'هاتف أو بريد إلكتروني أو موقع',
+      signatory_name: 'اسم الموقّع',
+      signatory_title: 'صفة الموقّع',
+      signature: 'التوقيع',
+      stamp_or_seal: 'الختم',
+      letterhead: 'الترويسة',
+      issue_date: 'تاريخ الإصدار',
+    },
+    issuerTitle: 'بيانات جهة الإصدار كما في الوثيقة',
+    issuerFields: {
+      legal_name: 'الاسم الكامل للجهة',
+      registration_number: 'رقم السجل أو الترخيص',
+      address: 'العنوان',
+      phone: 'الهاتف',
+      email: 'البريد الإلكتروني',
+      website: 'الموقع الإلكتروني',
+      signatory_name: 'اسم الموقّع',
+      signatory_title: 'صفة الموقّع',
+      signature: 'التوقيع',
+      stamp_or_seal: 'الختم',
+      letterhead: 'الترويسة',
+    },
+    presence: { present: 'موجود', absent: 'غير موجود', unclear: 'غير واضح' },
+    notShown: 'لا يظهر',
+    issuerIdentifiable: { yes: 'الاسم يحدد منشأة بعينها', no: 'الاسم لا يحدد منشأة بعينها', unclear: 'تعذّر الحكم على الاسم' },
   },
   en: {
     tab: 'Screening',
@@ -280,6 +383,8 @@ export const SCREENING_COPY = {
     columnRead: 'Read',
     columnFigure: 'Authenticity risk',
     columnConfidence: 'Confidence',
+    // rpl-risk-v1: beside the combined figure, the model's confidence is in its own reading only.
+    columnModelConfidence: "Model's confidence in its reading",
     columnConsistency: 'Consistency with the claim',
     flags: 'What the screen noticed',
     signals: 'Platform checks (no AI)',
@@ -392,6 +497,7 @@ export const SCREENING_COPY = {
       found_consistent: 'Found online, consistent with the claim',
       found_inconsistent: 'Found online, but details differ from the claim',
       not_found_online: 'No public online presence found. This does not mean the company does not exist.',
+      not_identifiable: 'Cannot be identified: the name does not single out any one organisation, so the claim cannot be verified. Treat it as unverified.',
       ambiguous: 'Ambiguous: the results could not be matched with confidence',
       not_checked: 'Not checked',
     },
@@ -411,7 +517,93 @@ export const SCREENING_COPY = {
       employer_search_failed: 'The search for this employer could not be completed, so nothing was found or concluded. Check it by hand.',
       not_searched_names_applicant: "Not searched: the employer's name carries the applicant's own name or contact details, and the search is never sent the applicant. Check it by hand.",
       website_not_sent_names_applicant: "The website was not sent because it names the applicant; the employer was searched by name and location only.",
+      name_generic_platform_check: "The platform's word check (no AI) found the name is only activity words and a legal form.",
+      result_set_by_generic_name_rule: 'The search classified this employer otherwise, but the platform recorded "cannot be identified" because its word check found that the name singles out no organisation.',
+      name_not_identifiable_document_reading: 'The document reading judged that this name identifies no one organisation.',
+      generic_name_found_by_search: 'The search said it found this employer and tied the pages listed under sources to it. The platform still recorded "cannot be identified" because the name is only activity words and a legal form. Open the pages: if they are this employer\'s own, the name does identify it; staff decide.',
+      name_not_identifiable_search_only: "Only the employer search judged that this name identifies no one organisation; the platform's word check did not find it so, and neither did the document reading. Compare it with the documents before relying on it.",
     },
+
+    // Owner report of 18 Oct 2026 (rpl-risk-v1): shown only on a run that carries risk_breakdown.
+    listSeparator: ', ',
+    employersHintIdentity: 'A name the platform\'s word check finds generic is recorded as "cannot be identified", whatever the search returns. A name only the document reading or the search judged unidentifiable keeps the search\'s result and is flagged. Either way, the confidence in the claim is Low.',
+    columnClaimConfidence: 'Confidence in the claim',
+    claimConfidence: { medium: 'Medium', undetermined: 'Undetermined', low: 'Low' },
+    claimConfidenceHint: "Confidence in the claim is the platform's reading of what the search means for the claim itself. It is never above Medium: an employer's presence online does not show that the applicant worked there.",
+    modelConfidence: "The model's confidence in this classification: {value}",
+    sourcesNotThisEmployer: "Pages the search returned; none is this employer's own:",
+    namedIn: 'Named in: {documents}',
+    riskBand: { none: 'No risk indicator', low: 'Low', attention: 'Worth attention', high: 'High attention', very_high: 'Very high attention' },
+    riskNone: 'No risk indicator was found in the documents read. This does not mean they were verified; staff decide.',
+    riskHeadlineReason: 'What raised it most: {reason}',
+    riskHeadlineModel: 'The model\'s reading of "{document}": {percent}%',
+    olderRules: "This screen ran on older instructions ({version}), which did not check the issuer's identity or the details of experience letters. Re-run the screen to apply the current checks.",
+    riskTitle: 'How the figure was reached',
+    riskCombination: "Each document's figure combines the model's reading with the platform's signals: each signal raises what is left, so the total never passes 100%. The case figure is the highest document figure, with the case-level signals added the same way.",
+    riskModelPart: "The model's reading of the document: {percent}%",
+    riskModelDropped: "The model's percentage for this document was not kept because it rested on no observed flag; its figure comes from the platform's signals alone.",
+    riskDocumentFigure: 'Document figure: {percent}%',
+    riskWeight: 'Weight {weight}%: on its own it would put the document at {weight}%.',
+    riskCaseWeight: 'Weight {weight}% at case level.',
+    riskSources: 'Raised by: {sources}',
+    riskSource: { platform_word_check: "the platform's word check (no AI)", document_reading: 'the document reading', employer_search: 'the employer search' },
+    riskCaseComponentsTitle: 'Case-level signals',
+    riskCaseLine: 'Case figure: the highest document figure ({max}%){withCase}, giving {percent}%.',
+    riskCaseLineWith: ', with the case-level signals',
+    riskNoteDetailsNotReported: 'The document reading returned no issuer details, so they were not checked.',
+    riskCaseNoFigure: 'The case has no figure because no document that can carry one was assessed; the case-level signals are shown for reference.',
+    riskComponents: {
+      organisation_name_generic: {
+        title: "The organisation's name identifies no one organisation",
+        reason: '"{names}" on "{document}" does not single out one organisation, so the organisation cannot be identified and what the document attests cannot be verified. Treat it as unverified.',
+      },
+      issuer_not_named: {
+        title: 'The letter does not name its issuer',
+        reason: 'No organisation is named on "{document}", so who issued it cannot be known or checked.',
+      },
+      issuer_details_missing: {
+        title: 'Issuer details are missing',
+        reason: 'Missing: {missing}.',
+      },
+      claimed_employer_name_generic: {
+        title: "A claimed employer's name identifies no one organisation",
+        reason: '"{names}" does not single out one organisation, and no document read identifies it. The claim is unverified.',
+      },
+    },
+    riskDetailsLevel: {
+      several: '{count} of 9 details that identify the issuer are missing, but the letter gives a way to contact or check it.',
+      most: '{count} of 9 details that identify the issuer are missing; little is left to contact or check it.',
+      no_contact_route: 'No registration number, address, phone, email or website: there is no way to contact or check the issuer ({count} of 9 missing).',
+      nearly_all: 'The letter carries almost nothing that identifies its issuer: there is no way to contact or check it, and {count} of 9 details are missing.',
+    },
+    issuerChecklist: {
+      registration_number: 'registration or licence number',
+      address: 'address',
+      contact: 'phone, email or website',
+      signatory_name: "signatory's name",
+      signatory_title: "signatory's title",
+      signature: 'signature',
+      stamp_or_seal: 'stamp or seal',
+      letterhead: 'letterhead',
+      issue_date: 'issue date',
+    },
+    issuerTitle: 'Issuer details as the document shows them',
+    issuerFields: {
+      legal_name: 'Legal name',
+      registration_number: 'Registration or licence number',
+      address: 'Address',
+      phone: 'Phone',
+      email: 'Email',
+      website: 'Website',
+      signatory_name: "Signatory's name",
+      signatory_title: "Signatory's title",
+      signature: 'Signature',
+      stamp_or_seal: 'Stamp or seal',
+      letterhead: 'Letterhead',
+    },
+    presence: { present: 'Present', absent: 'Absent', unclear: 'Unclear' },
+    notShown: 'Not shown',
+    issuerIdentifiable: { yes: 'The name identifies one organisation', no: 'The name identifies no one organisation', unclear: 'The name could not be judged' },
   },
 }
 
@@ -675,4 +867,212 @@ export function readClaimedEmployers(application) {
   if (Array.isArray(live)) return { source: 'profile', items: live }
 
   return { source: null, items: [] }
+}
+
+/*
+ * HOW THE FIGURE WAS REACHED (owner report of 18 Oct 2026, rpl-risk-v1).
+ *
+ * A letter from "Tourism Company" read 0%: nothing in it contradicted anything,
+ * and the name identifies no one. Since rpl-screen-v3 the server combines each
+ * document's model reading with the platform's identity components and stores
+ * the arithmetic as risk_breakdown. The platform only shows it: it never
+ * recomputes a figure, and a run without the breakdown (rpl-screen-v1, v2)
+ * renders as it always did.
+ */
+
+/** The closed list of component codes, in the order the panel lists them (RplScreeningRiskCalculator::COMPONENTS). */
+export const RISK_COMPONENTS = Object.freeze(['organisation_name_generic', 'issuer_not_named', 'issuer_details_missing', 'claimed_employer_name_generic'])
+
+/** The one case-level component: a generic employer no assessed document names. */
+export const CASE_RISK_COMPONENTS = Object.freeze(['claimed_employer_name_generic'])
+
+/** The nine issuer details an experience letter is read for (RplScreeningRiskCalculator::CHECKLIST). */
+export const ISSUER_CHECKLIST = Object.freeze(['registration_number', 'address', 'contact', 'signatory_name', 'signatory_title', 'signature', 'stamp_or_seal', 'letterhead', 'issue_date'])
+
+/** The issuer details as the document shows them: eight copied values, then three presences. */
+export const ISSUER_TEXT_FIELDS = Object.freeze(['legal_name', 'registration_number', 'address', 'phone', 'email', 'website', 'signatory_name', 'signatory_title'])
+export const ISSUER_PRESENCE_FIELDS = Object.freeze(['signature', 'stamp_or_seal', 'letterhead'])
+/** The three ways to reach the issuer; the checklist counts them as one item, "contact". */
+export const ISSUER_CONTACT_FIELDS = Object.freeze(['phone', 'email', 'website'])
+
+/** The band beside the figure. Never green: a low figure is not a clearance. */
+export const RISK_BAND_VARIANT = Object.freeze({ none: 'neutral', low: 'neutral', attention: 'warning', high: 'danger', very_high: 'danger' })
+
+/** Prompt versions that did not check the issuer's identity; their runs offer a re-run under the current rules. */
+export const OLDER_PROMPT_VERSIONS = Object.freeze(['rpl-screen-v1', 'rpl-screen-v2'])
+
+/** The two results whose search pages are never the employer's own. */
+export const RESULTS_WITHOUT_OWN_SOURCES = Object.freeze(['not_identifiable', 'not_found_online'])
+
+/** The components whose reason quotes the names that raised them; without a name, the title speaks alone. */
+const NAMED_RISK_COMPONENTS = Object.freeze(['organisation_name_generic', 'claimed_employer_name_generic'])
+
+const RISK_NOTE_COPY = Object.freeze({ issuer_details_not_reported: 'riskNoteDetailsNotReported' })
+
+function isPlainObject(value) {
+  return value != null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function objects(value) {
+  return Array.isArray(value) ? value.filter(isPlainObject) : []
+}
+
+function componentRank(code) {
+  const index = RISK_COMPONENTS.indexOf(code)
+  return index === -1 ? RISK_COMPONENTS.length : index
+}
+
+function wholeNumber(value) {
+  if (value == null || value === '') return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+/** A run whose figure the server reached with rpl-risk-v1: it carries risk_breakdown. */
+export function isRiskModelRun(screening) {
+  return isPlainObject(screening?.risk_breakdown)
+}
+
+/** The band of a completed rpl-risk-v1 run in words, or null (an older run, or a run without a figure). */
+export function riskBandLabel(screening, copy) {
+  if (screening?.status !== 'completed' || !isRiskModelRun(screening)) return null
+  const band = screening.risk_breakdown.band
+  return typeof band === 'string' && band !== '' ? labelFor(copy.riskBand, band) : null
+}
+
+/** The components sorted into the order of RISK_COMPONENTS; an unknown code goes last, as sent. */
+export function sortRiskComponents(components) {
+  return objects(components).map((component, index) => ({ component, index })).sort((a, b) => componentRank(a.component.code) - componentRank(b.component.code) || a.index - b.index).map(({ component }) => component)
+}
+
+/** The title of the run's document with this public id, as the applicant gave it. */
+export function screeningDocumentTitle(screening, publicId, copy) {
+  const item = objects(screening?.items).find((entry) => publicId != null && entry.evidence_public_id === publicId)
+  return item?.evidence_snapshot?.title || copy.untitled
+}
+
+/** The checklist items a letter lacks, in words, joined for the page's language. */
+export function missingChecklistText(missing, copy) {
+  return (Array.isArray(missing) ? missing : []).filter(Boolean).map((key) => labelFor(copy.issuerChecklist, key)).join(copy.listSeparator)
+}
+
+/**
+ * One component in words: its title, the reason filled with the names and the
+ * document, its weight line and who raised it. A case-level component's weight
+ * reads "at case level"; an unknown code still shows, in words.
+ */
+export function riskComponentText(component, { documentTitle = null, caseLevel } = {}, copy) {
+  const code = component?.code
+  const words = copy.riskComponents?.[code]
+  const isCase = caseLevel ?? CASE_RISK_COMPONENTS.includes(code)
+  const names = (Array.isArray(component?.names) ? component.names : []).filter(Boolean).join(copy.listSeparator)
+
+  let reason = ''
+  if (code === 'issuer_details_missing') {
+    const missing = Array.isArray(component?.missing) ? component.missing.filter(Boolean) : []
+    const level = copy.riskDetailsLevel?.[component?.level]
+    reason = [
+      level ? fill(level, { count: wholeNumber(component?.missing_count) ?? missing.length }) : null,
+      missing.length && words ? fill(words.reason, { missing: missingChecklistText(missing, copy) }) : null,
+    ].filter(Boolean).join(' ')
+  } else if (words && (names || !NAMED_RISK_COMPONENTS.includes(code))) {
+    // A name component with no name would read «» / "": its title says it alone.
+    reason = fill(words.reason, { names, document: documentTitle || copy.untitled })
+  }
+
+  const weight = wholeNumber(component?.weight)
+  const sources = (Array.isArray(component?.sources) ? component.sources : []).filter(Boolean)
+
+  return {
+    title: words?.title || humanizeCode(code),
+    reason,
+    weight: weight == null ? null : fill(isCase ? copy.riskCaseWeight : copy.riskWeight, { weight }),
+    sources: sources.length ? fill(copy.riskSources, { sources: sources.map((source) => labelFor(copy.riskSource, source)).join(copy.listSeparator) }) : null,
+  }
+}
+
+/** A breakdown note in words; a note this copy does not know yet is shown in words, not hidden. */
+export function riskNoteText(note, copy) {
+  const key = RISK_NOTE_COPY[note]
+  return key ? copy[key] : humanizeCode(note)
+}
+
+/**
+ * The one line under the figure: what raised it most.
+ *
+ * Only what set the case figure counts: the document whose figure is the
+ * highest (highest_document_percent; every document when the run does not say)
+ * and the case-level components. A component on another document did not
+ * raise the case figure, so it is never named here (review of 18 Oct 2026).
+ * Among those, the heaviest of the components and the model's own reading of
+ * that document (above 0, and kept); a tie goes to a component before the
+ * model's reading, a document's component before the case's, then by
+ * RISK_COMPONENTS order, then by the order sent. For the band "none", the
+ * sentence that says no indicator is not a verification. Null on an older run.
+ */
+export function topRiskReason(screening, copy) {
+  if (!isRiskModelRun(screening)) return null
+  const breakdown = screening.risk_breakdown
+  const documents = objects(breakdown.documents)
+  const highest = wholeNumber(breakdown.highest_document_percent)
+  const leading = highest == null ? documents : documents.filter((entry) => wholeNumber(entry.document_percent) === highest)
+
+  const candidates = [
+    ...leading.flatMap((entry) => objects(entry.components).map((component) => ({ component, entry, weight: wholeNumber(component.weight) }))),
+    ...objects(breakdown.case_components).map((component) => ({ component, entry: null, weight: wholeNumber(component.weight) })),
+    ...leading.map((entry) => ({ component: null, entry, weight: entry.model_percent_unsupported ? null : wholeNumber(entry.model_percent) })),
+  ]
+    .map((candidate, index) => ({ ...candidate, index }))
+    .filter((candidate) => candidate.weight != null && candidate.weight > 0)
+
+  candidates.sort((a, b) => b.weight - a.weight
+    || (a.component ? 0 : 1) - (b.component ? 0 : 1)
+    || (a.entry ? 0 : 1) - (b.entry ? 0 : 1)
+    || componentRank(a.component?.code) - componentRank(b.component?.code)
+    || a.index - b.index)
+
+  const top = candidates[0]
+  if (top?.component) {
+    const text = riskComponentText(top.component, {
+      documentTitle: top.entry ? screeningDocumentTitle(screening, top.entry.evidence_public_id, copy) : null,
+      caseLevel: !top.entry,
+    }, copy)
+    return fill(copy.riskHeadlineReason, { reason: text.reason || text.title })
+  }
+  if (top) {
+    return fill(copy.riskHeadlineReason, {
+      reason: fill(copy.riskHeadlineModel, { document: screeningDocumentTitle(screening, top.entry.evidence_public_id, copy), percent: top.weight }),
+    })
+  }
+
+  return breakdown.band === 'none' ? copy.riskNone : null
+}
+
+/** The platform's confidence in an employer claim, in words; null for a row from an older run, which has none. */
+export function claimConfidenceLabel(check, copy) {
+  const value = check?.claim_confidence
+  return typeof value === 'string' && value !== '' ? labelFor(copy.claimConfidence, value) : null
+}
+
+/**
+ * Whether the search's pages on this row are said not to be the employer's own:
+ * its result says none was, unless the search tied pages to it and the platform
+ * overrode a "found" only because of the name (generic_name_found_by_search).
+ */
+export function sourcesAreNotOwn(check) {
+  const flags = Array.isArray(check?.flags) ? check.flags : []
+  return RESULTS_WITHOUT_OWN_SOURCES.includes(check?.result) && !flags.includes('generic_name_found_by_search')
+}
+
+/** "Named in: …", the titles of the documents that name this employer; null when none is known. */
+export function namedInText(check, screening, copy) {
+  const ids = (Array.isArray(check?.evidence_public_ids) ? check.evidence_public_ids : []).filter(Boolean)
+  if (!ids.length) return null
+  const titles = [...new Set(ids.map((id) => screeningDocumentTitle(screening, id, copy)))]
+  return fill(copy.namedIn, { documents: titles.join(copy.listSeparator) })
+}
+
+/** A completed run on instructions that did not check the issuer's identity: a re-run applies the current checks. */
+export function isOlderRulesRun(screening) {
+  return screening?.status === 'completed' && OLDER_PROMPT_VERSIONS.includes(screening?.prompt_version)
 }
