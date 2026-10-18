@@ -51,7 +51,7 @@ export default function ProtectedRoute({ children }) {
   if (!isCmsOperator) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[var(--color-background)] p-5">
-        <AccessDeniedPage />
+        <AccessDeniedPage notOperator />
       </main>
     )
   }

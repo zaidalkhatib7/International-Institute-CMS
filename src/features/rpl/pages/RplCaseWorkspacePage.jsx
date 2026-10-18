@@ -3,10 +3,11 @@ import {
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
+  Banknote,
   BriefcaseBusiness,
-  CalendarClock,
   CheckCircle2,
   ClipboardCheck,
+  ExternalLink,
   FileCheck2,
   Gavel,
   GraduationCap,
@@ -16,12 +17,11 @@ import {
   RefreshCw,
   Save,
   Scale,
-  ScanSearch,
   ShieldCheck,
   UserRoundCheck,
 } from 'lucide-react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, PageHeader, Select, Textarea } from '../../../components/ui'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Textarea } from '../../../components/ui'
 import { readApiError, unwrapApiData, unwrapCollection } from '../../../services/apiResponse'
 import { getAdminLanguage } from '../../../services/languageStorage'
 import {
@@ -49,6 +49,7 @@ import {
 } from '../domain/documentScreening'
 import { COURSE_PLAN_LIVE_STATUSES, COURSE_PLAN_PERMISSIONS, coursePlanCopy } from '../domain/coursePlan'
 import { AFTER_QUIZ_PERMISSIONS, afterQuizCopy } from '../domain/afterQuiz'
+import { caseJourney, caseNextStep, journeySteps } from '../domain/journey'
 import {
   assignRplAssessor,
   acceptRplAssignment,
@@ -71,6 +72,10 @@ import {
   transitionRplApplication,
 } from '../services/rplService'
 import CompletenessMeter from '../components/CompletenessMeter'
+import DynamicAssessmentPanel from '../components/DynamicAssessmentPanel'
+import JourneyStepper from '../components/JourneyStepper'
+import NextStepCard from '../components/NextStepCard'
+import { refreshWorkCounts } from '../../dashboard/hooks/useWorkCounts'
 import ChargesPanel from '../components/ChargesPanel'
 import CoursePlanEditor from '../components/CoursePlanEditor'
 import DeclineApplicationAction from '../components/DeclineApplicationAction'
@@ -90,13 +95,15 @@ import { formatLocalizedDate, formatLocalizedDateTime } from '../../../utils/loc
 
 const copyByLanguage = {
   ar: {
-    eyebrow: 'مساحة عمل حالة RPL', title: 'ملف الاعتراف بالخبرة', description: 'ملف تشغيلي موحد يحافظ على فصل التحقق والتقييم وقرار اللجنة.', back: 'العودة إلى الطلبات', refresh: 'تحديث',
-    overview: 'نظرة عامة', evidence: 'الأدلة والتحقق', assessment: 'التقييم والمقيّمون', governance: 'اللجنة والجودة', timeline: 'الخط الزمني',
-    caseSummary: 'ملخص الملف', applicant: 'المتقدم', reference: 'رقم الطلب', pathway: 'المسار', requestedLevel: 'المستوى المطلوب', experience: 'سنوات الخبرة', submitted: 'تاريخ التقديم', declineReason: 'سبب الرفض', reapplyFrom: 'يمكنه تقديم طلب جديد اعتبارًا من', reapplyDerived: 'محسوب من تاريخ الرفض وإعداد فترة الانتظار الحالي',
+    eyebrow: 'ملف طلب · المسار المهني', title: 'ملف طلب', back: 'العودة إلى الطلبات', backTo: 'العودة إلى «{label}»', refresh: 'تحديث', clientPage: 'ملف العميل',
+    overview: 'نظرة عامة', evidence: 'الوثائق', assessment: 'التقييم (المسار السابق)', entryQuiz: 'اختبار الدخول', payments: 'المدفوعات والشهادات', governance: 'اللجنة والجودة', timeline: 'السجل',
+    entryQuizStartLine: 'ابدأ اختبار الدخول لهذا الطلب.', startEntryQuiz: 'ابدأ اختبار الدخول', entryQuizStarted: 'بدأ اختبار الدخول. أنشئ الأسئلة وراجعها ثم أرسلها إلى العميل.', fullAssessment: 'صفحة التقييم الكاملة (مساعد Gemini والتقييم الإداري)', entryQuizResult: 'نتيجة اختبار الدخول: {result}', quizResults: { passed: 'ناجح', failed: 'غير ناجح', referred: 'محال إلى الموظفين', none: 'لم يُصحَّح بعد' },
+    advanced: 'خيارات متقدمة: تغيير الحالة يدويًا', declinedLine: 'رُفض في {at} · يمكن التقديم من {from}', caseLabel: 'ملف الطلب', requestOpen: 'مفتوح', requestClosed: 'مغلق', requestResponded: 'ردّ العميل', clientReply: 'ردّ العميل:', submittedRequest: 'أُرسل الطلب، وبدأ فرز الوثائق.',
+    caseSummary: 'ملخص الملف', applicant: 'العميل', reference: 'رقم الطلب', pathway: 'المسار', requestedLevel: 'المستوى المطلوب', experience: 'سنوات الخبرة', submitted: 'تاريخ التقديم', declineReason: 'سبب الرفض', reapplyFrom: 'يمكنه تقديم طلب جديد اعتبارًا من', reapplyDerived: 'محسوب من تاريخ الرفض وإعداد فترة الانتظار الحالي',
     contact: 'بيانات التواصل', email: 'البريد الإلكتروني', phone: 'الهاتف', nationality: 'الجنسية', country: 'بلد الإقامة', profession: 'المجال المهني',
-    initialReview: 'المراجعة الإدارية الأولية', accepted: 'مقبول للتحقق', needsInformation: 'معلومات إضافية مطلوبة', rejected: 'مرفوض', subject: 'الموضوع', message: 'الرسالة للمتقدم', dueAt: 'موعد الرد', saveReview: 'حفظ المراجعة', reviewSaved: 'تمت المراجعة الإدارية.', requests: 'طلبات المعلومات الناقصة', createRequest: 'إرسال طلب', requestSaved: 'تم إرسال طلب المعلومات.', closeRequest: 'إغلاق', noRequests: 'لا توجد طلبات مفتوحة.',
+    initialReview: 'المراجعة الإدارية الأولية', accepted: 'مقبول للتحقق', needsInformation: 'معلومات إضافية مطلوبة', rejected: 'مرفوض', subject: 'الموضوع', message: 'الرسالة للعميل', dueAt: 'موعد الرد', saveReview: 'حفظ المراجعة', reviewSaved: 'تمت المراجعة الإدارية.', requests: 'طلبات المعلومات الناقصة', createRequest: 'إرسال طلب', requestSaved: 'تم إرسال طلب المعلومات.', closeRequest: 'إغلاق', noRequests: 'لا توجد طلبات مفتوحة.',
     workflow: 'إدارة حالة الطلب', nextStatus: 'الحالة التالية', note: 'ملاحظة انتقال الحالة', saveTransition: 'تحديث الحالة', transitionSaved: 'تم تحديث حالة الطلب.',
-    noTransitions: 'لا توجد حالة أخرى يمكن تعيينها من هنا. استخدم إجراءات القرار أو المقابلة أو الرفض.', closedCase: 'هذا الطلب مغلق: لا توجد حالة أخرى يمكن تعيينها له.', declineRecordTitle: 'قرار الرفض', declinedBy: 'رفضه {name} في {at}', declinedAt: 'رُفض في {at}', declineRationale: 'تعليل الرفض (للموظفين فقط، ولا يراه العميل)', applicantCategory: 'ما أُبلغ به المتقدم',
+    noTransitions: 'لا توجد حالة أخرى يمكن تعيينها من هنا. استخدم إجراءات القرار أو المقابلة أو الرفض.', closedCase: 'هذا الطلب مغلق: لا توجد حالة أخرى يمكن تعيينها له.', declineRecordTitle: 'قرار الرفض', declinedBy: 'رفضه {name} في {at}', declinedAt: 'رُفض في {at}', declineRationale: 'تعليل الرفض (للموظفين فقط، ولا يراه العميل)', applicantCategory: 'ما أُبلغ به العميل',
     closingWithdrawsSets: 'تُسحب مع الطلب أي مجموعة أسئلة ما زالت بانتظار الإجابة، ويُصحَّح اختبار الدخول المفتوح الذي يجري وقته عند انتهاء الوقت.',
     assessorTitle: 'إسناد ومتابعة المقيّمين', assessorHint: 'لا يجوز للمقيّم اتخاذ قرار الاعتماد أو إصدار الشهادة.', assessor: 'المقيّم', role: 'الدور', assign: 'إسناد المقيّم', assigned: 'تم إسناد المقيّم.', noAssignments: 'لا يوجد مقيّم مسند حاليًا.', acceptAssignment: 'قبول الإسناد', noConflict: 'لا يوجد تعارض', reportConflict: 'إفصاح عن تعارض', conflictDetails: 'تفاصيل تعارض المصالح', startAssessment: 'بدء التقييم', conflictSaved: 'تم حفظ إفصاح تعارض المصالح.',
     assessments: 'تقارير التقييم', noAssessments: 'لا توجد جلسات تقييم لهذا الملف بعد.', openAssessment: 'فتح التقييم',
@@ -105,16 +112,18 @@ const copyByLanguage = {
     committeeTitle: 'قرار لجنة الاعتماد', committeeHint: 'يجب أن يبقى القرار منفصلًا عن توصية المقيّم.', decision: 'القرار', recommendedLevel: 'المستوى النهائي', rationale: 'الأسباب والتعليل', submitDecision: 'حفظ قرار اللجنة', decisionSaved: 'تم حفظ قرار اللجنة.',
     qualityTitle: 'مراجعة ضمان الجودة', qualityResult: 'نتيجة المراجعة', approve: 'اعتماد الجودة', return: 'إعادة للعمل', qualityNotes: 'ملاحظات الجودة', saveQuality: 'حفظ مراجعة الجودة', qualitySaved: 'تم حفظ مراجعة الجودة.',
     events: 'سجل الأحداث والتدقيق', emptyTimeline: 'لا توجد أحداث مسجلة بعد.', actor: 'بواسطة',
-    loadError: 'تعذر تحميل ملف RPL.', auxiliaryWarning: 'تم تحميل الملف، لكن بعض البيانات المساندة غير متاحة حاليًا.',
+    loadError: 'تعذّر تحميل الملف.', auxiliaryWarning: 'تم تحميل الملف، لكن بعض البيانات المساندة غير متاحة حاليًا.',
   },
   en: {
-    eyebrow: 'RPL Case Workspace', title: 'Prior Learning Recognition Case', description: 'A unified operational case that keeps verification, assessment, and committee authority separate.', back: 'Back to applications', refresh: 'Refresh',
-    overview: 'Overview', evidence: 'Evidence & verification', assessment: 'Assessment & assessors', governance: 'Committee & quality', timeline: 'Timeline',
-    caseSummary: 'Case summary', applicant: 'Applicant', reference: 'Reference', pathway: 'Pathway', requestedLevel: 'Requested level', experience: 'Years of experience', submitted: 'Submitted', declineReason: 'Decline reason', reapplyFrom: 'May open a new request from', reapplyDerived: 'derived from the rejection date and the current cooldown setting',
+    eyebrow: 'Case · Professional path', title: 'Case', back: 'Back to cases', backTo: 'Back to “{label}”', refresh: 'Refresh', clientPage: 'Client page',
+    overview: 'Overview', evidence: 'Documents', assessment: 'Assessment (pre-flow)', entryQuiz: 'Entry quiz', payments: 'Payments & certificates', governance: 'Committee & quality', timeline: 'History',
+    entryQuizStartLine: 'Start the entry quiz for this case.', startEntryQuiz: 'Start the entry quiz', entryQuizStarted: 'The entry quiz has started. Create and review the questions, then send them to the client.', fullAssessment: 'Full assessment page (Gemini assistant and admin evaluation)', entryQuizResult: 'Entry-quiz result: {result}', quizResults: { passed: 'Passed', failed: 'Not passed', referred: 'Referred to staff', none: 'Not scored yet' },
+    advanced: 'Advanced: change the status by hand', declinedLine: 'Declined on {at} · may apply again from {from}', caseLabel: 'the case', requestOpen: 'Open', requestClosed: 'Closed', requestResponded: 'Client replied', clientReply: 'Client reply:', submittedRequest: 'The request was submitted, and document screening has started.',
+    caseSummary: 'Case summary', applicant: 'Client', reference: 'Reference', pathway: 'Pathway', requestedLevel: 'Requested level', experience: 'Years of experience', submitted: 'Submitted', declineReason: 'Decline reason', reapplyFrom: 'May open a new request from', reapplyDerived: 'derived from the rejection date and the current cooldown setting',
     contact: 'Contact and profile', email: 'Email', phone: 'Phone', nationality: 'Nationality', country: 'Country of residence', profession: 'Professional field',
-    initialReview: 'Initial administrative review', accepted: 'Accepted for verification', needsInformation: 'More information required', rejected: 'Rejected', subject: 'Subject', message: 'Message to applicant', dueAt: 'Response due', saveReview: 'Save review', reviewSaved: 'Initial review completed.', requests: 'Missing-information requests', createRequest: 'Send request', requestSaved: 'Information request sent.', closeRequest: 'Close', noRequests: 'No information requests exist.',
+    initialReview: 'Initial administrative review', accepted: 'Accepted for verification', needsInformation: 'More information required', rejected: 'Rejected', subject: 'Subject', message: 'Message to the client', dueAt: 'Response due', saveReview: 'Save review', reviewSaved: 'Initial review completed.', requests: 'Missing-information requests', createRequest: 'Send request', requestSaved: 'Information request sent.', closeRequest: 'Close', noRequests: 'No information requests exist.',
     workflow: 'Application workflow', nextStatus: 'Next status', note: 'Transition note', saveTransition: 'Update status', transitionSaved: 'Application status updated.',
-    noTransitions: 'No other status can be set from here. Use the decision, interview or decline actions.', closedCase: 'This case is closed: no further status can be set.', declineRecordTitle: 'The decline', declinedBy: 'Declined by {name} on {at}', declinedAt: 'Declined on {at}', declineRationale: 'Decline rationale (staff only; the applicant never sees it)', applicantCategory: 'What the applicant was told',
+    noTransitions: 'No other status can be set from here. Use the decision, interview or decline actions.', closedCase: 'This case is closed: no further status can be set.', declineRecordTitle: 'The decline', declinedBy: 'Declined by {name} on {at}', declinedAt: 'Declined on {at}', declineRationale: 'Decline rationale (staff only; the applicant never sees it)', applicantCategory: 'What the client was told',
     closingWithdrawsSets: 'A question set still awaiting answers is withdrawn with the case; an opened entry quiz whose time is running is marked when its time runs out.',
     assessorTitle: 'Assessor assignment and oversight', assessorHint: 'An assessor cannot make the accreditation decision or issue a certificate.', assessor: 'Assessor', role: 'Role', assign: 'Assign assessor', assigned: 'Assessor assigned.', noAssignments: 'No assessor is currently assigned.', acceptAssignment: 'Accept assignment', noConflict: 'Declare no conflict', reportConflict: 'Report conflict', conflictDetails: 'Conflict-of-interest details', startAssessment: 'Start assessment', conflictSaved: 'Conflict declaration saved.',
     assessments: 'Assessment reports', noAssessments: 'No assessment sessions exist for this case yet.', openAssessment: 'Open assessment', adminEvaluation: 'Gemini-assisted administrator evaluation', adminEvaluationHint: 'No external assessor is required. Gemini prepares a draft; only the administrator who starts it can review, edit, and submit it.', startAdminEvaluation: 'Start administrator evaluation', adminEvaluationStarted: 'Administrator evaluation started. Generate the Gemini draft, then review and edit it.',
@@ -122,25 +131,37 @@ const copyByLanguage = {
     committeeTitle: 'Accreditation Committee Decision', committeeHint: 'The decision must remain separate from the assessor recommendation.', decision: 'Decision', recommendedLevel: 'Final level', rationale: 'Rationale and reasons', submitDecision: 'Save committee decision', decisionSaved: 'Committee decision saved.',
     qualityTitle: 'Quality assurance review', qualityResult: 'Review result', approve: 'Quality approved', return: 'Return for rework', qualityNotes: 'Quality notes', saveQuality: 'Save quality review', qualitySaved: 'Quality review saved.',
     events: 'Event and audit history', emptyTimeline: 'No events have been recorded.', actor: 'By',
-    loadError: 'Unable to load the RPL case.', auxiliaryWarning: 'The case loaded, but some supporting data is temporarily unavailable.',
+    loadError: 'The case could not be loaded.', auxiliaryWarning: 'The case loaded, but some supporting data is temporarily unavailable.',
   },
 }
 
+/*
+ * The case's tabs in the order of the journey (PLATFORM-JOURNEY-SPEC §4.3): the
+ * document screen and the staff decision are one tab (screen on top, decision
+ * below); the entry quiz has its own tab inside the case; the payments and the
+ * certificates leave the overview; the committee forms show only while they can
+ * be saved. The old keys still open their tab.
+ */
 const tabs = [
   { key: 'overview', icon: BriefcaseBusiness },
   { key: 'evidence', icon: FileCheck2 },
-  // Document screening (owner flow of 12 Oct 2026, D17(a)): only for rpl.screening.view, and hidden on a 403.
-  { key: 'screening', icon: ScanSearch },
-  // The staff decision, the interview and their history (owner flow of 12 Oct 2026, P3).
+  // The document screen (rpl.screening.view, hidden on a 403), the staff decision, the interview and their history.
   { key: 'decision', icon: Scale },
-  { key: 'assessment', icon: ClipboardCheck },
+  { key: 'entry_quiz', icon: ClipboardCheck },
   // The governed course plan (owner flow of 12 Oct 2026, P5): from the assessment stage, or once the case has a plan.
   { key: 'course_plan', icon: ListChecks },
   // The one final exam after the learning plan (owner model of 15 Oct 2026, P6): from final_exam, or once the case has had one.
   { key: 'final_exam', icon: GraduationCap },
-  { key: 'governance', icon: Gavel },
+  { key: 'payments', icon: Banknote },
   { key: 'timeline', icon: History },
+  { key: 'governance', icon: Gavel },
 ]
+
+/** The keys a link may still carry: the screening tab is now the decision tab, the assessment tab the entry quiz. */
+const TAB_ALIASES = Object.freeze({ screening: 'decision', assessment: 'entry_quiz' })
+/** The two statuses in which the committee and quality forms can be saved (RplGovernanceController). */
+const GOVERNANCE_STATUSES = ['quality_review', 'committee_review']
+const ENTRY_QUIZ_STATUSES = ['ready_for_assessment', 'assessment_in_progress']
 
 function valueOf(result, fallback) {
   return result.status === 'fulfilled' ? result.value : fallback
@@ -184,7 +205,15 @@ function assignmentLabel(value, copy) {
 export default function RplCaseWorkspacePage() {
   const { applicationId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
+  /*
+   * A tab change keeps the router state the case was opened with (walk of 18 Oct
+   * 2026): `from` (the list or queue Back returns to) and `navFrom` survive a tab
+   * click, the Next step, a decision and a start, so Back still names the queue.
+   */
+  const locationState = location.state ?? null
+  const showTab = useCallback((tab, options = {}) => setSearchParams({ tab }, { ...options, state: locationState }), [setSearchParams, locationState])
   const language = getAdminLanguage()
   const isArabic = language === 'ar'
   const copy = copyByLanguage[language] || copyByLanguage.en
@@ -216,7 +245,9 @@ export default function RplCaseWorkspacePage() {
   }[language] || copyByLanguage.en
   // `loaded` tells "not read yet" from "read, and empty" (UI-07): until the first answer, no card says no screening has run.
   const [screening, setScreening] = useState({ loading: false, loaded: false, error: '', forbidden: false, items: [] })
-  const [state, setState] = useState({ loading: true, error: '', auxiliaryWarning: false, application: null, evidence: [], categories: EVIDENCE_CATEGORIES, referenceCategories: [], timeline: [], assessments: [], assignments: [], assessors: [], levels: [], committees: [], committeeActions: [], outcomes: [], competencyNames: {}, declineCategories: readDeclineCategories(null) })
+  const [state, setState] = useState({ loading: true, error: '', auxiliaryWarning: false, application: null, evidence: [], categories: EVIDENCE_CATEGORIES, referenceCategories: [], timeline: [], assessments: [], assignments: [], assessors: [], levels: [], committees: [], committeeActions: [], outcomes: [], competencyNames: {}, declineCategories: readDeclineCategories(null), evidenceDocumentsEnabled: true })
+  // The course plan's gap cross-check says nothing when there are no gaps (D-29): its column then gives way.
+  const [crossCheckEmpty, setCrossCheckEmpty] = useState(false)
   // The course plan tab (P5): needs rpl.applications.view, and a 403 from the server removes it.
   const [coursePlanForbidden, setCoursePlanForbidden] = useState(false)
   // The final exam tab (P6): the same rule, and a 403 from the server removes it.
@@ -230,14 +261,34 @@ export default function RplCaseWorkspacePage() {
   // after_quiz.final_exam_state 'not_yet' means the case has never been in the final exam, so it adds no tab.
   const finalExamState = state.application?.after_quiz?.final_exam_state
   const showFinalExam = hasPermission(AFTER_QUIZ_PERMISSIONS.view) && !finalExamForbidden && (state.application?.status === 'final_exam' || (finalExamState != null && finalExamState !== 'not_yet'))
+  // The payments and certificates after the entry quiz, from the entry quiz's result on (P6) …
+  const afterQuizSummary = state.application?.after_quiz
+  const afterQuizReached = Boolean(afterQuizSummary && typeof afterQuizSummary === 'object' && hasPermission(AFTER_QUIZ_PERMISSIONS.view)
+    && (['passed', 'failed'].includes(state.application?.course_plan?.entry_quiz_result) || Number(afterQuizSummary.charges_pending) > 0 || Boolean(afterQuizSummary.completion_route) || ['final_exam', 'credential_pending'].includes(state.application?.status)))
+  // … and the committee path's certificate fee, only when one is due or paid (D-28).
+  const committeeFeeShown = Number(state.application?.fee_snapshot?.amount ?? 0) > 0 || state.application?.payment_status === 'paid'
   const visibleTabs = tabs.filter((tab) => {
-    if (tab.key === 'screening') return canViewScreeningData
     if (tab.key === 'decision') return canDecide || canManageInterviews || canViewScreeningData
+    if (tab.key === 'entry_quiz') return ENTRY_QUIZ_STATUSES.includes(state.application?.status) || state.assessments.length > 0
     if (tab.key === 'course_plan') return showCoursePlan
     if (tab.key === 'final_exam') return showFinalExam
+    if (tab.key === 'payments') return afterQuizReached || committeeFeeShown
+    if (tab.key === 'governance') return GOVERNANCE_STATUSES.includes(state.application?.status)
     return true
   })
-  const activeTab = visibleTabs.some((tab) => tab.key === searchParams.get('tab')) ? searchParams.get('tab') : 'overview'
+  const requestedTab = searchParams.get('tab')
+  const wantedTab = TAB_ALIASES[requestedTab] || requestedTab
+  const activeTab = visibleTabs.some((tab) => tab.key === wantedTab) ? wantedTab : 'overview'
+  // An old key in the URL is rewritten to its tab, without a new history entry.
+  useEffect(() => {
+    const alias = TAB_ALIASES[requestedTab]
+    if (!alias) return
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      next.set('tab', alias)
+      return next
+    }, { replace: true, state: locationState })
+  }, [requestedTab, setSearchParams, locationState])
   const [action, setAction] = useState({ busy: false, error: '', success: '' })
   // Bumped whenever the decision, the interview or a decline changes the case, so the lists in the decision tab read again.
   const [caseVersion, setCaseVersion] = useState(0)
@@ -283,13 +334,16 @@ export default function RplCaseWorkspacePage() {
       // Every category the reference data holds (inactive ones too): the meter names
       // a frozen requirement the standard no longer lists from it (review round 2).
       referenceCategories,
-      levels: unwrapCollection(reference.pathways || []).flatMap((pathway) => pathway.levels || []),
+      // Each level names its pathway: both pathways use the same level names (F-9).
+      levels: unwrapCollection(reference.pathways || []).flatMap((pathway) => (pathway.levels || []).map((level) => ({ ...level, pathwayName: pathway.name }))),
       // The RPL competencies by code, so a plan course names the competency it closes rather than its code (UI-09).
       competencyNames: Object.fromEntries(unwrapCollection(reference.pathways || []).flatMap((pathway) => pathway.standards || []).flatMap((standard) => standard.competencies || []).filter((competency) => competency?.code).map((competency) => [competency.code, competency.name])),
       committees: unwrapCollection(reference.committees || []),
       committeeActions: unwrapCollection(reference.committee_actions || []),
       outcomes: unwrapCollection(reference.outcomes || []),
       declineCategories: readDeclineCategories(reference),
+      // Whether the applicant's files go to Gemini (the kill switch); the entry quiz panel says so.
+      evidenceDocumentsEnabled: reference.settings?.rpl_advisory_include_evidence_documents !== false,
       timeline: unwrapCollection(valueOf(results[3], [])),
       assessments: unwrapCollection(valueOf(results[4], [])),
       assignments: unwrapCollection(valueOf(results[5], [])),
@@ -347,10 +401,40 @@ export default function RplCaseWorkspacePage() {
   // With nothing to set: a course-plan status points to the course plan tab, where its acts are (P5);
   // there no decision, interview or decline applies. Every other status keeps P3's sentence.
   // A closed case points to no action at all: the decision, interview and decline actions are not possible on it (UI-10).
-  const noTransitionsHint = CLOSED_APPLICATION_STATUSES.includes(application.status) ? copy.closedCase : ({ course_plan_review: coursePlanText.noTransitionsReview, course_plan_active: coursePlanText.noTransitionsActive, final_exam: afterQuizText.finalExam.noTransitions }[application.status] || copy.noTransitions)
+  const caseClosed = CLOSED_APPLICATION_STATUSES.includes(application.status)
   const declineRecord = readDeclineRecord(application, state.timeline)
+  // Where the case stands and what moves it on (D-23, D-24): the stepper and the Next step card.
+  const journey = caseJourney(application, screenLanguage)
+  const nextStep = caseNextStep(application, { hasPermission, screenings: screening.items })
+  // Back to the list the case was opened from (its stage or queue), or to the cases.
+  const from = location.state?.from
+  const backHref = from?.pathname ? `${from.pathname}${from.search || ''}` : '/rpl/applications'
+  const backLabel = from?.label ? fill(copy.backTo, { label: from.label }) : copy.back
+  const clientId = application.user?.id ?? application.user_id ?? null
+  const levelName = localize(application.requested_level?.name || application.requestedLevel?.name || application.target_level?.name, language)
+  const pathwayLine = [localize(application.pathway?.name, language), levelName].filter(Boolean).join(' · ')
 
-  const tabLabels = useMemo(() => ({ overview: copy.overview, evidence: copy.evidence, screening: screeningText.tab, decision: decisionText.tab, assessment: copy.assessment, course_plan: coursePlanText.tab, final_exam: afterQuizText.finalExam.tab, governance: copy.governance, timeline: copy.timeline }), [copy, screeningText.tab, decisionText.tab, coursePlanText.tab, afterQuizText.finalExam.tab])
+  // A case is on the current flow once staff recorded a screening decision; before that, the entry quiz tab holds the pre-flow assessment.
+  const newFlow = application.latest_screening_decision != null
+  const tabLabels = useMemo(() => ({ overview: copy.overview, evidence: copy.evidence, decision: decisionText.tab, entry_quiz: newFlow ? copy.entryQuiz : copy.assessment, course_plan: coursePlanText.tab, final_exam: afterQuizText.finalExam.tab, payments: copy.payments, governance: copy.governance, timeline: copy.timeline }), [copy, decisionText.tab, coursePlanText.tab, afterQuizText.finalExam.tab, newFlow])
+
+  /*
+   * An assessment opened from this case comes back to it (review of 18 Oct 2026):
+   * its Back returns to this tab, carrying the list the case itself was opened
+   * from, and the sidebar keeps Professional cases active instead of opening the
+   * pre-flow group.
+   */
+  const assessmentLinkState = (tab = searchParams.get('tab') || 'entry_quiz') => ({
+    from: { pathname: `/rpl/applications/${applicationId}`, search: `?tab=${tab}`, label: copy.caseLabel, caseFrom: location.state?.from || null },
+    navFrom: '/rpl/applications',
+  })
+  const openAssessment = (id) => navigate(`/rpl/assessments/${id}`, { state: assessmentLinkState() })
+
+  /** Opens a tab of the case, and scrolls to a card in it when the Next step names one. */
+  const openTab = useCallback((tab, anchor) => {
+    showTab(tab)
+    if (anchor) window.setTimeout(() => document.getElementById(anchor)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }), 60)
+  }, [showTab])
 
   /*
    * After a decision, an interview step or a decline: the case and its timeline
@@ -369,19 +453,48 @@ export default function RplCaseWorkspacePage() {
     }))
   }, [applicationId])
 
+  /** The case's assessments again, without the page's loading state (the entry quiz tab mounts the new one). */
+  const refreshAssessments = useCallback(async () => {
+    try {
+      const response = await fetchRplAssessments({ application_id: applicationId, per_page: 50 })
+      setState((current) => ({ ...current, assessments: unwrapCollection(response) }))
+    } catch {
+      // The tab keeps what it had; Refresh reads everything again.
+    }
+  }, [applicationId])
+
   function caseChanged({ message, failed = false, reloadLists = true } = {}) {
     setAction({ busy: false, error: failed ? message : '', success: failed ? '' : message })
     if (reloadLists) setCaseVersion((current) => current + 1)
     refreshCase()
+    // The tiles, the sidebar badges and the bell follow the case at once, so a count never disagrees with the list it opens.
+    refreshWorkCounts()
   }
 
+  /** An act inside the entry quiz panel (send, final evaluation, ...): the case's queue may have moved. */
+  const entryQuizChanged = useCallback(() => {
+    refreshCase()
+    refreshWorkCounts()
+  }, [refreshCase])
+
   function screeningDecided({ assessment, message, failed }) {
-    // "Pass to quiz and start the assessment": the assessment opens where it is worked on.
-    if (assessment?.id) {
-      navigate(`/rpl/assessments/${assessment.id}`)
-      return
-    }
+    // "Pass to quiz and start": the case stays, on its entry quiz tab, where the quiz is now prepared (D-09).
     caseChanged({ message, failed })
+    if (assessment?.id) {
+      refreshAssessments()
+      showTab('entry_quiz')
+    }
+  }
+
+  /**
+   * The one move the Next step card offers (submit an office draft, or move a case
+   * whose client replied back to review), through the same move the status form
+   * uses; the server decides.
+   */
+  async function nextStepMove(status) {
+    const message = status === 'submitted' ? copy.submittedRequest : copy.transitionSaved
+    const response = await runAction(() => transitionRplApplication(applicationId, { status }), message)
+    if (response) caseChanged({ message })
   }
 
   /*
@@ -399,6 +512,7 @@ export default function RplCaseWorkspacePage() {
     try {
       const response = unwrapApiData(await request())
       setAction({ busy: false, error: '', success })
+      refreshWorkCounts()
       after?.(response)
       return response
     } catch (error) {
@@ -460,13 +574,17 @@ export default function RplCaseWorkspacePage() {
 
   async function startAssessment(id) {
     const response = await runAction(() => startRplAssessment(id), copy.startAssessment)
-    if (response) { load(); if (response.id) navigate(`/rpl/assessments/${response.id}`) }
+    if (response) { load(); if (response.id) openAssessment(response.id) }
   }
 
   async function startAdminEvaluation() {
-    const response = await runAction(() => startAdminRplAssessment(applicationId), adminEvaluationCopy.started)
-    if (response?.id) navigate(`/rpl/assessments/${response.id}`)
-    else if (response) load()
+    // The case keeps its place: the entry quiz tab mounts the quiz once the assessment exists (D-09).
+    const response = await runAction(() => startAdminRplAssessment(applicationId), newFlow ? copy.entryQuizStarted : adminEvaluationCopy.started)
+    if (response) {
+      refreshCase()
+      refreshAssessments()
+      showTab('entry_quiz')
+    }
   }
 
   async function saveCommittee() {
@@ -538,7 +656,7 @@ export default function RplCaseWorkspacePage() {
       <Card>
         <CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{coursePlanText.title}</CardTitle></CardHeader>
         <CardContent className="space-y-3 pt-6">
-          {lines.map((line) => <div key={line} className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm leading-6">{line}</p><Button size="sm" variant="outline" onClick={() => setSearchParams({ tab: 'course_plan' })}><ListChecks size={16} />{coursePlanText.openPlan}</Button></div>)}
+          {lines.map((line) => <div key={line} className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm leading-6">{line}</p><Button size="sm" variant="outline" onClick={() => showTab('course_plan')}><ListChecks size={16} />{coursePlanText.openPlan}</Button></div>)}
         </CardContent>
       </Card>
     )
@@ -556,18 +674,30 @@ export default function RplCaseWorkspacePage() {
   const afterQuizChanged = useCallback(() => {
     setAfterQuizVersion((current) => current + 1)
     refreshCase()
+    refreshWorkCounts()
   }, [refreshCase])
 
   function renderAfterQuiz() {
-    const summary = application.after_quiz
-    if (!summary || typeof summary !== 'object' || !hasPermission(AFTER_QUIZ_PERMISSIONS.view)) return null
-    const reached = ['passed', 'failed'].includes(application.course_plan?.entry_quiz_result) || Number(summary.charges_pending) > 0 || Boolean(summary.completion_route) || ['final_exam', 'credential_pending'].includes(application.status)
-    if (!reached) return null
+    if (!afterQuizReached) return null
     return (
       <>
         <ChargesPanel applicationId={applicationId} language={screenLanguage} canReconcile={hasPermission(AFTER_QUIZ_PERMISSIONS.reconcile)} canRefund={hasPermission(AFTER_QUIZ_PERMISSIONS.refund)} refreshKey={afterQuizVersion} onChanged={afterQuizChanged} />
         <ExperienceCertificatePanel applicationId={applicationId} language={screenLanguage} canApprove={hasPermission(AFTER_QUIZ_PERMISSIONS.approve)} refreshKey={afterQuizVersion} onChanged={afterQuizChanged} />
       </>
+    )
+  }
+
+  /*
+   * Payments & certificates (D-11): the payments after the entry quiz and the
+   * Experience Confirmation Certificate, then the committee path's certificate
+   * fee, which shows only when one is due or paid (D-28).
+   */
+  function renderPayments() {
+    return (
+      <div className="space-y-6">
+        {renderAfterQuiz()}
+        <PaymentReconciliationPanel application={application} language={language} onReconciled={load} />
+      </div>
     )
   }
 
@@ -577,9 +707,9 @@ export default function RplCaseWorkspacePage() {
 
   function renderCoursePlan() {
     return (
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+      <div className={`grid gap-6 ${crossCheckEmpty ? '' : 'xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]'}`}>
         <CoursePlanEditor applicationId={applicationId} application={application} evidence={state.evidence} competencyNames={state.competencyNames} canManage={hasPermission(COURSE_PLAN_PERMISSIONS.manage)} language={screenLanguage} onCaseChanged={coursePlanChanged} onForbidden={onCoursePlanForbidden} />
-        <div><GapClosurePanel applicationPublicId={applicationId} language={screenLanguage} crossCheck /></div>
+        <GapClosurePanel applicationPublicId={applicationId} language={screenLanguage} crossCheck onEmptyChange={setCrossCheckEmpty} />
       </div>
     )
   }
@@ -594,10 +724,10 @@ export default function RplCaseWorkspacePage() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
         <div className="space-y-6">
           <Card>
-            <CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.caseSummary}</CardTitle></CardHeader>
+            <CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.caseSummary}</CardTitle>{application.status === 'rejected' && decline ? <p className="mt-2 text-sm font-semibold text-red-700">{fill(copy.declinedLine, { at: formatLocalizedDateTime(declineRecord?.at || application.finalised_at || application.updated_at, language), from: decline.reapplyAvailableAt ? formatLocalizedDateTime(decline.reapplyAvailableAt, language) : '—' })}</p> : null}</CardHeader>
             <CardContent className="pt-6">
               <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                <Definition label={copy.applicant} value={applicant.name || application.applicant_name} />
+                <Definition label={copy.applicant} value={<bdi>{applicant.name || application.applicant_name || '—'}</bdi>} />
                 <Definition label={copy.reference} value={reference} />
                 <Definition label={copy.pathway} value={localize(application.pathway?.name || application.standard?.name, language)} />
                 <Definition label={copy.requestedLevel} value={localize(application.requested_level?.name || application.requestedLevel?.name || application.target_level?.name, language) || application.requested_level_code} />
@@ -616,41 +746,55 @@ export default function RplCaseWorkspacePage() {
             <CardContent className="pt-6"><dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"><Definition label={copy.email} value={applicant.email} /><Definition label={copy.phone} value={applicant.phone_number || applicant.phone} /><Definition label={copy.nationality} value={applicant.nationality} /><Definition label={copy.country} value={applicant.country_of_residence || applicant.country} /><Definition label={copy.profession} value={applicant.professional_field || application.professional_field} /></dl></CardContent>
           </Card>
           {renderClaimedEmployers()}
-          {['submitted', 'administrative_review'].includes(application.status) ? <Card><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.initialReview}</CardTitle></CardHeader><CardContent className="space-y-4 pt-6"><Select label={copy.decision} value={initialReview.decision} onChange={(event) => setInitialReview((current) => ({ ...current, decision: event.target.value }))}><option value="accepted">{copy.accepted}</option><option value="needs_information">{copy.needsInformation}</option><option value="rejected">{copy.rejected}</option></Select>{initialReview.decision !== 'accepted' ? <Textarea rows={3} label={copy.rationale} value={initialReview.reason} onChange={(event) => setInitialReview((current) => ({ ...current, reason: event.target.value }))} /> : null}{initialReview.decision === 'rejected' ? <p role="note" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">{copy.closingWithdrawsSets}</p> : null}{initialReview.decision === 'needs_information' ? <div className="grid gap-4 sm:grid-cols-2"><Input label={copy.subject} value={initialReview.subject} onChange={(event) => setInitialReview((current) => ({ ...current, subject: event.target.value }))} /><Input type="datetime-local" label={copy.dueAt} value={initialReview.due_at} onChange={(event) => setInitialReview((current) => ({ ...current, due_at: event.target.value }))} /><Textarea className="sm:col-span-2" rows={4} label={copy.message} value={initialReview.message} onChange={(event) => setInitialReview((current) => ({ ...current, message: event.target.value }))} /></div> : null}<div className="flex justify-end"><Button onClick={saveInitialReview} disabled={action.busy || (initialReview.decision !== 'accepted' && !initialReview.reason.trim()) || (initialReview.decision === 'needs_information' && (!initialReview.subject.trim() || !initialReview.message.trim()))}><Save size={17} />{copy.saveReview}</Button></div></CardContent></Card> : null}
-          <Card><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.requests}</CardTitle></CardHeader><CardContent className="space-y-5 pt-6"><div className="grid gap-4 sm:grid-cols-2"><Input label={copy.subject} value={informationRequest.subject} onChange={(event) => setInformationRequest((current) => ({ ...current, subject: event.target.value }))} /><Input type="datetime-local" label={copy.dueAt} value={informationRequest.due_at} onChange={(event) => setInformationRequest((current) => ({ ...current, due_at: event.target.value }))} /><Textarea className="sm:col-span-2" rows={3} label={copy.message} value={informationRequest.message} onChange={(event) => setInformationRequest((current) => ({ ...current, message: event.target.value }))} /></div><div className="flex justify-end"><Button onClick={sendInformationRequest} disabled={action.busy || !informationRequest.subject.trim() || !informationRequest.message.trim()}>{copy.createRequest}</Button></div><div className="space-y-3">{application.information_requests?.length ? application.information_requests.map((item) => <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-[var(--color-border)] p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold">{item.subject}</p><p className="mt-1 text-sm text-[var(--color-text-muted)]">{item.message}</p></div><div className="flex items-center gap-2"><Badge variant={item.status === 'closed' ? 'neutral' : 'warning'}>{item.status}</Badge>{item.status !== 'closed' ? <Button size="sm" variant="outline" onClick={() => closeInformationRequest(item.id)}>{copy.closeRequest}</Button> : null}</div></div>) : <p className="text-sm text-[var(--color-text-muted)]">{copy.noRequests}</p>}</div></CardContent></Card>
+          {['submitted', 'administrative_review'].includes(application.status) ? <Card id="initial-review" className="scroll-mt-24"><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.initialReview}</CardTitle></CardHeader><CardContent className="space-y-4 pt-6"><Select label={copy.decision} value={initialReview.decision} onChange={(event) => setInitialReview((current) => ({ ...current, decision: event.target.value }))}><option value="accepted">{copy.accepted}</option><option value="needs_information">{copy.needsInformation}</option><option value="rejected">{copy.rejected}</option></Select>{initialReview.decision !== 'accepted' ? <Textarea rows={3} label={copy.rationale} value={initialReview.reason} onChange={(event) => setInitialReview((current) => ({ ...current, reason: event.target.value }))} /> : null}{initialReview.decision === 'rejected' ? <p role="note" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">{copy.closingWithdrawsSets}</p> : null}{initialReview.decision === 'needs_information' ? <div className="grid gap-4 sm:grid-cols-2"><Input label={copy.subject} value={initialReview.subject} onChange={(event) => setInitialReview((current) => ({ ...current, subject: event.target.value }))} /><Input type="datetime-local" label={copy.dueAt} value={initialReview.due_at} onChange={(event) => setInitialReview((current) => ({ ...current, due_at: event.target.value }))} /><Textarea className="sm:col-span-2" rows={4} label={copy.message} value={initialReview.message} onChange={(event) => setInitialReview((current) => ({ ...current, message: event.target.value }))} /></div> : null}<div className="flex justify-end"><Button onClick={saveInitialReview} disabled={action.busy || (initialReview.decision !== 'accepted' && !initialReview.reason.trim()) || (initialReview.decision === 'needs_information' && (!initialReview.subject.trim() || !initialReview.message.trim()))}><Save size={17} />{copy.saveReview}</Button></div></CardContent></Card> : null}
+          {!caseClosed ? <Card id="information-requests" className="scroll-mt-24"><CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.requests}</CardTitle></CardHeader><CardContent className="space-y-5 pt-6"><div className="grid gap-4 sm:grid-cols-2"><Input label={copy.subject} value={informationRequest.subject} onChange={(event) => setInformationRequest((current) => ({ ...current, subject: event.target.value }))} /><Input type="datetime-local" label={copy.dueAt} value={informationRequest.due_at} onChange={(event) => setInformationRequest((current) => ({ ...current, due_at: event.target.value }))} /><Textarea className="sm:col-span-2" rows={3} label={copy.message} value={informationRequest.message} onChange={(event) => setInformationRequest((current) => ({ ...current, message: event.target.value }))} /></div><div className="flex justify-end"><Button onClick={sendInformationRequest} disabled={action.busy || !informationRequest.subject.trim() || !informationRequest.message.trim()}>{copy.createRequest}</Button></div><div className="space-y-3">{application.information_requests?.length ? application.information_requests.map((item) => <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-[var(--color-border)] p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold">{item.subject}</p><p className="mt-1 text-sm text-[var(--color-text-muted)]">{item.message}</p>{item.response ? <p className="mt-2 rounded-lg bg-[var(--color-surface-muted)] p-2 text-sm text-[var(--color-text)]"><span className="font-semibold">{copy.clientReply} </span><span dir="auto">{item.response}</span></p> : null}</div><div className="flex items-center gap-2"><Badge variant={item.status === 'closed' ? 'neutral' : item.status === 'responded' ? 'info' : 'warning'}>{item.status === 'open' ? copy.requestOpen : item.status === 'closed' ? copy.requestClosed : item.status === 'responded' ? copy.requestResponded : <bdi>{item.status}</bdi>}</Badge>{item.status !== 'closed' ? <Button size="sm" variant="outline" onClick={() => closeInformationRequest(item.id)}>{copy.closeRequest}</Button> : null}</div></div>) : <p className="text-sm text-[var(--color-text-muted)]">{copy.noRequests}</p>}</div></CardContent></Card> : null}
         </div>
         <div className="space-y-6">
           <CompletenessMeter value={readApplicationCompleteness(application)} categories={state.categories} referenceCategories={state.referenceCategories} language={language} />
-          {/* The only control anywhere that can set payment_status='paid'.
-              Credential issuance is gated on it, and before this panel there
-              was no way to release an approved applicant once a fee existed. */}
-          <PaymentReconciliationPanel application={application} language={language} onReconciled={load} />
-          <Card>
-            <CardHeader className="border-b border-[var(--color-border)]"><div className="flex items-center justify-between gap-3"><CardTitle>{copy.workflow}</CardTitle><RplStatusBadge status={application.status} language={language} /></div></CardHeader>
-            <CardContent className="space-y-4 pt-6">
-              {application.status === 'evidence_verification' && canDecide ? <div className="space-y-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900"><p>{decisionText.awaitingDecision}</p><Button size="sm" onClick={() => setSearchParams({ tab: 'decision' })}><Scale size={16} />{decisionText.goToDecision}</Button></div> : null}
-              {application.status === 'interview_required' && canManageInterviews ? <div className="space-y-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900"><p>{decisionText.awaitingInterview}</p><Button size="sm" onClick={() => setSearchParams({ tab: 'decision' })}><CalendarClock size={16} />{decisionText.goToInterview}</Button></div> : null}
-              <Select label={copy.nextStatus} value={selectedNextStatus} disabled={!nextStatuses.length} hint={!nextStatuses.length ? noTransitionsHint : undefined} onChange={(event) => setTransition((current) => ({ ...current, status: event.target.value }))}><option value="" disabled>—</option>{nextStatuses.map((value) => <option key={value} value={value}>{localize(APPLICATION_STATUS[value]?.labels, language) || value}</option>)}</Select>
-              {/* F2: a case that closes (rejected or withdrawn) withdraws its unanswered question sets; an opened entry quiz keeps its timer. The API lists only withdrawn here (a rejection goes through a governed path), so the intake review card says it for its rejection too. */}
-              {['rejected', 'withdrawn'].includes(selectedNextStatus) ? <p role="note" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">{copy.closingWithdrawsSets}</p> : null}
-              <Textarea label={copy.note} rows={4} value={transition.reason} onChange={(event) => setTransition((current) => ({ ...current, reason: event.target.value }))} />
-              <Button fullWidth onClick={updateStatus} disabled={action.busy || !selectedNextStatus}>{action.busy ? <LoaderCircle className="animate-spin" size={17} /> : <Save size={17} />}{copy.saveTransition}</Button>
-              <DeclineApplicationAction applicationId={applicationId} status={application.status} canDecide={canDecide} declineCategories={state.declineCategories} language={screenLanguage} onDeclined={({ message }) => caseChanged({ message })} />
-            </CardContent>
-          </Card>
           {application.latest_screening_decision || application.active_interview ? (
             <Card>
               <CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{decisionText.latestDecisionTitle}</CardTitle></CardHeader>
               <CardContent className="space-y-4 pt-6">
-                {/* The decision and its rationale are for every staff role on the case (D17(a)); the screening figure behind it only for those who may see screens. */}
-                {application.latest_screening_decision ? <ScreeningDecisionEntry decision={application.latest_screening_decision} language={screenLanguage} showSnapshot={canViewScreeningData} /> : <p className="text-sm text-[var(--color-text-muted)]">{decisionText.noDecisionYet}</p>}
+                {/* The decision and its rationale are for every staff role on the case (D17(a)); the screening figure behind it only for those who may see screens. A declined case with no decision shows its decline, never "no decision recorded" (F-8). */}
+                {application.latest_screening_decision ? <ScreeningDecisionEntry decision={application.latest_screening_decision} language={screenLanguage} showSnapshot={canViewScreeningData} /> : application.status === 'rejected' && declineRecord ? renderDeclineRecordBody() : <p className="text-sm text-[var(--color-text-muted)]">{decisionText.noDecisionYet}</p>}
                 {application.active_interview ? <InterviewSummary interview={application.active_interview} language={screenLanguage} /> : null}
               </CardContent>
             </Card>
           ) : null}
           {renderCoursePlanNotice()}
-          {renderAfterQuiz()}
+          {renderAdvancedStatus()}
         </div>
+      </div>
+    )
+  }
+
+  /*
+   * The generic status move, for the rare hand correction (D-30): collapsed, at
+   * the bottom of the overview, and only while the server offers a move on an
+   * open case. The decision, the interview and the decline have their own tab.
+   */
+  function renderAdvancedStatus() {
+    if (caseClosed || !Array.isArray(application.allowed_transitions) || !application.allowed_transitions.filter(Boolean).length) return null
+    return (
+      <details className="rounded-2xl border border-[var(--color-border)] bg-white p-4">
+        <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-bold text-[var(--color-text)]"><span>{copy.advanced}</span><RplStatusBadge status={application.status} language={language} /></summary>
+        <div className="mt-4 space-y-4">
+          <Select label={copy.nextStatus} value={selectedNextStatus} onChange={(event) => setTransition((current) => ({ ...current, status: event.target.value }))}><option value="" disabled>—</option>{nextStatuses.map((value) => <option key={value} value={value}>{localize(APPLICATION_STATUS[value]?.labels, language) || value}</option>)}</Select>
+          {/* F2: a case that closes (rejected or withdrawn) withdraws its unanswered question sets; an opened entry quiz keeps its timer. The API lists only withdrawn here (a rejection goes through a governed path), so the intake review card says it for its rejection too. */}
+          {['rejected', 'withdrawn'].includes(selectedNextStatus) ? <p role="note" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">{copy.closingWithdrawsSets}</p> : null}
+          <Textarea label={copy.note} rows={4} value={transition.reason} onChange={(event) => setTransition((current) => ({ ...current, reason: event.target.value }))} />
+          <Button fullWidth onClick={updateStatus} disabled={action.busy || !selectedNextStatus}>{action.busy ? <LoaderCircle className="animate-spin" size={17} /> : <Save size={17} />}{copy.saveTransition}</Button>
+        </div>
+      </details>
+    )
+  }
+
+  function renderDeclineRecordBody() {
+    return (
+      <div className="space-y-3 text-sm">
+        {declineRecord.by || declineRecord.at ? <p className="text-xs text-[var(--color-text-muted)]">{declineRecordLine(declineRecord)}</p> : null}
+        {declineRecord.rationale ? <div><p className="text-xs font-semibold text-[var(--color-text-muted)]">{copy.declineRationale}</p><p dir="auto" className="mt-1 whitespace-pre-wrap leading-6 text-[var(--color-text)]">{declineRecord.rationale}</p></div> : null}
+        {decline?.applicantCategoryLabel ? <div><p className="text-xs font-semibold text-[var(--color-text-muted)]">{copy.applicantCategory}</p><p className="mt-1 leading-6">{decline.applicantCategoryLabel}</p></div> : null}
       </div>
     )
   }
@@ -664,21 +808,53 @@ export default function RplCaseWorkspacePage() {
   function renderDecision() {
     return (
       <div className="space-y-6">
+        {canViewScreeningData ? <DocumentScreeningPanel applicationId={applicationId} screenings={screening.items} loading={screening.loading} error={screening.error} canRun={canRunScreening} categories={state.categories} language={screenLanguage} onReload={loadScreenings} onScreeningAdded={(created) => setScreening((current) => ({ ...current, items: [created, ...current.items.filter((item) => item.public_id !== created.public_id)] }))} onScreeningUpdated={(updated) => setScreening((current) => ({ ...current, items: current.items.map((item) => (item.public_id === updated.public_id ? updated : item)) }))} /> : null}
         <ScreeningDecisionCard applicationId={applicationId} status={application.status} canDecide={canDecide} canViewScreening={canViewScreeningData} canStartAssessment={isAdministrator} screenings={screening.items} screeningsLoading={!screening.loaded || screening.loading} screeningsError={screening.error} declineCategories={state.declineCategories} language={screenLanguage} onDecided={screeningDecided} />
         <InterviewPanel applicationId={applicationId} application={application} canManage={canManageInterviews} canRecordLegacy={canRecordLegacyInterviews} viewer={viewer} canReadSettings={canReadSettings} declineCategories={state.declineCategories} language={screenLanguage} refreshKey={caseVersion} onChanged={({ message }) => caseChanged({ message, reloadLists: false })} />
         {/* A direct decline writes no screening decision: the decline itself is the record staff read here (UI-10). */}
         {declineRecord ? (
           <Card>
             <CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.declineRecordTitle}</CardTitle></CardHeader>
-            <CardContent className="space-y-3 pt-6 text-sm">
-              {declineRecord.by || declineRecord.at ? <p className="text-xs text-[var(--color-text-muted)]">{declineRecordLine(declineRecord)}</p> : null}
-              {declineRecord.rationale ? <div><p className="text-xs font-semibold text-[var(--color-text-muted)]">{copy.declineRationale}</p><p dir="auto" className="mt-1 whitespace-pre-wrap leading-6 text-[var(--color-text)]">{declineRecord.rationale}</p></div> : null}
-              {decline?.applicantCategoryLabel ? <div><p className="text-xs font-semibold text-[var(--color-text-muted)]">{copy.applicantCategory}</p><p className="mt-1 leading-6">{decline.applicantCategoryLabel}</p></div> : null}
-            </CardContent>
+            <CardContent className="pt-6">{renderDeclineRecordBody()}</CardContent>
           </Card>
         ) : null}
         <ScreeningDecisionHistory applicationId={applicationId} canView={canViewScreeningData} refreshKey={caseVersion} language={screenLanguage} />
         {!canViewScreeningData && application.latest_screening_decision ? <ScreeningDecisionEntry decision={application.latest_screening_decision} language={screenLanguage} /> : null}
+        {/* Declining belongs with the decision (D-27 of the spec moved it from the overview): the same statuses, evidence_verification and interview_required. */}
+        <DeclineApplicationAction applicationId={applicationId} status={application.status} canDecide={canDecide} declineCategories={state.declineCategories} language={screenLanguage} onDeclined={({ message }) => caseChanged({ message })} />
+      </div>
+    )
+  }
+
+  /*
+   * The entry quiz inside the case (D-09). On the current flow an administrator
+   * starts it here and works it here, in the same panel the assessment page
+   * uses; the full page keeps the Gemini assistant and the admin evaluation.
+   * Other staff read the result. A pre-flow case keeps its assessor work.
+   */
+  function renderEntryQuiz() {
+    if (!newFlow) return renderAssessment()
+    if (!isAdministrator) {
+      const result = application.course_plan?.entry_quiz_result
+      return (
+        <Card>
+          <CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.entryQuiz}</CardTitle></CardHeader>
+          <CardContent className="pt-6"><p className="text-sm font-semibold">{fill(copy.entryQuizResult, { result: copy.quizResults[result] || (result ? result : copy.quizResults.none) })}</p></CardContent>
+        </Card>
+      )
+    }
+    if (!administratorAssessment) {
+      return (
+        <Card>
+          <CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.entryQuiz}</CardTitle><p className="mt-2 text-sm text-[var(--color-text-muted)]">{copy.entryQuizStartLine}</p></CardHeader>
+          <CardContent className="flex justify-end pt-6"><Button onClick={startAdminEvaluation} disabled={action.busy || !['ready_for_assessment', 'remediation_required', 'assessment_in_progress'].includes(application.status)}><ClipboardCheck size={18} />{copy.startEntryQuiz}</Button></CardContent>
+        </Card>
+      )
+    }
+    return (
+      <div className="space-y-4">
+        <DynamicAssessmentPanel assessmentId={administratorAssessment.id} language={screenLanguage} evidence={state.evidence} evidenceDocumentsEnabled={state.evidenceDocumentsEnabled} onOpenCoursePlan={() => showTab('course_plan')} onChanged={entryQuizChanged} />
+        <Link to={`/rpl/assessments/${administratorAssessment.id}`} state={assessmentLinkState('entry_quiz')} className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-primary)] underline underline-offset-2">{copy.fullAssessment}<ExternalLink size={14} aria-hidden="true" /></Link>
       </div>
     )
   }
@@ -686,7 +862,8 @@ export default function RplCaseWorkspacePage() {
   function renderAssessment() {
     return (
       <div className="space-y-6">
-        {isAdministrator ? <Card className="border-sky-200 bg-sky-50/60"><CardHeader className="border-b border-sky-100"><CardTitle>{adminEvaluationCopy.title}</CardTitle><p className="mt-2 flex items-center gap-2 text-sm text-[var(--color-text-muted)]"><ShieldCheck size={17} />{adminEvaluationCopy.hint}</p></CardHeader><CardContent className="flex justify-end pt-6">{administratorAssessment ? <Button onClick={() => navigate(`/rpl/assessments/${administratorAssessment.id}`)}><ClipboardCheck size={18} />{adminEvaluationCopy.open}</Button> : <Button onClick={startAdminEvaluation} disabled={action.busy || !['ready_for_assessment', 'remediation_required', 'assessment_in_progress'].includes(application.status)}><ClipboardCheck size={18} />{adminEvaluationCopy.start}</Button>}</CardContent></Card> : null}
+        <h2 className="text-lg font-bold text-[var(--color-text)]">{copy.assessment}</h2>
+        {isAdministrator ? <Card className="border-sky-200 bg-sky-50/60"><CardHeader className="border-b border-sky-100"><CardTitle>{adminEvaluationCopy.title}</CardTitle><p className="mt-2 flex items-center gap-2 text-sm text-[var(--color-text-muted)]"><ShieldCheck size={17} />{adminEvaluationCopy.hint}</p></CardHeader><CardContent className="flex justify-end pt-6">{administratorAssessment ? <Button onClick={() => openAssessment(administratorAssessment.id)}><ClipboardCheck size={18} />{adminEvaluationCopy.open}</Button> : <Button onClick={startAdminEvaluation} disabled={action.busy || !['ready_for_assessment', 'remediation_required', 'assessment_in_progress'].includes(application.status)}><ClipboardCheck size={18} />{adminEvaluationCopy.start}</Button>}</CardContent></Card> : null}
         {!isAdministrator ? <Card>
           <CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.assessorTitle}</CardTitle><p className="mt-2 flex items-center gap-2 text-sm text-[var(--color-text-muted)]"><ShieldCheck size={17} />{copy.assessorHint}</p></CardHeader>
           <CardContent className="pt-6">
@@ -702,7 +879,7 @@ export default function RplCaseWorkspacePage() {
         </Card> : null}
         <Card>
           <CardHeader className="border-b border-[var(--color-border)]"><CardTitle>{copy.assessments}</CardTitle></CardHeader>
-          <CardContent className="space-y-4 pt-6">{state.assessments.length ? state.assessments.map((item) => <article key={item.id} className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] p-5 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{item.reference_number || <>{copy.assessmentReference} <bdi>#{item.id}</bdi></>}</h3><RplStatusBadge status={item.status} language={language} /></div><p className="mt-2 text-sm text-[var(--color-text-muted)]">{item.assignment?.expert?.user?.name || item.assessor_name || '—'}</p></div><Button variant="outline" onClick={() => navigate(`/rpl/assessments/${item.id}`)}>{copy.openAssessment}</Button></article>) : <p className="py-8 text-center text-[var(--color-text-muted)]">{copy.noAssessments}</p>}</CardContent>
+          <CardContent className="space-y-4 pt-6">{state.assessments.length ? state.assessments.map((item) => <article key={item.id} className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] p-5 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{item.reference_number || <>{copy.assessmentReference} <bdi>#{item.id}</bdi></>}</h3><RplStatusBadge status={item.status} language={language} /></div><p className="mt-2 text-sm text-[var(--color-text-muted)]">{item.assignment?.expert?.user?.name || item.assessor_name || '—'}</p></div><Button variant="outline" onClick={() => openAssessment(item.id)}>{copy.openAssessment}</Button></article>) : <p className="py-8 text-center text-[var(--color-text-muted)]">{copy.noAssessments}</p>}</CardContent>
         </Card>
       </div>
     )
@@ -716,7 +893,7 @@ export default function RplCaseWorkspacePage() {
           <CardContent className="space-y-4 pt-6">
             <Select label={copy.committeeTitle} value={committee.committee_id} onChange={(event) => setCommittee((current) => ({ ...current, committee_id: event.target.value }))}><option value="">—</option>{state.committees.map((item) => <option key={item.id} value={item.id}>{localize(item.name, language)}</option>)}</Select>
             <Select label={copy.decision} value={committee.action_id} onChange={(event) => setCommittee((current) => ({ ...current, action_id: event.target.value }))}><option value="">—</option>{state.committeeActions.map((item) => <option key={item.id} value={item.id}>{localize(item.name, language)}</option>)}</Select>
-            <Select label={copy.recommendedLevel} value={committee.decided_level_id} onChange={(event) => setCommittee((current) => ({ ...current, decided_level_id: event.target.value }))}><option value="">—</option>{state.levels.map((level) => <option key={level.id} value={level.id}>{localize(level.name, language)}</option>)}</Select>
+            <Select label={copy.recommendedLevel} value={committee.decided_level_id} onChange={(event) => setCommittee((current) => ({ ...current, decided_level_id: event.target.value }))}><option value="">—</option>{state.levels.map((level) => <option key={level.id} value={level.id}>{[localize(level.name, language), localize(level.pathwayName, language)].filter(Boolean).join(' · ')}</option>)}</Select>
             <Select label={copy.qualityResult} value={committee.outcome_id} onChange={(event) => setCommittee((current) => ({ ...current, outcome_id: event.target.value }))}><option value="">—</option>{state.outcomes.map((outcome) => <option key={outcome.id} value={outcome.id}>{localize(outcome.name, language)}</option>)}</Select>
             <Textarea label={copy.rationale} rows={6} value={committee.rationale} onChange={(event) => setCommittee((current) => ({ ...current, rationale: event.target.value }))} />
             <Button fullWidth onClick={saveCommittee} disabled={action.busy || !committee.committee_id || !committee.action_id || committee.rationale.trim().length < 20}><Gavel size={18} />{copy.submitDecision}</Button>
@@ -740,33 +917,41 @@ export default function RplCaseWorkspacePage() {
 
   return (
     <section dir={isArabic ? 'rtl' : 'ltr'} className="space-y-7">
-      <PageHeader title={`${copy.title} · ${reference}`} description={copy.description} actions={<><Button variant="outline" onClick={() => navigate('/rpl/applications')}>{isArabic ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}{copy.back}</Button><Button variant="outline" onClick={() => { load(); loadScreenings(); setCaseVersion((current) => current + 1) }}><RefreshCw size={17} />{copy.refresh}</Button></>} />
+      <h1 className="sr-only">{`${copy.title} · ${reference}`}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Button variant="outline" onClick={() => navigate(backHref)}>{isArabic ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}{backLabel}</Button>
+        <Button variant="outline" onClick={() => { load(); loadScreenings(); setCaseVersion((current) => current + 1) }}><RefreshCw size={17} />{copy.refresh}</Button>
+      </div>
 
       <RplPageState loading={state.loading} error={state.error} onRetry={load} language={language}>
         <>
           <Card className="border-0 bg-[var(--color-primary)] text-white">
             <CardContent className="p-6 sm:p-7">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div><p className="text-sm font-semibold text-white/65">{copy.eyebrow}</p><div className="mt-2 flex flex-wrap items-center gap-3"><h2 className="text-2xl font-bold sm:text-3xl">{applicant.name || application.applicant_name || reference}</h2><RplStatusBadge status={application.status} language={language} /></div><p className="mt-2 text-sm text-white/70">{applicant.email || localize(application.pathway?.name, language)}</p></div>
+                <div className="min-w-0"><p className="text-sm font-semibold text-white/65">{copy.eyebrow}</p><div className="mt-2 flex flex-wrap items-center gap-3"><h2 className="text-2xl font-bold sm:text-3xl">{clientId != null && hasPermission('users.view') ? <Link to={`/users/${clientId}`} title={copy.clientPage} className="inline-flex items-center gap-2 underline-offset-4 hover:underline"><bdi>{applicant.name || application.applicant_name || reference}</bdi><ExternalLink size={18} aria-hidden="true" className="opacity-70" /></Link> : <bdi>{applicant.name || application.applicant_name || reference}</bdi>}</h2><RplStatusBadge status={application.status} language={language} /></div>{applicant.email ? <p className="mt-2 text-sm text-white/70"><bdi>{applicant.email}</bdi></p> : null}{pathwayLine ? <p className="mt-1 text-sm text-white/70">{pathwayLine}</p> : null}</div>
                 <div className="rounded-2xl bg-white/10 px-5 py-4"><p className="text-xs font-semibold uppercase tracking-wide text-white/60">{copy.reference}</p><p className="mt-1 text-xl font-bold">{reference}</p></div>
               </div>
             </CardContent>
           </Card>
 
+          {/* A pre-flow case has no stepper: the Next step card names it (its banner sentence would only repeat it). */}
+          {journey.preflow ? null : <JourneyStepper steps={journeySteps(screenLanguage)} states={journey.states} marker={journey.marker} language={screenLanguage} />}
+          <NextStepCard step={nextStep} language={screenLanguage} onOpenTab={openTab} onSubmitRequest={nextStepMove} busy={action.busy} visibleTabs={visibleTabs.map((tab) => tab.key)} />
+
           {state.auxiliaryWarning ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{copy.auxiliaryWarning}</div> : null}
           {action.error || action.success ? <div role="alert" className={`whitespace-pre-line [unicode-bidi:plaintext] rounded-2xl border px-4 py-3 text-sm ${action.error ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700'}`}>{action.error || action.success}</div> : null}
 
           <div className="overflow-x-auto rounded-2xl border border-[var(--color-border)] bg-white p-2">
-            <nav className="flex min-w-max gap-1" aria-label={copy.title}>{visibleTabs.map((tab) => { const Icon = tab.icon; const active = activeTab === tab.key; return <button key={tab.key} type="button" onClick={() => setSearchParams({ tab: tab.key })} className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${active ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'}`} aria-current={active ? 'page' : undefined}><Icon size={17} />{tabLabels[tab.key]}</button> })}</nav>
+            <nav className="flex min-w-max gap-1" aria-label={copy.title}>{visibleTabs.map((tab) => { const Icon = tab.icon; const active = activeTab === tab.key; return <button key={tab.key} type="button" onClick={() => showTab(tab.key)} className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${active ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'}`} aria-current={active ? 'page' : undefined}><Icon size={17} />{tabLabels[tab.key]}</button> })}</nav>
           </div>
 
           {activeTab === 'overview' ? renderOverview() : null}
           {activeTab === 'evidence' ? <EvidenceUploadCenter applicationId={applicationId} evidence={state.evidence} categories={state.categories} referenceCategories={state.referenceCategories} completeness={readApplicationCompleteness(application)} declarationAccepted={declarationAccepted} language={language} canReview onEvidenceChange={(next) => setState((current) => ({ ...current, evidence: next }))} onCompletenessChange={(next) => setState((current) => ({ ...current, application: { ...current.application, completeness: next, completeness_percentage: next?.percentage } }))} onDeclarationChange={(accepted) => setState((current) => ({ ...current, application: { ...current.application, completeness: { ...(current.application?.completeness || {}), declaration: { ...(current.application?.completeness?.declaration || {}), accepted } } } }))} onRefreshRequested={load} /> : null}
-          {activeTab === 'screening' ? <DocumentScreeningPanel applicationId={applicationId} screenings={screening.items} loading={screening.loading} error={screening.error} canRun={canRunScreening} categories={state.categories} language={screenLanguage} onReload={loadScreenings} onScreeningAdded={(created) => setScreening((current) => ({ ...current, items: [created, ...current.items.filter((item) => item.public_id !== created.public_id)] }))} onScreeningUpdated={(updated) => setScreening((current) => ({ ...current, items: current.items.map((item) => (item.public_id === updated.public_id ? updated : item)) }))} /> : null}
           {activeTab === 'decision' ? renderDecision() : null}
-          {activeTab === 'assessment' ? renderAssessment() : null}
+          {activeTab === 'entry_quiz' ? renderEntryQuiz() : null}
           {activeTab === 'course_plan' ? renderCoursePlan() : null}
           {activeTab === 'final_exam' ? renderFinalExam() : null}
+          {activeTab === 'payments' ? renderPayments() : null}
           {activeTab === 'governance' ? renderGovernance() : null}
           {activeTab === 'timeline' ? renderTimeline() : null}
         </>

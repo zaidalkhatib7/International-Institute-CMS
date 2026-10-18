@@ -42,7 +42,7 @@ import { rateMissing } from '../domain/afterQuiz'
 
 const COPY = {
   ar: {
-    title: 'رسوم الشهادة (مسار اللجنة)',
+    title: 'رسوم الشهادة (مسار اللجنة السابق)',
     subtitle: 'سجّل الدفعة المستلمة خارج المنصة. إصدار الشهادة يبقى موقوفًا حتى تُسجَّل. لمسار اللجنة فقط: مدفوعات ما بعد اختبار الدخول، ومنها رسوم شهادة المستوى في مسار الاختبار النهائي، تُؤكَّد في لوحة المدفوعات.',
     paid: 'مدفوعة',
     pending: 'بانتظار الدفع',
@@ -76,7 +76,7 @@ const COPY = {
     noRate: 'لم يُضبط سعر صرف: لا يمكن تسجيل دفعة بالليرة السورية حتى يُضبط. ولا يتأثر الدفع بالدولار.',
   },
   en: {
-    title: 'Certification fee (committee path)',
+    title: 'Certificate fee (pre-flow committee path)',
     subtitle: 'Record a payment received outside the platform. Credential issuance stays blocked until it is recorded. Committee path only: the payments after the entry quiz, the level certification fee of the final-exam path included, are confirmed in the payments panel.',
     paid: 'Paid',
     pending: 'Awaiting payment',
@@ -136,22 +136,9 @@ export default function PaymentReconciliationPanel({ application, language = 'en
   const feeAmount = amountMinorOf(feeMoney) ?? 0
   const isPaid = application.payment_status === 'paid'
 
-  // No fee, no reconciliation. The endpoint refuses it too (422), so offering
-  // the form would only produce a confusing rejection.
-  if (feeAmount <= 0 && !isPaid) {
-    return (
-      <Card>
-        <CardHeader className="border-b border-[var(--color-border)]">
-          <CardTitle className="flex items-center gap-2">
-            <Banknote className="h-5 w-5" aria-hidden="true" /> {copy.title}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <p className="text-sm text-[var(--color-text-muted)]">{copy.noFee}</p>
-        </CardContent>
-      </Card>
-    )
-  }
+  // No fee, no reconciliation, and nothing to show (D-28, 18 Oct 2026): the "no fee due"
+  // card stood on every case. The endpoint refuses a reconciliation without a fee (422).
+  if (feeAmount <= 0 && !isPaid) return null
 
   // What is due now (S17): the dollar amount, and the pounds at today's rate while a rate is set.
   const due = application.committee_fee_due && typeof application.committee_fee_due === 'object' ? application.committee_fee_due : null

@@ -381,7 +381,7 @@ describe('one live entry quiz per application', () => {
       response: { status: 422, data: { message: refusal, errors: { application: [refusal] } } },
     })
 
-    fireEvent.click(await screen.findByRole('button', { name: /Create dynamic assessment/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Create the entry quiz/ }))
 
     await waitFor(() => expect(mocks.createDynamicAssessment).toHaveBeenCalledWith('12'))
     expect(await screen.findByRole('alert')).toHaveTextContent(refusal)

@@ -5,6 +5,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   ArrowLeftRight,
   BadgePercent,
@@ -74,6 +75,7 @@ import {
   updateFinanceSubscription,
 } from "../services/financeService";
 
+const FINANCE_TABS = ["overview", "products", "coupons", "subscriptions", "exchange_rate"];
 const copies = {
   ar: {
     title: "العمليات المالية",
@@ -472,7 +474,21 @@ export default function FinanceOperationsPage() {
   const language = getAdminLanguage();
   const isArabic = language === "ar";
   const copy = copies[language] || copies.en;
-  const [tab, setTab] = useState("overview");
+  // The tab is in the URL (?tab=), so a link can open the exchange rate inside Finance (18 Oct 2026, D-20).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = FINANCE_TABS.includes(searchParams.get("tab")) ? searchParams.get("tab") : "overview";
+  const setTab = useCallback(
+    (value) =>
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          next.set("tab", value);
+          return next;
+        },
+        { replace: true },
+      ),
+    [setSearchParams],
+  );
   const [dashboard, setDashboard] = useState({});
   const [products, setProducts] = useState([]);
   const [coupons, setCoupons] = useState([]);

@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import RplConfigurationPage, { COPY } from './RplConfigurationPage'
@@ -59,7 +60,7 @@ beforeEach(() => {
 })
 
 async function openFeeForm(copy = C) {
-  render(<RplConfigurationPage />)
+  render(<MemoryRouter><RplConfigurationPage /></MemoryRouter>)
   fireEvent.click(await screen.findByRole('button', { name: copy.fees }))
   fireEvent.click(await screen.findByRole('button', { name: copy.add }))
   fireEvent.change(await screen.findByLabelText(copy.pathway), { target: { value: '1' } })
@@ -111,7 +112,7 @@ describe('the Fees tab (US dollars only)', () => {
         { id: 8, rpl_pathway_id: 1, rpl_level_id: 1, amount: '25.00', currency: 'EUR', money: { currency: 'EUR', amount_minor: 2500, amount: '25.00', legacy: true }, usable: false, is_active: true },
       ],
     })
-    render(<RplConfigurationPage />)
+    render(<MemoryRouter><RplConfigurationPage /></MemoryRouter>)
     fireEvent.click(await screen.findByRole('button', { name: C.fees }))
 
     expect(await screen.findByText('$ 100.00')).toBeInTheDocument()
@@ -122,7 +123,7 @@ describe('the Fees tab (US dollars only)', () => {
 
   it('opens a row in another currency empty, so nothing is converted, and saves it in dollars', async () => {
     mocks.fetchRplConfiguration.mockResolvedValue({ data: [{ id: 8, rpl_pathway_id: 1, rpl_level_id: 1, amount: '25.00', currency: 'EUR', money: { currency: 'EUR', amount_minor: 2500, amount: '25.00', legacy: true }, usable: false, is_active: true }] })
-    render(<RplConfigurationPage />)
+    render(<MemoryRouter><RplConfigurationPage /></MemoryRouter>)
     fireEvent.click(await screen.findByRole('button', { name: C.fees }))
     fireEvent.click(await screen.findByRole('button', { name: C.edit }))
 
@@ -135,7 +136,7 @@ describe('the Fees tab (US dollars only)', () => {
   })
 
   it('tells staff the fee is in US dollars on both paths, in Arabic too, with no points left', async () => {
-    render(<RplConfigurationPage />)
+    render(<MemoryRouter><RplConfigurationPage /></MemoryRouter>)
     fireEvent.click(await screen.findByRole('button', { name: C.fees }))
     expect(await screen.findByText(C.feesFinalExamHint)).toBeInTheDocument()
     expect(C.feesFinalExamHint).toContain('US dollars')

@@ -244,7 +244,7 @@ describe('pass to quiz and start the assessment', () => {
     await waitFor(() => expect(mocks.startAdminRplAssessment).toHaveBeenCalledWith('case-41'))
     expect(mocks.recordRplScreeningDecision).toHaveBeenCalledWith('case-41', { decision: 'pass_to_quiz', rationale: RATIONALE })
     expect(mocks.recordRplScreeningDecision.mock.invocationCallOrder[0]).toBeLessThan(mocks.startAdminRplAssessment.mock.invocationCallOrder[0])
-    await waitFor(() => expect(onDecided).toHaveBeenCalledWith(expect.objectContaining({ assessment: { id: 77 }, failed: false })))
+    await waitFor(() => expect(onDecided).toHaveBeenCalledWith(expect.objectContaining({ assessment: { id: 77 }, failed: false, message: EN.recordedAndStarted })))
   })
 
   it('says the decision stands when the assessment cannot be started', async () => {

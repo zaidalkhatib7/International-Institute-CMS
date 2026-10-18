@@ -1,38 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bell, ChevronDown, LogOut, Menu, Search, Settings, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { getNavigationItems } from '../../routes/navigation'
+import { getNavigationItems, getRouteTitle, hasRouteTitle, findActiveHref, navFromOf } from '../../routes/navigation'
 import { clearAdminToken } from '../../services/tokenStorage'
 import { getAdminLanguage, setAdminLanguage } from '../../services/languageStorage'
 import { logoutAdmin } from '../../features/auth/services/authService'
 import { useAuthorization } from '../../features/auth/context/useAuthorization'
+import { roleLabel } from '../../features/auth/roleLabels'
 import LanguageSlider from '../ui/LanguageSlider'
+import GlobalSearch from './GlobalSearch'
+import useWorkCounts, { resetWorkCounts } from '../../features/dashboard/hooks/useWorkCounts'
+import { formatLocalizedNumber } from '../../utils/localization'
 
 const copyByLanguage = {
   ar: {
     area: 'منصة الاعتماد المهني',
-    search: 'ابحث في الوحدات والطلبات والسجلات...',
-    notifications: 'الرسائل والتنبيهات',
+    search: 'ابحث عن طلب أو عميل أو شاشة…',
+    work: 'أعمال بانتظارك',
     admin: 'مدير النظام',
     role: 'الإدارة المركزية',
-    settings: 'إعدادات النظام',
+    settings: 'إعداداتي',
     logout: 'تسجيل الخروج',
     openMenu: 'فتح القائمة',
     closeSearch: 'إغلاق البحث',
-    overview: 'نظرة عامة',
     interfaceLanguage: 'لغة الواجهة',
   },
   en: {
     area: 'Professional Accreditation Platform',
-    search: 'Search modules, applications, and records...',
-    notifications: 'Messages & notifications',
+    search: 'Find a case, client or screen…',
+    work: 'Work waiting for you',
     admin: 'System administrator',
     role: 'Central administration',
-    settings: 'System settings',
+    settings: 'My settings',
     logout: 'Sign out',
     openMenu: 'Open menu',
     closeSearch: 'Close search',
-    overview: 'Overview',
     interfaceLanguage: 'Interface language',
   },
 }
@@ -43,22 +45,28 @@ export default function AppTopbar({ onMenuToggle }) {
   const menuRef = useRef(null)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
-  const [query, setQuery] = useState('')
   const { user: currentUser, canAccess } = useAuthorization()
   const language = getAdminLanguage()
   const isArabic = language === 'ar'
   const copy = copyByLanguage[language] || copyByLanguage.ar
+  // The bell counts the work waiting for the viewer and opens Today (D-17); it shares the sidebar's read.
+  const counts = useWorkCounts()
+  const workTotal = Number(counts.workTotal) > 0 ? Number(counts.workTotal) : 0
 
-  const navigationItems = useMemo(() => getNavigationItems(canAccess), [canAccess])
-  const activeItem = useMemo(
-    () =>
-      navigationItems.find(
-        (item) =>
-          location.pathname === item.href ||
-          (item.href !== '/dashboard' && location.pathname.startsWith(`${item.href}/`))
-      ),
-    [location.pathname, navigationItems]
-  )
+  /*
+   * The title (PLATFORM-JOURNEY-SPEC §4.7): a row's own page shows the row's
+   * name; a page under a row (a case, a client, an editor) shows its own title;
+   * any other page the active row's name, and Today as the fallback.
+   */
+  const navFrom = navFromOf(location)
+  const pageTitle = useMemo(() => {
+    const items = getNavigationItems(canAccess, { language, pathname: location.pathname, navFrom, preflowWork: counts.preflowWork ?? 0 })
+    const exact = items.find((item) => item.href === location.pathname)
+    if (exact) return exact.name
+    if (hasRouteTitle(location.pathname, navFrom)) return getRouteTitle(location.pathname, language, navFrom)
+    const activeHref = findActiveHref(location.pathname, items, navFrom)
+    return items.find((item) => item.href === activeHref)?.name || getRouteTitle(location.pathname, language, navFrom)
+  }, [canAccess, counts.preflowWork, language, location.pathname, navFrom])
 
   useEffect(() => {
     const closeMenu = (event) => {
@@ -70,23 +78,6 @@ export default function AppTopbar({ onMenuToggle }) {
     document.addEventListener('mousedown', closeMenu)
     return () => document.removeEventListener('mousedown', closeMenu)
   }, [])
-
-  const submitSearch = () => {
-    const normalizedQuery = query.trim().toLocaleLowerCase()
-    if (!normalizedQuery) return
-
-    const matchingItem = navigationItems.find((item) =>
-      item.name.toLocaleLowerCase().includes(normalizedQuery)
-    )
-    navigate(matchingItem?.href || '/dashboard')
-    setQuery('')
-    setIsMobileSearchOpen(false)
-  }
-
-  const handleSearch = (event) => {
-    event.preventDefault()
-    submitSearch()
-  }
 
   const handleLanguageChange = (nextLanguage) => {
     setAdminLanguage(nextLanguage)
@@ -101,11 +92,15 @@ export default function AppTopbar({ onMenuToggle }) {
     }
 
     clearAdminToken()
+    resetWorkCounts()
     navigate('/login')
   }
 
   const displayName = currentUser?.name || currentUser?.email || copy.admin
-  const displayRole = currentUser?.roles?.[0]?.name || currentUser?.roles?.[0] || copy.role
+  const firstRole = currentUser?.roles?.[0]
+  // A role is an object with a name (or only a slug), or a plain slug; never render the object itself.
+  // A known role reads in the interface language (the API names roles in English only).
+  const displayRole = roleLabel(firstRole, language) || copy.role
   const initials = String(displayName)
     .split(/\s+/)
     .filter(Boolean)
@@ -129,34 +124,16 @@ export default function AppTopbar({ onMenuToggle }) {
       <div className="hidden min-w-0 shrink-0 xl:block">
         <p className="truncate text-xs font-medium text-[var(--color-text-muted)]">{copy.area}</p>
         <p className="truncate text-base font-bold text-[var(--color-primary)]">
-          {activeItem?.name || copy.overview}
+          {pageTitle}
         </p>
       </div>
 
       <div className="min-w-0 flex-1 md:hidden">
         <p className="truncate text-xs font-medium text-[var(--color-text-muted)]">{copy.area}</p>
-        <p className="truncate text-sm font-bold text-[var(--color-primary)]">{activeItem?.name || copy.overview}</p>
+        <p className="truncate text-sm font-bold text-[var(--color-primary)]">{pageTitle}</p>
       </div>
 
-      <form onSubmit={handleSearch} className="mx-auto hidden w-full max-w-xl md:block">
-        <div className="relative">
-          <Search
-            size={18}
-            className={`absolute top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] ${
-              isArabic ? 'right-4' : 'left-4'
-            }`}
-          />
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={copy.search}
-            className={`h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)] focus:bg-white ${
-              isArabic ? 'pr-11 pl-4' : 'pl-11 pr-4'
-            }`}
-          />
-        </div>
-      </form>
+      <GlobalSearch className="mx-auto hidden w-full max-w-xl md:block" />
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         <button
@@ -178,12 +155,17 @@ export default function AppTopbar({ onMenuToggle }) {
 
         <button
           type="button"
-          onClick={() => navigate('/notifications')}
-          className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-primary)]"
-          title={copy.notifications}
-          aria-label={copy.notifications}
+          onClick={() => navigate('/dashboard')}
+          className="relative flex h-10 w-10 items-center justify-center rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-primary)]"
+          title={copy.work}
+          aria-label={workTotal ? `${copy.work}: ${formatLocalizedNumber(workTotal, language)}` : copy.work}
         >
-          <Bell size={19} />
+          <Bell size={19} aria-hidden="true" />
+          {workTotal ? (
+            <span data-testid="work-badge" aria-hidden="true" className="absolute -top-0.5 end-0 inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--color-secondary)] px-1 text-[11px] font-bold leading-5 text-[var(--color-primary)]">
+              {formatLocalizedNumber(workTotal, language)}
+            </span>
+          ) : null}
         </button>
 
         <div className="relative" ref={menuRef}>
@@ -236,11 +218,10 @@ export default function AppTopbar({ onMenuToggle }) {
       </div>
 
       {isMobileSearchOpen ? (
-        <form onSubmit={handleSearch} className="absolute inset-x-3 top-3 z-50 flex h-14 items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white p-1.5 shadow-[var(--shadow-floating)] md:hidden">
-          <Search size={18} className="ms-3 shrink-0 text-[var(--color-text-muted)]" />
-          <input autoFocus type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={copy.search} className="min-w-0 flex-1 bg-transparent px-1 text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]" />
+        <div className="absolute inset-x-3 top-3 z-50 flex h-14 items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white p-1.5 shadow-[var(--shadow-floating)] md:hidden">
+          <GlobalSearch autoFocus className="min-w-0 flex-1" onDone={() => setIsMobileSearchOpen(false)} />
           <button type="button" onClick={() => setIsMobileSearchOpen(false)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]" aria-label={copy.closeSearch}><X size={18} /></button>
-        </form>
+        </div>
       ) : null}
     </header>
   )

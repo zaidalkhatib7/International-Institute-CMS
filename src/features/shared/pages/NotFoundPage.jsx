@@ -7,8 +7,8 @@ export default function NotFoundPage() {
   const language = getAdminLanguage()
   const isArabic = language === 'ar'
   const copy = {
-    ar: { title: 'الصفحة غير موجودة', description: 'الرابط الذي طلبته غير متاح ضمن نظام ICPC الحالي.', back: 'العودة إلى النظرة العامة' },
-    en: { title: 'Page not found', description: 'The requested link is not available in the current ICPC system.', back: 'Back to overview' },
+    ar: { title: 'الصفحة غير موجودة', description: 'الرابط الذي طلبته غير متاح في المنصة.', back: 'العودة إلى اليوم' },
+    en: { title: 'Page not found', description: 'The link you asked for is not available on the platform.', back: 'Back to Today' },
   }[language]
   const BackIcon = isArabic ? ArrowRight : ArrowLeft
 

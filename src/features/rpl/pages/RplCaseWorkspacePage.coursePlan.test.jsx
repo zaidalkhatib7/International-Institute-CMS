@@ -171,6 +171,14 @@ describe('the course plan tab', () => {
 
     fireEvent.click(tabButton())
     await waitFor(() => expect(mocks.fetchRplCoursePlan).toHaveBeenCalledWith('case-41'))
+    // With no recorded gaps the cross-check says nothing, and its column gives way (D-29).
+    await waitFor(() => expect(mocks.fetchGapClosurePlan).toHaveBeenCalled())
+    expect(screen.queryByText(/A deterministic cross-check from the recorded gaps, not the course plan/)).not.toBeInTheDocument()
+  })
+
+  it('keeps the gap cross-check beside the plan when the case has gaps', async () => {
+    mocks.fetchGapClosurePlan.mockResolvedValue({ data: { gap_count: 2, recommended_packages: [], uncovered_gaps: [], unresolvable_gaps: [], progress: { total_gaps: 2, closable_by_catalogue: 1, percentage: 50 } } })
+    renderCase('/rpl/applications/case-41?tab=course_plan')
     // The gap closure engine sits beside the plan as a cross-check, never the plan.
     expect(await screen.findByText(/A deterministic cross-check from the recorded gaps, not the course plan/)).toBeInTheDocument()
   })
@@ -307,7 +315,16 @@ describe('the course plan beside the staff decision', () => {
     renderCase()
 
     await screen.findByText('Case summary')
-    expect(tabNames()).toEqual(['Overview', 'Evidence & verification', SCREENING_COPY.en.tab, DT.tab, 'Assessment & assessors', EN.tab, 'Committee & quality', 'Timeline'])
+    // The journey's order (D-10, D-12): the screen and the decision are one tab; the committee forms are absent outside their statuses.
+    expect(tabNames()).toEqual(['Overview', 'Documents', DT.tab, 'Assessment (pre-flow)', EN.tab, 'History'])
+    expect(tabNames()).not.toContain(SCREENING_COPY.en.tab)
+  })
+
+  it('names the entry quiz tab once the case is on the current flow', async () => {
+    mocks.fetchRplApplication.mockResolvedValue({ data: application({ latest_screening_decision: { id: 1, decision: 'pass_to_quiz' } }) })
+    renderCase()
+    await screen.findByText('Case summary')
+    expect(tabNames()).toEqual(['Overview', 'Documents', DT.tab, 'Entry quiz', EN.tab, 'History'])
   })
 
   it('puts the course plan card after the latest decision on the overview', async () => {
@@ -327,16 +344,14 @@ describe('the course plan beside the staff decision', () => {
     mocks.fetchRplApplication.mockResolvedValue({ data: application({ status, allowed_transitions: [], course_plan: { entry_quiz_result: 'passed', draft_version: status === 'course_plan_review' ? 1 : null, in_force_version: status === 'course_plan_active' ? 1 : null, has_plan: true } }) })
     renderCase()
 
-    const select = await screen.findByLabelText('Next status')
-    expect(select).toBeDisabled()
-    expect(within(select).getAllByRole('option').map((option) => option.value)).toEqual([''])
+    // No move offered: no hand status form, and no decline here; the Next step opens the course plan.
+    const next = await screen.findByRole('region', { name: 'Next step' })
+    expect(screen.queryByLabelText('Next status')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: DECLINE_COPY.en.action })).not.toBeInTheDocument()
     expect(tabButton()).toBeInTheDocument()
-    // The hint points to the course plan tab, never to P3's decision, interview or decline actions.
-    const hint = status === 'course_plan_review' ? EN.noTransitionsReview : EN.noTransitionsActive
-    expect(screen.getByText(hint)).toBeInTheDocument()
-    expect(select).toHaveAccessibleDescription(hint)
-    expect(screen.queryByText(/decision, interview or decline/)).not.toBeInTheDocument()
+    expect(within(next).getByText(status === 'course_plan_review' ? 'Review and approve the course plan (version 1).' : 'The client is studying the approved courses in the plan.')).toBeInTheDocument()
+    fireEvent.click(within(next).getByRole('button', { name: EN.tab }))
+    expect(tabButton()).toHaveAttribute('aria-current', 'page')
   })
 
   it.each(['course_plan_review', 'course_plan_active'])('points to the course plan tab in Arabic while the case is in %s', async (status) => {
@@ -344,21 +359,19 @@ describe('the course plan beside the staff decision', () => {
     mocks.fetchRplApplication.mockResolvedValue({ data: application({ status, allowed_transitions: [], course_plan: { entry_quiz_result: 'passed', draft_version: status === 'course_plan_review' ? 1 : null, in_force_version: status === 'course_plan_active' ? 1 : null, has_plan: true } }) })
     renderCase()
 
-    const hint = status === 'course_plan_review' ? COURSE_PLAN_COPY.ar.noTransitionsReview : COURSE_PLAN_COPY.ar.noTransitionsActive
-    expect(await screen.findByText(hint)).toBeInTheDocument()
-    expect(screen.queryByText(/المقابلة أو الرفض/)).not.toBeInTheDocument()
+    const next = await screen.findByRole('region', { name: 'الخطوة التالية' })
+    expect(within(next).getByText(status === 'course_plan_review' ? 'راجع خطة الدورات (الإصدار 1) واعتمدها.' : 'يدرس العميل الدورات المعتمدة في خطته.')).toBeInTheDocument()
+    expect(within(next).getByRole('button', { name: COURSE_PLAN_COPY.ar.tab })).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('undefined')
   })
 
-  it('keeps the decision, interview and decline sentence for a status outside the course plan', async () => {
-    mocks.fetchRplApplication.mockResolvedValue({ data: application({ status: 'assessment_in_progress', allowed_transitions: [] }) })
+  it('falls back to the status sentence for an open case in no queue', async () => {
+    mocks.fetchRplApplication.mockResolvedValue({ data: application({ status: 'assessment_in_progress', allowed_transitions: [], work_queue: null }) })
     renderCase()
 
-    const select = await screen.findByLabelText('Next status')
-    expect(select).toBeDisabled()
-    expect(screen.getByText('No other status can be set from here. Use the decision, interview or decline actions.')).toBeInTheDocument()
-    expect(screen.queryByText(EN.noTransitionsReview)).not.toBeInTheDocument()
-    expect(screen.queryByText(EN.noTransitionsActive)).not.toBeInTheDocument()
+    const next = await screen.findByRole('region', { name: 'Next step' })
+    expect(within(next).getByText('Assessment in progress. No defined next step right now.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Next status')).not.toBeInTheDocument()
   })
 
   it('re-reads only the case and its timeline after a course plan act', async () => {

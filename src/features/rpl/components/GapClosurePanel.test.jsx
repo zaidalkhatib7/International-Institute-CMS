@@ -165,3 +165,34 @@ describe('GapClosurePanel as a cross-check', () => {
     expect(document.body.textContent).not.toContain('undefined')
   })
 })
+
+/*
+ * D-29 (18 Oct 2026): beside the course plan, a cross-check with no gaps renders
+ * nothing and tells the page, so its column gives way; outside the plan (no
+ * crossCheck) "no gaps" is still said.
+ */
+describe('the cross-check beside the course plan', () => {
+  it('renders nothing and reports itself empty when there are no gaps', async () => {
+    mocks.fetchGapClosurePlan.mockResolvedValue(plan({ gap_count: 0, recommended_packages: [], progress: { total_gaps: 0, closable_by_catalogue: 0, percentage: 100 } }))
+    const onEmptyChange = vi.fn()
+    const { container } = render(<GapClosurePanel applicationPublicId="case-1" language="en" crossCheck onEmptyChange={onEmptyChange} />)
+
+    await waitFor(() => expect(onEmptyChange).toHaveBeenLastCalledWith(true))
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('keeps the panel when there are gaps', async () => {
+    mocks.fetchGapClosurePlan.mockResolvedValue(plan())
+    const onEmptyChange = vi.fn()
+    render(<GapClosurePanel applicationPublicId="case-1" language="en" crossCheck onEmptyChange={onEmptyChange} />)
+
+    expect(await screen.findByText(/A deterministic cross-check/)).toBeInTheDocument()
+    expect(onEmptyChange).not.toHaveBeenCalledWith(true)
+  })
+
+  it('still says "no gaps" outside the course plan', async () => {
+    mocks.fetchGapClosurePlan.mockResolvedValue(plan({ gap_count: 0, recommended_packages: [] }))
+    render(<GapClosurePanel applicationPublicId="case-1" language="en" />)
+    expect(await screen.findByText(/No gaps recorded for this case yet/)).toBeInTheDocument()
+  })
+})

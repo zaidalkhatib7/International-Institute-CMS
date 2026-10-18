@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, BookOpenCheck, CheckCircle2, Edit3, RefreshCw, Search, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -18,6 +18,8 @@ import { getAdminLanguage } from '../../../services/languageStorage'
 import { formatLocalizedList, formatLocalizedNumber, pickText } from '../../../utils/localization'
 import { updateAdminProgram } from '../../programs/services/programsService'
 import { fetchRplSourceOfTruth } from '../../rpl/services/rplService'
+import { AuthorizationContext } from '../../auth/context/authorizationContext'
+import { getRouteAccess } from '../../../routes/routeAccess'
 import { fetchCompetencyFramework, fetchCompetencyGapPrograms } from '../services/competencyFrameworkService'
 import CompetencyDictionaryAuthoring from '../components/CompetencyDictionaryAuthoring'
 
@@ -37,7 +39,7 @@ const copyByLanguage = {
     behaviours: 'السلوكيات المهنية', abilities: 'القدرات', indicators: 'مؤشرات الأداء', outcomes: 'مخرجات البرنامج', contentStatus: 'حالة المحتوى',
     governedIdentity: 'الهوية المحكومة', officialCode: 'الرمز الرسمي', group: 'المجموعة', accreditedHours: 'الساعات المعتمدة', hours: 'ساعة',
     learningMaterial: 'إدارة المادة العلمية', questionBank: 'إدارة بنك الأسئلة', loadError: 'تعذر تحميل مكتبة سد فجوات الكفاءات.',
-    rplPathways: 'مسارات RPL المسموح بها', rplPathwaysHint: 'حدد بدقة من يمكن أن يوصيه Gemini بهذا البرنامج. اختر المسارين فقط إذا كان البرنامج مناسبًا فعليًا لكليهما.', noPathway: 'لن يصل إلى Gemini حتى تحديد مسار RPL.',
+    rplPathways: 'المسارات المسموح بها', pathwaysReadOnly: 'يحدّد المسارات من يدير إعدادات المسار.', pathwaysFailed: 'تعذّر تحميل المسارات.', retryPathways: 'إعادة المحاولة', rplPathwaysHint: 'حدد بدقة من يمكن أن يوصيه Gemini بهذا البرنامج. اختر المسارين فقط إذا كان البرنامج مناسبًا فعليًا لكليهما.', noPathway: 'لن يصل إلى Gemini حتى تحديد مسار.',
   },
   en: {
     eyebrow: 'Competency-based learning', title: 'International Competency Gap Learning Library',
@@ -54,7 +56,7 @@ const copyByLanguage = {
     behaviours: 'Professional behaviours', abilities: 'Abilities', indicators: 'Performance indicators', outcomes: 'Programme outcomes', contentStatus: 'Content status',
     governedIdentity: 'Governed identity', officialCode: 'Official code', group: 'Group', accreditedHours: 'Accredited hours', hours: 'hours',
     learningMaterial: 'Manage learning material', questionBank: 'Manage question bank', loadError: 'Unable to load the competency gap library.',
-    rplPathways: 'Allowed RPL pathways', rplPathwaysHint: 'Choose exactly which applicants Gemini may recommend this programme to. Select both only when it genuinely fits both pathways.', noPathway: 'Unavailable to Gemini until an RPL pathway is mapped.',
+    rplPathways: 'Allowed pathways', pathwaysReadOnly: 'Pathways are set by staff who manage the path settings.', pathwaysFailed: 'The pathways could not be loaded.', retryPathways: 'Retry', rplPathwaysHint: 'Choose exactly which applicants Gemini may recommend this programme to. Select both only when it genuinely fits both pathways.', noPathway: 'Unavailable to Gemini until an RPL pathway is mapped.',
   },
 }
 
@@ -120,6 +122,10 @@ function Readiness({ readiness, copy, language }) {
 
 export default function CompetencyGapLibraryPage() {
   const language = getAdminLanguage(); const copy = copyByLanguage[language] || copyByLanguage.en; const navigate = useNavigate()
+  // Read without requiring the provider; a button to a page the viewer cannot open is not offered.
+  const authorization = useContext(AuthorizationContext); const canAccess = authorization?.canAccess || (() => true)
+  // The rules reference is read only by whoever may open it (rpl.settings.manage); the server refuses anyone else.
+  const canReadRules = canAccess(getRouteAccess('/rpl/source-of-truth'))
   const [state, setState] = useState({ loading: true, error: '', competencies: [], groups: [], programs: [], pathways: [] })
   const [filters, setFilters] = useState({ group: 'all', status: 'all', search: '' })
   const [editor, setEditor] = useState(null); const [form, setForm] = useState(null); const [editLanguage, setEditLanguage] = useState('ar')
@@ -128,10 +134,14 @@ export default function CompetencyGapLibraryPage() {
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: '' }))
     try {
-      const [framework, programs, rplSource] = await Promise.all([fetchCompetencyFramework(), fetchCompetencyGapPrograms(), fetchRplSourceOfTruth()])
-      setState({ loading: false, error: '', competencies: framework?.competencies || [], groups: (framework?.groups || []).filter((group) => group.is_active), programs: (Array.isArray(programs) ? programs : []).filter((program) => program.official_code), pathways: rplSource?.pathways || [] })
+      // The rules reference needs rpl.settings.manage (D1, 18 Oct 2026): without it the page still loads,
+      // the pathways card reads only, and a save keeps the programme's pathways as they are.
+      // A refused read (403) means the viewer may not set pathways; any other failure is a read to retry.
+      let pathwaysRefused = !canReadRules
+      const [framework, programs, rplSource] = await Promise.all([fetchCompetencyFramework(), fetchCompetencyGapPrograms(), canReadRules ? fetchRplSourceOfTruth().catch((error) => { pathwaysRefused = error?.response?.status === 403; return null }) : Promise.resolve(null)])
+      setState({ loading: false, error: '', competencies: framework?.competencies || [], groups: (framework?.groups || []).filter((group) => group.is_active), programs: (Array.isArray(programs) ? programs : []).filter((program) => program.official_code), pathways: rplSource?.pathways || [], pathwaysLoaded: rplSource != null, pathwaysRefused })
     } catch (error) { setState((current) => ({ ...current, loading: false, error: readApiError(error, copy.loadError) })) }
-  }, [copy.loadError])
+  }, [copy.loadError, canReadRules])
 
   useEffect(() => { load() }, [load])
 
@@ -174,8 +184,8 @@ export default function CompetencyGapLibraryPage() {
     {editor && form ? <div className="fixed inset-0 z-[80] flex justify-end bg-slate-950/45" role="dialog" aria-modal="true"><div className="h-full w-full max-w-3xl overflow-y-auto bg-[var(--color-background)] shadow-2xl"><div className="sticky top-0 z-10 flex items-start justify-between border-b border-[var(--color-border)] bg-white p-6"><div><h2 className="text-2xl font-bold">{copy.editorTitle}</h2><p className="mt-1 text-sm text-[var(--color-text-muted)]">{copy.editorDescription}</p></div><Button size="icon" variant="ghost" onClick={()=>setEditor(null)} aria-label={copy.close}><X/></Button></div><div className="space-y-6 p-6">
       <Card><CardHeader><CardTitle>{copy.governedIdentity}</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3"><div><p className="text-xs text-[var(--color-text-muted)]">{copy.officialCode}</p><b>{editor.official_code}</b></div><div><p className="text-xs text-[var(--color-text-muted)]">{copy.group}</p><b>{editor.competency_gap_group?.code}</b></div><div><p className="text-xs text-[var(--color-text-muted)]">{copy.accreditedHours}</p><b>{editor.accredited_hours} {copy.hours}</b></div></CardContent></Card>
       <Card><CardContent className="space-y-5 p-6"><div className="flex flex-wrap items-center justify-between gap-3"><b>{copy.language}</b><div className="flex rounded-xl bg-[var(--color-surface-muted)] p-1">{['ar','en'].map((locale)=><button key={locale} type="button" onClick={()=>setEditLanguage(locale)} className={`rounded-lg px-4 py-2 text-sm font-bold uppercase ${editLanguage===locale?'bg-white shadow-sm':''}`}>{locale}</button>)}</div></div>{[['title',copy.titleField,1],['short_description',copy.summary,3],['objective',copy.objective,3],['knowledge',copy.knowledge,4],['skills',copy.skills,4],['professional_behaviours',copy.behaviours,4],['abilities',copy.abilities,4],['performance_indicators',copy.indicators,4],['outcomes',copy.outcomes,4]].map(([field,label,rows])=><div key={field}>{rows===1?<Input dir={editLanguage === 'ar' ? 'rtl' : 'ltr'} label={label} value={form[field][editLanguage]} onChange={(e)=>updateLocalized(field,e.target.value)} />:<Textarea dir={editLanguage === 'ar' ? 'rtl' : 'ltr'} label={label} rows={rows} value={form[field][editLanguage]} onChange={(e)=>updateLocalized(field,e.target.value)} />}</div>)}</CardContent></Card>
-      <Card><CardHeader><CardTitle>{copy.rplPathways}</CardTitle><p className="mt-2 text-sm text-[var(--color-text-muted)]">{copy.rplPathwaysHint}</p></CardHeader><CardContent className="grid gap-3 p-6 pt-0 sm:grid-cols-2">{state.pathways.map((pathway)=><label key={pathway.id} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 ${form.rpl_pathway_ids.includes(Number(pathway.id))?'border-sky-400 bg-sky-50':'border-[var(--color-border)]'}`}><input type="checkbox" className="mt-1" checked={form.rpl_pathway_ids.includes(Number(pathway.id))} onChange={(event)=>setForm((current)=>({...current,rpl_pathway_ids:event.target.checked?[...current.rpl_pathway_ids,Number(pathway.id)]:current.rpl_pathway_ids.filter((id)=>id!==Number(pathway.id))}))}/><span><b>{pickText(pathway.name,language)}</b><small className="mt-1 block text-[var(--color-text-muted)]">{pathway.code}</small></span></label>)}{!form.rpl_pathway_ids.length?<p className="text-sm font-semibold text-amber-700 sm:col-span-2">{copy.noPathway}</p>:null}</CardContent></Card>
-      <Card><CardContent className="space-y-4 p-6"><Select label={copy.contentStatus} value={form.content_status} onChange={(e)=>setForm((f)=>({...f,content_status:e.target.value}))}><option value="draft">{copy.draft}</option><option value="review">{copy.review}</option><option value="ready">{copy.readyStatus}</option><option value="published" disabled={!editor.catalog_readiness?.is_ready}>{copy.published}</option><option value="archived">{copy.archived}</option></Select><Readiness readiness={editor.catalog_readiness} copy={copy} language={language}/><div className="flex flex-wrap gap-3"><Button variant="outline" onClick={()=>navigate(`/sections?program_id=${editor.id}`)}><BookOpenCheck size={17}/>{copy.learningMaterial}</Button><Button variant="outline" onClick={()=>navigate(`/quizzes?program_id=${editor.id}`)}>{copy.questionBank}</Button></div></CardContent></Card>
+      <Card><CardHeader><CardTitle>{copy.rplPathways}</CardTitle><p className="mt-2 text-sm text-[var(--color-text-muted)]">{copy.rplPathwaysHint}</p></CardHeader><CardContent className="grid gap-3 p-6 pt-0 sm:grid-cols-2">{!state.pathwaysLoaded ? (!state.pathwaysRefused ? <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 sm:col-span-2"><span>{copy.pathwaysFailed}</span><Button size="sm" variant="outline" onClick={load}>{copy.retryPathways}</Button></div> : <p className="text-sm leading-6 text-[var(--color-text-muted)] sm:col-span-2">{copy.pathwaysReadOnly}</p>) : null}{state.pathways.map((pathway)=><label key={pathway.id} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 ${form.rpl_pathway_ids.includes(Number(pathway.id))?'border-sky-400 bg-sky-50':'border-[var(--color-border)]'}`}><input type="checkbox" className="mt-1" checked={form.rpl_pathway_ids.includes(Number(pathway.id))} onChange={(event)=>setForm((current)=>({...current,rpl_pathway_ids:event.target.checked?[...current.rpl_pathway_ids,Number(pathway.id)]:current.rpl_pathway_ids.filter((id)=>id!==Number(pathway.id))}))}/><span><b>{pickText(pathway.name,language)}</b><small className="mt-1 block text-[var(--color-text-muted)]">{pathway.code}</small></span></label>)}{state.pathwaysLoaded && !form.rpl_pathway_ids.length?<p className="text-sm font-semibold text-amber-700 sm:col-span-2">{copy.noPathway}</p>:null}</CardContent></Card>
+      <Card><CardContent className="space-y-4 p-6"><Select label={copy.contentStatus} value={form.content_status} onChange={(e)=>setForm((f)=>({...f,content_status:e.target.value}))}><option value="draft">{copy.draft}</option><option value="review">{copy.review}</option><option value="ready">{copy.readyStatus}</option><option value="published" disabled={!editor.catalog_readiness?.is_ready}>{copy.published}</option><option value="archived">{copy.archived}</option></Select><Readiness readiness={editor.catalog_readiness} copy={copy} language={language}/><div className="flex flex-wrap gap-3">{canAccess(getRouteAccess('/sections')) ? <Button variant="outline" onClick={()=>navigate(`/sections?program_id=${editor.id}`)}><BookOpenCheck size={17}/>{copy.learningMaterial}</Button> : null}{canAccess(getRouteAccess('/quizzes')) ? <Button variant="outline" onClick={()=>navigate(`/quizzes?program_id=${editor.id}`)}>{copy.questionBank}</Button> : null}</div></CardContent></Card>
       {message?<div className="rounded-xl bg-[var(--color-surface-muted)] p-4 text-sm">{message}</div>:null}<div className="flex justify-end gap-3"><Button variant="outline" onClick={()=>setEditor(null)}>{copy.close}</Button><Button onClick={save} disabled={saving}>{saving?copy.saving:copy.save}</Button></div>
     </div></div></div>:null}
   </div>

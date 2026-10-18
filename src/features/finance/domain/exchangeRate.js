@@ -1,4 +1,5 @@
 import { normalizeDigits } from '../../../utils/money'
+import { getRouteAccess } from '../../../routes/routeAccess'
 
 /*
  * THE USD -> SYP EXCHANGE RATE (owner decisions of 17 Oct 2026; contract S1, S2).
@@ -38,6 +39,20 @@ const MAX_RATE_E4 = 10000000000n
  * administrator, so it cannot tell an admin from a super-admin; this reads the
  * role or the permission itself (the canApproveWording pattern).
  */
+/** The Finance tab that holds the rate, for a viewer who can open Finance. */
+export const FINANCE_EXCHANGE_RATE_HREF = '/finance?tab=exchange_rate'
+/** The page of its own, for a finance or payment role that cannot open Finance. */
+export const STANDALONE_EXCHANGE_RATE_HREF = '/finance/exchange-rate'
+
+/**
+ * Where the rate is read (walk of 18 Oct 2026): one place per viewer. A viewer who
+ * opens Finance reads it in Finance's tab; only a role without Finance gets the
+ * page of its own. `canAccess` is the authorization's route check.
+ */
+export function exchangeRateHref(canAccess) {
+  return typeof canAccess === 'function' && canAccess(getRouteAccess('/finance')) ? FINANCE_EXCHANGE_RATE_HREF : STANDALONE_EXCHANGE_RATE_HREF
+}
+
 export function canManageExchangeRate(authorization) {
   if (!authorization) return false
   const roles = Array.isArray(authorization.roles) ? authorization.roles : []
@@ -112,7 +127,7 @@ export function isRateNoteValid(text) {
 export const EXCHANGE_RATE_COPY = {
   ar: {
     title: 'سعر الصرف',
-    hint: 'لكل ما يُباع سعر واحد بالدولار الأمريكي. يدفع العميل بالليرة السورية السعرَ بالدولار × هذا السعر، مقرّبًا إلى أقرب ليرة صحيحة (يُقرَّب النصف إلى الأعلى)، ويُثبَّت هذا المبلغ على دفعته: لا يغيّر تغييرُ السعر أي دفعة تمت ولا أي رصيد في المحفظة ولا أي سعر بالدولار (قرار المالك، 17 أكتوبر 2026).',
+    hint: 'لكل ما يُباع سعر واحد بالدولار الأمريكي. يدفع العميل بالليرة السورية السعرَ بالدولار × هذا السعر، مقرّبًا إلى أقرب ليرة صحيحة (يُقرَّب النصف إلى الأعلى)، ويُثبَّت هذا المبلغ على دفعته: لا يغيّر تغييرُ السعر أي دفعة تمت ولا أي رصيد في المحفظة ولا أي سعر بالدولار.',
     current: 'السعر الساري',
     setBy: 'ضبطه {name} في {at}',
     source: 'المصدر: {note}',
@@ -154,7 +169,7 @@ export const EXCHANGE_RATE_COPY = {
   },
   en: {
     title: 'Exchange rate',
-    hint: 'Everything is priced once, in US dollars. A client paying in Syrian pounds pays the dollar price × this rate, rounded half up to the whole pound, and that amount is frozen on his payment: changing the rate never changes a payment already made, a wallet balance or a dollar price (owner decision, 17 Oct 2026).',
+    hint: 'Everything is priced once, in US dollars. A client paying in Syrian pounds pays the dollar price × this rate, rounded half up to the whole pound, and that amount is frozen on his payment: changing the rate never changes a payment already made, a wallet balance or a dollar price.',
     current: 'Rate in force',
     setBy: 'Set by {name} on {at}',
     source: 'Source: {note}',

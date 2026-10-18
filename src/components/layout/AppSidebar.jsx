@@ -1,9 +1,9 @@
 import { X } from 'lucide-react'
 import { branding, getBrandText } from '../../config/branding'
-import { getSidebarNavigation } from '../../routes/navigation'
 import { getAdminLanguage } from '../../services/languageStorage'
 import { useAuthorization } from '../../features/auth/context/useAuthorization'
 import SidebarNav from './SidebarNav'
+import useWorkCounts from '../../features/dashboard/hooks/useWorkCounts'
 
 const footerCopy = {
   ar: {
@@ -22,7 +22,8 @@ const footerCopy = {
 
 export default function AppSidebar({ isOpen = false, onClose }) {
   const { canAccess } = useAuthorization()
-  const groups = getSidebarNavigation(canAccess)
+  // The badges (work waiting behind a row) share one cached read with Today and the bell.
+  const counts = useWorkCounts()
   const language = getAdminLanguage()
   const isArabic = language === 'ar'
   const brand = getBrandText(language)
@@ -66,7 +67,7 @@ export default function AppSidebar({ isOpen = false, onClose }) {
         </div>
 
         <nav className="hide-scrollbar flex-1 overflow-y-auto px-4 py-5">
-          <SidebarNav groups={groups} />
+          <SidebarNav canAccess={canAccess} counts={counts} />
         </nav>
 
         <div className="shrink-0 border-t border-white/10 p-4">

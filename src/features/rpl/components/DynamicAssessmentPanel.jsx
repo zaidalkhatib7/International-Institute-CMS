@@ -67,10 +67,10 @@ import EvidenceReadinessNotice from "./EvidenceReadinessNotice";
 
 const copyByLanguage = {
   ar: {
-    title: "التقييم الديناميكي (25–50 سؤالًا)",
+    title: "اختبار الدخول (25–50 سؤالًا)",
     intro:
-      "يولّد Gemini مسودة أسئلة فردية من ملفات المتقدم نفسها ومن فجوات الأدلة، ثم تراجعها وتعدّلها وتعتمدها قبل الإرسال. لا يُرسل أي سؤال تلقائيًا، ولا يجري أي تقييم قبل أن يجيب المتقدم عن كل الأسئلة.",
-    create: "إنشاء التقييم الديناميكي",
+      "يولّد Gemini مسودة أسئلة فردية من ملفات العميل نفسها ومن فجوات الأدلة، ثم تراجعها وتعدّلها وتعتمدها قبل الإرسال. لا يُرسل أي سؤال تلقائيًا، ولا يجري أي تقييم قبل أن يجيب العميل عن كل الأسئلة.",
+    create: "إنشاء اختبار الدخول",
     generate: "توليد الأسئلة عبر Gemini",
     regenerateAll: "إعادة توليد المسودة كاملة",
     generating: "جارٍ التوليد… قد يستغرق حتى دقيقتين",
@@ -91,7 +91,7 @@ const copyByLanguage = {
     reject: "رفض",
     regenerate: "إعادة توليد",
     approveAll: "اعتماد الكل",
-    send: "إرسال إلى المتقدم",
+    send: "إرسال إلى العميل",
     addManual: "إضافة سؤال يدوي",
     addPlaceholder: "نص السؤال اليدوي…",
     add: "إضافة",
@@ -101,10 +101,10 @@ const copyByLanguage = {
     issuedAt: "أُرسل في",
     timeLimit: "المدة",
     minutes: "دقيقة",
-    openedAt: "فتحه المتقدم في",
+    openedAt: "فتحه العميل في",
     dueAt: "الموعد النهائي",
     answeredAt: "سلّم الإجابات في",
-    answer: "إجابة المتقدم",
+    answer: "إجابة العميل",
     noAnswer: "لم يُجب بعد",
     progressTitle: "الإجابات الواردة",
     progressIssued: "مُرسل",
@@ -112,34 +112,34 @@ const copyByLanguage = {
     progressOutstanding: "بلا إجابة",
     progressComplete: "أُجيب عن كل سؤال مُرسل.",
     progressIncomplete:
-      "لا يُقيّم Gemini إلا بعد الإجابة عن كل سؤال مُرسل. أعد فتح النافذة إذا احتاج المتقدم مزيدًا من الوقت.",
-    progressNotSubmitted: "كل الأسئلة لها إجابات، لكن المتقدم لم يسلّمها بعد.",
+      "لا يُقيّم Gemini إلا بعد الإجابة عن كل سؤال مُرسل. أعد فتح النافذة إذا احتاج العميل مزيدًا من الوقت.",
+    progressNotSubmitted: "كل الأسئلة لها إجابات، لكن العميل لم يسلّمها بعد.",
     finalBlocked: "يبقى التقييم النهائي مغلقًا حتى يُجاب عن كل سؤال مُرسل.",
-    reissue: "إعادة الفتح للمتقدم",
+    reissue: "إعادة الفتح للعميل",
     reissueTitle: "إعادة فتح نافذة الإجابة",
-    reissueWhyExpired: "أُغلقت نافذة الإجابة ولم يُكمل المتقدم.",
+    reissueWhyExpired: "أُغلقت نافذة الإجابة ولم يُكمل العميل.",
     reissueWhyNeverOpened:
-      "أُرسل التقييم ولم يفتحه المتقدم مطلقًا، فلم تبدأ المدة الزمنية أصلًا.",
+      "أُرسل التقييم ولم يفتحه العميل مطلقًا، فلم تبدأ المدة الزمنية أصلًا.",
     reissueWhyIncomplete: "هذا التقييم مُعلَّم «تمت الإجابة» ولا تزال فيه أسئلة بلا إجابة.",
     reissueWhyRunning:
-      "لا تزال نافذة الإجابة جارية. لا يُعاد فتحها إلا لعطل تقني موثّق أبلغ عنه المتقدم: تُحفظ الإجابات المقدَّمة، ويتوقف العدّ، ويمنح البدء التالي نافذة كاملة.",
+      "لا تزال نافذة الإجابة جارية. لا يُعاد فتحها إلا لعطل تقني موثّق أبلغ عنه العميل: تُحفظ الإجابات المقدَّمة، ويتوقف العدّ، ويمنح البدء التالي نافذة كاملة.",
     reissueReason: "السبب — يُسجَّل في سجل التدقيق",
-    reissuePlaceholder: "مثال: انقطع اتصال المتقدم أثناء النافذة.",
+    reissuePlaceholder: "مثال: انقطع اتصال العميل أثناء النافذة.",
     reissueNote:
-      "تُحفظ مجموعة الأسئلة وكل إجابة سبق تقديمها. يستأنف المتقدم من حيث توقف ويحصل على نافذة زمنية جديدة كاملة.",
+      "تُحفظ مجموعة الأسئلة وكل إجابة سبق تقديمها. يستأنف العميل من حيث توقف ويحصل على نافذة زمنية جديدة كاملة.",
     reissueConfirm: "إعادة الفتح",
     reissueCancel: "إلغاء",
     reissueDone: "أُعيد فتح التقييم مع الاحتفاظ بالإجابات السابقة.",
     reissueClosedCase:
-      "الطلب مغلق، فلا يُعاد فتح أي اختبار للمتقدم. وتصحّح المنصة الاختبار الذي فتحه عند انتهاء وقته.",
+      "الطلب مغلق، فلا يُعاد فتح أي اختبار للعميل. وتصحّح المنصة الاختبار الذي فتحه عند انتهاء وقته.",
     withdraw: "سحب مجموعة الأسئلة",
-    withdrawTitle: "سحب تقييم لن يُكمله المتقدم",
+    withdrawTitle: "سحب تقييم لن يُكمله العميل",
     withdrawWhy:
-      "ما دامت هناك أسئلة مُرسلة بلا إجابة، يبقى تحليل Gemini مغلقًا على هذه الحالة. السحب هو المخرج حين لا ينوي المتقدم الإجابة.",
+      "ما دامت هناك أسئلة مُرسلة بلا إجابة، يبقى تحليل Gemini مغلقًا على هذه الحالة. السحب هو المخرج حين لا ينوي العميل الإجابة.",
     withdrawNote:
-      "لا يُحذف شيء: تبقى الأسئلة وأي إجابات جزئية في السجل. المجموعة المسحوبة لم تُجب، فهي لا تُحتسب دليلًا ولا فجوة، ولا تفتح تقييمًا لم يُسمع فيه المتقدم.",
+      "لا يُحذف شيء: تبقى الأسئلة وأي إجابات جزئية في السجل. المجموعة المسحوبة لم تُجب، فهي لا تُحتسب دليلًا ولا فجوة، ولا تفتح تقييمًا لم يُسمع فيه العميل.",
     withdrawReason: "السبب — يُسجَّل في سجل التدقيق",
-    withdrawPlaceholder: "مثال: انسحب المتقدم ولن يجيب.",
+    withdrawPlaceholder: "مثال: انسحب العميل ولن يجيب.",
     withdrawConfirm: "سحب",
     withdrawDone: "سُحبت مجموعة الأسئلة؛ حُفظت الأسئلة وأي إجابات في السجل.",
     withdrawnTitle: "مجموعات أسئلة مسحوبة (سجل)",
@@ -160,7 +160,7 @@ const copyByLanguage = {
       draft: "مسودة",
       pending_review: "بانتظار المراجعة",
       approved: "معتمد",
-      issued: "مُرسل للمتقدم",
+      issued: "مُرسل للعميل",
       answered: "تمت الإجابة",
       assessed: "تم التقييم",
       rejected: "مرفوض",
@@ -182,10 +182,10 @@ const copyByLanguage = {
     },
   },
   en: {
-    title: "Dynamic assessment (25–50 questions)",
+    title: "Entry quiz (25–50 questions)",
     intro:
       "Gemini drafts individualised questions from the applicant's own uploaded documents and the evidence gaps; you review, edit, and approve before sending. Nothing is sent automatically, and no evaluation runs until the applicant has answered every question.",
-    create: "Create dynamic assessment",
+    create: "Create the entry quiz",
     generate: "Generate questions with Gemini",
     regenerateAll: "Regenerate full draft",
     generating: "Generating… this can take up to two minutes",
@@ -359,6 +359,10 @@ export default function DynamicAssessmentPanel({
   evidenceDocumentsEnabled = true,
   // P5: the evaluation below seeds the course plan; the page decides where "open it" goes.
   onOpenCoursePlan,
+  // Called after every act that succeeded (create, generate, approve, send, final
+  // evaluation, ...): the case page re-reads the case, so its stepper, its Next
+  // step (the case's work_queue) and the work counts follow the quiz.
+  onChanged,
 }) {
   const copy = copyByLanguage[language] || copyByLanguage.en;
   // The entry-quiz copy (owner, 12 Oct 2026, P4) is Arabic and English only and falls back to English.
@@ -432,6 +436,7 @@ export default function DynamicAssessmentPanel({
       await action();
       await load();
       if (successMessage) setNotice({ error: "", success: successMessage });
+      onChanged?.({ action: name });
     } catch (error) {
       setNotice({ error: apiError(error, "Action failed"), success: "" });
     } finally {

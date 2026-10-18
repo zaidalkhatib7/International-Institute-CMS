@@ -21,14 +21,14 @@ import { projectEvidenceReadability } from '../domain/evidenceReadability'
    key present in en and missing in ar renders the string "undefined". */
 export const COPY = {
   ar: {
-    title: 'ملفات المتقدم التي ستُبنى منها الأسئلة',
+    title: 'ملفات العميل التي ستُبنى منها الأسئلة',
     disabled:
-      'قراءة ملفات المتقدم معطّلة في إعدادات RPL، لذلك ستُبنى الأسئلة على بيانات الملف الوصفية والملف الشخصي المُصرَّح به فقط. لم يُحجب شيء هنا عن غير قصد.',
+      'قراءة ملفات العميل معطّلة في إعدادات المسار المهني، لذلك ستُبنى الأسئلة على بيانات الملف الوصفية والملف الشخصي المُصرَّح به فقط. لم يُحجب شيء هنا عن غير قصد.',
     none: 'لم تُرفع أي أدلة لهذا الطلب بعد، لذلك ستستند الأسئلة إلى بيانات الملف الوصفية والملف الشخصي المُصرَّح به فقط.',
     refused:
-      'تعذّرت قراءة أي ملف من الملفات المرفوعة ({total})، وسيُرفض التوليد. يجب أن تأتي الأسئلة من ملفات المتقدم نفسها، والتوليد من غير أي ملف ينتج أسئلة تبدو مبنية عليها وهي ليست كذلك.',
+      'تعذّرت قراءة أي ملف من الملفات المرفوعة ({total})، وسيُرفض التوليد. يجب أن تأتي الأسئلة من ملفات العميل نفسها، والتوليد من غير أي ملف ينتج أسئلة تبدو مبنية عليها وهي ليست كذلك.',
     refusedRemedy:
-      'اطلب من المتقدم إعادة رفع الملفات المتأثرة بصيغة PDF أو PNG أو JPEG أو WEBP أو HEIC أو HEIF أو نص عادي، ثم ولّد الأسئلة.',
+      'اطلب من العميل إعادة رفع الملفات المتأثرة بصيغة PDF أو PNG أو JPEG أو WEBP أو HEIC أو HEIF أو نص عادي، ثم ولّد الأسئلة.',
     readable: 'ستُقرأ {count} من {total} من الملفات المرفوعة.',
     allReadable: 'ستُقرأ كل الملفات المرفوعة ({total}).',
     withheldTitle: 'محجوبة — لن يراها محرك التحليل',
@@ -46,7 +46,7 @@ export const COPY = {
   en: {
     title: 'The applicant files these questions will be built from',
     disabled:
-      'Reading applicant documents is switched off in RPL settings, so the questions will rest on the case metadata and the declared profile only. Nothing here was withheld by accident.',
+      'Reading applicant documents is switched off in Professional path settings, so the questions will rest on the case metadata and the declared profile only. Nothing here was withheld by accident.',
     none: 'No evidence has been uploaded for this application yet, so the questions will rest on the case metadata and the applicant’s declared profile only.',
     refused:
       'None of the {total} uploaded documents can be read, and generation will be refused. The questions have to come from the applicant’s own files; generating from none of them produces questions that only look as though they were.',

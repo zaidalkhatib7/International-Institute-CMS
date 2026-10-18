@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ProgramQuestionBankPage from './ProgramQuestionBankPage'
 
@@ -77,7 +78,7 @@ async function renderWithCourse(payload) {
   })
   mocks.fetchProgramQuestionBank.mockResolvedValue(payload)
 
-  render(<ProgramQuestionBankPage />)
+  render(<MemoryRouter><ProgramQuestionBankPage /></MemoryRouter>)
   await waitFor(() => expect(mocks.fetchAdminPrograms).toHaveBeenCalled())
 
   // CoursePicker is a search field: type a code, Enter commits a single match.
@@ -193,5 +194,21 @@ describe('ProgramQuestionBankPage — review in place', () => {
 
     expect(await screen.findByText(/Every question has been reviewed|كل الأسئلة روجعت/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^(Approve|اعتماد)$/ })).toBeNull()
+  })
+})
+
+/*
+ * D5 (18 Oct 2026): the course content opens the bank with ?program=, the gap
+ * library with ?program_id=; either preselects the course, and the per-unit quiz
+ * records stay one link away.
+ */
+describe('ProgramQuestionBankPage — opened for a course', () => {
+  it.each([['program'], ['program_id']])('preselects the course named by ?%s=', async (key) => {
+    mocks.fetchAdminPrograms.mockResolvedValue({ data: [{ id: 240, official_code: 'CGP-LED-007', title: { en: 'Leadership' } }] })
+    mocks.fetchProgramQuestionBank.mockResolvedValue(bank([question()]))
+    render(<MemoryRouter initialEntries={[`/quizzes/bank?${key}=240`]}><ProgramQuestionBankPage /></MemoryRouter>)
+
+    await waitFor(() => expect(mocks.fetchProgramQuestionBank).toHaveBeenCalledWith('240'))
+    expect(screen.getByRole('link', { name: /Quiz records|سجلات الاختبارات/ })).toHaveAttribute('href', '/quizzes/units')
   })
 })

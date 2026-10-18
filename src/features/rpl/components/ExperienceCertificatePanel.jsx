@@ -114,7 +114,8 @@ export default function ExperienceCertificatePanel({ applicationId, language, ca
       reset?.()
       setNotice({ error: '', success: successText })
       load({ silent: true })
-      onChangedRef.current?.()
+      // The act and its sentence go with the change, so a list that unmounts this panel can keep the sentence.
+      onChangedRef.current?.({ action: key, message: successText })
     } catch (error) {
       const missing = settingMissingName(error)
       if (isStaleConflict(error, 'rpl_experience_certificate_stale')) {

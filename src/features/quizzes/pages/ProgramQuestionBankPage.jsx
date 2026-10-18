@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Library, Loader2, Search, XCircle } from "lucide-react";
 import {
   Badge,
@@ -45,6 +46,7 @@ import { getCurrentLanguage } from "../../../utils/localization";
 const COPY = {
   ar: {
     title: "بنك أسئلة البرنامج",
+    quizRecords: "سجلات الاختبارات",
     subtitle:
       "كل أسئلة الدورة في بنك واحد — الوحدة عمود للتصفية، لا حاوية منفصلة.",
     program: "الدورة",
@@ -84,6 +86,7 @@ const COPY = {
   },
   en: {
     title: "Programme question bank",
+    quizRecords: "Quiz records",
     subtitle:
       "Every question in the course, in one bank — the unit is a column to filter by, not a separate container.",
     program: "Course",
@@ -137,7 +140,9 @@ export default function ProgramQuestionBankPage() {
   const copy = COPY[language] || COPY.en;
 
   const [programs, setPrograms] = useState([]);
-  const [programId, setProgramId] = useState("");
+  // A link may name the course (?program= from the course content, ?program_id= from the gap library); it is preselected (D5).
+  const [searchParams] = useSearchParams();
+  const [programId, setProgramId] = useState(() => searchParams.get("program") || searchParams.get("program_id") || "");
   const [bank, setBank] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -292,7 +297,8 @@ export default function ProgramQuestionBankPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={copy.title} description={copy.subtitle} />
+      {/* The per-unit quiz records stay reachable from here (§3.4). */}
+      <PageHeader title={copy.title} description={copy.subtitle} actions={<Link to="/quizzes/units" className="inline-flex items-center rounded-xl border border-[var(--color-border)] px-3.5 py-2 text-sm font-semibold text-[var(--color-primary)] hover:bg-[var(--color-surface-muted)]">{copy.quizRecords}</Link>} />
 
       <Card>
         <CardContent className="space-y-4 p-6">

@@ -10,7 +10,7 @@ import {
   Search,
   Trash2,
 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Badge,
   Button,
@@ -217,7 +217,9 @@ export default function SectionsPage() {
   const [sections, setSections] = useState([])
   const [programs, setPrograms] = useState([])
   const [search, setSearch] = useState('')
-  const [programFilter, setProgramFilter] = useState('all')
+  // ?program_id= (from the gap library) preselects the course (D5).
+  const [searchParams] = useSearchParams()
+  const [programFilter, setProgramFilter] = useState(() => searchParams.get('program_id') || 'all')
   const [sortBy, setSortBy] = useState('title')
   const [sortDirection, setSortDirection] = useState('asc')
   const [rowsPerPage, setRowsPerPage] = useState(10)

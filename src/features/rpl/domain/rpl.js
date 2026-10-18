@@ -110,7 +110,7 @@ export const APPLICATION_STATUS = {
   draft: { variant: 'neutral', labels: { ar: 'مسودة', en: 'Draft' } },
   submitted: { variant: 'info', labels: { ar: 'تم الإرسال', en: 'Submitted' } },
   administrative_review: { variant: 'warning', labels: { ar: 'مراجعة إدارية', en: 'Administrative review' } },
-  awaiting_applicant: { variant: 'warning', labels: { ar: 'بانتظار المتقدم', en: 'Awaiting applicant' } },
+  awaiting_applicant: { variant: 'warning', labels: { ar: 'بانتظار العميل', en: 'Awaiting applicant' } },
   evidence_verification: { variant: 'warning', labels: { ar: 'قيد التحقق', en: 'Evidence verification' } },
   // Owner flow of 12 Oct 2026 (P3): staff asked for an interview before the quiz.
   interview_required: { variant: 'warning', labels: { ar: 'مقابلة مطلوبة', en: 'Interview required' } },

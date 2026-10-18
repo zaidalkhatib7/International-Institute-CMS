@@ -19,7 +19,7 @@ import {
   Trash2,
   UserRoundCheck,
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Badge,
   Button,
@@ -73,9 +73,11 @@ import { useAuthorization } from "../../auth/context/useAuthorization";
 
 const copyByLanguage = {
   ar: {
-    title: "لوحة المقيّم",
+    title: "التقييمات",
     description:
-      "إدارة الملفات المحالة، مراجعة الأدلة، تعبئة المعايير، وجدولة المقابلات ورفع التوصية.",
+      "تقييمات المقيّمين لملفات مسار اللجنة السابق. اختبار الدخول للمسار الحالي يُدار من داخل الطلب.",
+    assessors: "المقيّمون",
+    professionalCases: "طلبات المسار المهني",
     assigned: "الملفات المحالة",
     inProgress: "قيد التقييم",
     dueSoon: "تستحق قريبًا",
@@ -83,14 +85,15 @@ const copyByLanguage = {
     search: "بحث في الملفات المحالة...",
     all: "جميع الحالات",
     case: "الملف",
-    applicant: "المتقدم",
+    applicant: "العميل",
     assessor: "المقيّم",
     due: "الموعد",
     status: "الحالة",
     action: "الإجراء",
     open: "فتح التقييم",
-    empty: "لا توجد ملفات تقييم مطابقة.",
-    back: "العودة إلى لوحة المقيّم",
+    empty: "لا توجد تقييمات.",
+    back: "العودة إلى التقييمات",
+    backToCase: "العودة إلى ملف الطلب",
     assessment: "نموذج التقييم الرقمي",
     noAuthority:
       "صلاحية المقيّم تنتهي عند رفع التقرير والتوصية. لا يمكنه إصدار قرار اعتماد أو شهادة.",
@@ -116,7 +119,7 @@ const copyByLanguage = {
     noEvidence: "لا توجد أدلة مرتبطة بالتقييم.",
     interview: "المقابلة المهنية",
     interviewMoved:
-      "تُعرض المقابلات وتُجدول الآن على ملف الطلب، قبل بدء التقييم (قرار المالك في 12 أكتوبر 2026): يختار المتقدم أن تكون عبر الإنترنت أو في المكتب، ثم يحدد الموظفون الموعد. والمقابلات التي جُدولت هنا سابقًا مدرجة هناك أيضًا، وتُسجَّل نتيجتها من هناك.",
+      "تُعرض المقابلات وتُجدول الآن على ملف الطلب، قبل بدء التقييم: يختار العميل أن تكون عبر الإنترنت أو في المكتب، ثم يحدد الموظفون الموعد. والمقابلات التي جُدولت هنا سابقًا مدرجة هناك أيضًا، وتُسجَّل نتيجتها من هناك.",
     openInterviewPanel: "فتح المقابلة في ملف الطلب",
     report: "تقرير المقيّم والتوصية",
     recommendation: "التوصية المهنية المفصلة",
@@ -152,9 +155,11 @@ const copyByLanguage = {
       "مسودة Gemini استشارية فقط. يراجعها المدير ويعدلها، ولا يمكنها التحقق من الأدلة أو إصدار قرار اعتماد أو شهادة.",
   },
   en: {
-    title: "Assessor Workbench",
+    title: "Assessments",
     description:
-      "Manage assigned cases, review evidence, score criteria, schedule interviews, and submit recommendations.",
+      "Assessor work on pre-flow committee cases. The current path's entry quiz is run from inside the case.",
+    assessors: "Assessors",
+    professionalCases: "Professional cases",
     assigned: "Assigned cases",
     inProgress: "In assessment",
     dueSoon: "Due soon",
@@ -168,8 +173,9 @@ const copyByLanguage = {
     status: "Status",
     action: "Action",
     open: "Open assessment",
-    empty: "No assessment cases match the filters.",
-    back: "Back to assessor workbench",
+    empty: "No assessments.",
+    back: "Back to assessments",
+    backToCase: "Back to the case",
     assessment: "Digital assessment form",
     noAuthority:
       "The assessor authority ends with the submitted report and recommendation. The assessor cannot issue an accreditation decision or certificate.",
@@ -197,7 +203,7 @@ const copyByLanguage = {
     noEvidence: "No evidence is mapped to this assessment.",
     interview: "Professional interview",
     interviewMoved:
-      "Interviews are now offered and scheduled on the case, before the assessment starts (owner decision of 12 Oct 2026): the applicant chooses online or at the office, then staff set the time. Interviews scheduled here earlier are listed there too, and their outcome is recorded there.",
+      "Interviews are now offered and scheduled on the case, before the assessment starts: the applicant chooses online or at the office, then staff set the time. Interviews scheduled here earlier are listed there too, and their outcome is recorded there.",
     openInterviewPanel: "Open the interview on the case",
     report: "Assessor report and recommendation",
     recommendation: "Detailed professional recommendation",
@@ -274,16 +280,16 @@ const geminiCopyByLanguage = {
   ar: {
     title: "تقييم Gemini الاستشاري",
     notice:
-      "ينشئ Gemini مسودة استشارية جديدة بلغة الواجهة الحالية من معايير الملف وبيانات الأدلة وحالة التحقق، ومن ملفات المتقدم نفسها حين تسمح الحوكمة بذلك. لا يعمل إلا بعد أن يجيب المتقدم عن كل الأسئلة المُرسلة، ولا يصدر قرار اعتماد.",
+      "ينشئ Gemini مسودة استشارية جديدة بلغة الواجهة الحالية من معايير الملف وبيانات الأدلة وحالة التحقق، ومن ملفات العميل نفسها حين تسمح الحوكمة بذلك. لا يعمل إلا بعد أن يجيب العميل عن كل الأسئلة المُرسلة، ولا يصدر قرار اعتماد.",
     answersTitle: "الإجابات الواردة",
     answersAssessments: "تقييمًا مُرسلًا",
     answersSubmitted: "مُسلَّمًا",
     answersOutstanding: "سؤالًا بلا إجابة",
     answersCaseScope:
-      "يشمل هذا العدّ كل تقييم مُرسل في ملف هذا المتقدم، لا هذا التقييم وحده. القاعدة تخص الشخص: لا يُقيّم Gemini قبل أن يجيب المتقدم عن كل سؤال أُرسل إليه في القضية كلها.",
-    preAnswerAdvisory: "أُنشئت قبل إجابة المتقدم — استشارية فقط",
+      "يشمل هذا العدّ كل تقييم مُرسل في ملف هذا العميل، لا هذا التقييم وحده. القاعدة تخص الشخص: لا يُقيّم Gemini قبل أن يجيب العميل عن كل سؤال أُرسل إليه في القضية كلها.",
+    preAnswerAdvisory: "أُنشئت قبل إجابة العميل — استشارية فقط",
     preAnswerAdvisoryNote:
-      "أُنتجت هذه المسودة قبل أن يجيب المتقدم عن تقييم الكفاءة. تُحفظ كسجل ولا تُحذف، وهي استشارية فقط وليست دليلًا على كفاءة مُقيَّمة. وتحمل ملفات التصدير التنبيه نفسه.",
+      "أُنتجت هذه المسودة قبل أن يجيب العميل عن تقييم الكفاءة. تُحفظ كسجل ولا تُحذف، وهي استشارية فقط وليست دليلًا على كفاءة مُقيَّمة. وتحمل ملفات التصدير التنبيه نفسه.",
     question: "سؤال أو توجيه للمدير",
     placeholder: "مثال: قيّم فجوات الأدلة مقابل معايير التقييم المنشورة.",
     generate: "إنشاء مسودة Gemini",
@@ -298,22 +304,22 @@ const geminiCopyByLanguage = {
     coursesNotPlan:
       "خطة الدورات التي يراها العميل تُبنى وتُعتمد في ملف الطلب، من تقييم الإجابات. هذه القائمة استشارية فقط.",
     openCoursePlan: "فتح خطة الدورات",
-    targetLevel: "هدف الاعتماد الذي اختاره المتقدم",
+    targetLevel: "هدف الاعتماد الذي اختاره العميل",
     targetMethod:
-      "يطبّق Gemini صرامة المستوى المستهدف. بعد اجتياز اختبار الدخول تضم خطة الدورات على الأقل الحد الأدنى من الدورات المحدد لهذا المستوى (قرار المالك، 12 أكتوبر 2026): أولًا الدورات التي تسد الفجوات المثبتة، ثم دورات تقوّي أضعف الجوانب، وتُوسم كل دورة بغرضها.",
+      "يطبّق Gemini صرامة المستوى المستهدف. بعد اجتياز اختبار الدخول تضم خطة الدورات على الأقل الحد الأدنى من الدورات المحدد لهذا المستوى: أولًا الدورات التي تسد الفجوات المثبتة، ثم دورات تقوّي أضعف الجوانب، وتُوسم كل دورة بغرضها.",
     currentReadiness: "الجاهزية الحالية وفق الأدلة",
     readinessReady: "جاهز للمستوى المستهدف",
     readinessPartiallyReady: "جاهز جزئيًا ويحتاج إلى سد فجوات",
     readinessNotReady: "غير جاهز حاليًا للمستوى المستهدف",
     inputsUsed: "ما استند إليه التحليل",
-    documentsRead: "ملفًا من ملفات المتقدم تمت قراءتها",
+    documentsRead: "ملفًا من ملفات العميل تمت قراءتها",
     documentsWithheld: "ملفًا لم تتم قراءته",
     documentsOff: "قراءة الملفات معطّلة — استند التحليل إلى البيانات الوصفية فقط",
     answersRead: "تقييمًا مُجابًا",
     noInputs:
       "لم تُقرأ أي ملفات ولم يُجب أي تقييم بعد، لذا تبقى كل التوصيات مشروطة.",
     groundedIn: "مبنية على",
-    ground_evidence_documents: "ملفات المتقدم",
+    ground_evidence_documents: "ملفات العميل",
     ground_answered_assessment: "إجابات التقييم",
     ground_assessor_findings: "قرارات المقيّم",
     ground_evidence_metadata: "بيانات الأدلة الوصفية",
@@ -356,7 +362,7 @@ const geminiCopyByLanguage = {
     openCoursePlan: "Open the course plan",
     targetLevel: "Applicant-selected accreditation target",
     targetMethod:
-      "Gemini applies the rigor of this target. After a passed entry quiz the course plan holds at least the minimum number of courses set for this level (owner decision, 12 Oct 2026): first the courses that close demonstrated gaps, then courses that strengthen the weakest areas, each labelled with its purpose.",
+      "Gemini applies the rigor of this target. After a passed entry quiz the course plan holds at least the minimum number of courses set for this level: first the courses that close demonstrated gaps, then courses that strengthen the weakest areas, each labelled with its purpose.",
     currentReadiness: "Current evidence-based readiness",
     readinessReady: "Ready for the target level",
     readinessPartiallyReady: "Partially ready; competency gaps remain",
@@ -387,11 +393,11 @@ const geminiCopyByLanguage = {
 const geminiStatusCopyByLanguage = {
   ar: {
     gemini_disabled:
-      "توليد تقييم Gemini متوقف حاليًا من إعدادات RPL. فعّله من إعدادات RPL ثم أعد المحاولة.",
+      "توليد تقييم Gemini متوقف حاليًا من إعدادات المسار المهني. فعّله منها ثم أعد المحاولة.",
     gemini_not_configured:
       "مفتاح Gemini غير مهيأ في الخادم. يجب على مسؤول النظام إكمال إعداد الاتصال.",
     route_mismatch:
-      "لم يعد المتقدم مستوفيًا لأي مسار RPL (مثلاً بانتظار التحقق من الثانوية). راجع المؤهلات ومسار الطلب أولًا.",
+      "لم يعد العميل مستوفيًا لأي مسار RPL (مثلاً بانتظار التحقق من الثانوية). راجع المؤهلات ومسار الطلب أولًا.",
     gemini_connection:
       "تعذر الاتصال بخدمة Gemini. تحقق من اتصال الخادم ثم أعد المحاولة.",
     gemini_unavailable:
@@ -403,21 +409,21 @@ const geminiStatusCopyByLanguage = {
     gemini_incomplete_response:
       "أعاد Gemini مسودة ناقصة لا تستوفي قالب RPL المعتمد. أعد إنشاء المسودة.",
     target_level_required:
-      "يجب تحديد هدف الاعتماد الذي اختاره المتقدم: ممارس مهني أو ممارس مهني متقدم أو خبير مهني، قبل تشغيل Gemini.",
+      "يجب تحديد هدف الاعتماد الذي اختاره العميل: ممارس مهني أو ممارس مهني متقدم أو خبير مهني، قبل تشغيل Gemini.",
     no_assessment_issued:
-      "لم يُرسل إلى هذا المتقدم أي تقييم كفاءة بعد. ولّد الأسئلة من ملفات المتقدم واعتمدها وأرسلها، ودع المتقدم يجيب أولًا.",
+      "لم يُرسل إلى هذا العميل أي تقييم كفاءة بعد. ولّد الأسئلة من ملفات العميل واعتمدها وأرسلها، ودع العميل يجيب أولًا.",
     assessment_not_answered:
-      "لم يُجب المتقدم بعد عن كل الأسئلة المُرسلة. لا يُقيّم Gemini إلا بعد اكتمال الإجابات — أعد فتح التقييم إذا احتاج المتقدم مزيدًا من الوقت.",
+      "لم يُجب العميل بعد عن كل الأسئلة المُرسلة. لا يُقيّم Gemini إلا بعد اكتمال الإجابات — أعد فتح التقييم إذا احتاج العميل مزيدًا من الوقت.",
     evidence_documents_unreadable:
-      "تعذّرت قراءة أي من ملفات المتقدم المرفوعة، فرُفض توليد الأسئلة بدل إنتاج أسئلة تبدو مبنية على الملفات وهي ليست كذلك. اطلب إعادة رفع الملفات المتأثرة بصيغة PDF أو PNG أو JPEG أو نص عادي.",
+      "تعذّرت قراءة أي من ملفات العميل المرفوعة، فرُفض توليد الأسئلة بدل إنتاج أسئلة تبدو مبنية على الملفات وهي ليست كذلك. اطلب إعادة رفع الملفات المتأثرة بصيغة PDF أو PNG أو JPEG أو نص عادي.",
     ai_prefill_advisory_not_answered:
-      "أُنشئت مسودة Gemini هذه قبل أن يجيب المتقدم عن التقييم، فلا يمكن تسجيلها مصدرًا لنتيجة مهنية. أنشئ مسودة جديدة بعد وصول الإجابات.",
+      "أُنشئت مسودة Gemini هذه قبل أن يجيب العميل عن التقييم، فلا يمكن تسجيلها مصدرًا لنتيجة مهنية. أنشئ مسودة جديدة بعد وصول الإجابات.",
     ai_prefill_advisory_mismatch:
       "مسودة Gemini هذه تخص تقييمًا آخر، ولا يمكن تسجيلها مصدرًا لنتيجة في هذا الملف.",
   },
   en: {
     gemini_disabled:
-      "Gemini evaluation generation is disabled in RPL settings. Enable it before trying again.",
+      "Gemini evaluation generation is disabled in Professional path settings. Enable it there before trying again.",
     gemini_not_configured:
       "The Gemini API key is not configured on the server. A system administrator must complete the connection setup.",
     route_mismatch:
@@ -488,6 +494,7 @@ function readGeminiError(error, language) {
 export default function RplAssessmentsPage() {
   const { assessmentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const language = getAdminLanguage();
   const isArabic = language === "ar";
   const copy = copyByLanguage[language] || copyByLanguage.en;
@@ -499,7 +506,8 @@ export default function RplAssessmentsPage() {
   };
   const geminiStatusCopy =
     geminiStatusCopyByLanguage[language] || geminiStatusCopyByLanguage.en;
-  const { isAdministrator } = useAuthorization();
+  const { isAdministrator, hasPermission } = useAuthorization();
+  const canManageAssignments = hasPermission("rpl.assignments.manage");
   const [filters, setFilters] = useState({ search: "", status: "" });
   const [state, setState] = useState({
     loading: true,
@@ -909,7 +917,17 @@ export default function RplAssessmentsPage() {
     ];
     return (
       <section dir={isArabic ? "rtl" : "ltr"} className="space-y-7">
-        <PageHeader title={copy.title} description={copy.description} />
+        {/* Assessors (§3.4): the list of assessors leaves the sidebar and is one link from here. */}
+        <PageHeader
+          title={copy.title}
+          description={copy.description}
+          actions={canManageAssignments ? (
+            <Button variant="outline" onClick={() => navigate("/assessors")}>
+              <UserRoundCheck size={17} />
+              {copy.assessors}
+            </Button>
+          ) : null}
+        />
         <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
           <StatCard
             title={copy.assigned}
@@ -974,6 +992,11 @@ export default function RplAssessmentsPage() {
             columns={columns}
             rows={state.rows}
             emptyText={copy.empty}
+            emptyAction={
+              <Button variant="outline" size="sm" onClick={() => navigate("/rpl/applications")}>
+                {copy.professionalCases}
+              </Button>
+            }
           />
         </RplPageState>
       </section>
@@ -1005,6 +1028,23 @@ export default function RplAssessmentsPage() {
     assessment.application?.evidence ||
     [];
   const applicant = applicantOf(assessment);
+  /*
+   * Back (review of 18 Oct 2026): to the case this page was opened from, with the
+   * list that case came from; else, for the administrator's own assessment (the
+   * entry quiz the case page holds), to its case's entry quiz tab; only an
+   * assessor's pre-flow assessment goes back to the assessments list.
+   */
+  const casePublicId = assessment.application?.public_id;
+  const openedFrom = location.state?.from;
+  const backTarget = openedFrom?.pathname
+    ? {
+        href: `${openedFrom.pathname}${openedFrom.search || ""}`,
+        state: openedFrom.caseFrom ? { from: openedFrom.caseFrom } : null,
+        label: copy.backToCase,
+      }
+    : assessment.rpl_assessor_assignment_id == null && casePublicId
+      ? { href: `/rpl/applications/${casePublicId}?tab=entry_quiz`, state: null, label: copy.backToCase }
+      : { href: "/rpl/assessments", state: null, label: copy.back };
   const findingsComplete =
     criteria.length > 0 &&
     criteria.every(
@@ -1046,10 +1086,10 @@ export default function RplAssessmentsPage() {
         actions={
           <Button
             variant="outline"
-            onClick={() => navigate("/rpl/assessments")}
+            onClick={() => navigate(backTarget.href, backTarget.state ? { state: backTarget.state } : undefined)}
           >
             {isArabic ? <ArrowRight size={17} /> : <ArrowLeft size={17} />}
-            {copy.back}
+            {backTarget.label}
           </Button>
         }
       />

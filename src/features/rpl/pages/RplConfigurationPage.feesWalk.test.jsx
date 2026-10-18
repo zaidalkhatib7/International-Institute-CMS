@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import RplConfigurationPage, { COPY } from './RplConfigurationPage'
@@ -76,7 +77,7 @@ beforeEach(() => {
 afterEach(() => consoleError.mockRestore())
 
 async function openFees() {
-  render(<RplConfigurationPage />)
+  render(<MemoryRouter><RplConfigurationPage /></MemoryRouter>)
   fireEvent.click(await screen.findByRole('button', { name: C.fees }))
   return screen.findByRole('table')
 }

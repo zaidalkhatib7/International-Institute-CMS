@@ -58,7 +58,13 @@ function ReasonField({ id, label, hint, value, onChange, disabled, invalidText }
   return <Textarea id={id} rows={3} label={label} hint={hint} value={value} maxLength={AFTER_QUIZ_LIMITS.reasonMax} error={typed && !isAfterQuizReasonValid(value) ? invalidText : undefined} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
 }
 
-export default function ChargesPanel({ applicationId, language, canReconcile = false, canRefund = false, refreshKey = 0, onChanged }) {
+/*
+ * Queue mode (PLATFORM-JOURNEY-SPEC §4.5, 18 Oct 2026): the Payments to confirm
+ * queue renders this same panel with its own `loader` (the queue read) and
+ * `showCase`, which names each card's case and client, so a payment is confirmed
+ * in the row with the same form, payload and stale handling as on the case.
+ */
+export default function ChargesPanel({ applicationId, language, canReconcile = false, canRefund = false, refreshKey = 0, onChanged, loader = null, showCase = false, renderCase = null, title = null, hint, emptyText = null }) {
   const copy = afterQuizCopy(language)
   const text = copy.charges
   const [state, setState] = useState({ loading: true, error: '', forbidden: false, charges: [] })
@@ -72,17 +78,23 @@ export default function ChargesPanel({ applicationId, language, canReconcile = f
     onChangedRef.current = onChanged
   }, [onChanged])
 
+  const loaderRef = useRef(loader)
+  useEffect(() => {
+    loaderRef.current = loader
+  }, [loader])
+  const queueMode = typeof loader === 'function'
+
   const load = useCallback(async ({ silent = false } = {}) => {
-    if (!applicationId) return
+    if (!applicationId && !queueMode) return
     if (!silent) setState((current) => ({ ...current, loading: true, error: '' }))
     try {
-      const charges = unwrapCollection(await fetchRplCharges(applicationId))
+      const charges = unwrapCollection(await (queueMode ? loaderRef.current() : fetchRplCharges(applicationId)))
       setState({ loading: false, error: '', forbidden: false, charges })
     } catch (error) {
       if (Number(error?.response?.status) === 403) setState({ loading: false, error: '', forbidden: true, charges: [] })
       else setState((current) => ({ ...current, loading: false, error: readApiError(error, copy.common.loadError, language) }))
     }
-  }, [applicationId, copy.common.loadError, language])
+  }, [applicationId, copy.common.loadError, language, queueMode])
 
   useEffect(() => {
     const timer = window.setTimeout(() => load(), 0)
@@ -225,7 +237,8 @@ export default function ChargesPanel({ applicationId, language, canReconcile = f
     const at = (value) => formatLocalizedDateTime(value, language)
 
     return (
-      <article key={charge.public_id} aria-label={chargeTitle(charge, language)} className="space-y-3 rounded-2xl border border-[var(--color-border)] p-4 text-sm">
+      <article key={charge.public_id} aria-label={showCase ? `${charge.application?.case_reference || ''} · ${chargeTitle(charge, language)}` : chargeTitle(charge, language)} className="space-y-3 rounded-2xl border border-[var(--color-border)] p-4 text-sm">
+        {showCase ? <div className="flex flex-wrap items-center gap-2 border-b border-[var(--color-border)] pb-2 text-sm font-semibold">{renderCase ? renderCase(charge) : <bdi>{`${charge.application?.case_reference || '—'} · ${charge.client?.name || '—'}`}</bdi>}</div> : null}
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
             <h4 className="font-bold">{chargeTitle(charge, language)}</h4>
@@ -269,15 +282,16 @@ export default function ChargesPanel({ applicationId, language, canReconcile = f
   return (
     <Card>
       <CardHeader className="border-b border-[var(--color-border)]">
-        <CardTitle className="flex items-center gap-2"><Banknote size={20} aria-hidden="true" />{text.title}</CardTitle>
-        <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{text.hint}</p>
+        <CardTitle className="flex items-center gap-2"><Banknote size={20} aria-hidden="true" />{title || text.title}</CardTitle>
+        {/* In queue mode the page header already explains the list, so the queue passes hint={null}. */}
+        {(hint === undefined ? text.hint : hint) ? <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{hint === undefined ? text.hint : hint}</p> : null}
       </CardHeader>
       <CardContent className="space-y-4 pt-6">
         {notice.error ? <p role="alert" className="whitespace-pre-line [unicode-bidi:plaintext] rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{notice.error}</p> : null}
         {notice.success ? <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">{notice.success}</p> : null}
         {state.loading ? <p role="status" className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]"><LoaderCircle className="animate-spin" size={16} />{copy.common.loading}</p> : null}
         {!state.loading && state.error ? <div className="space-y-2"><p className="whitespace-pre-line text-sm text-[var(--color-danger)]">{state.error}</p><Button size="sm" variant="outline" onClick={() => load()}>{copy.common.retry}</Button></div> : null}
-        {!state.loading && !state.error && !state.charges.length ? <p className="text-sm text-[var(--color-text-muted)]">{text.empty}</p> : null}
+        {!state.loading && !state.error && !state.charges.length ? <p className="text-sm text-[var(--color-text-muted)]">{emptyText || text.empty}</p> : null}
         {!state.loading && state.charges.length ? <div className="space-y-3">{state.charges.map(renderCharge)}</div> : null}
       </CardContent>
     </Card>

@@ -13,7 +13,7 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Badge,
   Button,
@@ -56,6 +56,7 @@ import {
 import { localize } from "../../rpl/domain/rpl";
 import { getAdminLanguage } from "../../../services/languageStorage";
 import { useAuthorization } from "../../auth/context/useAuthorization";
+import { getRouteAccess } from "../../../routes/routeAccess";
 import RplStatusBadge from "../../rpl/components/RplStatusBadge";
 import RoleAssignmentPanel from "../components/RoleAssignmentPanel";
 import StaffEnrolmentCard from "../components/StaffEnrolmentCard";
@@ -89,7 +90,7 @@ export const copyByLanguage = {
     staffNotice: "This is a staff account, not a client",
     staffNoticeHint:
       "Qualification evidence, RPL routing and enrolment belong to the people the institute assesses. An administrator, trainer or assessor cannot be the subject of an RPL case — the server refuses it — so those sections are not shown. Roles for this account are managed below.",
-    staffGoToRoles: "Open administration and roles",
+    staffGoToRoles: "Open Staff & roles",
     deleteAccount: "Delete account",
     deleteHint:
       "Revokes access and destroys every session token. The record of what this account did is preserved, so the audit trail stays checkable.",
@@ -143,6 +144,9 @@ export const copyByLanguage = {
     qualificationFailed: "Unable to save the qualification.",
     confirmDelete: "Delete this qualification?",
     routing: "Service routing decision",
+    casesManagedNote: "Opening cases is for staff who manage cases.",
+    pathDataFailed: "The path data could not be loaded.",
+    retry: "Retry",
     rplWith: "Professional Recognition of Prior Learning",
     rplWithout: "Professional Recognition of Prior Learning",
     rplWithHint:
@@ -152,7 +156,9 @@ export const copyByLanguage = {
     noRplDegree: "This client takes the Professional Academic pathway",
     noRplDegreeHint:
       "A verified intermediate-institute diploma, licence, bachelor or higher sends this client through the academic door only. Professional Recognition of Prior Learning is not offered to them.",
-    academicRpl: "Professional Academic RPL",
+    academicRpl: "Professional academic path",
+    professionalBadge: "Professional path",
+    academicBadge: "Academic path",
     academicRplHint:
       "For holders of an intermediate-institute diploma, licence, bachelor or equivalent: Professional Diploma, Master, Doctorate. Assessed on evidence and competencies, not on the certificate alone.",
     academicSelectTrack: "Target qualification",
@@ -166,7 +172,7 @@ export const copyByLanguage = {
     pendingSecondary: "Secondary certificate is awaiting verification",
     pendingSecondaryHint:
       "Do not select the no-secondary route while this evidence is under review.",
-    startRpl: "Create the correct RPL case",
+    startRpl: "Open the case on the right path",
     openOtherCase: "This client has an open case on the other door",
     openOtherCaseHint:
       "One door at a time. Close or withdraw the open case before opening a case on the other door.",
@@ -188,15 +194,15 @@ export const copyByLanguage = {
     diploma: "Professional diploma",
     master: "Professional master",
     doctorate: "Professional doctorate",
-    cases: "Existing RPL cases",
-    noCases: "No RPL case exists for this client.",
+    cases: "Existing professional-path cases",
+    noCases: "This client has no professional-path case.",
     loadFailed: "Unable to load the client workspace.",
-    createCaseFailed: "Unable to create the RPL case.",
+    createCaseFailed: "The case could not be created.",
     enrollFailed: "Unable to enroll this client.",
     updateFailed: "Unable to update user information.",
     updated: "User information updated successfully.",
     saving: "Saving…",
-    intakeOpenCase: "This client already has an open RPL request",
+    intakeOpenCase: "This client already has an open request",
     intakeOpenCaseHint:
       "A client holds one open RPL request at a time. Continue that request, or close it before opening another. This rule cannot be overridden.",
     intakeOpenCaseReference: "Open request",
@@ -242,8 +248,8 @@ export const copyByLanguage = {
       "حساب تابع للمعهد. الموظفون ليسوا محلّ تقييم من المعهد، ولذلك لا ينطبق عليهم مسار العميل.",
     staffNotice: "هذا حساب موظف، وليس عميلاً",
     staffNoticeHint:
-      "أدلة المؤهلات وتوجيه RPL والتسجيل تخصّ من يقيّمهم المعهد. لا يجوز أن يكون المدير أو المدرب أو المقيّم موضوعاً لملف RPL — والخادم يرفض ذلك — لذلك لا تظهر هذه الأقسام هنا. تُدار الصلاحيات من «الإدارة والأدوار».",
-    staffGoToRoles: "فتح الإدارة والأدوار",
+      "أدلة المؤهلات وتوجيه الطلبات والتسجيل تخصّ من يقيّمهم المعهد. لا يجوز أن يكون المدير أو المدرب أو المقيّم صاحب طلب اعتراف — والخادم يرفض ذلك — لذلك لا تظهر هذه الأقسام هنا. تُدار الصلاحيات من «الموظفون والصلاحيات».",
+    staffGoToRoles: "فتح الموظفين والصلاحيات",
     deleteAccount: "حذف الحساب",
     deleteHint:
       "يُلغي الوصول ويُبطل كل الجلسات. يبقى سجل ما قام به هذا الحساب محفوظًا ليظل الأثر التدقيقي قابلًا للفحص.",
@@ -275,7 +281,9 @@ export const copyByLanguage = {
     academicEvidence: "أدلة المؤهلات ومسار القبول",
     academicEvidenceHint:
       "سجّل المؤهلات وتحقق منها قبل اختيار الخدمة. لكل عميل باب واحد فقط: حامل شهادة المعهد المتوسط أو الليسانس أو البكالوريوس أو ما يعادلها أو أعلى يُوجَّه إلى المسار الأكاديمي المهني، وحامل الثانوية العامة أو ما دونها يُوجَّه إلى مسار الاعتراف المهني بالتعلم السابق.",
-    academicRpl: "المسار الأكاديمي المهني — RPL",
+    academicRpl: "المسار الأكاديمي المهني",
+    professionalBadge: "المسار المهني",
+    academicBadge: "المسار الأكاديمي",
     academicRplHint:
       "لحاملي شهادة المعهد المتوسط أو الليسانس أو البكالوريوس أو ما يعادلها: دبلوم مهني، ماجستير مهني، دكتوراه مهنية. يُقيَّم بالأدلة والكفاءات، لا بالشهادة وحدها.",
     academicSelectTrack: "الدرجة المستهدفة",
@@ -303,6 +311,9 @@ export const copyByLanguage = {
     qualificationFailed: "تعذر حفظ المؤهل.",
     confirmDelete: "هل تريد حذف هذا المؤهل؟",
     routing: "قرار توجيه الخدمة",
+    casesManagedNote: "فتح الطلبات متاح لمن يدير طلبات المسار.",
+    pathDataFailed: "تعذّر تحميل بيانات المسار.",
+    retry: "إعادة المحاولة",
     rplWith: "مسار الاعتراف المهني بالتعلم السابق",
     rplWithout: "مسار الاعتراف المهني بالتعلم السابق",
     rplWithHint:
@@ -319,18 +330,18 @@ export const copyByLanguage = {
     pendingSecondary: "شهادة الثانوية العامة بانتظار التحقق",
     pendingSecondaryHint:
       "لا تختَر مسار دون الثانوية العامة بينما هذا الدليل قيد المراجعة.",
-    startRpl: "إنشاء طلب RPL الصحيح",
+    startRpl: "إنشاء الطلب في المسار الصحيح",
     openOtherCase: "لدى هذا العميل ملف مفتوح على الباب الآخر",
     openOtherCaseHint:
       "باب واحد في كل مرة. أغلق الملف المفتوح أو اسحبه قبل فتح ملف على الباب الآخر.",
     academicRoute: "مسار القبول",
     routeUniversityDegree: "شهادة جامعية",
     routeIntermediateInstitute: "شهادة معهد متوسط",
-    routeRplExpert: "أنهى RPL بمستوى ممارس خبير",
-    noPathway: "مسار RPL المطلوب غير مهيأ بعد.",
+    routeRplExpert: "أنهى المسار المهني بمستوى ممارس خبير",
+    noPathway: "المسار المطلوب غير مهيأ بعد.",
     targetLevel: "هدف الاعتماد المهني المطلوب",
     targetLevelHint:
-      "أكّد المستوى الذي يريد المتقدم السعي إليه. سيحلل Gemini الأدلة والفجوات وفق صرامة هذا الهدف.",
+      "أكّد المستوى الذي يريد العميل السعي إليه. سيحلل Gemini الأدلة والفجوات وفق صرامة هذا الهدف.",
     selectTargetLevel:
       "اختر ممارسًا مهنيًا أو ممارسًا مهنيًا متقدمًا أو خبيرًا مهنيًا",
     professional: "المؤهلات المهنية",
@@ -342,17 +353,17 @@ export const copyByLanguage = {
     diploma: "دبلوم مهني",
     master: "ماجستير مهني",
     doctorate: "دكتوراه مهنية",
-    cases: "طلبات RPL الحالية",
-    noCases: "لا يوجد طلب RPL لهذا العميل.",
+    cases: "طلبات المسار المهني الحالية",
+    noCases: "لا يوجد طلب في المسار المهني لهذا العميل.",
     loadFailed: "تعذر تحميل مساحة عمل العميل.",
-    createCaseFailed: "تعذر إنشاء طلب RPL.",
+    createCaseFailed: "تعذّر إنشاء الطلب.",
     enrollFailed: "تعذر تسجيل العميل.",
     updateFailed: "تعذر تحديث بيانات المستخدم.",
     updated: "تم تحديث بيانات المستخدم بنجاح.",
     saving: "جارٍ الحفظ…",
-    intakeOpenCase: "لدى هذا العميل طلب RPL مفتوح بالفعل",
+    intakeOpenCase: "لدى هذا العميل طلب مفتوح بالفعل",
     intakeOpenCaseHint:
-      "للعميل طلب RPL واحد مفتوح في كل مرة. تابع ذلك الطلب أو أغلقه قبل فتح طلب آخر. لا يمكن تجاوز هذه القاعدة.",
+      "للعميل طلب واحد مفتوح في كل مرة. تابع ذلك الطلب أو أغلقه قبل فتح طلب آخر. لا يمكن تجاوز هذه القاعدة.",
     intakeOpenCaseReference: "الطلب المفتوح",
     intakeCooldown: "فترة الانتظار بعد رفض الطلب السابق ما زالت سارية",
     intakeCooldownFrom: "يمكن للعميل فتح طلب جديد اعتبارًا من",
@@ -362,7 +373,7 @@ export const copyByLanguage = {
       "مطلوب، من 10 إلى 2000 حرف. يُسجَّل في سجل التدقيق مع الطلب الجديد.",
     experiences: "الخبرة العملية",
     experiencesHint:
-      "اختيارية: لم يعد طلب RPL يحتاج إلى خبرة عملية. يستخدم فحص جهات العمل الخبرات المسجلة هنا.",
+      "اختيارية: لم يعد الطلب يحتاج إلى خبرة عملية. يستخدم فحص جهات العمل الخبرات المسجلة هنا.",
     noExperiences: "لم تُسجَّل أي خبرة عملية لهذا العميل بعد.",
     addExperience: "إضافة خبرة عملية",
     updateExperience: "تحديث الخبرة العملية",
@@ -557,10 +568,22 @@ function programmeTypeLabel(type, copy) {
 export default function UserWorkspacePage() {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const language = getAdminLanguage();
   const copy = copyByLanguage[language] || copyByLanguage.en;
-  const { hasPermission } = useAuthorization();
+  const { hasPermission, canAccess } = useAuthorization();
   const canManageUsers = hasPermission("users.manage");
+  // A case reference opens the case only for a viewer the case page lets in (support and finance see it as text).
+  const canOpenCasePage = canAccess(getRouteAccess("/rpl/applications/0"));
+  /*
+   * THE CLIENT PAGE LOADS PER PERMISSION (D-27, 18 Oct 2026). The RPL reference
+   * needs rpl.applications.view and the programmes programs.manage, so a support
+   * agent or a finance operator never asks for them (and once had the whole page
+   * fail). Opening a case needs rpl.applications.manage; the server decides anyway.
+   */
+  const canReadCaseReference = hasPermission("rpl.applications.view");
+  const canReadPrograms = hasPermission("programs.manage");
+  const canOpenCases = hasPermission("rpl.applications.manage");
   const [state, setState] = useState({
     loading: true,
     error: "",
@@ -600,16 +623,19 @@ export default function UserWorkspacePage() {
         academicResponse,
       ] = await Promise.all([
         fetchUser(userId),
-        fetchRplReferenceData(),
-        fetchAdminPrograms({ per_page: 100 }),
-        fetchUserProfessionalEligibility(userId),
+        canReadCaseReference ? fetchRplReferenceData().catch(() => null) : Promise.resolve(null),
+        canReadPrograms ? fetchAdminPrograms({ per_page: 100 }).catch(() => null) : Promise.resolve(null),
+        fetchUserProfessionalEligibility(userId).catch(() => null),
         // The academic pathway is a separate domain with its own reference
         // data. Fetched alongside rather than folded into the RPL reference
         // call, because the two vocabularies must not be merged.
-        fetchAcademicReferenceData().catch(() => null),
+        // rpl.applications.view, like the RPL reference: never asked of a viewer who cannot read it.
+        canReadCaseReference ? fetchAcademicReferenceData().catch(() => null) : Promise.resolve(null),
       ]);
       const user = unwrapApiData(userResponse);
       const reference = unwrapApiData(referenceResponse) || {};
+      const referenceLoaded = referenceResponse != null;
+      const programsLoaded = programsResponse != null;
       setProfileForm(formFromUser(user));
       setState({
         loading: false,
@@ -617,10 +643,12 @@ export default function UserWorkspacePage() {
         message: "",
         user,
         pathways: unwrapCollection(reference.pathways || []),
-        programs: unwrapCollection(programsResponse).filter(
+        programs: programsLoaded ? unwrapCollection(programsResponse).filter(
           (program) => program.is_active !== false,
-        ),
-        eligibility: unwrapApiData(eligibilityResponse),
+        ) : [],
+        referenceLoaded,
+        programsLoaded,
+        eligibility: eligibilityResponse ? unwrapApiData(eligibilityResponse) : null,
         academicTracks: academicResponse?.data?.tracks || [],
       });
     } catch (error) {
@@ -634,7 +662,7 @@ export default function UserWorkspacePage() {
         eligibility: null,
       });
     }
-  }, [userId, copy.loadFailed]);
+  }, [userId, copy.loadFailed, canReadCaseReference, canReadPrograms]);
 
   useEffect(() => {
     load();
@@ -835,6 +863,19 @@ export default function UserWorkspacePage() {
     (STAFF_SLUGS.includes(user.role) ||
       (user.roles || []).some((role) => STAFF_SLUGS.includes(role.slug))),
   );
+  /*
+   * A staff member's page belongs to Staff & roles, however it was opened (a
+   * search, a direct link): the sidebar and the top bar read it from navFrom,
+   * which the staff list sets and this sets when it was not.
+   */
+  const staffNavMissing = subjectIsStaff && location.state?.navFrom !== "/users";
+  useEffect(() => {
+    if (!staffNavMissing) return;
+    navigate(`${location.pathname}${location.search}`, {
+      replace: true,
+      state: { ...(location.state || {}), navFrom: "/users" },
+    });
+  }, [staffNavMissing, location.pathname, location.search, location.state, navigate]);
   const professionalEligibility =
     state.eligibility?.professional_qualifications;
   const rplEligibility = state.eligibility?.rpl;
@@ -1615,6 +1656,19 @@ export default function UserWorkspacePage() {
                   <CardTitle>{copy.routing}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
+                  {/* The permission note only for a viewer without the permission; a read that failed says so, with a retry. */}
+                  {!canOpenCases ? (
+                    <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4 text-sm leading-6 text-[var(--color-text-muted)]">
+                      {copy.casesManagedNote}
+                    </p>
+                  ) : !state.referenceLoaded ? (
+                    <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+                      <p>{copy.pathDataFailed}</p>
+                      <Button size="sm" variant="outline" onClick={load}>
+                        {copy.retry}
+                      </Button>
+                    </div>
+                  ) : null}
                   {/*
                     ONE DOOR (owner decision, 12 Oct 2026). This card used to
                     show RPL and the academic pathway side by side, so a client
@@ -1627,7 +1681,7 @@ export default function UserWorkspacePage() {
                     removed on 6 Aug 2026; enrolling into a professional-
                     qualification programme is its own card further down.)
                   */}
-                  {door === "rpl" ? (
+                  {!canOpenCases || !state.referenceLoaded ? null : door === "rpl" ? (
                     <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -1636,7 +1690,7 @@ export default function UserWorkspacePage() {
                             {routeHint}
                           </p>
                         </div>
-                        <Badge variant="info">RPL</Badge>
+                        <Badge variant="info">{copy.professionalBadge}</Badge>
                       </div>
                       <div className="mt-5 space-y-3">
                         <Select
@@ -1752,7 +1806,7 @@ export default function UserWorkspacePage() {
                             </p>
                           ) : null}
                         </div>
-                        <Badge variant="neutral">RPL</Badge>
+                        <Badge variant="neutral">{copy.academicBadge}</Badge>
                       </div>
 
                       {state.academicTracks.length ? (
@@ -1840,16 +1894,19 @@ export default function UserWorkspacePage() {
                 }
               />
 
-              <StaffEnrolmentCard
-                userId={userId}
-                user={user}
-                programs={eligiblePrograms}
-                copy={copy}
-                language={language}
-                typeLabel={(type) => programmeTypeLabel(type, copy)}
-                onEnrolled={load}
-                onReload={load}
-              />
+              {/* Enrolling needs users.manage and the programmes (programs.manage): without either the card stays away (D-27). */}
+              {canManageUsers && state.programsLoaded ? (
+                <StaffEnrolmentCard
+                  userId={userId}
+                  user={user}
+                  programs={eligiblePrograms}
+                  copy={copy}
+                  language={language}
+                  typeLabel={(type) => programmeTypeLabel(type, copy)}
+                  onEnrolled={load}
+                  onReload={load}
+                />
+              ) : null}
 
               <Card>
                 <CardHeader className="border-b border-[var(--color-border)]">
@@ -1857,34 +1914,50 @@ export default function UserWorkspacePage() {
                 </CardHeader>
                 <CardContent className="space-y-3 p-6">
                   {(user.rpl_applications || []).length ? (
-                    user.rpl_applications.map((application) => (
-                      <button
-                        key={application.id}
-                        type="button"
-                        onClick={() =>
-                          navigate(
-                            `/rpl/applications/${application.public_id || application.id}`,
-                          )
-                        }
-                        className="flex w-full items-center justify-between rounded-xl border border-[var(--color-border)] p-4 text-start hover:bg-[var(--color-surface-muted)]"
-                      >
-                        <span>
-                          <bdi className="font-bold">
-                            {application.case_reference}
-                          </bdi>
-                          <span className="ms-2 text-sm text-[var(--color-text-muted)]">
-                            {localize(application.pathway?.name, language)}
+                    user.rpl_applications.map((application) => {
+                      const content = (
+                        <>
+                          <span>
+                            <bdi className="font-bold">
+                              {application.case_reference}
+                            </bdi>
+                            <span className="ms-2 text-sm text-[var(--color-text-muted)]">
+                              {localize(application.pathway?.name, language)}
+                            </span>
                           </span>
-                        </span>
-                        <span className="flex items-center gap-2 text-sm">
-                          <FolderOpen size={16} />
-                          <RplStatusBadge
-                            status={application.status}
-                            language={language}
-                          />
-                        </span>
-                      </button>
-                    ))
+                          <span className="flex items-center gap-2 text-sm">
+                            {canOpenCasePage ? <FolderOpen size={16} aria-hidden="true" /> : null}
+                            <RplStatusBadge
+                              status={application.status}
+                              language={language}
+                            />
+                          </span>
+                        </>
+                      );
+                      // Never a button to a page the viewer would be refused.
+                      return canOpenCasePage ? (
+                        <button
+                          key={application.id}
+                          type="button"
+                          onClick={() =>
+                            navigate(
+                              `/rpl/applications/${application.public_id || application.id}`,
+                            )
+                          }
+                          className="flex w-full items-center justify-between rounded-xl border border-[var(--color-border)] p-4 text-start hover:bg-[var(--color-surface-muted)]"
+                        >
+                          {content}
+                        </button>
+                      ) : (
+                        <div
+                          key={application.id}
+                          data-case-reference={application.case_reference}
+                          className="flex w-full items-center justify-between rounded-xl border border-[var(--color-border)] p-4 text-start"
+                        >
+                          {content}
+                        </div>
+                      );
+                    })
                   ) : (
                     <p className="text-sm text-[var(--color-text-muted)]">
                       {copy.noCases}
@@ -1908,7 +1981,11 @@ export default function UserWorkspacePage() {
             says what stands in the way, so the button is offered rather than
             hidden: a refusal that explains itself teaches more than a missing
             control.
+
+            Both need users.manage: a viewer who only reads clients (support,
+            finance) never sees this card (D-27, review of 18 Oct 2026).
           */}
+          {canManageUsers ? (
           <Card>
             <CardHeader>
               <CardTitle className="text-[var(--color-danger,#b91c1c)]">
@@ -1983,6 +2060,7 @@ export default function UserWorkspacePage() {
               </div>
             </CardContent>
           </Card>
+          ) : null}
         </>
       ) : null}
     </section>
