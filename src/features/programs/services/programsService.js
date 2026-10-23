@@ -153,13 +153,21 @@ export async function proposeSeedPack(programId, locale) {
   return response.data
 }
 
-export async function approveSeedPack(programId, competencies, learningOutcomes, academicIdentity) {
+export async function approveSeedPack(programId, competencies, learningOutcomes, academicIdentity, origin = null) {
   const response = await http.post(`/admin/programs/${programId}/seed-pack/approve`, {
     competencies,
     learning_outcomes: learningOutcomes,
     // The six academic fields. An omitted one leaves whatever the programme
     // already has — approving a seed pack never blanks metadata someone typed.
     academic_identity: academicIdentity || {},
+    /*
+     * Where the draft came from (AI resilience, Release G, §5.3): `ai` with the
+     * propose answer's ai_provenance echoed back, or `manual` for a draft written
+     * by hand. Informative for the audit, never authority: the values above are
+     * re-checked as always.
+     */
+    ...(origin?.source ? { draft_source: origin.source } : {}),
+    ...(origin?.provenance ? { draft_provenance: origin.provenance } : {}),
   })
   return response.data
 }

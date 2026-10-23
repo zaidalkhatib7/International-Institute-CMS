@@ -540,6 +540,29 @@ describe('provenance the reviewer has to be able to see', () => {
     expect(screen.getByText('gemini-2.5-flash')).toBeInTheDocument()
   })
 
+  /*
+   * AI resilience (Release G, D22): a fallback answer is a legitimate answer from
+   * a recorded model. The warning informs (amber, so a reviewer sees it); it no
+   * longer calls the substitution forbidden, and each component names its model.
+   */
+  it('words a fallback model as information, never a block, and names each component model', async () => {
+    const run = draftRun()
+    run.artifacts[1] = {
+      ...run.artifacts[1],
+      used_fallback_model: true,
+      responding_model: 'gemini-3.6-flash',
+      ai_provenance: { chain: ['gemini-3.1-pro-preview', 'gemini-3.6-flash', 'gemini-4-argon'], primary_model: 'gemini-3.1-pro-preview', requested_model: 'gemini-3.6-flash', answering_model: 'gemini-3.6-flash', position: 2, used_fallback: true, passed_over: [{ model: 'gemini-3.1-pro-preview', outcome: 'busy', http_status: 503 }] },
+    }
+
+    renderPanel(payload({ ai_authoring_status: 'ai_draft', run }))
+
+    expect(await screen.findByText(COPY.en.fallbackHint)).toBeInTheDocument()
+    expect(COPY.en.fallbackHint).toMatch(/blocks neither review nor publication/)
+    expect(COPY.en.fallbackHint).not.toMatch(/forbidden/)
+    expect(COPY.ar.fallbackHint).not.toMatch(/ممنوع/)
+    expect(screen.getByText('Made by fallback model gemini-3.6-flash (step 2 of 3); the first model gemini-3.1-pro-preview was busy.')).toBeInTheDocument()
+  })
+
   it('names the governed run record and the prompt version', async () => {
     renderPanel(payload({ ai_authoring_status: 'ai_draft', run: draftRun() }))
 

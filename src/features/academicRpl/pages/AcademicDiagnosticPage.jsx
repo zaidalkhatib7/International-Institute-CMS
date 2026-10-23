@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  ArrowLeft, Check, CircleSlash, Loader2, Lock, PencilLine, Send, X,
+  ArrowLeft, Check, CircleSlash, Loader2, Lock, PencilLine, Plus, Send, X,
 } from 'lucide-react'
 import {
-  Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea,
+  Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Textarea,
 } from '../../../components/ui'
 import { readApiError } from '../../../services/apiResponse'
 import { getAdminLanguage } from '../../../services/languageStorage'
 import { localize } from '../../rpl/domain/rpl'
 import {
-  approveAcademicDiagnosticItem, fetchAcademicDiagnostic, issueAcademicDiagnostic,
+  addAcademicDiagnosticItem, approveAcademicDiagnosticItem, fetchAcademicDiagnostic, issueAcademicDiagnostic,
   rejectAcademicDiagnosticItem, updateAcademicDiagnosticItem,
 } from '../services/academicRplService'
 import { academicStatusLabel } from '../domain/academicJourney'
+import AiProvenanceNote from '../../shared/ai/AiProvenanceNote'
 
 /*
  * THE DIAGNOSTIC REVIEW WORKSPACE — owner spec stage 5.
@@ -75,6 +76,23 @@ const COPY = {
     noItems: 'لا توجد أسئلة في هذه المسودة.',
     blueprint: 'خطة بناء الاختبار',
     domainItems: 'أسئلة في مجال المتقدم',
+    manualBasis: 'كُتب هذا الاختبار يدويًا دون ذكاء اصطناعي. السبب: {reason}',
+    addItem: 'إضافة سؤال يدوي',
+    addTitle: 'سؤال اختيار من متعدد يُكتب يدويًا',
+    addHint: 'يبدأ السؤال بانتظار المراجعة، ويُراجَع ويُعتمد كسائر الأسئلة قبل الإصدار.',
+    prompt: 'نص السؤال',
+    option: 'الخيار {id}',
+    addSubmit: 'إضافة السؤال',
+    addDone: 'أُضيف السؤال بانتظار المراجعة.',
+    axes: {
+      domain_specific: 'مجال المتقدم',
+      research_methodology: 'منهجية البحث',
+      academic_writing: 'الكتابة الأكاديمية',
+      analytical_thinking: 'التفكير التحليلي',
+      leadership: 'القيادة',
+      methodology: 'المنهجية',
+    },
+    difficulties: { foundational: 'تأسيسي', applied: 'تطبيقي', advanced: 'متقدم' },
   },
   en: {
     back: 'Back to the case',
@@ -111,6 +129,23 @@ const COPY = {
     noItems: 'This draft has no questions.',
     blueprint: 'Paper blueprint',
     domainItems: 'items in the applicant’s own field',
+    manualBasis: 'This diagnostic was written by hand, without AI. Reason: {reason}',
+    addItem: 'Add a question by hand',
+    addTitle: 'A multiple-choice question written by hand',
+    addHint: 'The question starts pending review, and is reviewed and approved like every other before issue.',
+    prompt: 'Question text',
+    option: 'Option {id}',
+    addSubmit: 'Add the question',
+    addDone: 'The question was added, pending review.',
+    axes: {
+      domain_specific: 'Applicant’s own field',
+      research_methodology: 'Research methodology',
+      academic_writing: 'Academic writing',
+      analytical_thinking: 'Analytical thinking',
+      leadership: 'Leadership',
+      methodology: 'Methodology',
+    },
+    difficulties: { foundational: 'Foundational', applied: 'Applied', advanced: 'Advanced' },
   },
 }
 
@@ -119,6 +154,61 @@ const LOCKED_STATUSES = ['issued', 'answered', 'assessed']
 
 function fill(template, values) {
   return Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, value), template)
+}
+
+/*
+ * A QUESTION WRITTEN BY HAND (AI resilience, Release G, AI-RESILIENCE-SPEC
+ * §5.3, D15). The academic diagnostic no longer needs the model: staff write
+ * single-best-answer MCQs one at a time, four options and one key, on the axis
+ * and at the difficulty they choose. The server creates each one pending review.
+ */
+const OPTION_IDS = ['A', 'B', 'C', 'D']
+const AXES = ['domain_specific', 'research_methodology', 'academic_writing', 'analytical_thinking', 'leadership', 'methodology']
+const DIFFICULTIES = ['foundational', 'applied', 'advanced']
+const EMPTY_ITEM = { prompt: '', options: { A: '', B: '', C: '', D: '' }, correct: 'A', axis: AXES[0], difficulty: DIFFICULTIES[1] }
+
+function ManualItemForm({ copy, language, busy, onSubmit, onCancel }) {
+  const [item, setItem] = useState(EMPTY_ITEM)
+  const valid = item.prompt.trim() !== '' && OPTION_IDS.every((id) => item.options[id].trim() !== '')
+  return (
+    <section aria-label={copy.addTitle} className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4 text-sm">
+      <strong className="block">{copy.addTitle}</strong>
+      <p className="text-xs leading-5 text-[var(--color-text-muted)]">{copy.addHint}</p>
+      <Textarea rows={3} label={copy.prompt} value={item.prompt} onChange={(event) => setItem((current) => ({ ...current, prompt: event.target.value }))} />
+      <div className="grid gap-3 md:grid-cols-2">
+        {OPTION_IDS.map((id) => (
+          <Input key={id} label={fill(copy.option, { id })} value={item.options[id]} onChange={(event) => setItem((current) => ({ ...current, options: { ...current.options, [id]: event.target.value } }))} />
+        ))}
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <Select label={copy.correct} value={item.correct} onChange={(event) => setItem((current) => ({ ...current, correct: event.target.value }))}>
+          {OPTION_IDS.map((id) => <option key={id} value={id}>{id}</option>)}
+        </Select>
+        <Select label={copy.axis} value={item.axis} onChange={(event) => setItem((current) => ({ ...current, axis: event.target.value }))}>
+          {AXES.map((axis) => <option key={axis} value={axis}>{copy.axes[axis]}</option>)}
+        </Select>
+        <Select label={copy.difficulty} value={item.difficulty} onChange={(event) => setItem((current) => ({ ...current, difficulty: event.target.value }))}>
+          {DIFFICULTIES.map((level) => <option key={level} value={level}>{copy.difficulties[level]}</option>)}
+        </Select>
+      </div>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button size="sm" variant="outline" onClick={onCancel} disabled={busy}>{copy.cancel}</Button>
+        <Button
+          size="sm"
+          disabled={busy || !valid}
+          onClick={() => onSubmit({
+            axis: item.axis,
+            difficulty: item.difficulty,
+            prompt: { [language]: item.prompt.trim() },
+            options: OPTION_IDS.map((id) => ({ id, text: { [language]: item.options[id].trim() } })),
+            answer_key: { correct_option_id: item.correct },
+          })}
+        >
+          <Plus size={16} /> {copy.addSubmit}
+        </Button>
+      </div>
+    </section>
+  )
 }
 
 export default function AcademicDiagnosticPage() {
@@ -134,6 +224,8 @@ export default function AcademicDiagnosticPage() {
   const [rejecting, setRejecting] = useState(null)
   const [rejectReason, setRejectReason] = useState('')
   const [issueOptions, setIssueOptions] = useState({ time_limit_minutes: '', due_at: '' })
+  const [adding, setAdding] = useState(false)
+  const [addBusy, setAddBusy] = useState(false)
 
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: '' }))
@@ -260,6 +352,17 @@ export default function AcademicDiagnosticPage() {
             />
           </div>
 
+          {/* How this paper was made (AI resilience, §7.3): by hand with its reason, or by the model that drafted it. */}
+          {diagnostic.question_count_rationale?.basis === 'manual' ? (
+            <p data-diagnostic-manual="true" dir="auto" className="text-xs text-[var(--color-text-muted)]">{fill(copy.manualBasis, { reason: diagnostic.question_count_rationale.reason || '—' })}</p>
+          ) : (
+            <AiProvenanceNote
+              provenance={diagnostic.question_count_rationale?.ai_provenance}
+              legacy={{ model: diagnostic.question_count_rationale?.model }}
+              language={language}
+            />
+          )}
+
           {diagnostic.blueprint ? (
             <p className="text-xs text-[var(--color-text-muted)]">
               {copy.blueprint}: {diagnostic.blueprint.domain_items} {copy.domainItems}
@@ -316,6 +419,27 @@ export default function AcademicDiagnosticPage() {
 
       {items.length === 0 ? (
         <p className="text-sm text-[var(--color-text-muted)]">{copy.noItems}</p>
+      ) : null}
+
+      {!locked ? (
+        adding ? (
+          <ManualItemForm
+            copy={copy}
+            language={language === 'ar' ? 'ar' : 'en'}
+            busy={addBusy}
+            onCancel={() => setAdding(false)}
+            onSubmit={async (payload) => {
+              setAddBusy(true)
+              const ok = await run(() => addAcademicDiagnosticItem(diagnostic.id, payload))
+              setAddBusy(false)
+              if (ok) setAdding(false)
+            }}
+          />
+        ) : (
+          <Button variant="outline" onClick={() => setAdding(true)}>
+            <Plus size={16} /> {copy.addItem}
+          </Button>
+        )
       ) : null}
 
       <div className="space-y-4">

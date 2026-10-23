@@ -91,6 +91,7 @@ export const SCREENING_COPY = {
     rerun: 'إعادة تشغيل الفرز',
     rerunHint: 'خمسة تشغيلات كحد أقصى لكل طلب في اليوم.',
     rerunBusy: 'يوجد فرز في الانتظار أو قيد التنفيذ.',
+    rerunWaiting: 'آخر فرز ينتظر إعادة المحاولة تلقائيًا لأن خدمة الذكاء الاصطناعي مشغولة. «أعد المحاولة الآن» يبدأه فورًا دون أن يُحتسب تشغيلًا جديدًا.',
     rerunStalled: 'توقف آخر تشغيل منذ أكثر من {minutes} دقيقة. إعادة التشغيل تغلقه بوصفه فاشلًا وتضيف تشغيلًا جديدًا إلى قائمة الانتظار.',
     rerunQueued: 'أُضيف فرز جديد إلى قائمة الانتظار.',
     rerunRefused: 'رُفض التشغيل الجديد؛ السبب موضح أدناه.',
@@ -141,7 +142,7 @@ export const SCREENING_COPY = {
     latest: 'الأحدث',
     yes: 'نعم',
     no: 'لا',
-    status: { queued: 'في الانتظار', running: 'قيد التنفيذ', completed: 'مكتمل', failed: 'فشل', refused: 'لم يُنفَّذ' },
+    status: { queued: 'في الانتظار', running: 'قيد التنفيذ', waiting_retry: 'بانتظار إعادة المحاولة', completed: 'مكتمل', failed: 'فشل', refused: 'لم يُنفَّذ' },
     statusExplanation: {
       queued: 'في الانتظار. يعمل الفرز في الخلفية وينتهي عادةً خلال دقائق. حدّث الصفحة لرؤية النتيجة.',
       running: 'قيد التنفيذ الآن. حدّث الصفحة بعد دقيقة لرؤية النتيجة.',
@@ -368,6 +369,7 @@ export const SCREENING_COPY = {
     rerun: 'Re-run screen',
     rerunHint: 'At most 5 runs per case per day.',
     rerunBusy: 'A screen is already queued or running.',
+    rerunWaiting: 'The latest screen is waiting to retry on its own because the AI service is busy. Retry now starts it at once; it is not counted as a new run.',
     rerunStalled: 'The latest run has been stuck for more than {minutes} minutes. Re-running closes it as failed and queues a new one.',
     rerunQueued: 'A new screen is queued.',
     rerunRefused: 'The new run was refused; the reason is shown below.',
@@ -418,7 +420,7 @@ export const SCREENING_COPY = {
     latest: 'Latest',
     yes: 'Yes',
     no: 'No',
-    status: { queued: 'Queued', running: 'Running', completed: 'Completed', failed: 'Failed', refused: 'Not run' },
+    status: { queued: 'Queued', running: 'Running', waiting_retry: 'Waiting to retry', completed: 'Completed', failed: 'Failed', refused: 'Not run' },
     statusExplanation: {
       queued: 'Queued. The screen runs in the background and usually finishes within a few minutes. Refresh to see the result.',
       running: 'Running now. Refresh in a minute to see the result.',
@@ -617,7 +619,7 @@ export const SCREENING_SETTINGS_COPY = {
     webSearch: 'فحص جهات العمل على الإنترنت (بحث Google)',
     webSearchHint: 'يرسل أسماء جهات العمل مع بلدها ومدينتها فقط إلى بحث Google، كما ينص إقرار العميل (النسخة 2: الاسم والموقع)، ولا يرسل موقعها الإلكتروني ولا أي وثيقة ولا اسم العميل أو بيانات التواصل معه. يرفض الخادم تفعيله ما دام الإقرار النشط للعملاء أقدم من النسخة 2، ويُفحص كل طلب أيضًا وفق الإقرار الذي قُدِّم بموجبه.',
     model: 'نموذج الفرز',
-    modelHint: 'نموذج واحد لكل تشغيل دون نموذج بديل، لتبقى المؤشرات قابلة للمقارنة.',
+    modelHint: 'تُحدِّد النموذجَ سلسلةُ نماذج على الخادم، ويُسجَّل مع كل تشغيل النموذج الذي أعدّ مؤشره، فلا تُقارن إلا مؤشرات النموذج نفسه.',
     modelRequired: 'مطلوب، وبحد أقصى 100 حرف.',
     excluded: 'فئات لا يقرؤها الفرز',
     excludedHint: 'لا تُرسل وثائق هذه الفئات إلى Gemini إطلاقًا، وتُدرج بوصفها لم تُفحص.',
@@ -636,7 +638,7 @@ export const SCREENING_SETTINGS_COPY = {
     webSearch: 'Check employers online (Google Search)',
     webSearchHint: "Sends employer names with their country and city only to Google Search, as the applicant declaration says (version 2: name and location): never the employer's website, never documents, and never the applicant's name or contact details. The server refuses to switch this on while the active applicant declaration is below version 2, and each case is also checked against the declaration it was submitted under.",
     model: 'Screening model',
-    modelHint: 'One model for every run, with no fallback, so figures stay comparable.',
+    modelHint: 'The model is set by a chain of models on the server, and every run records the model that made its figure, so only figures from the same model are compared.',
     modelRequired: 'Required, at most 100 characters.',
     excluded: 'Categories never read by the screen',
     excludedHint: 'Documents in these categories are not sent to Gemini at all and are listed as not screened.',
@@ -775,12 +777,17 @@ export const SCREENING_IDENTITY_CATEGORY = 'identity'
  */
 export function isStalledRun(screening, now = Date.now()) {
   const status = screening?.status
+  // A run waiting to retry (AI resilience, Release G) is not stalled while its next try is due: the window runs from next_attempt_at.
   const since = status === 'running'
     ? screening.attempt_started_at || screening.started_at || screening.created_at
-    : status === 'queued' ? screening.created_at : null
+    : status === 'queued' ? screening.created_at
+      : status === 'waiting_retry' ? screening.next_attempt_at || screening.attempt_started_at || screening.created_at : null
   const at = since ? Date.parse(since) : NaN
   return Number.isFinite(at) && now - at > SCREENING_STALLED_AFTER_MINUTES * 60 * 1000
 }
+
+/** The run states that hold a re-run: the screen is still on its way (AI resilience, Release G adds waiting_retry). */
+export const SCREENING_IN_FLIGHT = Object.freeze(['queued', 'running', 'waiting_retry'])
 
 /** Fewer documents read than the case holds: the figure covers only part of it. */
 export function isPartialScreen(screening) {

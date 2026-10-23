@@ -137,9 +137,10 @@ describe('the evidence-documents kill switch', () => {
         rpl_advisory_include_evidence_documents: false,
         appeal_window_days: 15,
         require_verified_evidence_for_assessment: true,
-        gemini_advisory_model: 'gemini-3.5-flash',
       }),
     )
+    // The model is the server's chain (AI resilience, D16): the old key is never sent, or the save is refused 422 model_set_by_chain.
+    expect(mocks.updateRplSettings.mock.calls[0][0]).not.toHaveProperty('gemini_advisory_model')
   })
 
   it('sends it back on again', async () => {
@@ -341,18 +342,19 @@ describe('the document screening controls', () => {
 
     expect(checkbox(SC.enabled)).not.toBeChecked()
     expect(checkbox(SC.webSearch)).not.toBeChecked()
-    expect(screen.getByLabelText(SC.model)).toHaveValue('gemini-3-pro-preview')
+    // The model is the server's chain now (D16), shown read-only: no field takes a model name.
+    expect(screen.queryByLabelText(SC.model)).not.toBeInTheDocument()
+    expect(document.querySelectorAll('[data-ai-chain="case_analysis"]').length).toBe(2)
     expect(within(group(SC.extractionOnly)).getByRole('checkbox', { name: /Personal identity/ })).toBeChecked()
     expect(within(group(SC.excluded)).getByRole('checkbox', { name: /Personal identity/ })).not.toBeChecked()
     expect(screen.queryByText('Legacy letters')).not.toBeInTheDocument()
   })
 
-  it('saves all five with the existing save, the other controls intact', async () => {
+  it('saves the four it still owns with the existing save, never the model, the other controls intact', async () => {
     await openControls()
 
     fireEvent.click(checkbox(SC.enabled))
     fireEvent.click(checkbox(SC.webSearch))
-    fireEvent.change(screen.getByLabelText(SC.model), { target: { value: '  gemini-3-pro  ' } })
     fireEvent.click(within(group(SC.excluded)).getByRole('checkbox', { name: /Professional experience/ }))
     fireEvent.click(screen.getByRole('button', { name: COPY.en.saveSettings }))
 
@@ -361,7 +363,6 @@ describe('the document screening controls', () => {
       expect.objectContaining({
         rpl_document_screening_enabled: true,
         rpl_document_screening_web_search_enabled: true,
-        rpl_document_screening_model: 'gemini-3-pro',
         rpl_document_screening_excluded_categories: ['professional_experience'],
         rpl_document_screening_extraction_only_categories: ['identity'],
         appeal_window_days: 15,
@@ -369,6 +370,8 @@ describe('the document screening controls', () => {
         rpl_reapply_cooldown_days: 7,
       }),
     )
+    expect(mocks.updateRplSettings.mock.calls[0][0]).not.toHaveProperty('rpl_document_screening_model')
+    expect(mocks.updateRplSettings.mock.calls[0][0]).not.toHaveProperty('gemini_advisory_model')
   })
 
   it('shows the server\'s 422 for the employer check beside its switch', async () => {
@@ -406,13 +409,13 @@ describe('the document screening controls', () => {
     expect(second.rpl_document_screening_enabled).toBe(true)
   })
 
-  it('will not save a blank model', async () => {
+  it('shows the model as the server\'s chain, read-only, and saves without one', async () => {
     await openControls()
 
-    fireEvent.change(screen.getByLabelText(SC.model), { target: { value: '   ' } })
-
-    expect(screen.getByText(SC.modelRequired)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: COPY.en.saveSettings })).toBeDisabled()
+    expect(screen.queryByText(SC.modelRequired)).not.toBeInTheDocument()
+    expect(screen.getAllByText(/set by the server's AI model chain/).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('link', { name: 'AI service page' })[0]).toHaveAttribute('href', '/settings/ai-service')
+    expect(screen.getByRole('button', { name: COPY.en.saveSettings })).toBeEnabled()
   })
 
   it('warns that every screen is refused while document reading is off', async () => {

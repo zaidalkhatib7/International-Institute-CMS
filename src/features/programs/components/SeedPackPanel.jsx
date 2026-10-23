@@ -1,9 +1,13 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Loader2, Plus, ShieldCheck, Sparkles, Trash2, Wand2 } from 'lucide-react'
+import { Loader2, PenLine, Plus, ShieldCheck, Sparkles, Trash2, Wand2 } from 'lucide-react'
 import { Badge, Button, Card, CardContent, Input, Select, Textarea } from '../../../components/ui'
 import { approveSeedPack, proposeSeedPack } from '../services/programsService'
+import { fetchCompetencyFramework } from '../../competency/services/competencyFrameworkService'
 import { getCurrentLanguage } from '../../../utils/localization'
 import { readApiError } from '../../../services/apiResponse'
+import AiProvenanceNote from '../../shared/ai/AiProvenanceNote'
+import AiServiceBanner from '../../shared/ai/AiServiceBanner'
+import { aiBusyMessage } from '../../shared/ai/aiState'
 
 /*
  * THE SEED PACK — what a course must have before anything can be generated from it.
@@ -76,6 +80,11 @@ const COPY = {
     identityOutcomes: 'المخرجات',
     derived: 'مشتقّ',
     saveFirst: 'احفظ البرنامج أولًا ثم عد إلى هنا.',
+    writeByHand: 'اكتبها يدويًا',
+    writingByHand: 'جارٍ تحميل القاموس…',
+    writtenByHand: 'مسودة مكتوبة يدويًا — دون ذكاء اصطناعي',
+    writeByHandHint: 'إن كانت خدمة الذكاء الاصطناعي مشغولة أو لا تريد اقتراحها، فاكتب الربط والمخرجات بنفسك في المحرر نفسه، ثم اعتمدها بالطريقة نفسها.',
+    dictionaryEmpty: 'القاموس المعتمد للكفايات فارغ، فلا يوجد ما يُربط به. أضِف الكفايات واعتمدها في إطار الكفايات أولًا.',
   },
   en: {
     title: 'Seed pack — Gemini drafts it, a person approves it',
@@ -128,6 +137,11 @@ const COPY = {
     identityOutcomes: 'Outcomes',
     derived: 'derived',
     saveFirst: 'Save the programme first, then come back here.',
+    writeByHand: 'Write by hand',
+    writingByHand: 'Loading the dictionary…',
+    writtenByHand: 'Draft written by hand — no AI',
+    writeByHandHint: 'If the AI service is busy, or you would rather not have it propose, write the mappings and outcomes yourself in the same editor, then approve them the same way.',
+    dictionaryEmpty: 'The approved competency dictionary is empty, so there is nothing to map to. Add and approve competencies in the competency framework first.',
   },
 }
 
@@ -185,13 +199,60 @@ export default function SeedPackPanel({ programId, onApproved }) {
     setNotice('')
     try {
       const response = await proposeSeedPack(programId, locale)
-      setDraft(response?.data || null)
+      setDraft(response?.data ? { ...response.data, source: 'ai' } : null)
     } catch (proposeError) {
-      setError(readApiError(proposeError))
+      // The interactive budget ran out on every model (503 ai_busy_retry_later, Release G): nothing was saved, and Write by hand is beside the button.
+      setError(aiBusyMessage(proposeError, language) || readApiError(proposeError))
     } finally {
       setBusy(false)
     }
-  }, [programId, locale])
+  }, [programId, locale, language])
+
+  /*
+   * WRITE BY HAND (AI resilience, Release G, AI-RESILIENCE-SPEC §5.3, D15). The
+   * same editor with an empty draft: the approved dictionary and the active
+   * proficiency ladder come from the competency framework, as the proposal
+   * would have sent them, and nothing else is filled in. Approving it is the
+   * same accountable act, recorded with draft_source "manual".
+   */
+  const writeByHand = useCallback(async () => {
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      const framework = (await fetchCompetencyFramework()) || {}
+      const usable = (Array.isArray(framework.competencies) ? framework.competencies : [])
+        .filter((item) => ['approved', 'published'].includes(item?.status) && item?.is_active !== false)
+        .map((item) => ({ id: item.id, code: item.code, name: locText(item.name, language) }))
+      const ladder = (Array.isArray(framework.proficiency_levels) ? framework.proficiency_levels : [])
+        .filter((level) => level?.is_active !== false)
+        .map((level) => ({ id: level.id, code: level.code, name: locText(level.name, language), rank: level.rank }))
+      if (!usable.length) {
+        setError(copy.dictionaryEmpty)
+        return
+      }
+      setDraft({
+        source: 'manual',
+        model: null,
+        dictionary: usable,
+        proficiency_levels: ladder,
+        competencies: [{
+          professional_competency_id: usable[0].id,
+          target_proficiency_level_id: ladder[ladder.length - 1]?.id ?? '',
+          entry_proficiency_level_id: null,
+          is_primary: true,
+          weight: null,
+          rationale: '',
+        }],
+        learning_outcomes: [{ code: '', title: { [locale]: '' }, description: { [locale]: '' }, professional_competency_id: null }],
+        academic_identity: {},
+      })
+    } catch (loadError) {
+      setError(readApiError(loadError))
+    } finally {
+      setBusy(false)
+    }
+  }, [copy.dictionaryEmpty, language, locale])
 
   const patchCompetency = (index, patch) =>
     setDraft((prev) => ({
@@ -250,6 +311,9 @@ export default function SeedPackPanel({ programId, onApproved }) {
       }))
       const response = await approveSeedPack(
         programId, competencies, draft.learning_outcomes, draft.academic_identity,
+        draft.source === 'manual'
+          ? { source: 'manual' }
+          : { source: 'ai', provenance: draft.ai_provenance || null },
       )
       setNotice(response?.message || '')
       setDraft(null)
@@ -315,8 +379,16 @@ export default function SeedPackPanel({ programId, onApproved }) {
                 </>
               )}
             </Button>
+            {!draft ? (
+              <Button variant="outline" disabled={busy} onClick={writeByHand}>
+                <PenLine className="h-4 w-4" aria-hidden="true" /> {copy.writeByHand}
+              </Button>
+            ) : null}
           </div>
         </div>
+
+        <AiServiceBanner families={['interactive']} language={language} />
+        {!draft ? <p className="text-xs text-[var(--color-text-muted)]">{copy.writeByHandHint}</p> : null}
 
         {error ? <p className="whitespace-pre-line text-sm text-red-600">{error}</p> : null}
         {notice ? <p className="text-sm text-emerald-600">{notice}</p> : null}
@@ -325,13 +397,16 @@ export default function SeedPackPanel({ programId, onApproved }) {
           <>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="warning">{copy.nothingWritten}</Badge>
+              {draft.source === 'manual' ? <Badge variant="neutral">{copy.writtenByHand}</Badge> : null}
               {/* which model wrote this, so the reviewer knows what they are judging */}
               {draft.model ? (
                 <Badge variant="neutral">
-                  {copy.draftedBy}: {draft.model}
+                  {copy.draftedBy}: {draft.ai_provenance?.answering_model || draft.model}
                 </Badge>
               ) : null}
             </div>
+            {/* A fallback model said plainly, with why the first was passed over (AI resilience, §7.3); the badge above names the answering model. */}
+            {draft.ai_provenance?.used_fallback ? <AiProvenanceNote provenance={draft.ai_provenance} language={language} /> : null}
 
             <section className="space-y-3">
               <div>

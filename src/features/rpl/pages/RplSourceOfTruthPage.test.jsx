@@ -96,3 +96,31 @@ describe('RplSourceOfTruthPage', () => {
     expect(await screen.findByText(/Raw files are never sent/)).toBeInTheDocument()
   })
 })
+
+describe('the governed model chain (fix review of 23 Oct 2026)', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('shows the whole chain the server reports under model_chain, not only its first step', async () => {
+    localStorage.setItem('icpc_admin_language', 'en')
+    mocks.fetchRplSourceOfTruth.mockResolvedValue(source({
+      gemini_governance: {
+        enabled: true,
+        model: 'gemini-3.6-flash',
+        model_chain: { task: 'rpl.advisory', family: 'case_analysis', chain: ['gemini-3.6-flash', 'gemini-3.1-pro-preview', 'gemini-3.5-flash-lite'], chain_sha: '3f9c0a1b2c4d' },
+        configured_prompt: 'Approved prompt',
+        effective_prompt: 'Approved prompt',
+      },
+    }))
+    render(<MemoryRouter><RplSourceOfTruthPage /></MemoryRouter>)
+
+    expect(await screen.findByText('gemini-3.6-flash → gemini-3.1-pro-preview → gemini-3.5-flash-lite')).toBeInTheDocument()
+  })
+
+  it('falls back to the single model of a server that sends no chain', async () => {
+    localStorage.setItem('icpc_admin_language', 'en')
+    mocks.fetchRplSourceOfTruth.mockResolvedValue(source())
+    render(<MemoryRouter><RplSourceOfTruthPage /></MemoryRouter>)
+
+    expect(await screen.findByText('gemini-flash')).toBeInTheDocument()
+  })
+})

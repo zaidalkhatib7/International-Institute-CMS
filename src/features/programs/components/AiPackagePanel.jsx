@@ -18,6 +18,9 @@ import {
 import { getCurrentLanguage } from '../../../utils/localization'
 import { readApiError } from '../../../services/apiResponse'
 import PublicationGatesPanel from './PublicationGatesPanel'
+import AiProvenanceNote from '../../shared/ai/AiProvenanceNote'
+import AiServiceBanner from '../../shared/ai/AiServiceBanner'
+import { aiBusyMessage } from '../../shared/ai/aiState'
 
 const COPY = {
   ar: {
@@ -336,12 +339,13 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
         if (successMessage) setNotice(successMessage)
         await load()
       } catch (actionError) {
-        setError(readApiError(actionError))
+        // An instant request the AI service could not answer in time (503 ai_busy_retry_later, Release G) says so, and that nothing was saved.
+        setError(aiBusyMessage(actionError, language) || readApiError(actionError))
       } finally {
         setBusy(false)
       }
     },
-    [load],
+    [language, load],
   )
 
   const artifacts = useMemo(() => run?.artifacts || [], [run])
@@ -442,6 +446,7 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
 
   return (
     <div className="space-y-6">
+      <AiServiceBanner families={['authoring', 'interactive']} language={language} />
       {/*
         The two gates publish-package refuses on. They had write endpoints and
         no screen, so a drafted package could never clear them — which is why
@@ -907,6 +912,13 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
                     </span>
                     {artifact.sequence > 1 ? <span className="text-xs text-[var(--color-text-muted)]">v{artifact.sequence}</span> : null}
                     {artifact.superseded_by ? <Badge variant="secondary">{copy.superseded}</Badge> : null}
+                    {/* The model that made this component, and a fallback model said plainly (AI resilience, §7.3). */}
+                    <AiProvenanceNote
+                      compact
+                      provenance={artifact.ai_provenance}
+                      legacy={{ model: artifact.ai_model, responding_model: artifact.responding_model, requested_model: artifact.requested_model, used_fallback_model: artifact.used_fallback_model }}
+                      language={language}
+                    />
                   </div>
                   {!isPublished &&
                   aiStatus === 'ai_draft' &&

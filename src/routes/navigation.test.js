@@ -31,30 +31,30 @@ const ADMIN_ROWS = [
   '/programs', '/competency-gap-library', '/academic-rpl/library', '/content/course', '/quizzes', '/ai-settings',
   '/finance', '/certificates',
   '/support', '/library',
-  '/rpl/configuration', '/academic-rpl/framework', '/users',
+  '/rpl/configuration', '/academic-rpl/framework', '/users', '/settings/ai-service',
 ]
 const PREFLOW_ROWS = ['/rpl/assessments', '/rpl/accreditation', '/quality', '/rpl/appeals']
 
 const ROLE_ROWS = {
-  'content-admin': ['/dashboard', '/programs', '/competency-gap-library', '/library'],
-  trainer: ['/dashboard', '/ai-settings'],
-  assessor: ['/dashboard', '/rpl/applications', '/academic-rpl/applications', '/academic-rpl/framework', '/rpl/assessments'],
-  'quality-reviewer': ['/dashboard', '/rpl/applications', '/academic-rpl/applications', '/certificates', '/academic-rpl/framework', '/rpl/assessments', '/quality'],
-  'finance-operator': ['/dashboard', '/users/website', '/rpl/payments', '/finance'],
-  'support-agent': ['/dashboard', '/users/website', '/certificates', '/support'],
-  'committee-member': ['/dashboard', '/rpl/applications', '/academic-rpl/applications', '/academic-rpl/framework', '/rpl/assessments', '/rpl/accreditation'],
-  'appeal-reviewer': ['/dashboard', '/rpl/applications', '/academic-rpl/applications', '/academic-rpl/framework', '/rpl/assessments', '/rpl/appeals'],
+  'content-admin': ['/dashboard', '/programs', '/competency-gap-library', '/library', '/settings/ai-service'],
+  trainer: ['/dashboard', '/ai-settings', '/settings/ai-service'],
+  assessor: ['/dashboard', '/rpl/applications', '/academic-rpl/applications', '/academic-rpl/framework', '/settings/ai-service', '/rpl/assessments'],
+  'quality-reviewer': ['/dashboard', '/rpl/applications', '/academic-rpl/applications', '/certificates', '/academic-rpl/framework', '/settings/ai-service', '/rpl/assessments', '/quality'],
+  'finance-operator': ['/dashboard', '/users/website', '/rpl/payments', '/finance', '/settings/ai-service'],
+  'support-agent': ['/dashboard', '/users/website', '/certificates', '/support', '/settings/ai-service'],
+  'committee-member': ['/dashboard', '/rpl/applications', '/academic-rpl/applications', '/academic-rpl/framework', '/settings/ai-service', '/rpl/assessments', '/rpl/accreditation'],
+  'appeal-reviewer': ['/dashboard', '/rpl/applications', '/academic-rpl/applications', '/academic-rpl/framework', '/settings/ai-service', '/rpl/assessments', '/rpl/appeals'],
 }
 
 beforeEach(() => localStorage.setItem('icpc_admin_language', 'en'))
 
 describe('the rows of every seeded role (§2.3)', () => {
-  it.each(['admin', 'super-admin'])('%s sees 20 rows without pre-flow work, Exchange rate inside Finance', (slug) => {
+  it.each(['admin', 'super-admin'])('%s sees 21 rows without pre-flow work, Exchange rate inside Finance', (slug) => {
     expect(hrefs(roleUser(slug))).toEqual(ADMIN_ROWS)
-    expect(hrefs(roleUser(slug), { preflowWork: 0 })).toHaveLength(20)
+    expect(hrefs(roleUser(slug), { preflowWork: 0 })).toHaveLength(21)
   })
 
-  it('an administrator sees the pre-flow group last while pre-flow work exists (24 rows)', () => {
+  it('an administrator sees the pre-flow group last while pre-flow work exists (25 rows)', () => {
     expect(hrefs(roleUser('admin'), { preflowWork: 3 })).toEqual([...ADMIN_ROWS, ...PREFLOW_ROWS])
   })
 
@@ -62,8 +62,8 @@ describe('the rows of every seeded role (§2.3)', () => {
     expect(hrefs(roleUser(slug))).toEqual(rows)
   })
 
-  it('a role holding only rpl.payments.reconcile sees Today, Payments to confirm and Exchange rate', () => {
-    expect(hrefs(permissionsUser(['rpl.payments.reconcile']))).toEqual(['/dashboard', '/rpl/payments', '/finance/exchange-rate'])
+  it('a role holding only rpl.payments.reconcile sees Today, Payments to confirm, Exchange rate and the AI service', () => {
+    expect(hrefs(permissionsUser(['rpl.payments.reconcile']))).toEqual(['/dashboard', '/rpl/payments', '/finance/exchange-rate', '/settings/ai-service'])
   })
 
   it('names the professional path group and the academic group, each with a case list of its own name', () => {
@@ -152,6 +152,7 @@ describe('one active row (§2.2 rule 2)', () => {
     ['/assessors', '/rpl/assessments'],
     ['/academic-rpl/diagnostics/4', '/academic-rpl/applications'],
     ['/dashboard', '/dashboard'],
+    ['/settings/ai-service', '/settings/ai-service'],
   ])('%s makes %s the active row', (pathname, active) => {
     expect(findActiveHref(pathname, items)).toBe(active)
   })
@@ -202,6 +203,22 @@ describe('route titles (§4.7)', () => {
     expect(getRouteTitle('/users/website', 'en')).toBe('Today')
     expect(getRouteTitle('/settings', 'ar')).toBe('إعداداتي')
     expect(getRouteTitle('/anything', 'ar')).toBe('اليوم')
+  })
+})
+
+describe('the AI service page (AI resilience, Release G, D20)', () => {
+  it('is open to every member of staff, as the last row of Setup, and names no RPL, API or CMS in Arabic', () => {
+    expect(getRouteAccess('/settings/ai-service')).toBeNull()
+    for (const slug of ['admin', ...Object.keys(SEEDED_ROLE_PERMISSIONS)]) expect(hrefs(roleUser(slug))).toContain('/settings/ai-service')
+    const setup = getSidebarNavigation(createAuthorization(roleUser('admin')).canAccess, { language: 'ar' }).find((group) => group.key === 'setup')
+    expect(setup.items.at(-1)).toMatchObject({ key: 'ai_service', name: 'خدمة الذكاء الاصطناعي', href: '/settings/ai-service' })
+    const english = getSidebarNavigation(createAuthorization(roleUser('trainer')).canAccess, { language: 'en' }).flatMap((group) => group.items)
+    expect(english.find((item) => item.key === 'ai_service').name).toBe('AI service')
+  })
+
+  it('does not make My settings an active row', () => {
+    const items = getNavigationItems(createAuthorization(roleUser('admin')).canAccess, { language: 'en' })
+    expect(findActiveHref('/settings', items)).toBeNull()
   })
 })
 

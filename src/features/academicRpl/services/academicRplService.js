@@ -56,8 +56,31 @@ export async function approveAcademicCompetency(competencyId, payload) {
   return read(await http.post(`/academic-rpl/competencies/${competencyId}/approve`, payload))
 }
 
+/*
+ * From Release G (AI-RESILIENCE-SPEC D13) the analysis and the diagnostic run on
+ * the queue: each start answers 202 and the case carries the run under
+ * analysis_generation and diagnostic_generation until it has finished. A run
+ * waiting to retry is started again with Retry now
+ * (aiServiceApi.retryAiGenerationNow), never with its start request.
+ */
 export async function generateAcademicDiagnostic(publicId, payload) {
   return read(await http.post(`/academic-rpl/diagnostics/generate/${publicId}`, payload))
+}
+
+/*
+ * THE DIAGNOSTIC WRITTEN BY HAND (AI-RESILIENCE-SPEC §5.3, D15). No model, and
+ * no analysis needed: the blueprint comes from the track's approved
+ * requirements. `{ track_id, reason }`, then one MCQ at a time with
+ * addAcademicDiagnosticItem; items start pending and the usual review, approve
+ * and issue rules apply (issue is blocked while any item is pending).
+ */
+export async function createManualAcademicDiagnostic(publicId, payload) {
+  return read(await http.post(`/academic-rpl/diagnostics/manual/${publicId}`, payload))
+}
+
+/** One hand-written MCQ: { axis, difficulty, prompt: {locale}, options: [{id, text: {locale}}], answer_key: { correct_option_id } }. */
+export async function addAcademicDiagnosticItem(diagnosticId, payload) {
+  return read(await http.post(`/academic-rpl/diagnostics/${diagnosticId}/items`, payload))
 }
 
 export async function fetchAcademicDiagnostic(diagnosticId) {

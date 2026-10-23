@@ -9,6 +9,7 @@ import { formatLocalizedDate, formatLocalizedNumber } from '../../../utils/local
 import { useAuthorization } from '../../auth/context/useAuthorization'
 import { CLIENT_CHIP_QUEUE_KEYS, STAFF_TILE_QUEUE_KEYS, STEP_KEYS, queueHref, queueOf, stageLabel, statusesOfStage } from '../../rpl/domain/journey'
 import useWorkCounts from '../hooks/useWorkCounts'
+import AiServiceBanner from '../../shared/ai/AiServiceBanner'
 
 /*
  * TODAY (owner, 18 Oct 2026; PLATFORM-JOURNEY-SPEC §4.1, D-01).
@@ -210,6 +211,9 @@ export default function TodayPage() {
         meta={refreshedTime ? <span className="text-xs text-[var(--color-text-muted)]">{fill(copy.refreshedAt, { time: refreshedTime })}</span> : null}
         actions={counts.sources.length ? <Button variant="outline" onClick={() => counts.refresh()} disabled={counts.refreshing} aria-busy={counts.refreshing ? 'true' : undefined}><RefreshCw size={17} className={counts.refreshing ? 'animate-spin' : ''} />{copy.refresh}</Button> : null}
       />
+
+      {/* The AI service (AI resilience, Release G, D20): amber on a backup model, red when down, grey when unchecked; nothing when all is well. */}
+      <AiServiceBanner language={language} />
 
       {counts.partial ? <p role="status" className="text-sm text-[var(--color-text-muted)]">{copy.partial}</p> : null}
 

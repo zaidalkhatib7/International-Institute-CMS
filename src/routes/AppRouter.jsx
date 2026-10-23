@@ -27,6 +27,8 @@ const AiQuizSettingsPage = lazy(() => import('../features/quizzes/pages/AiQuizSe
 const ProgramQuestionBankPage = lazy(() => import('../features/quizzes/pages/ProgramQuestionBankPage'))
 const ProgramContentPage = lazy(() => import('../features/content/pages/ProgramContentPage'))
 const SettingsPage = lazy(() => import('../features/settings/pages/SettingsPage'))
+// The AI service page (AI resilience, Release G): the models' status, chains, history and incidents, for all staff.
+const AiServicePage = lazy(() => import('../features/settings/pages/AiServicePage'))
 const RplApplicationsPage = lazy(() => import('../features/rpl/pages/RplApplicationsPage'))
 const RplCaseWorkspacePage = lazy(() => import('../features/rpl/pages/RplCaseWorkspacePage'))
 const RplEvidencePage = lazy(() => import('../features/rpl/pages/RplEvidencePage'))
@@ -284,6 +286,8 @@ export default function AppRouter() {
             </AdminRoute>
           }
         />
+
+        <Route path="/settings/ai-service" element={<AdminRoute><AiServicePage /></AdminRoute>} />
 
         <Route path="/academic-rpl/applications" element={<AdminRoute><AcademicApplicationsPage /></AdminRoute>} />
         <Route path="/academic-rpl/applications/:applicationId" element={<AdminRoute><AcademicCasePage /></AdminRoute>} />

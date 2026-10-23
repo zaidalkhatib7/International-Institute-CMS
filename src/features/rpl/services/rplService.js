@@ -137,6 +137,16 @@ export async function requestRplScreening(applicationId) {
   return read(await http.post(`/admin/rpl/applications/${applicationId}/screenings`))
 }
 
+/**
+ * RETRY NOW on the document screen (AI-RESILIENCE-SPEC §5.2): the screen's own
+ * route, by its public_id, never the re-run request (a re-run while the screen
+ * waits is refused). The same run starts at once, so it is not counted against
+ * the daily re-run limit; the job it replaces wakes later and makes no call.
+ */
+export async function retryRplScreeningNow(screeningPublicId) {
+  return read(await http.post(`/admin/rpl/screenings/${screeningPublicId}/retry-now`))
+}
+
 export async function acknowledgeRplScreening(screeningPublicId) {
   return read(await http.post(`/admin/rpl/screenings/${screeningPublicId}/acknowledge`))
 }
@@ -238,6 +248,11 @@ export async function fetchDynamicAssessment(id) {
   return read(await http.get(`/admin/rpl/dynamic-assessments/${id}`))
 }
 
+/*
+ * A waiting draft is started again with Retry now (aiServiceApi.retryAiGenerationNow,
+ * AI-RESILIENCE-SPEC §5.2), never with this start request, which is refused while
+ * a run waits.
+ */
 export async function generateDynamicAssessmentDraft(id) {
   return read(await http.post(`/admin/rpl/dynamic-assessments/${id}/generate`, {}, AI_TIMEOUT))
 }
@@ -311,6 +326,12 @@ export async function rescoreDynamicAssessment(id, payload) {
   return read(await http.post(`/admin/rpl/dynamic-assessments/${id}/rescore`, payload))
 }
 
+/*
+ * The final evaluation runs on the queue from Release G (AI-RESILIENCE-SPEC D13):
+ * the route answers 202 and the set carries the run under
+ * final_evaluation_generation until it has finished. A waiting run is started
+ * again with Retry now (aiServiceApi.retryAiGenerationNow).
+ */
 export async function finalEvaluateDynamicAssessment(id) {
   return read(await http.post(`/admin/rpl/dynamic-assessments/${id}/final-evaluation`, {}, AI_TIMEOUT))
 }
@@ -473,6 +494,18 @@ export async function fetchRplCoursePlanCatalogue(applicationId) {
 
 export async function generateRplCoursePlan(applicationId, payload = {}) {
   return read(await http.post(`/admin/rpl/applications/${applicationId}/course-plan/generate`, payload, AI_TIMEOUT))
+}
+
+/*
+ * THE COURSE PLAN COMPOSED BY HAND (AI resilience, Release G, AI-RESILIENCE-SPEC
+ * §5.3, D15). No model is asked: the server runs the generation's own
+ * preconditions, writes an empty draft with source `manual` and the reason, and
+ * moves the case to course_plan_review; staff then add the courses one by one.
+ * `reason` is required (10 to 2,000 characters). Answers like generate does:
+ * { data: { plan, application_status } }.
+ */
+export async function composeRplCoursePlan(applicationId, payload) {
+  return read(await http.post(`/admin/rpl/applications/${applicationId}/course-plan/compose`, payload))
 }
 
 export async function fetchRplCoursePlanVersion(planId) {

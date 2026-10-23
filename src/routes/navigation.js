@@ -1,4 +1,5 @@
 import {
+  Activity,
   ArrowLeftRight,
   Award,
   Banknote,
@@ -144,6 +145,8 @@ export const NAV_GROUPS = Object.freeze([
       { key: 'pro_settings', label: { ar: 'إعدادات المسار المهني', en: 'Professional path settings' }, href: '/rpl/configuration', icon: SlidersHorizontal, activeFor: ['/rpl/source-of-truth'] },
       { key: 'aca_framework', label: { ar: 'إطار الكفاءات الأكاديمية', en: 'Academic competency framework' }, href: '/academic-rpl/framework', icon: BookOpenCheck },
       { key: 'staff', label: { ar: 'الموظفون والصلاحيات', en: 'Staff & roles' }, href: '/users', icon: UserCog, exact: true, navAccess: { allPermissions: ['users.manage'] } },
+      // The AI service page (AI resilience, Release G, D20): the models' status and history, for every member of staff.
+      { key: 'ai_service', label: { ar: 'خدمة الذكاء الاصطناعي', en: 'AI service' }, href: '/settings/ai-service', icon: Activity },
     ],
   },
   {

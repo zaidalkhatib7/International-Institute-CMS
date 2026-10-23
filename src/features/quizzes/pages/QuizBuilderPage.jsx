@@ -38,6 +38,8 @@ const REVIEW_STATUS_META = {
 }
 import { getCurrentLanguage, hasPlatformText, readLocalizedValue, readStoredEnglish } from '../../../utils/localization'
 import { readApiError } from '../../../services/apiResponse'
+import AiServiceBanner from '../../shared/ai/AiServiceBanner'
+import { aiBusyMessage } from '../../shared/ai/aiState'
 
 function readLocalized(value) {
   return readLocalizedValue(value)
@@ -277,6 +279,8 @@ export default function QuizBuilderPage() {
       next: 'Next',
       success: 'Gemini generated {count} questions. Review every answer before saving.',
       error: 'Could not generate questions from this PDF.',
+      retrying: 'The AI service was busy, so the import is waiting and retries on its own. Leave this page open, or come back later: it continues on the server.',
+      modelsUsed: 'Made by: {models}',
     },
     ar: {
       title: 'إنشاء أسئلة من ملف PDF',
@@ -296,6 +300,8 @@ export default function QuizBuilderPage() {
       next: 'التالي',
       success: 'أنشأ Gemini عدد {count} من الأسئلة. راجع كل إجابة قبل الحفظ.',
       error: 'تعذر إنشاء الأسئلة من هذا الملف.',
+      retrying: 'كانت خدمة الذكاء الاصطناعي مشغولة، فالاستيراد ينتظر ويعيد المحاولة تلقائيًا. أبقِ الصفحة مفتوحة أو عد لاحقًا: يستمر العمل على الخادم.',
+      modelsUsed: 'أعدّه: {models}',
     },
   })[language] || null, [language])
 
@@ -314,6 +320,8 @@ export default function QuizBuilderPage() {
   const [importMode, setImportMode] = useState('replace')
   const [isImporting, setIsImporting] = useState(false)
   const [importProgress, setImportProgress] = useState(null)
+  // The models that made the imported questions (AI resilience, Release G, §7.3): the import records them per batch.
+  const [importModels, setImportModels] = useState([])
   const [questionPage, setQuestionPage] = useState(1)
 
   const [formData, setFormData] = useState({
@@ -545,9 +553,11 @@ export default function QuizBuilderPage() {
 
     setIsImporting(true)
     setImportProgress(null)
+    setImportModels([])
     try {
       const response = await importQuizQuestionsFromPdf(pdfFile, requestedCount)
       let generated = normalizePayload(response)
+      let modelsUsed = generated?.models_used
 
       if (generated?.id && generated?.status) {
         let importStatus = generated
@@ -555,6 +565,7 @@ export default function QuizBuilderPage() {
 
         for (let poll = 0; poll < 3600; poll += 1) {
           if (importStatus.status === 'completed') {
+            modelsUsed = importStatus.models_used || importStatus.result?.models_used
             generated = importStatus.result
             break
           }
@@ -609,10 +620,12 @@ export default function QuizBuilderPage() {
         }
       })
       setSaveMessage(aiCopy.success.replace('{count}', String(importedQuestions.length)))
+      setImportModels([...new Set((Array.isArray(modelsUsed) ? modelsUsed : []).map((entry) => (typeof entry === 'string' ? entry : entry?.model)).filter(Boolean))])
       setActiveLanguage('en')
       setQuestionPage(1)
     } catch (err) {
-      setSaveError(err?.response?.data?.message || err?.message || aiCopy.error)
+      // The small synchronous import is an instant request: its busy answer (503 ai_busy_retry_later) says so, and that nothing was saved.
+      setSaveError(aiBusyMessage(err, language) || err?.response?.data?.message || err?.message || aiCopy.error)
     } finally {
       setIsImporting(false)
     }
@@ -715,6 +728,7 @@ export default function QuizBuilderPage() {
         {saveMessage ? (
           <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-700">
             {saveMessage}
+            {importModels.length ? <p data-import-models="true" className="mt-1 text-xs">{aiCopy.modelsUsed.replace('{models}', importModels.join(' · '))}</p> : null}
           </div>
         ) : null}
 
@@ -748,6 +762,8 @@ export default function QuizBuilderPage() {
                   </p>
                 </div>
               </div>
+
+              <AiServiceBanner families={['authoring', 'interactive']} language={language} className="mb-5" />
 
               <div className="grid items-end gap-5 xl:grid-cols-[minmax(0,2fr)_180px_240px_auto]">
                 <Input
@@ -795,6 +811,7 @@ export default function QuizBuilderPage() {
                       style={{ width: `${importProgress.progress || 0}%` }}
                     />
                   </div>
+                  {importProgress.status === 'retrying' ? <p role="status" data-import-retrying="true" className="mt-3 text-sm leading-6 text-amber-900">{aiCopy.retrying}</p> : null}
                 </div>
               ) : null}
             </CardContent>

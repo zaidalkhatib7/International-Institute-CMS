@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Ban, FilePenLine, History, ListChecks, LoaderCircle, Plus, RefreshCw, Sparkles, Trash2, TriangleAlert } from 'lucide-react'
+import { Ban, FilePenLine, History, ListChecks, LoaderCircle, PenLine, Plus, RefreshCw, Sparkles, Trash2, TriangleAlert } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, CoursePicker, Textarea } from '../../../components/ui'
 import { readApiError, unwrapApiData, unwrapCollection } from '../../../services/apiResponse'
 import { formatLocalizedDateTime } from '../../../utils/localization'
@@ -32,6 +32,7 @@ import {
   addRplCoursePlanItem,
   amendRplCoursePlan,
   approveRplCoursePlan,
+  composeRplCoursePlan,
   discardRplCoursePlan,
   fetchRplCoursePlan,
   fetchRplCoursePlanCatalogue,
@@ -41,6 +42,13 @@ import {
   removeRplCoursePlanItem,
 } from '../services/rplService'
 import { RecommendationGrounds } from './AdvisoryProvenance'
+import AiProvenanceNote from '../../shared/ai/AiProvenanceNote'
+import AiRunNotice from '../../shared/ai/AiRunNotice'
+import AiServiceBanner from '../../shared/ai/AiServiceBanner'
+import { aiCopy } from '../../shared/ai/aiCopy'
+import { isAiRunInFlight, isCapacityFailure, isWaitingRetry, retryTargetOf, runError } from '../../shared/ai/aiState'
+import { retryAiGenerationNow } from '../../shared/ai/aiServiceApi'
+import useAiRunPoll from '../../shared/ai/useAiRunPoll'
 
 /*
  * THE COURSE PLAN EDITOR (owner flow of 12 Oct 2026, plan 4.7 and 5.4-5.6, P5).
@@ -67,7 +75,7 @@ const PLAN_STATUS_VARIANT = { draft: 'warning', approved: 'success', superseded:
 const ITEM_STATUS_VARIANT = { proposed: 'info', approved: 'success', removed: 'neutral', purchased: 'primary', completed: 'success', refunded: 'neutral' }
 const PURPOSE_VARIANT = { gap_closure: 'info', minimum_completion: 'warning', staff_added: 'neutral' }
 
-const EMPTY_FORMS = { regenerate: null, amend: null, discard: null, add: null, remove: null, belowMinimumReason: '' }
+const EMPTY_FORMS = { regenerate: null, amend: null, discard: null, add: null, remove: null, compose: null, belowMinimumReason: '' }
 
 function personName(person, copy) {
   return person?.name || copy.someone
@@ -230,6 +238,10 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
     return () => window.clearTimeout(timer)
   }, [load])
 
+  const pollRun = state.overview?.generation?.run
+  const silentReload = useCallback(() => load({ silent: true }), [load])
+  useAiRunPoll(pollRun, silentReload, state.overview)
+
   const evidenceTitles = useMemo(() => new Map((Array.isArray(evidence) ? evidence : []).map((row) => [String(row?.id), localize(row?.title, language) || row?.media?.original_name || row?.external_url || ''])), [evidence, language])
 
   const overview = state.overview
@@ -243,6 +255,21 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
   const versions = Array.isArray(overview?.versions) ? overview.versions : []
   const readOnly = isCoursePlanReadOnly(caseStatus) && Boolean(plan || versions.length)
   const generation = overview?.generation || {}
+  /*
+   * AI RESILIENCE (Release G, AI-RESILIENCE-SPEC §5.2-5.3). The queued run of the
+   * proposal (generation.run, G4): read again until it has finished, said when
+   * it waits to retry (with Retry now), and named when it failed. Composing the
+   * plan by hand is always offered beside Generate, and first while the AI
+   * service is busy, so an outage never blocks a case.
+   */
+  const run = generation.run && typeof generation.run === 'object' ? generation.run : null
+  const runInFlight = isAiRunInFlight(run)
+  const runCapacityFailed = (run?.status === 'failed' || run?.status === 'abandoned') && isCapacityFailure(runError(run).code, runError(run).errorClass)
+  const runCopy = aiCopy(language).run
+  const composeAllowed = overview?.can?.compose !== undefined
+    ? canManage !== false && overview.can.compose === true
+    : canManage !== false && !plan && (can('generate') || ((isWaitingRetry(run) || runCapacityFailed) && caseStatus === 'assessment_in_progress'))
+  const composeFirst = composeAllowed && (isWaitingRetry(run) || runCapacityFailed)
 
   function setForm(key, value) {
     setForms((current) => ({ ...current, [key]: value }))
@@ -304,7 +331,19 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
   }
 
   function generate() {
-    return act('generate', () => generateRplCoursePlan(applicationId, { locale: coursePlanLocale(language) }), (created) => fill(copy.generated, { version: created.version ?? '' }))
+    // From the G4 move the server queues the proposal (202, no plan yet): the tab then says so and follows the run.
+    return act('generate', () => generateRplCoursePlan(applicationId, { locale: coursePlanLocale(language) }), (created) => (created.version != null ? fill(copy.generated, { version: created.version }) : copy.generationQueued))
+  }
+
+  /* Retry now (§5.2): the server's own route for the waiting run, never Generate (refused while it waits). */
+  async function retryNow() {
+    await retryAiGenerationNow(run)
+    await load({ silent: true })
+  }
+
+  function compose() {
+    const reason = forms.compose?.reason ?? ''
+    return act('compose', () => composeRplCoursePlan(applicationId, { reason: reason.trim(), locale: coursePlanLocale(language) }), (created) => fill(copy.composed, { version: created.version ?? 1 }), () => setForm('compose', null))
   }
 
   function regenerate() {
@@ -368,7 +407,10 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
 
   function renderActions() {
     const actions = []
-    if (can('generate')) actions.push(<Button key="generate" onClick={generate} disabled={Boolean(busy)}>{busy === 'generate' ? <LoaderCircle className="animate-spin" size={17} /> : <Sparkles size={17} />}{copy.generate}</Button>)
+    const composeButton = composeAllowed && !forms.compose ? <Button key="compose" variant={composeFirst ? 'primary' : 'outline'} onClick={() => setForm('compose', { reason: '' })} disabled={Boolean(busy)}><PenLine size={17} />{copy.compose}</Button> : null
+    if (composeFirst && composeButton) actions.push(composeButton)
+    if (can('generate')) actions.push(<Button key="generate" variant={composeFirst ? 'outline' : 'primary'} onClick={generate} disabled={Boolean(busy) || runInFlight}>{busy === 'generate' ? <LoaderCircle className="animate-spin" size={17} /> : <Sparkles size={17} />}{copy.generate}</Button>)
+    if (!composeFirst && composeButton) actions.push(composeButton)
     if (can('regenerate') && draft && !forms.regenerate) actions.push(<Button key="regenerate" variant="outline" onClick={() => setForm('regenerate', { reason: '' })} disabled={Boolean(busy)}><RefreshCw size={17} />{copy.regenerate}</Button>)
     if (can('amend') && approved && !forms.amend) actions.push(<Button key="amend" variant="outline" onClick={() => setForm('amend', { reason: '' })} disabled={Boolean(busy)}><FilePenLine size={17} />{copy.amend}</Button>)
     if (can('discard') && draft && !forms.discard) actions.push(<Button key="discard" variant="ghost" onClick={() => setForm('discard', { reason: '' })} disabled={Boolean(busy)}><Ban size={17} />{copy.discard}</Button>)
@@ -377,6 +419,11 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
       <div className="space-y-3">
         {actions.length ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
         {can('generate') ? <p className="text-xs leading-5 text-[var(--color-text-muted)]">{copy.generateHint}</p> : null}
+        {forms.compose ? (
+          <InlineForm title={copy.composeTitle} text={copy.composeHint} copy={copy} submitLabel={copy.composeSubmit} busy={busy === 'compose'} canSubmit={isCoursePlanReasonValid(forms.compose.reason)} onSubmit={compose} onCancel={() => setForm('compose', null)}>
+            <ReasonField id="course-plan-compose-reason" copy={copy} value={forms.compose.reason} onChange={(reason) => setForm('compose', { reason })} disabled={busy === 'compose'} />
+          </InlineForm>
+        ) : composeAllowed ? <p className="text-xs leading-5 text-[var(--color-text-muted)]">{copy.composeHint}</p> : null}
         {busy === 'generate' || busy === 'regenerate' ? <p role="status" className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]"><LoaderCircle className="animate-spin" size={16} />{copy.generating}</p> : null}
         {forms.regenerate && draft ? (
           <InlineForm title={copy.regenerate} text={fill(copy.regenerateConfirm, { next: Number(draft.version) + 1, version: draft.version })} copy={copy} submitLabel={copy.regenerateSubmit} busy={busy === 'regenerate'} canSubmit={isCoursePlanReasonValid(forms.regenerate.reason)} onSubmit={regenerate} onCancel={() => setForm('regenerate', null)}>
@@ -484,9 +531,14 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
   function renderProvenance(current) {
     const snapshot = current?.minimums_setting_snapshot
     const by = current?.model ? fill(copy.generatedBy, { model: current.model, at: formatLocalizedDateTime(current.created_at, language) }) : fill(copy.createdBy, { name: personName(current?.created_by, copy), at: formatLocalizedDateTime(current?.created_at, language) })
+    const report = current?.generation_report && typeof current.generation_report === 'object' ? current.generation_report : {}
+    const manual = current?.source === 'manual'
+    const aiProvenance = report.ai_provenance || current?.ai_provenance || null
     return (
       <section aria-label={copy.provenance} className="space-y-1 border-t border-[var(--color-border)] pt-3 text-xs leading-5 text-[var(--color-text-muted)]">
         <p>{by}</p>
+        {manual ? <p data-composed-by-hand="true" dir="auto">{fill(copy.composedBy, { name: personName(current.created_by, copy), reason: report.reason || current.creation_reason || '—' })}</p> : null}
+        {!manual && current?.model && aiProvenance ? <AiProvenanceNote provenance={aiProvenance} language={language} /> : null}
         {current?.model && current?.created_by ? <p>{fill(copy.createdBy, { name: personName(current.created_by, copy), at: formatLocalizedDateTime(current.created_at, language) })}</p> : null}
         {current?.approved_at ? <p>{fill(copy.approvedBy, { name: personName(current.approved_by, copy), at: formatLocalizedDateTime(current.approved_at, language) })}</p> : null}
         {current?.source !== 'amendment' && current?.minimum_required != null ? <p>{fill(copy.minimumSent, { minimum: current.minimum_required })}</p> : null}
@@ -602,7 +654,10 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
         {notice.success ? <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">{notice.success}</p> : null}
         {readOnly ? <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 text-sm leading-6">{copy.readOnly}</p> : null}
         {renderQuizBanner()}
-        {!plan && refusal && !can('generate') ? <p className="text-sm leading-6 text-[var(--color-text-muted)]">{copy.blocked[refusal] || humanizeCode(refusal)}</p> : null}
+        {run?.status === 'queued' || run?.status === 'running' ? <p role="status" data-course-plan-run={run.status} className="flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-950"><LoaderCircle className="animate-spin" size={16} />{run.status === 'queued' ? runCopy.queued : runCopy.running}</p> : null}
+        {/* A first proposal or a regeneration: Retry now names the case's waiting run, whichever it is. */}
+        <AiRunNotice run={run} language={language} onRetryNow={canManage !== false && retryTargetOf(run) ? retryNow : null} />
+        {!plan && refusal && !can('generate') && !(refusal === 'generation_in_progress' && runInFlight) ? <p className="text-sm leading-6 text-[var(--color-text-muted)]">{copy.blocked[refusal] || humanizeCode(refusal)}</p> : null}
         {renderActions()}
         {!plan ? <p className="text-sm text-[var(--color-text-muted)]">{copy.none}</p> : null}
         {amendment ? <p className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-900">{fill(copy.amendmentHeader, { next: draft.version, version: approved.version })}</p> : null}
@@ -624,7 +679,10 @@ export default function CoursePlanEditor({ applicationId, application, evidence 
         <CardTitle className="flex items-center gap-2"><ListChecks size={20} aria-hidden="true" />{copy.title}</CardTitle>
         <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{copy.hint}</p>
       </CardHeader>
-      <CardContent className="pt-6">{renderBody()}</CardContent>
+      <CardContent className="space-y-4 pt-6">
+        <AiServiceBanner families={['case_analysis']} language={language} />
+        {renderBody()}
+      </CardContent>
     </Card>
   )
 }

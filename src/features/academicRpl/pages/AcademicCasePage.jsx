@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ClipboardCheck, FileSearch, ListChecks, Loader2, ShieldCheck, Sparkles, Target } from 'lucide-react'
+import { ArrowLeft, ClipboardCheck, FileSearch, ListChecks, Loader2, PenLine, ShieldCheck, Sparkles, Target } from 'lucide-react'
 import {
   Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Textarea,
 } from '../../../components/ui'
@@ -9,9 +9,16 @@ import { getAdminLanguage } from '../../../services/languageStorage'
 import { localize } from '../../rpl/domain/rpl'
 import { formatLocalizedDateTime } from '../../../utils/localization'
 import {
-  analyseAcademicApplication, confirmAcademicEligibility, fetchAcademicApplication, fetchAcademicGapPlan,
+  analyseAcademicApplication, confirmAcademicEligibility, createManualAcademicDiagnostic, fetchAcademicApplication, fetchAcademicGapPlan,
   fetchAcademicReferenceData, generateAcademicDiagnostic, recordAcademicRecommendation,
 } from '../services/academicRplService'
+import AiProvenanceNote from '../../shared/ai/AiProvenanceNote'
+import AiRunNotice from '../../shared/ai/AiRunNotice'
+import AiServiceBanner from '../../shared/ai/AiServiceBanner'
+import { aiCopy } from '../../shared/ai/aiCopy'
+import { aiGenerationOf, isAiRunInFlight, retryTargetOf } from '../../shared/ai/aiState'
+import { retryAiGenerationNow } from '../../shared/ai/aiServiceApi'
+import useAiRunPoll from '../../shared/ai/useAiRunPoll'
 import ReadinessPanel from '../components/ReadinessPanel'
 import { useAuthorization } from '../../auth/context/useAuthorization'
 import { getRouteAccess } from '../../../routes/routeAccess'
@@ -86,6 +93,16 @@ const COPY = {
     years_: 'سنة',
     requiredDepth: 'العمق المطلوب',
     notAdmission: 'هذه توصية علمية وليست قرار قبول. القبول يبقى قرارًا بشريًا محكومًا.',
+    analysisQueued: 'طُلب التحليل، وتعمل عليه خدمة الذكاء الاصطناعي في الخلفية. تتحقق هذه الصفحة منه تلقائيًا.',
+    diagnosticQueued: 'طُلب الاختبار التشخيصي، وتعمل عليه خدمة الذكاء الاصطناعي في الخلفية. يظهر في القائمة حين يكتمل.',
+    writeByHand: 'اكتب الاختبار يدويًا لـ',
+    manualTitle: 'كتابة الاختبار التشخيصي يدويًا',
+    manualHint: 'دون Gemini ودون الحاجة إلى التحليل: تُبنى خطة الاختبار من متطلبات المسار المعتمدة، ثم تضيف الأسئلة واحدًا واحدًا. كل سؤال يبدأ بانتظار المراجعة، وتسري قواعد المراجعة والاعتماد والإصدار كالمعتاد.',
+    manualReason: 'السبب — يُسجَّل في سجل التدقيق',
+    manualReasonHint: 'من 10 إلى 2000 حرف.',
+    manualSubmit: 'إنشاء الاختبار اليدوي',
+    manualCancel: 'إلغاء',
+    manualCreated: 'أُنشئ الاختبار اليدوي. أضف أسئلته من صفحة المراجعة.',
   },
   en: {
     back: 'Back to the list',
@@ -141,6 +158,16 @@ const COPY = {
     years_: 'years',
     requiredDepth: 'Required depth',
     notAdmission: 'A scientific recommendation, not an admission decision. Admission remains a governed human decision.',
+    analysisQueued: 'The analysis was asked for, and the AI service works on it in the background. This page checks it on its own.',
+    diagnosticQueued: 'The diagnostic was asked for, and the AI service works on it in the background. It appears in the list when it is ready.',
+    writeByHand: 'Write by hand for',
+    manualTitle: 'Write the diagnostic by hand',
+    manualHint: 'Without Gemini and without the analysis: the paper\'s blueprint is built from the track\'s approved requirements, then you add the questions one by one. Each question starts pending review, and the usual review, approve and issue rules apply.',
+    manualReason: 'Reason — recorded in the audit trail',
+    manualReasonHint: 'From 10 to 2,000 characters.',
+    manualSubmit: 'Create the diagnostic by hand',
+    manualCancel: 'Cancel',
+    manualCreated: 'The diagnostic written by hand was created. Add its questions on the review page.',
   },
 }
 
@@ -159,9 +186,11 @@ export default function AcademicCasePage() {
   const [rationale, setRationale] = useState('')
   const [gapPlan, setGapPlan] = useState(null)
   const [elig, setElig] = useState({ route: '', note: '', source: '' })
+  // The diagnostic written by hand (AI resilience, Release G, D15): the track it is for and its reason.
+  const [manual, setManual] = useState(null)
 
-  const load = useCallback(async () => {
-    setState((current) => ({ ...current, loading: true, error: '' }))
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setState((current) => ({ ...current, loading: true, error: '' }))
     try {
       // Reference data comes along for the real track ids. Deriving them from
       // list position would break the moment a track is added or reordered.
@@ -177,7 +206,8 @@ export default function AcademicCasePage() {
         routes: reference?.data?.eligibility_routes || [],
       })
     } catch (error) {
-      setState({ loading: false, error: readApiError(error), application: null, tracks: [], routes: [] })
+      // A failed silent read (a poll) leaves the page as it is; the next one tries again.
+      if (!silent) setState({ loading: false, error: readApiError(error), application: null, tracks: [], routes: [] })
     }
   }, [applicationId])
 
@@ -199,6 +229,16 @@ export default function AcademicCasePage() {
   }
 
   const application = state.application
+  /*
+   * AI RESILIENCE (Release G, D13): the analysis and the diagnostic run on the
+   * queue. Their runs are read again (silently) until they have finished; a run
+   * waiting to retry says when and offers Retry now, and a failed one says why.
+   */
+  const analysisRun = aiGenerationOf(application, 'analysis') || aiGenerationOf(application, 'academic_analysis')
+  const diagnosticRun = aiGenerationOf(application, 'diagnostic') || aiGenerationOf(application, 'academic_diagnostic')
+  const silentLoad = useCallback(() => load({ silent: true }), [load])
+  useAiRunPoll([analysisRun, diagnosticRun], silentLoad, application)
+  const runCopy = aiCopy(language).run
   const analysis = application?.analyses?.[0]
   // A status as a word; a code with no word is shown as itself, isolated, never bare.
   const statusWord = (code) => academicStatusLabel(code, language) || <bdi>{code}</bdi>
@@ -401,6 +441,20 @@ export default function AcademicCasePage() {
           <p className="mt-2 max-w-3xl text-sm text-[var(--color-text-muted)]">{copy.analysisSubtitle}</p>
         </CardHeader>
         <CardContent className="space-y-4 p-6">
+          <AiServiceBanner families={['case_analysis']} language={language} />
+          {analysisRun?.status === 'queued' || analysisRun?.status === 'running' ? (
+            <p role="status" data-analysis-run={analysisRun.status} className="flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-950">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> {analysisRun.status === 'queued' ? copy.analysisQueued : runCopy.running}
+            </p>
+          ) : null}
+          <AiRunNotice
+            run={analysisRun}
+            language={language}
+            onRetryNow={retryTargetOf(analysisRun) ? async () => {
+              await retryAiGenerationNow(analysisRun)
+              await load({ silent: true })
+            } : null}
+          />
           <Button
             variant="outline"
             onClick={async () => {
@@ -408,9 +462,9 @@ export default function AcademicCasePage() {
                 () => analyseAcademicApplication(applicationId, { response_locale: language }),
                 copy.analysisTitle,
               )
-              if (done) load()
+              if (done) load({ silent: true })
             }}
-            disabled={action.busy || !application.evidences?.length}
+            disabled={action.busy || !application.evidences?.length || isAiRunInFlight(analysisRun)}
           >
             <Sparkles size={16} /> {action.busy ? copy.analysing : copy.runAnalysis}
           </Button>
@@ -422,6 +476,7 @@ export default function AcademicCasePage() {
                 {' · '}
                 {(analysis.input_snapshot?.evidence_documents?.included || []).length} {copy.documentsRead}
               </p>
+              {analysis.ai_provenance ? <AiProvenanceNote provenance={analysis.ai_provenance} language={language} /> : null}
 
               {/* Non-empty means the model tried to grade an admission. Worth
                   seeing, not silently swallowed. */}
@@ -473,6 +528,20 @@ export default function AcademicCasePage() {
           <p className="mt-2 max-w-3xl text-sm text-[var(--color-text-muted)]">{copy.diagnosticSubtitle}</p>
         </CardHeader>
         <CardContent className="space-y-4 p-6">
+          {diagnosticRun?.status === 'queued' || diagnosticRun?.status === 'running' ? (
+            <p role="status" data-diagnostic-run={diagnosticRun.status} className="flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-950">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> {diagnosticRun.status === 'queued' ? copy.diagnosticQueued : runCopy.running}
+            </p>
+          ) : null}
+          <AiRunNotice
+            run={diagnosticRun}
+            language={language}
+            canRetry={canOpenDiagnostic}
+            onRetryNow={retryTargetOf(diagnosticRun) ? async () => {
+              await retryAiGenerationNow(diagnosticRun)
+              await load({ silent: true })
+            } : null}
+          />
           {application.diagnostics?.length ? (
             <ul className="space-y-2">
               {application.diagnostics.map((diagnostic) => (
@@ -515,7 +584,7 @@ export default function AcademicCasePage() {
                 key={track.id}
                 size="sm"
                 variant="outline"
-                disabled={action.busy || !analysis}
+                disabled={action.busy || !analysis || isAiRunInFlight(diagnosticRun)}
                 onClick={async () => {
                   const created = await run(
                     () => generateAcademicDiagnostic(applicationId, {
@@ -525,12 +594,58 @@ export default function AcademicCasePage() {
                     copy.diagnosticTitle,
                   )
                   if (created?.data?.id) navigate(`/academic-rpl/diagnostics/${created.data.id}`)
+                  // Queued (202, Release G): the run shows above and the paper joins the list when it is ready.
+                  else if (created) load({ silent: true })
                 }}
               >
                 <Sparkles size={16} /> {copy.generateFor} {localize(track.name, language)}
               </Button>
             ))}
           </div> : null}
+
+          {/* The diagnostic written by hand (AI resilience, D15): no model and no analysis needed. */}
+          {canOpenDiagnostic && !manual ? (
+            <div className="flex flex-wrap items-center gap-3">
+              {state.tracks.map((track) => (
+                <Button key={track.id} size="sm" variant="ghost" disabled={action.busy} onClick={() => setManual({ trackId: track.id, trackName: localize(track.name, language), reason: '' })}>
+                  <PenLine size={16} /> {copy.writeByHand} {localize(track.name, language)}
+                </Button>
+              ))}
+            </div>
+          ) : null}
+          {canOpenDiagnostic && manual ? (
+            <section aria-label={copy.manualTitle} className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4 text-sm">
+              <strong className="block">{copy.manualTitle} · {manual.trackName}</strong>
+              <p className="leading-6 text-[var(--color-text-muted)]">{copy.manualHint}</p>
+              <Textarea
+                rows={3}
+                maxLength={2000}
+                label={copy.manualReason}
+                hint={copy.manualReasonHint}
+                value={manual.reason}
+                onChange={(event) => setManual((current) => ({ ...current, reason: event.target.value }))}
+              />
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button size="sm" variant="outline" onClick={() => setManual(null)} disabled={action.busy}>{copy.manualCancel}</Button>
+                <Button
+                  size="sm"
+                  disabled={action.busy || manual.reason.trim().length < 10 || manual.reason.trim().length > 2000}
+                  onClick={async () => {
+                    const created = await run(
+                      () => createManualAcademicDiagnostic(applicationId, { track_id: manual.trackId, reason: manual.reason.trim() }),
+                      copy.manualCreated,
+                    )
+                    if (!created) return
+                    setManual(null)
+                    if (created?.data?.id) navigate(`/academic-rpl/diagnostics/${created.data.id}`)
+                    else load({ silent: true })
+                  }}
+                >
+                  <PenLine size={16} /> {copy.manualSubmit}
+                </Button>
+              </div>
+            </section>
+          ) : null}
           {canOpenDiagnostic && !analysis ? (
             <p className="text-xs text-amber-800">{copy.diagnosticNeedsAnalysis}</p>
           ) : null}
