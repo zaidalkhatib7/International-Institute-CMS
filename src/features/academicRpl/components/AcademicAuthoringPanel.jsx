@@ -15,6 +15,9 @@ import {
   revokeAcademicPackageGeneration,
   startAcademicPackageAuthoring,
 } from '../services/academicRplService'
+import AiProvenanceNote from '../../shared/ai/AiProvenanceNote'
+import AiServiceBanner from '../../shared/ai/AiServiceBanner'
+import { aiBusyMessage } from '../../shared/ai/aiState'
 
 /*
  * AI PACKAGE AUTHORING FOR THE ACADEMIC LIBRARY — the mirror of AiPackagePanel.
@@ -127,9 +130,9 @@ export const COPY = {
     aiRun: 'سجل التشغيل المحكوم',
     model: 'النموذج',
     promptVersion: 'إصدار المُوجّه',
-    fallbackTitle: 'أجاب نموذج غير المطلوب',
+    fallbackTitle: 'أعدّ نموذج احتياطي جزءًا من المسودة',
     fallbackHint:
-      'استُخدم النموذج الاحتياطي في مكوّن واحد على الأقل. المسجَّل هو النموذج الذي أجاب فعلًا، لا الذي طُلب — والفارق معروض هنا لأن التبديل الصامت ممنوع.',
+      'أجاب النموذج الاحتياطي في سلسلة النماذج عن مكوّن واحد على الأقل، لأن النموذج الأول كان مشغولًا أو غير متاح. هذه إجابة مشروعة من نموذج مسجَّل، ولا تمنع المراجعة ولا النشر؛ ويُعرض النموذج الذي أعدّ كل مكوّن بجانبه أدناه لتراجعه بعلم.',
 
     progressTitle: 'تقدم التوليد',
     modulesProgress: 'وحدات أُنشئت',
@@ -290,9 +293,9 @@ export const COPY = {
     aiRun: 'Governed run record',
     model: 'Model',
     promptVersion: 'Prompt version',
-    fallbackTitle: 'A model other than the one requested answered',
+    fallbackTitle: 'A fallback model made part of this draft',
     fallbackHint:
-      'The fallback model answered at least one component. What is recorded is the model that actually answered, not the one requested — the difference is shown here because a silent substitution is forbidden.',
+      'A fallback model of the chain answered at least one component, because the first model was busy or unavailable. It is a legitimate answer from a recorded model and blocks neither review nor publication; the model that made each component is shown beside it below, so you review it knowingly.',
 
     progressTitle: 'Generation progress',
     modulesProgress: 'Modules created',
@@ -476,13 +479,14 @@ export default function AcademicAuthoringPanel({ packageCode, siblings = [], onC
         if (onChanged) await onChanged()
         return true
       } catch (actionError) {
-        setError(readApiError(actionError))
+        // An instant regenerate the AI service could not answer in time (503 ai_busy_retry_later, Release G) says so.
+        setError(aiBusyMessage(actionError, language) || readApiError(actionError))
         return false
       } finally {
         setBusy(false)
       }
     },
-    [load, onChanged],
+    [language, load, onChanged],
   )
 
   const artifacts = useMemo(() => run?.artifacts || [], [run])
@@ -619,6 +623,7 @@ export default function AcademicAuthoringPanel({ packageCode, siblings = [], onC
 
   return (
     <div className="space-y-4">
+      <AiServiceBanner families={['authoring', 'interactive']} language={language} />
       <Card>
         <CardContent className="space-y-4 p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1128,9 +1133,10 @@ export default function AcademicAuthoringPanel({ packageCode, siblings = [], onC
                         <span className="text-xs text-[var(--color-text-muted)]">v{artifact.sequence}</span>
                       ) : null}
                       {artifact.superseded_by ? <Badge variant="secondary">{copy.superseded}</Badge> : null}
-                      {artifact.used_fallback_model ? (
-                        <Badge variant="warning">{artifact.responding_model || copy.fallbackTitle}</Badge>
+                      {artifact.used_fallback_model || artifact.ai_provenance?.used_fallback ? (
+                        <Badge variant="warning">{artifact.ai_provenance?.answering_model || artifact.responding_model || copy.fallbackTitle}</Badge>
                       ) : null}
+                      {artifact.ai_provenance ? <AiProvenanceNote compact provenance={artifact.ai_provenance} language={language} /> : null}
                       {artifact.provenance_state === 'LEGACY_PRE_2D' ? (
                         <Badge variant="warning">{copy.provenanceLegacy}</Badge>
                       ) : null}

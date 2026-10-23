@@ -92,7 +92,7 @@ describe('the entry quiz pass mark', () => {
     expect(mocks.updateRplSettings.mock.calls[0][0]).toEqual({
       appeal_window_days: 15,
       require_verified_evidence_for_assessment: true,
-      gemini_advisory_model: 'gemini-3.5-flash',
+      // No gemini_advisory_model: the model is the server's chain (AI resilience, D16), and the server refuses the key.
       gemini_advisory_prompt: longPrompt.trim(),
       rpl_advisory_include_evidence_documents: true,
       rpl_reapply_cooldown_days: 7,

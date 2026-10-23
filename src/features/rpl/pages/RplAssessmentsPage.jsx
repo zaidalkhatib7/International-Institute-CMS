@@ -64,6 +64,13 @@ import {
   formatDraftMessage,
 } from "../domain/criterionDraft";
 import RplPageState from "../components/RplPageState";
+import AiProvenanceNote from "../../shared/ai/AiProvenanceNote";
+import AiRunNotice from "../../shared/ai/AiRunNotice";
+import AiServiceBanner from "../../shared/ai/AiServiceBanner";
+import { aiCopy } from "../../shared/ai/aiCopy";
+import { aiGenerationOf, isAiRunInFlight, retryTargetOf } from "../../shared/ai/aiState";
+import { retryAiGenerationNow } from "../../shared/ai/aiServiceApi";
+import useAiRunPoll from "../../shared/ai/useAiRunPoll";
 import RplStatusBadge from "../components/RplStatusBadge";
 import {
   formatLocalizedDate,
@@ -295,6 +302,8 @@ const geminiCopyByLanguage = {
     generate: "إنشاء مسودة Gemini",
     generatedSuccess:
       "تم إنشاء مسودة Gemini باللغة المطلوبة. راجعها وعدّلها قبل استخدامها.",
+    generationQueued:
+      "طُلبت مسودة Gemini، وتعمل عليها خدمة الذكاء الاصطناعي في الخلفية. تظهر هنا حين تكتمل، وتتحقق هذه الصفحة منها تلقائيًا.",
     acknowledged: "تمت المراجعة",
     acknowledge: "تأكيد مراجعة المدير",
     acknowledgeSuccess: "تم توثيق مراجعة المدير لمسودة Gemini.",
@@ -350,6 +359,8 @@ const geminiCopyByLanguage = {
     generate: "Generate Gemini draft",
     generatedSuccess:
       "The Gemini draft was generated in the requested language. Review and edit it before use.",
+    generationQueued:
+      "The Gemini draft was asked for, and the AI service works on it in the background. It appears here when it is ready; this page checks it on its own.",
     acknowledged: "Reviewed",
     acknowledge: "Confirm administrator review",
     acknowledgeSuccess:
@@ -642,6 +653,31 @@ export default function RplAssessmentsPage() {
     return () => window.clearTimeout(timer);
   }, [filters.search, load]);
 
+  /*
+   * THE ADVISORY RUNS ON THE QUEUE (AI resilience, Release G, D13). Its run is
+   * read again until it has finished, by a light read that replaces only the
+   * advisories and the run: the rubric form an assessor is editing is never
+   * reset by a poll.
+   */
+  const advisoryRun = aiGenerationOf(state.assessment, "advisory") || aiGenerationOf(state.assessment, "ai_advisory");
+  const refreshAdvisories = useCallback(async () => {
+    if (!assessmentId) return;
+    try {
+      const fresh = unwrapApiData(await fetchRplAssessment(assessmentId)) || {};
+      setState((current) => {
+        if (!current.assessment) return current;
+        const next = { ...current.assessment };
+        for (const key of ["ai_advisories", "aiAdvisories", "advisory_generation", "ai_advisory_generation", "generations", "gemini_readiness"]) {
+          if (Object.prototype.hasOwnProperty.call(fresh, key)) next[key] = fresh[key];
+        }
+        return { ...current, assessment: next };
+      });
+    } catch {
+      // The next read tries again; a failed poll is not an error on the page.
+    }
+  }, [assessmentId]);
+  useAiRunPoll(advisoryRun, refreshAdvisories, state.assessment);
+
   async function execute(request, success, resolveError = readApiError) {
     setAction({ busy: true, error: "", success: "" });
     try {
@@ -796,13 +832,15 @@ export default function RplAssessmentsPage() {
   async function generateAdvisory() {
     setAction({ busy: true, error: "", success: "" });
     try {
-      await generateRplAiAdvisory(assessmentId, {
+      const result = await generateRplAiAdvisory(assessmentId, {
         assessor_question: advisoryQuestion || null,
       });
+      // From Release G the server queues the draft (202) and the page follows its run.
+      const queued = Boolean(result?.data?.generation || result?.data?.status === "queued");
       setAction({
         busy: false,
         error: "",
-        success: geminiCopy.generatedSuccess,
+        success: queued ? geminiCopy.generationQueued : geminiCopy.generatedSuccess,
       });
       setAdvisoryQuestion("");
       load();
@@ -1198,13 +1236,29 @@ export default function RplAssessmentsPage() {
                   placeholder={geminiCopy.placeholder}
                   disabled={!geminiReadiness.available}
                 />
+                <AiServiceBanner families={["case_analysis"]} language={language} />
+                {advisoryRun?.status === "queued" || advisoryRun?.status === "running" ? (
+                  <p role="status" data-advisory-run={advisoryRun.status} className="flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-950">
+                    <LoaderCircle size={16} className="animate-spin" />
+                    {advisoryRun.status === "queued" ? aiCopy(language).run.queued : aiCopy(language).run.running}
+                  </p>
+                ) : null}
+                <AiRunNotice
+                  run={advisoryRun}
+                  language={language}
+                  onRetryNow={retryTargetOf(advisoryRun) ? async () => {
+                    await retryAiGenerationNow(advisoryRun);
+                    await refreshAdvisories();
+                  } : null}
+                />
                 <Button
                   variant="outline"
                   onClick={generateAdvisory}
                   disabled={
                     action.busy ||
                     assessment.locked_at ||
-                    !geminiReadiness.available
+                    !geminiReadiness.available ||
+                    isAiRunInFlight(advisoryRun)
                   }
                 >
                   <Sparkles size={17} />
@@ -1224,6 +1278,7 @@ export default function RplAssessmentsPage() {
                         <p className="font-bold">
                           Gemini · <bdi>{item.model}</bdi>
                         </p>
+                        {item.ai_provenance ? <AiProvenanceNote provenance={item.ai_provenance} language={language} /> : null}
                         <p className="text-xs text-[var(--color-text-muted)]">
                           {formatLocalizedDateTime(item.generated_at, language)}
                         </p>

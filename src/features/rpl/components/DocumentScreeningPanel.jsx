@@ -8,6 +8,7 @@ import {
   ISSUER_CONTACT_FIELDS,
   ISSUER_PRESENCE_FIELDS,
   RISK_BAND_VARIANT,
+  SCREENING_IN_FLIGHT,
   SCREENING_STALLED_AFTER_MINUTES,
   caseFigureText,
   claimConfidenceLabel,
@@ -32,7 +33,12 @@ import {
   screeningRationaleText,
   topRiskReason,
 } from '../domain/documentScreening'
-import { acknowledgeRplScreening, requestRplScreening } from '../services/rplService'
+import { acknowledgeRplScreening, requestRplScreening, retryRplScreeningNow } from '../services/rplService'
+import AiProvenanceNote from '../../shared/ai/AiProvenanceNote'
+import AiRunNotice from '../../shared/ai/AiRunNotice'
+import AiServiceBanner from '../../shared/ai/AiServiceBanner'
+import { aiCopy } from '../../shared/ai/aiCopy'
+import { aiErrorMessage, isWaitingRetry, runError, screeningInstrument } from '../../shared/ai/aiState'
 
 /*
  * DOCUMENT SCREENING PANEL (owner flow of 12 Oct 2026, P2).
@@ -52,7 +58,17 @@ import { acknowledgeRplScreening, requestRplScreening } from '../services/rplSer
  */
 
 /* Completed is deliberately neutral, not green: a finished run is not good news. */
-const STATUS_VARIANT = { queued: 'info', running: 'info', completed: 'neutral', failed: 'danger', refused: 'warning' }
+const STATUS_VARIANT = { queued: 'info', running: 'info', waiting_retry: 'warning', completed: 'neutral', failed: 'danger', refused: 'warning' }
+
+/*
+ * AI RESILIENCE (Release G, AI-RESILIENCE-SPEC §5.2, §7.3). Pass 1 and pass 2 may
+ * be answered by different models of the chain. The figure stands on pass 1's
+ * model, and on pass 2's too when an employer search raised a component of it:
+ * the server says which in figure_models (fix review of 23 Oct 2026), and two
+ * runs' figures compare only when those models are the same
+ * (screeningInstrument). A run waiting to retry says when and offers Retry now;
+ * a failed run says why by its code.
+ */
 
 function readRerunError(error, copy, language) {
   /*
@@ -95,9 +111,14 @@ function modelText(screening, copy) {
   return responding || requested || null
 }
 
-function RunSummary({ screening, copy, language, categories, canAcknowledge, busy, onAcknowledge }) {
+function RunSummary({ screening, copy, language, categories, canAcknowledge, busy, onAcknowledge, onRetryNow }) {
   const figure = caseFigureText(screening, copy)
-  const explanation = statusExplanation(screening, copy)
+  const { code: errorCode, errorClass } = runError(screening)
+  // A failed or refused run whose code names the AI service's trouble says so, never the generic "stopped".
+  const aiMessage = ['failed', 'refused'].includes(screening.status) && screening.error_code ? aiErrorMessage(errorCode, errorClass, language) : null
+  const explanation = aiMessage || statusExplanation(screening, copy)
+  const waiting = isWaitingRetry(screening)
+  const provenance = screening.ai_provenance && typeof screening.ai_provenance === 'object' ? screening.ai_provenance : null
   const partial = screening.status === 'completed' && isPartialScreen(screening)
   // rpl-risk-v1 only, and only beside a figure: the band, and the one line saying what raised it most.
   const band = figure ? screening.risk_breakdown?.band : null
@@ -120,7 +141,8 @@ function RunSummary({ screening, copy, language, categories, canAcknowledge, bus
           </div>
         ) : null}
         {headline ? <p data-risk-headline="true" className="text-sm font-semibold leading-6 text-[var(--color-text)]">{headline}</p> : null}
-        {explanation ? <p className={`rounded-2xl border px-4 py-3 text-sm leading-6 ${screening.status === 'refused' || screening.status === 'failed' || isStalledRun(screening) ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-sky-200 bg-sky-50 text-sky-900'}`}>{explanation}</p> : null}
+        {waiting && !isStalledRun(screening) ? <AiRunNotice run={screening} language={language} onRetryNow={onRetryNow} canRetry={Boolean(onRetryNow)} /> : null}
+        {explanation ? <p data-error-code={aiMessage ? errorCode : undefined} className={`rounded-2xl border px-4 py-3 text-sm leading-6 ${screening.status === 'refused' || screening.status === 'failed' || isStalledRun(screening) ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-sky-200 bg-sky-50 text-sky-900'}`}>{explanation}</p> : null}
         {screening.status === 'completed' && coverage.documents_total != null ? (
           <p className="text-sm text-[var(--color-text-muted)]">{fill(copy.coverage, { read: coverage.read ?? 0, total: coverage.documents_total })}{partial ? ` ${copy.partialHint}` : ''}</p>
         ) : null}
@@ -143,6 +165,9 @@ function RunSummary({ screening, copy, language, categories, canAcknowledge, bus
           <Meta label={copy.completedAt}>{screening.completed_at ? formatLocalizedDateTime(screening.completed_at, language) : null}</Meta>
           <Meta label={copy.webSearch}>{screening.web_search_used ? copy.webSearchUsed : copy.webSearchNotUsed}</Meta>
         </dl>
+
+        {/* Which model made the figure (pass 1); the employer check (pass 2) says its own below. */}
+        {provenance?.pass_1 ? <AiProvenanceNote provenance={provenance.pass_1} language={language} /> : null}
 
         {(coverage.excluded_categories || []).length || (coverage.extraction_only_categories || []).length ? (
           <dl className="grid gap-5 sm:grid-cols-2">
@@ -487,6 +512,7 @@ function EmployersCard({ screening, copy, language }) {
         <CardTitle>{copy.employersTitle}</CardTitle>
         <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{copy.employersHint}</p>
         {riskRun ? <p className="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">{copy.employersHintIdentity}</p> : null}
+        {screening.ai_provenance?.pass_2 ? <AiProvenanceNote provenance={screening.ai_provenance.pass_2} language={language} className="mt-2" /> : null}
       </CardHeader>
       <CardContent className="space-y-5 pt-6">
         {checks.length ? (
@@ -554,11 +580,18 @@ export default function DocumentScreeningPanel({ applicationId, screenings = [],
   const [action, setAction] = useState({ busy: false, error: '', success: '' })
   const list = Array.isArray(screenings) ? screenings : []
   const selected = list.find((item) => item.public_id === selectedId) || list[0] || null
-  // Newest first (the API's order): a queued or running latest run means a re-run would only queue behind it.
-  const inFlight = ['queued', 'running'].includes(list[0]?.status)
+  // Newest first (the API's order): a queued, running or waiting latest run means a re-run would only queue behind it.
+  const inFlight = SCREENING_IN_FLIGHT.includes(list[0]?.status)
   // Unless it is stuck past the API's window: the re-run then closes it as abandoned and replaces it.
   const stalled = inFlight && isStalledRun(list[0])
   const rerunHeld = inFlight && !stalled
+  const latestWaiting = isWaitingRetry(list[0]) && !stalled
+  // The figures over time (§7.3): the model of the selected run, and of the run before it.
+  const selectedIndex = selected ? list.indexOf(selected) : -1
+  const previous = selectedIndex >= 0 ? list[selectedIndex + 1] || null : null
+  const selectedModel = screeningInstrument(selected)
+  const previousModel = selected?.status === 'completed' && previous?.status === 'completed' ? screeningInstrument(previous) : null
+  const differentModel = Boolean(selectedModel && previousModel && selectedModel !== previousModel)
 
   async function rerun() {
     setAction({ busy: true, error: '', success: '' })
@@ -572,6 +605,17 @@ export default function DocumentScreeningPanel({ applicationId, screenings = [],
     } catch (requestError) {
       setAction({ busy: false, error: readRerunError(requestError, copy, lang), success: '' })
     }
+  }
+
+  /*
+   * Retry now (§5.2): the latest run, waiting to retry, starts at once; the same
+   * run, not a new one. The screen's own route by its public_id: a re-run while
+   * it waits is refused (fix review of 23 Oct 2026).
+   */
+  async function retryNow() {
+    const updated = unwrapApiData(await retryRplScreeningNow(list[0].public_id))
+    if (updated?.public_id) onScreeningUpdated?.(updated)
+    else onReload?.()
   }
 
   async function acknowledge(screening) {
@@ -588,6 +632,7 @@ export default function DocumentScreeningPanel({ applicationId, screenings = [],
 
   return (
     <div className="space-y-6">
+      <AiServiceBanner families={['case_analysis', 'web_search']} language={lang} />
       <Card>
         <CardHeader className="border-b border-[var(--color-border)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -604,7 +649,7 @@ export default function DocumentScreeningPanel({ applicationId, screenings = [],
                 <Button size="sm" variant="outline" onClick={() => onReload?.()} disabled={loading}><RefreshCw size={16} />{copy.refresh}</Button>
                 {canRun ? <Button size="sm" onClick={rerun} disabled={action.busy || loading || rerunHeld}>{action.busy ? <LoaderCircle className="animate-spin" size={16} /> : <ScanSearch size={16} />}{copy.rerun}</Button> : null}
               </div>
-              {canRun ? <p className={`max-w-sm text-xs ${stalled ? 'text-amber-800' : 'text-[var(--color-text-muted)]'}`}>{stalled ? fill(copy.rerunStalled, { minutes: SCREENING_STALLED_AFTER_MINUTES }) : inFlight ? copy.rerunBusy : copy.rerunHint}</p> : null}
+              {canRun ? <p className={`max-w-sm text-xs ${stalled ? 'text-amber-800' : 'text-[var(--color-text-muted)]'}`}>{stalled ? fill(copy.rerunStalled, { minutes: SCREENING_STALLED_AFTER_MINUTES }) : latestWaiting ? copy.rerunWaiting : inFlight ? copy.rerunBusy : copy.rerunHint}</p> : null}
             </div>
           </div>
         </CardHeader>
@@ -623,14 +668,18 @@ export default function DocumentScreeningPanel({ applicationId, screenings = [],
         <nav aria-label={copy.history} className="flex flex-wrap gap-2">
           {list.map((item, index) => {
             const active = item.public_id === selected?.public_id
-            return <button key={item.public_id || index} type="button" onClick={() => setSelectedId(item.public_id)} aria-current={active ? 'true' : undefined} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${active ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white' : 'border-[var(--color-border)] bg-white text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'}`}>{index === 0 ? `${copy.latest} · ` : ''}{formatLocalizedDateTime(item.created_at, lang)} · {labelFor(copy.status, item.status)}</button>
+            // A run's model is named when it differs from the selected run's, so a change of instrument shows in the history.
+            const model = screeningInstrument(item)
+            const otherModel = !active && model && selectedModel && model !== selectedModel ? model : null
+            return <button key={item.public_id || index} type="button" onClick={() => setSelectedId(item.public_id)} aria-current={active ? 'true' : undefined} data-model={otherModel || undefined} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${active ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white' : 'border-[var(--color-border)] bg-white text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'}`}>{index === 0 ? `${copy.latest} · ` : ''}{formatLocalizedDateTime(item.created_at, lang)} · {labelFor(copy.status, item.status)}{otherModel ? <> · <bdi>{otherModel}</bdi></> : null}</button>
           })}
         </nav>
       ) : null}
 
       {selected ? (
         <>
-          <RunSummary screening={selected} categories={categories} copy={copy} language={lang} canAcknowledge={selected.status === 'completed'} busy={action.busy} onAcknowledge={acknowledge} />
+          <RunSummary screening={selected} categories={categories} copy={copy} language={lang} canAcknowledge={selected.status === 'completed'} busy={action.busy} onAcknowledge={acknowledge} onRetryNow={canRun && selected === list[0] ? retryNow : null} />
+          {differentModel ? <p data-different-model="true" className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">{fill(aiCopy(lang).provenance.differentModel, { model: previousModel })}</p> : null}
           {/* A run on instructions that did not check the issuer's identity: its figure stands as stored, and a re-run applies the current checks. */}
           {canRun && isOlderRulesRun(selected) ? <p data-older-rules="true" className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-900">{fill(copy.olderRules, { version: selected.prompt_version })}</p> : null}
           <RiskBreakdownCard screening={selected} copy={copy} />

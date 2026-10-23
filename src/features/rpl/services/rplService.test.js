@@ -32,6 +32,7 @@ import {
   acknowledgeRplScreening,
   fetchRplScreenings,
   requestRplScreening,
+  retryRplScreeningNow,
   cancelRplInterview,
   completeRplInterview,
   declineRplApplication,
@@ -308,6 +309,33 @@ describe('the document screening endpoints', () => {
     await acknowledgeRplScreening('5f2e-screening')
 
     expect(http.post).toHaveBeenCalledWith('/admin/rpl/screenings/5f2e-screening/acknowledge')
+  })
+
+  test('Retry now addresses the waiting SCREENING by its public id, with no body: never the re-run collection', async () => {
+    // routes/api.php: POST /admin/rpl/screenings/{screening}/retry-now (fix review of 23 Oct 2026).
+    await retryRplScreeningNow('5f2e-screening')
+
+    expect(http.post).toHaveBeenCalledWith('/admin/rpl/screenings/5f2e-screening/retry-now')
+    expect(http.post.mock.calls[0]).toHaveLength(1)
+  })
+})
+
+describe('Retry now on a waiting generation', () => {
+  test('posts to the server route of the run kind and subject, with no body', async () => {
+    // routes/api.php: POST /admin/ai/generations/{kind}/{subject}/retry-now.
+    const { retryAiGenerationNow } = await import('../../shared/ai/aiServiceApi')
+    for (const kind of ['entry_quiz_draft', 'final_evaluation', 'course_plan', 'advisory', 'academic_analysis', 'academic_diagnostic']) {
+      http.post.mockClear()
+      await retryAiGenerationNow({ kind, subject_id: 42, status: 'waiting_retry' })
+      expect(http.post).toHaveBeenCalledWith(`/admin/ai/generations/${kind}/42/retry-now`)
+      expect(http.post.mock.calls[0]).toHaveLength(1)
+    }
+  })
+
+  test('refuses a run that does not name itself, and sends nothing', async () => {
+    const { retryAiGenerationNow } = await import('../../shared/ai/aiServiceApi')
+    await expect(retryAiGenerationNow({ status: 'waiting_retry' })).rejects.toThrow()
+    expect(http.post).not.toHaveBeenCalled()
   })
 })
 

@@ -31,6 +31,8 @@ export const routeAccess = Object.freeze({
   '/quizzes/edit': permission('learning.manage'),
   '/ai-settings': permission('learning.manage'),
   '/settings': null,
+  // The AI service page (AI resilience, Release G): every member of staff reads it; it holds no client data.
+  '/settings/ai-service': null,
   '/rpl/applications': permission('rpl.applications.view'),
   '/rpl/evidence': permission('rpl.evidence.view'),
   '/rpl/assessments': permission('rpl.applications.view'),

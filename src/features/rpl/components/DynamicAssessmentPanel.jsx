@@ -41,6 +41,12 @@ import {
   sendDynamicAssessment,
   updateDynamicAssessmentItem,
 } from "../services/rplService";
+import AiProvenanceNote from "../../shared/ai/AiProvenanceNote";
+import AiRunNotice from "../../shared/ai/AiRunNotice";
+import AiServiceBanner from "../../shared/ai/AiServiceBanner";
+import { aiCopy } from "../../shared/ai/aiCopy";
+import { AI_RUN_WAITING_POLL_MS, aiErrorMessage, aiGenerationOf, hasOwnProvenance, retryTargetOf, runError } from "../../shared/ai/aiState";
+import { retryAiGenerationNow } from "../../shared/ai/aiServiceApi";
 import { formatLocalizedDateTime } from "../../../utils/localization";
 import { answerProgress } from "../domain/answerCompleteness";
 import { coursePlanCopy } from "../domain/coursePlan";
@@ -318,8 +324,30 @@ export const COPY = copyByLanguage;
  * again every GENERATION_POLL_MS. `abandoned` is a run past the server's window.
  */
 export const GENERATION_POLL_MS = 4000;
-const GENERATION_IN_FLIGHT = ["queued", "running"];
+/*
+ * AI RESILIENCE (Release G, AI-RESILIENCE-SPEC §5.2): a run whose whole model
+ * chain was busy goes back to the queue as waiting_retry. It is still in flight
+ * (a second Generate is refused), the panel says when the next try is and offers
+ * Retry now, and it reads the set every half minute rather than every few
+ * seconds, since the next try is minutes away. It may wait six hours, so the
+ * set's own controls stay open meanwhile (fix review of 23 Oct 2026): approving,
+ * editing, rejecting or sending by hand closes the waiting run on the server,
+ * and the panel says so before anyone clicks.
+ */
+const GENERATION_IN_FLIGHT = ["queued", "running", "waiting_retry"];
 const GENERATION_ENDED_BADLY = ["failed", "abandoned"];
+
+function pollDelayOf(run) {
+  if (run?.status === "waiting_retry") return AI_RUN_WAITING_POLL_MS;
+  return GENERATION_IN_FLIGHT.includes(run?.status) ? GENERATION_POLL_MS : null;
+}
+
+/** The failure's lines: the AI service's reason in words when its code names one, else the server's own lines. */
+function failureLines(run, language) {
+  const { code, errorClass, messages } = runError(run);
+  const reason = aiErrorMessage(code, errorClass, language);
+  return reason ? [reason] : messages;
+}
 
 function apiError(error, fallback) {
   const data = error?.response?.data;
@@ -448,17 +476,29 @@ export default function DynamicAssessmentPanel({
   const withdrawn = state.withdrawn || [];
   const generation = assessment?.generation || null;
   const generationRunning = GENERATION_IN_FLIGHT.includes(generation?.status);
+  const generationWaiting = generation?.status === "waiting_retry";
   const generationEndedBadly = GENERATION_ENDED_BADLY.includes(generation?.status);
-  // The draft's own controls: held while another action runs or a generation is in flight.
-  const draftLocked = busy !== "" || generationRunning;
+  // The draft's own controls: held while another action runs or a worker holds a
+  // generation (queued or running). A waiting one does not hold them: continuing
+  // by hand closes it (the server's rule), but a new generation is refused.
+  const generationHeld = generation?.status === "queued" || generation?.status === "running";
+  const draftLocked = busy !== "" || generationHeld;
+  const generateLocked = draftLocked || generationWaiting;
+  // The final evaluation runs on the queue from Release G (D13): its run, read the same way.
+  const finalGeneration = aiGenerationOf(assessment, "final_evaluation");
+  const finalRunning = GENERATION_IN_FLIGHT.includes(finalGeneration?.status);
+  const finalEndedBadly = GENERATION_ENDED_BADLY.includes(finalGeneration?.status);
+  const runCopy = aiCopy(language).run;
+  const delays = [pollDelayOf(generation), pollDelayOf(finalGeneration)].filter((delay) => delay != null);
+  const pollDelay = delays.length ? Math.min(...delays) : null;
 
   useEffect(() => {
-    if (!generationRunning) return undefined;
+    if (pollDelay == null) return undefined;
     const timer = window.setTimeout(() => {
       load();
-    }, GENERATION_POLL_MS);
+    }, pollDelay);
     return () => window.clearTimeout(timer);
-  }, [generationRunning, assessment, load]);
+  }, [pollDelay, assessment, load]);
   const items = (assessment?.active_items || []).filter(
     (item) => item.status !== "superseded",
   );
@@ -580,7 +620,10 @@ export default function DynamicAssessmentPanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-5 pt-6">
+        <AiServiceBanner families={["case_analysis"]} language={language} />
         <p className="text-sm leading-6 text-[var(--color-text-muted)]">{copy.intro}</p>
+        {/* Which model drafted the questions (AI resilience, §7.3): until Release G it was in the audit only. */}
+        {assessment?.ai_provenance && items.length ? <AiProvenanceNote provenance={assessment.ai_provenance} language={language} /> : null}
         {state.error ? (
           <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             {state.error}
@@ -617,7 +660,20 @@ export default function DynamicAssessmentPanel({
               />
             ) : null}
 
-            {!isIssued && generationRunning ? (
+            {!isIssued && generationWaiting ? (
+              <>
+                <AiRunNotice
+                  run={generation}
+                  language={language}
+                  onRetryNow={retryTargetOf(generation) ? async () => {
+                    await retryAiGenerationNow(generation);
+                    await load();
+                  } : null}
+                />
+                <p data-by-hand-stops="true" className="text-xs leading-5 text-amber-900">{runCopy.byHandStops}</p>
+              </>
+            ) : null}
+            {!isIssued && generationRunning && !generationWaiting ? (
               <div
                 role="status"
                 className="flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-950"
@@ -631,7 +687,7 @@ export default function DynamicAssessmentPanel({
                 role="alert"
                 className="whitespace-pre-line rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950"
               >
-                {[copy.generationFailed, ...(generation.error?.messages || [])].join("\n")}
+                {[copy.generationFailed, ...failureLines(generation, language)].join("\n")}
               </div>
             ) : null}
 
@@ -639,7 +695,7 @@ export default function DynamicAssessmentPanel({
               <div className="flex flex-wrap items-center gap-3">
                 <Button
                   onClick={() => run("generate", () => generateDynamicAssessmentDraft(assessment.id))}
-                  disabled={draftLocked}
+                  disabled={generateLocked}
                 >
                   <Sparkles size={17} />
                   {items.length ? copy.regenerateAll : copy.generate}
@@ -997,6 +1053,23 @@ export default function DynamicAssessmentPanel({
 
             {assessment.status === "answered" ? (
               <div className="space-y-2">
+                {finalGeneration?.status === "waiting_retry" ? (
+                  <AiRunNotice
+                    run={finalGeneration}
+                    language={language}
+                    onRetryNow={retryTargetOf(finalGeneration) ? async () => {
+                      await retryAiGenerationNow(finalGeneration);
+                      await load();
+                    } : null}
+                  />
+                ) : null}
+                {finalRunning && finalGeneration?.status !== "waiting_retry" ? (
+                  <p role="status" data-final-generation={finalGeneration.status} className="flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-950">
+                    <RefreshCw size={16} className="mt-1 shrink-0 animate-spin" />
+                    <span>{finalGeneration.status === "queued" ? runCopy.queued : runCopy.running}</span>
+                  </p>
+                ) : null}
+                {finalEndedBadly ? <AiRunNotice run={finalGeneration} language={language} /> : null}
                 <Button
                   onClick={() => run("final", () => finalEvaluateDynamicAssessment(assessment.id))}
                   /*
@@ -1005,7 +1078,7 @@ export default function DynamicAssessmentPanel({
                    * button refuses to offer it, so nobody spends two minutes
                    * waiting for a governed refusal.
                    */
-                  disabled={busy !== "" || !(progress.isComplete || heardAtExpiry)}
+                  disabled={busy !== "" || finalRunning || !(progress.isComplete || heardAtExpiry)}
                 >
                   <Sparkles size={17} />
                   {busy === "final" ? copy.generating : copy.finalEvaluate}
@@ -1019,6 +1092,11 @@ export default function DynamicAssessmentPanel({
             {finalAdvisory ? (
               <div className="space-y-3 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-950">
                 <strong className="block">{copy.finalTitle}</strong>
+                <AiProvenanceNote
+                  provenance={assessment.final_evaluation?.ai_provenance}
+                  legacy={{ model: assessment.final_evaluation?.model, requested_model: assessment.final_evaluation?.requested_model }}
+                  language={language}
+                />
                 <p className="leading-6">{finalAdvisory.disclaimer}</p>
                 {finalAdvisory.evaluation_summary ? (
                   <p className="leading-6">
@@ -1093,6 +1171,18 @@ export default function DynamicAssessmentPanel({
                     {item.is_ai_generated ? <Badge variant="outline">AI</Badge> : null}
                     <EntryQuizItemMark mark={quizMarks.get(String(item.id))} language={language} />
                   </div>
+                  {/*
+                   * A question made by another call than the set's draft (one
+                   * regenerated later, perhaps by another model of the chain while
+                   * the first was busy) names its own model, and a fallback is
+                   * marked (fix review of 23 Oct 2026). The set's line above covers
+                   * the questions its draft made.
+                   */}
+                  {hasOwnProvenance(item, assessment) ? (
+                    <div data-item-provenance={item.id} className="mt-2">
+                      <AiProvenanceNote provenance={item.ai_provenance} language={language} />
+                    </div>
+                  ) : null}
 
                   {editing.id === item.id ? (
                     <div className="mt-3 space-y-2">
@@ -1170,7 +1260,7 @@ export default function DynamicAssessmentPanel({
                         size="sm"
                         variant="outline"
                         onClick={() => run("regenerate", () => regenerateDynamicAssessmentItem(item.id))}
-                        disabled={draftLocked || item.status === "rejected" || !item.is_ai_generated}
+                        disabled={generateLocked || item.status === "rejected" || !item.is_ai_generated}
                       >
                         <RefreshCw size={15} />
                         {copy.regenerate}

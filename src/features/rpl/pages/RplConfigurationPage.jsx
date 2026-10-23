@@ -10,7 +10,8 @@ import { getAdminLanguage } from '../../../services/languageStorage'
 import { formatLocalizedDate } from '../../../utils/localization'
 import { fetchUsers } from '../../users/services/usersService'
 import { APPLICATION_STATUS, EVIDENCE_EXTENSIONS, localize } from '../domain/rpl'
-import { SCREENING_IDENTITY_CATEGORY, SCREENING_MODEL_MAX_LENGTH, SCREENING_SETTING_KEYS, screeningSettingsCopy } from '../domain/documentScreening'
+import { SCREENING_IDENTITY_CATEGORY, SCREENING_SETTING_KEYS, screeningSettingsCopy } from '../domain/documentScreening'
+import AiChainLine from '../../shared/ai/AiChainLine'
 import { CASE_DECISION_LIMITS } from '../domain/caseDecision'
 import {
   createRplConfiguration,
@@ -31,6 +32,14 @@ import { COURSE_PLAN_FAILED_MINIMUMS_KEY, changeCoursePlanMinimum, coursePlanMin
 import { afterQuizSettingsFieldErrors, afterQuizSettingsPayload, changeAfterQuizSetting, feeScheduleAmountMinor, feeScheduleFormError, isAfterQuizSettingsReady, readAfterQuizSettings } from '../domain/afterQuiz'
 import RplStatusBadge from '../components/RplStatusBadge'
 import { useModalDialog } from '../../../hooks/useModalDialog'
+
+/*
+ * THE MODEL IS NO LONGER A SETTING HERE (AI resilience, Release G, D16). The
+ * server's model chain chooses it, the server refuses the two old keys (422
+ * model_set_by_chain), so neither is read into the form nor sent: each place
+ * that took a model name shows the chain, read-only, instead.
+ */
+const SCREENING_WRITABLE_KEYS = Object.freeze(SCREENING_SETTING_KEYS.filter((key) => key !== 'rpl_document_screening_model'))
 
 const tabs = [
   { key: 'pathways', resource: 'pathways', icon: Layers3 },
@@ -302,7 +311,7 @@ export default function RplConfigurationPage() {
   // The settings as last loaded or saved, to tell staff when the journey rules hold unsaved changes.
   const [settingsBaseline, setSettingsBaseline] = useState('')
   const [state, setState] = useState({ loading: true, error: '', rows: [], reference: {}, users: [] })
-  const [settings, setSettings] = useState({ appeal_window_days: 15, require_verified_evidence_for_assessment: true, gemini_advisory_model: 'gemini-3.5-flash', gemini_advisory_prompt: '', rpl_advisory_include_evidence_documents: true, rpl_reapply_cooldown_days: '', rpl_reapply_cooldown_scope: '', rpl_document_screening_enabled: false, rpl_document_screening_web_search_enabled: false, rpl_document_screening_model: '', rpl_document_screening_excluded_categories: [], rpl_document_screening_extraction_only_categories: [], rpl_interview_response_days: '', rpl_interview_office_address: { ar: '', en: '' } })
+  const [settings, setSettings] = useState({ appeal_window_days: 15, require_verified_evidence_for_assessment: true, gemini_advisory_prompt: '', rpl_advisory_include_evidence_documents: true, rpl_reapply_cooldown_days: '', rpl_reapply_cooldown_scope: '', rpl_document_screening_enabled: false, rpl_document_screening_web_search_enabled: false, rpl_document_screening_excluded_categories: [], rpl_document_screening_extraction_only_categories: [], rpl_interview_response_days: '', rpl_interview_office_address: { ar: '', en: '' } })
   /*
    * Document screening (owner flow of 12 Oct 2026, P2). A save writes only the
    * screening keys the server returned or an administrator changed: a key the
@@ -346,7 +355,6 @@ export default function RplConfigurationPage() {
         const nextSettings = {
           appeal_window_days: Number(raw.appeal_window_days || 15),
           require_verified_evidence_for_assessment: raw.require_verified_evidence_for_assessment !== false,
-          gemini_advisory_model: raw.gemini_advisory_model || 'gemini-3.5-flash',
           gemini_advisory_prompt: raw.gemini_advisory_prompt || '',
           // Reads ON when the row is absent, matching the reader's own default
           // (`?? true`). Defaulting to OFF here would let a save write a
@@ -359,14 +367,13 @@ export default function RplConfigurationPage() {
           rpl_reapply_cooldown_scope: raw.rpl_reapply_cooldown_scope ?? '',
           rpl_document_screening_enabled: isSwitchedOn(raw.rpl_document_screening_enabled),
           rpl_document_screening_web_search_enabled: isSwitchedOn(raw.rpl_document_screening_web_search_enabled),
-          rpl_document_screening_model: typeof raw.rpl_document_screening_model === 'string' ? raw.rpl_document_screening_model : '',
           rpl_document_screening_excluded_categories: Array.isArray(raw.rpl_document_screening_excluded_categories) ? raw.rpl_document_screening_excluded_categories : [],
           rpl_document_screening_extraction_only_categories: Array.isArray(raw.rpl_document_screening_extraction_only_categories) ? raw.rpl_document_screening_extraction_only_categories : [],
           rpl_interview_response_days: raw.rpl_interview_response_days ?? '',
           rpl_interview_office_address: readOfficeAddress(raw.rpl_interview_office_address),
         }
         setSettings(nextSettings)
-        setScreeningKeys(SCREENING_SETTING_KEYS.filter((key) => raw[key] != null))
+        setScreeningKeys(SCREENING_WRITABLE_KEYS.filter((key) => raw[key] != null))
         setScreeningErrors({})
         setInterviewKeys(INTERVIEW_SETTING_KEYS.filter((key) => raw[key] != null))
         setInterviewErrors({})
@@ -481,18 +488,14 @@ export default function RplConfigurationPage() {
     return Object.fromEntries(INTERVIEW_SETTING_KEYS.filter((key) => interviewKeys.includes(key)).map((key) => [key, values[key]]))
   }
 
-  const screeningModel = String(settings.rpl_document_screening_model ?? '').trim()
-  const isScreeningModelValid = !screeningKeys.includes('rpl_document_screening_model') || (screeningModel.length >= 1 && screeningModel.length <= SCREENING_MODEL_MAX_LENGTH)
-
   function screeningPayload() {
     const values = {
       rpl_document_screening_enabled: Boolean(settings.rpl_document_screening_enabled),
       rpl_document_screening_web_search_enabled: Boolean(settings.rpl_document_screening_web_search_enabled),
-      rpl_document_screening_model: screeningModel,
       rpl_document_screening_excluded_categories: [...settings.rpl_document_screening_excluded_categories],
       rpl_document_screening_extraction_only_categories: [...settings.rpl_document_screening_extraction_only_categories],
     }
-    return Object.fromEntries(SCREENING_SETTING_KEYS.filter((key) => screeningKeys.includes(key)).map((key) => [key, values[key]]))
+    return Object.fromEntries(SCREENING_WRITABLE_KEYS.filter((key) => screeningKeys.includes(key)).map((key) => [key, values[key]]))
   }
 
   async function saveSettings() {
@@ -507,7 +510,6 @@ export default function RplConfigurationPage() {
       await updateRplSettings({
         appeal_window_days: Number(settings.appeal_window_days),
         require_verified_evidence_for_assessment: Boolean(settings.require_verified_evidence_for_assessment),
-        gemini_advisory_model: settings.gemini_advisory_model.trim(),
         gemini_advisory_prompt: settings.gemini_advisory_prompt.trim(),
         rpl_advisory_include_evidence_documents: Boolean(settings.rpl_advisory_include_evidence_documents),
         rpl_reapply_cooldown_days: Number(settings.rpl_reapply_cooldown_days),
@@ -580,7 +582,7 @@ export default function RplConfigurationPage() {
           <label className="flex items-start gap-3 rounded-xl border border-[var(--color-border)] p-4"><input type="checkbox" className="mt-1" checked={settings.rpl_document_screening_web_search_enabled} aria-invalid={screeningErrors.rpl_document_screening_web_search_enabled ? true : undefined} aria-describedby={screeningErrors.rpl_document_screening_web_search_enabled ? webSearchErrorId : undefined} onChange={(event) => updateScreening('rpl_document_screening_web_search_enabled', event.target.checked)} /><span><strong className="block">{screeningText.webSearch}</strong><span className="mt-1 block leading-6 text-[var(--color-text-muted)]">{screeningText.webSearchHint}</span></span></label>
           {screeningErrors.rpl_document_screening_web_search_enabled ? <p id={webSearchErrorId} className="mt-2 whitespace-pre-line text-sm text-[var(--color-danger)]">{screeningErrors.rpl_document_screening_web_search_enabled}</p> : null}
         </div>
-        <Input label={screeningText.model} maxLength={SCREENING_MODEL_MAX_LENGTH} value={settings.rpl_document_screening_model} hint={screeningText.modelHint} error={!isScreeningModelValid ? screeningText.modelRequired : screeningErrors.rpl_document_screening_model} onChange={(event) => updateScreening('rpl_document_screening_model', event.target.value)} />
+        <AiChainLine family="case_analysis" language={screenLanguage} />
         {screeningCategoryFieldset('rpl_document_screening_excluded_categories', screeningText.excluded, screeningText.excludedHint)}
         {screeningCategoryFieldset('rpl_document_screening_extraction_only_categories', screeningText.extractionOnly, screeningText.extractionOnlyHint)}
       </section>
@@ -694,7 +696,7 @@ export default function RplConfigurationPage() {
   }
 
   function renderSettings() {
-    const ready = !(Number(settings.appeal_window_days) < 1 || Number(settings.appeal_window_days) > 180 || settings.gemini_advisory_prompt.trim().length < 200 || !isReapplyCooldownValid(settings) || !isScreeningModelValid || !isInterviewSettingsValid || !isQuizPassMarkReady(quizPassMark) || !isCoursePlanMinimumsReady(coursePlanMinimums) || !isCoursePlanMinimumsReady(failedMinimums) || !isAfterQuizSettingsReady(afterQuiz))
+    const ready = !(Number(settings.appeal_window_days) < 1 || Number(settings.appeal_window_days) > 180 || settings.gemini_advisory_prompt.trim().length < 200 || !isReapplyCooldownValid(settings) || !isInterviewSettingsValid || !isQuizPassMarkReady(quizPassMark) || !isCoursePlanMinimumsReady(coursePlanMinimums) || !isCoursePlanMinimumsReady(failedMinimums) || !isAfterQuizSettingsReady(afterQuiz))
     return (
       <div className="space-y-6">
         <SectionAnchorNav ariaLabel={copy.jumpTo} title={copy.jumpTo} sections={SETTINGS_ANCHORS.map((id) => ({ id: `settings-${id}`, label: copy.anchors[id] }))} />
@@ -712,7 +714,7 @@ export default function RplConfigurationPage() {
         {settingsCard('interview', renderInterviewSettings())}
         {settingsCard('entry-quiz', <>
           <QuizPassMarkSetting language={screenLanguage} state={quizPassMark} onChange={(value) => setQuizPassMark({ value, include: true, error: '' })} />
-          <section className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950"><div><h3 className="font-bold">{copy.geminiOnAssessment}</h3><p className="mt-1 leading-6">{copy.geminiHint}</p></div><Input label={copy.geminiModel} value={settings.gemini_advisory_model} onChange={(event) => setSettings((current) => ({ ...current, gemini_advisory_model: event.target.value }))} /><Textarea rows={14} label={copy.geminiPrompt} value={settings.gemini_advisory_prompt} onChange={(event) => setSettings((current) => ({ ...current, gemini_advisory_prompt: event.target.value }))} /><p className="text-xs leading-5">{copy.geminiGovernance}</p></section>
+          <section className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950"><div><h3 className="font-bold">{copy.geminiOnAssessment}</h3><p className="mt-1 leading-6">{copy.geminiHint}</p></div><AiChainLine family="case_analysis" language={language} /><Textarea rows={14} label={copy.geminiPrompt} value={settings.gemini_advisory_prompt} onChange={(event) => setSettings((current) => ({ ...current, gemini_advisory_prompt: event.target.value }))} /><p className="text-xs leading-5">{copy.geminiGovernance}</p></section>
         </>)}
         {settingsCard('course-plan', <>
           <CoursePlanMinimumsSetting language={screenLanguage} levels={minimumLevels(levels)} state={coursePlanMinimums} onChange={(code, value) => setCoursePlanMinimums((current) => changeCoursePlanMinimum(current, code, value))} />

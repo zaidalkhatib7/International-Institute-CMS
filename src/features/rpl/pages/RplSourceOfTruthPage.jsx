@@ -28,6 +28,7 @@ import RplPageState from '../components/RplPageState'
 import { localize } from '../domain/rpl'
 import { fetchRplSourceOfTruth } from '../services/rplService'
 import { formatLocalizedNumber } from '../../../utils/localization'
+import { governedChainSteps } from '../../shared/ai/aiState'
 
 const copyByLanguage = {
   ar: {
@@ -199,7 +200,7 @@ export default function RplSourceOfTruthPage() {
             <Card className="border-amber-200">
               <CardHeader className="border-b border-[var(--color-border)]"><div className="flex items-center gap-2"><Sparkles className="text-amber-600" size={20} /><CardTitle>{copy.geminiTitle}</CardTitle></div></CardHeader>
               <CardContent className="space-y-5 p-6">
-                <div className="flex flex-wrap items-center gap-3"><Badge variant={gemini.enabled ? 'success' : 'neutral'}>{gemini.enabled ? copy.enabled : copy.disabled}</Badge><span className="text-sm"><strong>{copy.model}:</strong> <bdi>{gemini.model || '—'}</bdi></span></div>
+                <div className="flex flex-wrap items-center gap-3"><Badge variant={gemini.enabled ? 'success' : 'neutral'}>{gemini.enabled ? copy.enabled : copy.disabled}</Badge><span className="text-sm"><strong>{copy.model}:</strong> <bdi>{governedChainSteps(gemini).join(language === 'ar' ? ' ← ' : ' → ') || gemini.model || '—'}</bdi></span></div>
                 <div><h3 className="font-bold">{copy.safeguards}</h3><ul className="mt-3 space-y-3 text-sm leading-6"><RuleLine>{copy.adminOnly}</RuleLine><RuleLine>{evidenceRule}</RuleLine><RuleLine>{copy.noDecision}</RuleLine><RuleLine>{copy.eligibleOnly}</RuleLine></ul></div>
                 <div><p className="mb-2 text-sm font-bold">{copy.prompt}</p><pre dir="ltr" className="max-h-72 overflow-auto whitespace-pre-wrap rounded-xl bg-[var(--color-surface-muted)] p-4 text-left text-xs leading-6 text-[var(--color-text-muted)]">{gemini.effective_prompt || gemini.configured_prompt || '—'}</pre></div>
                 <div className="flex flex-wrap gap-3"><Button onClick={() => navigate('/rpl/configuration')} variant="outline">{copy.settings}</Button><Button onClick={() => navigate('/competency-gap-library')}>{copy.library}</Button></div>

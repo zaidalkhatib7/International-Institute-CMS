@@ -1,10 +1,12 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAuthorization } from '../../auth/authorization'
 import { roleUser } from '../../../test/roleFixtures'
 import { resetWorkCounts } from '../hooks/useWorkCounts'
 import TodayPage from './TodayPage'
+import { resetAiServiceStatus } from '../../shared/ai/useAiServiceStatus'
+import { degradedStatus, downStatus, okStatus } from '../../../test/aiFixtures'
 
 /*
  * TODAY (PLATFORM-JOURNEY-SPEC §4.1, §9.1 item 6): the tiles a role can act on,
@@ -30,6 +32,9 @@ vi.mock('../../rpl/services/rplService', () => ({
   fetchRplApplications: mocks.fetchRplApplications,
 }))
 vi.mock('../../academicRpl/services/academicRplService', () => ({ fetchAcademicApplications: mocks.fetchAcademicApplications }))
+// The AI service status (AI resilience, Release G): read only while someone is signed in.
+const ai = vi.hoisted(() => ({ fetchAiServiceStatus: vi.fn() }))
+vi.mock('../../shared/ai/aiServiceApi', () => ({ fetchAiServiceStatus: ai.fetchAiServiceStatus, fetchAiServiceHistory: vi.fn() }))
 vi.mock('../../auth/context/useAuthorization', () => ({ useAuthorization: () => createAuthorization(mocks.user.current) }))
 vi.mock('../../../services/languageStorage', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -191,7 +196,7 @@ describe('the other roles', () => {
     mocks.user.current = roleUser('content-admin')
     renderToday()
     const screens = await screen.findByRole('region', { name: 'Your screens' })
-    expect(within(screens).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['/programs', '/competency-gap-library', '/library'])
+    expect(within(screens).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['/programs', '/competency-gap-library', '/library', '/settings/ai-service'])
     expect(screen.queryByRole('region', { name: 'Waiting for you' })).not.toBeInTheDocument()
     expect(screen.queryByText('How the path runs')).not.toBeInTheDocument()
   })
@@ -210,5 +215,45 @@ describe('the other roles', () => {
     await waitFor(() => expect(tile('Cases assigned to you')).toHaveAccessibleName('Cases assigned to you: 3'))
     expect(mocks.fetchRplApplications).toHaveBeenCalledWith({ per_page: 1 })
     expect(screen.queryByRole('region', { name: 'The professional path at a glance' })).not.toBeInTheDocument()
+  })
+})
+
+/*
+ * THE AI SERVICE ON TODAY (AI resilience, Release G, AI-RESILIENCE-SPEC D20,
+ * §6.5): amber while a family runs on a backup model, red while one is down,
+ * nothing while all is well; Arabic and English.
+ */
+describe('the AI service banner', () => {
+  beforeEach(() => {
+    mocks.user.current = roleUser('admin')
+    resetAiServiceStatus()
+    localStorage.setItem('icpc_admin_token', 'token')
+  })
+  afterEach(() => localStorage.removeItem('icpc_admin_token'))
+
+  it('says which work runs on a backup model and which model serves', async () => {
+    ai.fetchAiServiceStatus.mockResolvedValue({ data: degradedStatus() })
+    renderToday()
+    const banner = await screen.findByRole('status', { name: 'AI service status' })
+    expect(banner).toHaveTextContent('The AI service is running on a backup model for: Case file analysis. Serving now: gemini-3.1-pro-preview.')
+    expect(within(banner).getByRole('link', { name: 'AI service page' })).toHaveAttribute('href', '/settings/ai-service')
+  })
+
+  it('says nothing while all is well', async () => {
+    ai.fetchAiServiceStatus.mockResolvedValue({ data: okStatus() })
+    renderToday()
+    await waitFor(() => expect(ai.fetchAiServiceStatus).toHaveBeenCalled())
+    await waitFor(() => expect(tile('Screening decision due')).toHaveAccessibleName('Screening decision due: 3'))
+    expect(screen.queryByRole('status', { name: 'AI service status' })).not.toBeInTheDocument()
+  })
+
+  it('says it in Arabic when the work is down, without RPL, API or CMS', async () => {
+    mocks.language.current = 'ar'
+    ai.fetchAiServiceStatus.mockResolvedValue({ data: downStatus() })
+    renderToday()
+    const banner = await screen.findByRole('status', { name: 'حالة خدمة الذكاء الاصطناعي' })
+    expect(banner).toHaveAttribute('data-ai-banner', 'down')
+    expect(banner).toHaveTextContent(/خدمة الذكاء الاصطناعي غير متاحة الآن في: إعداد الحزم والمحتوى\./)
+    expect(banner.textContent).not.toMatch(/RPL|\bAPI\b|CMS/)
   })
 })
