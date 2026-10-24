@@ -22,6 +22,12 @@ import { readApiError } from '../../../services/apiResponse'
  *   PUT and DELETE /admin/users/{id}, the erase) answers 403, or 422 for the last
  *   super administrator, with message_label {ar, en} and reason_code. The
  *   platform says the server's own sentence in the reader's language.
+ *
+ *   THE E-MAIL ADDRESS (Release I review). It is the key to an account's
+ *   password, so on another account that holds any permission only a super
+ *   administrator changes it (an administrator could otherwise take a peer's
+ *   account). `assignment.target_email_editable` and `target_email_refusal` say
+ *   so before the form offers the field.
  */
 
 export const ROLE_GUARD_CODES = Object.freeze([
@@ -31,6 +37,7 @@ export const ROLE_GUARD_CODES = Object.freeze([
   'super_admin_role_needs_super_admin',
   'account_holds_permission_actor_lacks',
   'last_super_admin',
+  'staff_email_change_needs_super_admin',
 ])
 
 /** The server's sentences (RoleAssignmentGuard::MESSAGES), used when a response carries none. */
@@ -42,6 +49,7 @@ export const ROLE_GUARD_COPY = {
     super_admin_role_needs_super_admin: 'لا يمنح دور المدير الأعلى أو يسحبه إلا مدير أعلى.',
     account_holds_permission_actor_lacks: 'يملك هذا الحساب صلاحيات لا تملكها، فلا يغيّره إلا من يملكها جميعًا.',
     last_super_admin: 'هذا آخر مدير أعلى في المنصة. امنح دور المدير الأعلى لحساب آخر أولًا.',
+    staff_email_change_needs_super_admin: 'البريد الإلكتروني هو مفتاح كلمة مرور الحساب، فلا يغيّره في حساب يملك صلاحيات إلا مدير أعلى.',
   },
   en: {
     role_change_own_account: 'Nobody can change their own roles. Another administrator has to make this change.',
@@ -50,6 +58,7 @@ export const ROLE_GUARD_COPY = {
     super_admin_role_needs_super_admin: 'Only a super administrator can grant or remove the super administrator role.',
     account_holds_permission_actor_lacks: 'This account holds permissions you do not hold. Only someone who holds all of them can change it.',
     last_super_admin: 'This is the last super administrator. Make another account super administrator first.',
+    staff_email_change_needs_super_admin: "The e-mail address is the key to the account's password. Only a super administrator can change it on an account that holds permissions.",
   },
 }
 
@@ -110,6 +119,17 @@ export function accountLock(assignment, language) {
   const refusal = assignment?.target_refusal
   if (refusal?.reason_code !== 'account_holds_permission_actor_lacks') return ''
   return refusalText(refusal, language)
+}
+
+/**
+ * The account's e-mail address is closed to this actor (it holds permissions and
+ * the actor is not a super administrator): the sentence that says why, or ''.
+ * An answer without the field (an older server) does not lock it.
+ */
+export function emailLock(assignment, language) {
+  if (assignment?.target_email_editable !== false) return ''
+  const lng = lang(language)
+  return refusalText(assignment.target_email_refusal, lng) || ROLE_GUARD_COPY[lng].staff_email_change_needs_super_admin
 }
 
 /*

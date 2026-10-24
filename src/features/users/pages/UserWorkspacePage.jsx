@@ -59,7 +59,7 @@ import { useAuthorization } from "../../auth/context/useAuthorization";
 import { getRouteAccess } from "../../../routes/routeAccess";
 import RplStatusBadge from "../../rpl/components/RplStatusBadge";
 import RoleAssignmentPanel from "../components/RoleAssignmentPanel";
-import { accountLock, readUserActionError } from "../domain/roleGuard";
+import { accountLock, emailLock, readUserActionError } from "../domain/roleGuard";
 import StaffEnrolmentCard from "../components/StaffEnrolmentCard";
 import WalletCard from "../components/WalletCard";
 import {
@@ -861,6 +861,17 @@ export default function UserWorkspacePage() {
       ? accountLock(roleAssignment, language)
       : "";
   /*
+   * THE E-MAIL ADDRESS IS THE KEY TO THE PASSWORD (Release I review). On another
+   * account that holds any permission only a super administrator changes it, so
+   * an administrator cannot take a peer's account through a password reset. The
+   * field stays shown and is not editable, with the server's sentence; without
+   * the server's answer the server still refuses, in its own words.
+   */
+  const emailLockMessage =
+    user && roleAssignment && String(roleAssignment.target_user_id) === String(user.id)
+      ? emailLock(roleAssignment, language)
+      : "";
+  /*
    * STAFF ARE NOT CLIENTS.
    *
    * This page used to render the client journey for whoever it was opened on,
@@ -1092,6 +1103,8 @@ export default function UserWorkspacePage() {
                     label={copy.email}
                     type="email"
                     value={profileForm.email}
+                    disabled={Boolean(emailLockMessage)}
+                    hint={emailLockMessage || undefined}
                     onChange={(event) =>
                       setProfileField("email", event.target.value)
                     }

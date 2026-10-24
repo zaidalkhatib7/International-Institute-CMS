@@ -4,6 +4,7 @@ import {
   ROLE_GUARD_COPY,
   accountLock,
   assignmentLock,
+  emailLock,
   isGrantable,
   offeredAccountRoles,
   readUserActionError,
@@ -102,6 +103,24 @@ describe('the roles answer', () => {
     const own = { target_editable: false, target_refusal: { reason_code: 'role_change_own_account', message: { ar: 'أدوارك', en: 'Your roles.' } } }
     expect(accountLock(own, 'en')).toBe('')
     expect(accountLock(null, 'en')).toBe('')
+  })
+})
+
+describe('the e-mail address (the key to the password)', () => {
+  it('is closed only when the server says so, in the server\'s words, and an older answer closes nothing', () => {
+    const closed = { target_editable: true, target_email_editable: false, target_email_refusal: { reason_code: 'staff_email_change_needs_super_admin', message: { ar: 'مفتاح الحساب', en: 'The key to the account.' }, missing_permissions: [] } }
+    expect(emailLock(closed, 'ar')).toBe('مفتاح الحساب')
+    expect(emailLock(closed, 'en')).toBe('The key to the account.')
+    expect(emailLock({ target_email_editable: false }, 'ar')).toBe(ROLE_GUARD_COPY.ar.staff_email_change_needs_super_admin)
+    expect(emailLock({ target_email_editable: true, target_email_refusal: null }, 'en')).toBe('')
+    expect(emailLock({ target_editable: true }, 'en')).toBe('')
+    expect(emailLock(null, 'en')).toBe('')
+  })
+
+  it('reads the server\'s refusal of a new address as its sentence', () => {
+    const data = { message: 'English.', message_label: { ar: 'عربي', en: 'English.' }, reason_code: 'staff_email_change_needs_super_admin', refused_roles: [], missing_permissions: [], errors: { email: ['English.'] } }
+    expect(readUserActionError(refused(403, data), 'Fallback.', 'ar')).toBe('عربي')
+    expect(roleGuardRefusal(refused(403, { ...data, message_label: undefined }), 'en')).toBe(ROLE_GUARD_COPY.en.staff_email_change_needs_super_admin)
   })
 })
 

@@ -157,6 +157,63 @@ describe('one\'s own account', () => {
   })
 })
 
+describe('a peer administrator\'s e-mail address (the key to the password)', () => {
+  const KEY = { ar: 'البريد مفتاح كلمة المرور (من الخادم)', en: 'The address is the key to the password (from the server).' }
+
+  beforeEach(() => {
+    world.user = staffMember(9, ['admin'])
+    world.assignment = {
+      actor_is_super_admin: false,
+      target_user_id: 9,
+      target_editable: true,
+      target_refusal: null,
+      target_email_editable: false,
+      target_email_refusal: { reason_code: 'staff_email_change_needs_super_admin', message: KEY, missing_permissions: [] },
+    }
+  })
+
+  it('keeps the rest of the account editable and the address shown but not editable, and says why', async () => {
+    renderStaff(9)
+    fireEvent.click(await screen.findByRole('button', { name: en.edit }))
+    const email = screen.getByLabelText(en.email)
+    expect(email).toBeDisabled()
+    expect(email).toHaveValue('owner@example.test')
+    expect(screen.getByText(KEY.en)).toBeInTheDocument()
+    expect(screen.getByLabelText(en.name)).toBeEnabled()
+    expect(screen.queryByTestId('account-locked')).not.toBeInTheDocument()
+
+    http.put.mockResolvedValueOnce({ data: { data: world.user } })
+    fireEvent.click(screen.getByRole('button', { name: en.save }))
+    await waitFor(() => expect(http.put).toHaveBeenCalledWith('/admin/users/9', expect.objectContaining({ email: 'owner@example.test' })))
+  })
+
+  it('says it in Arabic', async () => {
+    language.current = 'ar'
+    renderStaff(9)
+    fireEvent.click(await screen.findByRole('button', { name: ar.edit }))
+    expect(screen.getByLabelText(ar.email)).toBeDisabled()
+    expect(screen.getByText(KEY.ar)).toBeInTheDocument()
+  })
+
+  it('leaves the address editable when the server allows it (a client, or a super administrator)', async () => {
+    world.assignment = { ...world.assignment, actor_is_super_admin: true, target_email_editable: true, target_email_refusal: null }
+    renderStaff(9)
+    fireEvent.click(await screen.findByRole('button', { name: en.edit }))
+    expect(screen.getByLabelText(en.email)).toBeEnabled()
+  })
+
+  it('shows the server\'s refusal of a new address when the page did not know', async () => {
+    world.rolesError = FORBIDDEN
+    http.put.mockRejectedValueOnce(refusal(403, 'staff_email_change_needs_super_admin', KEY, 'email'))
+    renderStaff(9)
+    fireEvent.click(await screen.findByRole('button', { name: en.edit }))
+    expect(screen.getByLabelText(en.email)).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: en.save }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(KEY.en)
+    expect(screen.queryByText(en.updateFailed)).not.toBeInTheDocument()
+  })
+})
+
 describe('a refusal the page did not foresee', () => {
   it('editing: the server\'s sentence in Arabic, not the generic line', async () => {
     language.current = 'ar'
