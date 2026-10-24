@@ -13,7 +13,7 @@ import { WALLET_COPY, buildUsersCsv, walletMatchesFilter } from '../domain/walle
  * client's wallet by id, with no name in the URL.
  */
 
-const mocks = vi.hoisted(() => ({ fetchUsers: vi.fn(), createUser: vi.fn() }))
+const mocks = vi.hoisted(() => ({ fetchUsers: vi.fn(), createUser: vi.fn(), fetchRoles: vi.fn() }))
 
 vi.mock('../services/usersService', () => mocks)
 vi.mock('../../auth/context/useAuthorization', () => ({ useAuthorization: () => ({ hasPermission: () => true }) }))
@@ -56,6 +56,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   localStorage.setItem('icpc_admin_language', 'en')
   mocks.fetchUsers.mockImplementation(async (params) => (params?.role === 'admin' ? page([], { data: { data: [], current_page: 1, last_page: 1, total: 2 } }) : page(USERS)))
+  mocks.fetchRoles.mockResolvedValue({ message: 'Roles fetched.', data: [] })
 })
 
 function rowOf(name) {
@@ -157,5 +158,89 @@ describe('the wallet helpers', () => {
     expect(walletMatchesFilter(USERS[1], 'positive')).toBe(true)
     expect(walletMatchesFilter({ wallet_balances: { usd: money('USD', 0, '0.00'), syp: money('SYP', 0, '0') } }, 'zero')).toBe(true)
     expect(walletMatchesFilter({}, 'zero')).toBe(true)
+  })
+})
+
+/*
+ * A NEW ACCOUNT'S ROLE IS A GRANT (owner report of 24 Oct 2026: an administrator
+ * could make themselves, or anyone, super administrator). The server refuses an
+ * administrator account from anyone who does not hold every permission of the
+ * administrator role; the form offers only what GET /admin/roles says the
+ * caller may grant, and a refusal is the server's sentence in the reader's
+ * language.
+ */
+describe('adding an account', () => {
+  const grant = (slug, grantable) => ({
+    slug,
+    grantable,
+    grant_refusal: grantable ? null : { reason_code: 'role_carries_permission_actor_lacks', message: { ar: 'لا تملك صلاحياته', en: 'You lack its permissions.' }, missing_permissions: ['roles.manage'] },
+  })
+
+  function openForm(path = '/users', addLabel = 'Add User') {
+    render(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes><Route path={path} element={<UsersPage />} /></Routes>
+      </MemoryRouter>,
+    )
+    return screen.findByRole('button', { name: addLabel }).then((button) => fireEvent.click(button))
+  }
+
+  const offered = () => within(screen.getByLabelText(/^(Role|الدور)$/)).getAllByRole('option').map((option) => option.value)
+
+  it('offers an administrator when the server says the caller may grant it', async () => {
+    mocks.fetchRoles.mockResolvedValue({ data: [grant('learner', true), grant('trainer', true), grant('admin', true)] })
+    await openForm()
+    await waitFor(() => expect(offered()).toEqual(['student', 'trainer', 'admin']))
+    expect(mocks.fetchRoles).toHaveBeenCalledWith()
+    expect(screen.queryByText('Only the roles you may grant are offered.')).not.toBeInTheDocument()
+  })
+
+  it('does not offer a role the caller may not grant, and says why the list is short', async () => {
+    mocks.fetchRoles.mockResolvedValue({ data: [grant('learner', false), grant('trainer', false), grant('admin', false)] })
+    await openForm()
+    // An applicant's role carries no permission: always offered.
+    await waitFor(() => expect(offered()).toEqual(['student']))
+    expect(screen.getByText('Only the roles you may grant are offered.')).toBeInTheDocument()
+  })
+
+  it('never offers an administrator when the roles cannot be read (the caller lacks roles.manage)', async () => {
+    mocks.fetchRoles.mockRejectedValue(Object.assign(new Error('forbidden'), { response: { status: 403, data: { message: 'This action is unauthorized.' } } }))
+    await openForm()
+    await waitFor(() => expect(mocks.fetchRoles).toHaveBeenCalled())
+    expect(offered()).toEqual(['student', 'trainer'])
+  })
+
+  it('sends the role chosen among those offered', async () => {
+    mocks.fetchRoles.mockResolvedValue({ data: [grant('learner', true), grant('trainer', true), grant('admin', true)] })
+    mocks.createUser.mockResolvedValue({ message: 'User created.', data: { id: 40 } })
+    await openForm()
+    await waitFor(() => expect(offered()).toContain('admin'))
+    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'admin' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(mocks.createUser).toHaveBeenCalledWith(expect.objectContaining({ role: 'admin' })))
+  })
+
+  it('shows the refusal the server wrote, in Arabic', async () => {
+    localStorage.setItem('icpc_admin_language', 'ar')
+    mocks.fetchRoles.mockResolvedValue({ data: [grant('learner', true), grant('trainer', true), grant('admin', true)] })
+    mocks.createUser.mockRejectedValue(Object.assign(new Error('refused'), {
+      response: {
+        status: 403,
+        data: {
+          message: 'You can grant or remove a role only when you hold every permission it carries.',
+          message_label: { ar: 'لا يمكنك منح دور إلا إذا كنت تملك كل صلاحياته (من الخادم)', en: 'You can grant a role only when you hold its permissions (from the server).' },
+          reason_code: 'role_carries_permission_actor_lacks',
+          refused_roles: ['admin'],
+          missing_permissions: ['finance.exchange_rates.manage'],
+          errors: { role: ['You can grant or remove a role only when you hold every permission it carries.'] },
+        },
+      },
+    }))
+    await openForm('/users', 'إضافة مستخدم')
+    await waitFor(() => expect(offered()).toContain('admin'))
+    fireEvent.change(screen.getByLabelText('الدور'), { target: { value: 'admin' } })
+    fireEvent.click(screen.getByRole('button', { name: 'حفظ' }))
+    expect(await screen.findByText('لا يمكنك منح دور إلا إذا كنت تملك كل صلاحياته (من الخادم)')).toBeInTheDocument()
+    expect(screen.queryByText(/You can grant or remove a role/)).not.toBeInTheDocument()
   })
 })

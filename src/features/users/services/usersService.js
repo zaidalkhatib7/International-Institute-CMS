@@ -130,17 +130,26 @@ export async function purgeUser(id) {
  * ROLE ASSIGNMENT.
  *
  * GET /admin/roles and PUT /admin/users/{id}/roles are implemented and audited
- * as `roles.assigned`, and no CMS file referenced either. Meanwhile
+ * as `roles.assigned`, and no platform file referenced either. Meanwhile
  * UserController::store accepts only student/trainer/admin, so eight of the
  * eleven seeded roles — assessor, quality-reviewer, committee-member,
  * appeal-reviewer, finance-operator, support-agent, content-admin, expert —
  * could not be granted through any screen. Those are exactly the roles the RPL
  * governance chain runs on, and the workspace copy told staff to "manage
  * permissions from Administration and roles", a page that could not do it.
+ *
+ * THE ROLE GUARD (owner report of 24 Oct 2026). Each role now says whether the
+ * caller may tick or untick it (`grantable`, `grant_refusal`), and with a
+ * user id the answer is for that account, with `assignment` saying whether its
+ * roles may be changed at all (never one's own, never an account that holds a
+ * permission the caller lacks). See domain/roleGuard.js.
  */
 
-export async function fetchRoles() {
-  const response = await http.get('/admin/roles')
+/** The roles, each with whether the caller may grant it; with a user id, for that account. */
+export async function fetchRoles(userId) {
+  const response = userId != null
+    ? await http.get('/admin/roles', { params: { user_id: userId } })
+    : await http.get('/admin/roles')
   return response.data
 }
 
