@@ -26,7 +26,8 @@ import { getCurrentLanguage } from '../../../utils/localization'
 import { isMoney } from '../../../utils/money'
 import { useAuthorization } from '../../auth/context/useAuthorization'
 import { buildUsersCsv, walletBalances, walletCopy, walletMatchesFilter, walletSortValue } from '../domain/wallet'
-import { createUser, fetchUsers } from '../services/usersService'
+import { offeredAccountRoles, roleGuardRefusal } from '../domain/roleGuard'
+import { createUser, fetchRoles, fetchUsers } from '../services/usersService'
 
 const USERS_TABLE_GRID = 'grid-cols-[minmax(260px,2fr)_minmax(240px,2.2fr)_1fr_1fr_1fr]'
 
@@ -314,6 +315,7 @@ export default function UsersPage() {
         loadFailed: 'تعذر تحميل المستخدمين.',
         exportFailed: 'تعذر تصدير ملف CSV.',
         viewEdit: 'عرض / تعديل البيانات',
+        onlyGrantableRoles: 'تظهر فقط الأدوار التي يمكنك منحها.',
       }
     }
 
@@ -386,6 +388,7 @@ export default function UsersPage() {
       loadFailed: 'Failed to load users.',
       exportFailed: 'Failed to export CSV.',
       viewEdit: 'View / edit details',
+      onlyGrantableRoles: 'Only the roles you may grant are offered.',
     }
   }, [language])
 
@@ -433,6 +436,31 @@ export default function UsersPage() {
     walletTotals: null,
   })
   const walletText = walletCopy(language)
+
+  /*
+   * THE NEW ACCOUNT'S ROLE IS A GRANT (owner report of 24 Oct 2026). The server
+   * refuses an administrator account from anyone who does not hold every
+   * permission of the administrator role; the form offers only what
+   * GET /admin/roles says the caller may grant, asked each time it opens.
+   */
+  const [grantableRoles, setGrantableRoles] = useState(null)
+  const isCreateFormShown = canManageUsers && audienceMeta.add && isCreateOpen
+  useEffect(() => {
+    if (!isCreateFormShown) return undefined
+    let cancelled = false
+    fetchRoles()
+      .then((payload) => {
+        if (!cancelled) setGrantableRoles(Array.isArray(payload?.data) ? payload.data : [])
+      })
+      .catch(() => {
+        if (!cancelled) setGrantableRoles(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isCreateFormShown])
+  const offeredRoles = offeredAccountRoles(grantableRoles)
+  const createRole = offeredRoles.includes(createForm.role) ? createForm.role : 'student'
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -595,6 +623,7 @@ export default function UsersPage() {
     try {
       const payload = {
         ...createForm,
+        role: createRole,
         password_confirmation: createForm.password_confirmation || createForm.password,
       }
       await createUser(payload)
@@ -603,7 +632,8 @@ export default function UsersPage() {
       resetCreateForm()
       setRefreshKey((prev) => prev + 1)
     } catch (err) {
-      const message = err?.response?.data?.message || err?.message || copy.createFailed
+      // A role guard refusal in the reader's language; any other error as before.
+      const message = roleGuardRefusal(err, language) || err?.response?.data?.message || err?.message || copy.createFailed
       setActionError(message)
     } finally {
       setIsCreating(false)
@@ -816,12 +846,13 @@ export default function UsersPage() {
               />
               <Select
                 label={copy.roleLabel}
-                value={createForm.role}
+                value={createRole}
+                hint={offeredRoles.length < 3 ? copy.onlyGrantableRoles : undefined}
                 onChange={(e) => setCreateForm((prev) => ({ ...prev, role: e.target.value }))}
               >
-                <option value="student">{formatRoleLabel('student', language)}</option>
-                <option value="trainer">{formatRoleLabel('trainer', language)}</option>
-                <option value="admin">{formatRoleLabel('admin', language)}</option>
+                {offeredRoles.map((choice) => (
+                  <option key={choice} value={choice}>{formatRoleLabel(choice, language)}</option>
+                ))}
               </Select>
               <Input
                 type="password"

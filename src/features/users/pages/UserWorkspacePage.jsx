@@ -59,6 +59,7 @@ import { useAuthorization } from "../../auth/context/useAuthorization";
 import { getRouteAccess } from "../../../routes/routeAccess";
 import RplStatusBadge from "../../rpl/components/RplStatusBadge";
 import RoleAssignmentPanel from "../components/RoleAssignmentPanel";
+import { accountLock, emailLock, readUserActionError } from "../domain/roleGuard";
 import StaffEnrolmentCard from "../components/StaffEnrolmentCard";
 import WalletCard from "../components/WalletCard";
 import {
@@ -571,7 +572,7 @@ export default function UserWorkspacePage() {
   const location = useLocation();
   const language = getAdminLanguage();
   const copy = copyByLanguage[language] || copyByLanguage.en;
-  const { hasPermission, canAccess } = useAuthorization();
+  const { hasPermission, canAccess, user: actor } = useAuthorization();
   const canManageUsers = hasPermission("users.manage");
   // A case reference opens the case only for a viewer the case page lets in (support and finance see it as text).
   const canOpenCasePage = canAccess(getRouteAccess("/rpl/applications/0"));
@@ -611,6 +612,8 @@ export default function UserWorkspacePage() {
   const [savingExperience, setSavingExperience] = useState(false);
   const [overrideCooldown, setOverrideCooldown] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
+  // The server's answer on this account's roles (GET /admin/roles?user_id=), reported by the roles panel.
+  const [roleAssignment, setRoleAssignment] = useState(null);
 
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: "" }));
@@ -682,9 +685,10 @@ export default function UserWorkspacePage() {
         message: copy.updated,
       }));
     } catch (error) {
+      // The role guard refuses editing an account that holds a permission the editor lacks: its own sentence.
       setState((current) => ({
         ...current,
-        error: readApiError(error, copy.updateFailed),
+        error: readUserActionError(error, copy.updateFailed, language),
       }));
     } finally {
       setSavingProfile(false);
@@ -845,6 +849,29 @@ export default function UserWorkspacePage() {
 
   const user = state.user;
   /*
+   * AN ACCOUNT THAT OUTRANKS THE VIEWER (owner report of 24 Oct 2026). The server
+   * refuses to edit, delete or erase an account that holds a permission the
+   * viewer lacks (a new e-mail address is the key to its password; deleting it
+   * locks its holder out, the owner included). When the roles panel has the
+   * server's answer for this account, the page says so and offers none of the
+   * three; without it the server still refuses, in its own words.
+   */
+  const accountLockMessage =
+    user && roleAssignment && String(roleAssignment.target_user_id) === String(user.id)
+      ? accountLock(roleAssignment, language)
+      : "";
+  /*
+   * THE E-MAIL ADDRESS IS THE KEY TO THE PASSWORD (Release I review). On another
+   * account that holds any permission only a super administrator changes it, so
+   * an administrator cannot take a peer's account through a password reset. The
+   * field stays shown and is not editable, with the server's sentence; without
+   * the server's answer the server still refuses, in its own words.
+   */
+  const emailLockMessage =
+    user && roleAssignment && String(roleAssignment.target_user_id) === String(user.id)
+      ? emailLock(roleAssignment, language)
+      : "";
+  /*
    * STAFF ARE NOT CLIENTS.
    *
    * This page used to render the client journey for whoever it was opened on,
@@ -852,7 +879,7 @@ export default function UserWorkspacePage() {
    * decision and enrolment — a case in which the assessor is the assessed.
    *
    * The same rule is enforced on the server (RPL_SUBJECT_MUST_BE_A_CLIENT);
-   * this only stops the CMS from offering an act the API will refuse. It
+   * this only stops the platform from offering an act the API will refuse. It
    * mirrors User::STAFF_ROLE_SLUGS, and reads the roles table as well as the
    * effective role the API computes, because a trainer's `role` column still
    * says 'user'.
@@ -1007,6 +1034,7 @@ export default function UserWorkspacePage() {
                 <Button
                   size="sm"
                   variant="outline"
+                  disabled={Boolean(accountLockMessage)}
                   onClick={() => setEditing(true)}
                 >
                   <Pencil size={16} />
@@ -1015,6 +1043,14 @@ export default function UserWorkspacePage() {
               ) : null}
             </CardHeader>
             <CardContent className="space-y-6 p-6">
+              {canManageUsers && accountLockMessage ? (
+                <p
+                  data-testid="account-locked"
+                  className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"
+                >
+                  {accountLockMessage}
+                </p>
+              ) : null}
               <div className="grid gap-5 md:grid-cols-3">
                 <div className="flex items-center gap-3">
                   <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-surface-muted)]">
@@ -1067,6 +1103,8 @@ export default function UserWorkspacePage() {
                     label={copy.email}
                     type="email"
                     value={profileForm.email}
+                    disabled={Boolean(emailLockMessage)}
+                    hint={emailLockMessage || undefined}
                     onChange={(event) =>
                       setProfileField("email", event.target.value)
                     }
@@ -1191,6 +1229,8 @@ export default function UserWorkspacePage() {
               user={user}
               language={language}
               onSaved={load}
+              actorId={actor?.id}
+              onAssignment={setRoleAssignment}
             />
           ) : null}
 
@@ -1993,10 +2033,15 @@ export default function UserWorkspacePage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {accountLockMessage ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                  {accountLockMessage}
+                </p>
+              ) : null}
               <div className="space-y-2">
                 <Button
                   variant="outline"
-                  disabled={removing}
+                  disabled={removing || Boolean(accountLockMessage)}
                   onClick={async () => {
                     if (!window.confirm(copy.deleteConfirm)) return;
                     setRemoving(true);
@@ -2004,9 +2049,11 @@ export default function UserWorkspacePage() {
                       await deleteUser(user.id);
                       navigate("/users/onsite", { replace: true });
                     } catch (error) {
+                      // A role guard refusal (an account that outranks the
+                      // viewer, the last super administrator) in its own words.
                       setState((prev) => ({
                         ...prev,
-                        error: readApiError(error),
+                        error: readUserActionError(error, undefined, language),
                         message: "",
                       }));
                       // The banner is at the top of a long page and these
@@ -2029,7 +2076,7 @@ export default function UserWorkspacePage() {
               <div className="space-y-2 border-t border-[var(--color-border)] pt-4">
                 <Button
                   variant="ghost"
-                  disabled={removing}
+                  disabled={removing || Boolean(accountLockMessage)}
                   onClick={async () => {
                     if (!window.confirm(copy.purgeConfirm)) return;
                     setRemoving(true);
@@ -2041,7 +2088,7 @@ export default function UserWorkspacePage() {
                       // show it verbatim rather than a generic failure line.
                       setState((prev) => ({
                         ...prev,
-                        error: readApiError(error),
+                        error: readUserActionError(error, undefined, language),
                         message: "",
                       }));
                       window.scrollTo({ top: 0, behavior: "smooth" });
