@@ -498,6 +498,25 @@ describe.each(['en', 'ar'])('AiPackagePanel one verdict for every open reference
     expect(cardOf(OPEN_A.citation, copy.recordOne).getByLabelText(copy.basis)).toHaveValue('A draft for this reference alone')
   })
 
+  it('shows each refusal line of a bulk call on its own line', async () => {
+    const alreadyReviewedA = ALREADY_REVIEWED_B.replace(OPEN_B.citation, OPEN_A.citation).replace('#502', '#501')
+    mocks.resolveAiPackageSourcesBulk.mockRejectedValue({
+      response: { status: 422, data: { message: ALREADY_REVIEWED_B, errors: { flags: [ALREADY_REVIEWED_B, alreadyReviewedA] } } },
+    })
+    renderPanel(language, statusPayload(reviewArtifacts()))
+
+    await screen.findByRole('region', { name: copy.title(3) })
+    const bulk = bulkBlock(copy.title(3))
+    fireEvent.change(bulk.getByLabelText(copy.verdict), { target: { value: 'VERIFIED_APPROVED' } })
+    fireEvent.change(bulk.getByLabelText(copy.basis), { target: { value: BASIS[language] } })
+    fireEvent.click(bulk.getByRole('button', { name: copy.record(3) }))
+
+    // readApiError joins the lines with newlines; the paragraph keeps them apart.
+    const paragraph = (await screen.findByText(reading.alreadyReviewedB, { exact: false })).closest('p')
+    expect(paragraph).toHaveClass('whitespace-pre-line')
+    expect(paragraph.textContent).toContain('\n')
+  })
+
   it('after a refusal the reloaded list decides the retry, with the same verdict and basis', async () => {
     // Another reviewer rejected OPEN_B one by one while this screen was open.
     const decidedElsewhere = {

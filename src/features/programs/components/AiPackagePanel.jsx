@@ -691,7 +691,8 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
             </div>
           </div>
 
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {/* A bulk refusal lists one line per reference (verification of 31 Oct 2026). */}
+          {error ? <p className="whitespace-pre-line [unicode-bidi:plaintext] text-sm text-red-600">{error}</p> : null}
           {notice ? <p className="text-sm text-emerald-600">{notice}</p> : null}
           {aiStatus === 'generation_failed' ? (
             <p className="text-sm text-amber-600">{copy.failed}</p>
