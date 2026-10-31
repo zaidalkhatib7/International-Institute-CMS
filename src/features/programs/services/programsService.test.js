@@ -53,14 +53,41 @@ describe('the source verdict endpoints of the AI package', () => {
     expect(result).toEqual(answer)
   })
 
-  test('the one-by-one verdict still posts to its own endpoint', async () => {
-    await resolveAiPackageSource(77, 501, 'ISO 9001:2015', 'REJECTED', 'No such edition under this issuer.')
+  test('the one-by-one verdict still posts to its own endpoint, with the flag’s stable identity', async () => {
+    await resolveAiPackageSource(77, 501, 'ISO 9001:2015', 'REJECTED', 'No such edition under this issuer.', 'sf_101')
 
+    expect(http.post).toHaveBeenCalledTimes(1)
     expect(http.post).toHaveBeenCalledWith('/admin/programs/77/ai-package/resolve-source', {
       artifact_id: 501,
+      flag_id: 'sf_101',
       citation: 'ISO 9001:2015',
       verification_status: 'REJECTED',
       review_notes: 'No such edition under this issuer.',
+    })
+  })
+
+  /*
+   * Review of 31 Oct 2026: a citation stored with a blank or a direction mark at
+   * either end did not equal the trimmed one the request carried, so the form
+   * now sends the flag_id the server prefers. A legacy flag has none, and the
+   * body says so with null rather than leaving the key out.
+   */
+  test.each([
+    ['not given', []],
+    ['undefined', [undefined]],
+    ['null', [null]],
+  ])('the one-by-one verdict sends flag_id null when the flag has none (%s)', async (_label, flagArgument) => {
+    await resolveAiPackageSource(77, 501, 'Kotter, Leading Change (1996)', 'VERIFIED_APPROVED', 'Checked the edition and the publisher.', ...flagArgument)
+
+    expect(http.post).toHaveBeenCalledTimes(1)
+    const [path, body] = http.post.mock.calls[0]
+    expect(path).toBe('/admin/programs/77/ai-package/resolve-source')
+    expect(body).toStrictEqual({
+      artifact_id: 501,
+      flag_id: null,
+      citation: 'Kotter, Leading Change (1996)',
+      verification_status: 'VERIFIED_APPROVED',
+      review_notes: 'Checked the edition and the publisher.',
     })
   })
 })

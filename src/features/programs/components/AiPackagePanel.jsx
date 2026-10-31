@@ -67,12 +67,17 @@ const COPY = {
     // One verdict for many references (owner, 31 Oct 2026). The count sits in
     // parentheses so no Arabic number-noun agreement is needed.
     bulkTitle: 'حكم واحد لكل المراجع غير المراجَعة ({n})',
-    bulkHint: 'يُسجَّل الحكم نفسه والأساس نفسه على كل مرجع في هذه القائمة لم يُسجَّل عليه حكم بعد ({n})، باسمك، ويُوسَم كل سجل في الأثر التدقيقي بأنه حكم جماعي. المرجع الذي عليه حكم مسجَّل (كالمرفوض) لا يشمله هذا الحكم ويُراجَع وحده.',
+    bulkHint: 'يُسجَّل الحكم نفسه والأساس نفسه على كل مرجع في هذه القائمة لم يُسجَّل عليه حكم بعد ({n})، باسمك، ويُوسَم كل سجل في الأثر التدقيقي بأنه حكم جماعي. المرجع الذي عليه حكم مسجَّل (كالمرفوض)، أو الذي ينتمي إلى محتوى استُبدل بإعادة التوليد، لا يشمله هذا الحكم ويُراجَع وحده.',
     bulkNotesPlaceholder: 'اكتب الأساس مرة واحدة، وسيُحفظ كما هو على كل مرجع.',
     bulkRecord: 'تسجيل الحكم على كل المراجع ({n})',
     bulkDone: 'سُجّل الحكم على كل المراجع دفعة واحدة ({n}).',
     bulkBadge: 'حكم جماعي',
     notInBulk: 'حكم مسجَّل — يُراجَع وحده',
+    // Review of the one verdict for all, 31 Oct 2026: a reference on content a
+    // regeneration replaced, and the server's switch found off at the moment of
+    // recording (its 403 is not a missing permission).
+    supersededContentNote: 'محتوى استُبدل بإعادة التوليد — لا يمنع النشر، ويُسجَّل حكمه وحده (الحكم الصادق هنا SUPERSEDED).',
+    bulkSwitchedOff: 'الحكم الواحد على مراجع كثيرة معطَّل على الخادم الآن، فسجّل حكم كل مرجع وحده.',
     reject: 'رفض المسودة بالكامل',
     rejectConfirm: 'سيُحذف المحتوى الذي أنشأه الذكاء الاصطناعي لهذه المسودة (يبقى السجل التدقيقي). متابعة؟',
     publish: 'نشر الحقيبة (إصدار مجمّد)',
@@ -148,12 +153,14 @@ const COPY = {
     reReview: 'Re-review verdict',
     supersededWarning: 'Warning: SUPERSEDED lifts the publication block exactly as approval does. Do not record it until the content actually cites the newer reference.',
     bulkTitle: 'One verdict for every unreviewed reference ({n})',
-    bulkHint: 'The same verdict and the same basis are recorded on every reference in this list that has no verdict yet ({n}), in your name, and each record is marked in the audit trail as a bulk verdict. A reference that already carries a recorded verdict (such as a rejection) is not included and is reviewed on its own.',
+    bulkHint: 'The same verdict and the same basis are recorded on every reference in this list that has no verdict yet ({n}), in your name, and each record is marked in the audit trail as a bulk verdict. A reference that already carries a recorded verdict (such as a rejection), or that belongs to content a regeneration replaced, is not included and is reviewed on its own.',
     bulkNotesPlaceholder: 'Write the basis once; it is stored as written on every reference.',
     bulkRecord: 'Record the verdict on all references ({n})',
     bulkDone: 'The verdict was recorded on all references at once ({n}).',
     bulkBadge: 'Bulk verdict',
     notInBulk: 'Recorded verdict — reviewed on its own',
+    supersededContentNote: 'Content replaced by a regeneration — it does not block publication; its verdict is recorded on its own (SUPERSEDED is the honest verdict here).',
+    bulkSwitchedOff: 'Recording one verdict on many references is switched off on the server; record each reference on its own.',
     reject: 'Reject entire draft',
     rejectConfirm: 'AI-generated content for this draft will be removed (audit history is kept). Continue?',
     publish: 'Publish package (frozen version)',
@@ -225,6 +232,37 @@ const VERDICT_VARIANT = {
  */
 function isOpenFlag(flag) {
   return (flag?.verification_status ?? 'SOURCE_REVIEW_REQUIRED') === 'SOURCE_REVIEW_REQUIRED' && flag?.resolved !== true
+}
+
+/*
+ * CONTENT A REGENERATION REPLACED (review of the one verdict for all, 31 Oct 2026).
+ *
+ * Regenerating a lesson, a module or a question bank keeps the earlier artifact
+ * for the audit trail and points it at its replacement (superseded_by). Its
+ * references stay in the review card, because a flag the screen hides is a flag
+ * no reviewer can correct, but that content is no longer the package: the
+ * publication gate (TrainingPackagePublishingService) reads only the latest
+ * run's artifacts with no superseded_by, so they block nothing, and the server
+ * refuses them in a bulk call (SOURCE_BULK_SUPERSEDED_CONTENT). One verdict
+ * written for the current content says nothing true about replaced content, so
+ * each of those is recorded on its own form.
+ */
+function isReplacedContent(artifact) {
+  return Boolean(artifact?.superseded_by)
+}
+
+/*
+ * THE SWITCH IS OFF (31 Oct 2026). With governance.bulk_source_verdicts false the
+ * server answers the bulk call 403 SOURCE_BULK_VERDICT_DISABLED. Read like any
+ * other 403 it says "you have no permission", which sends the reviewer after a
+ * permission they already hold; what is true is that this server records
+ * source verdicts one by one only.
+ */
+function isBulkSwitchedOff(error) {
+  const message = error?.response?.data?.message
+  return Number(error?.response?.status) === 403
+    && typeof message === 'string'
+    && message.startsWith('SOURCE_BULK_VERDICT_DISABLED:')
 }
 
 const TREE_COPY = {
@@ -364,7 +402,7 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
   }, [isRunning, load])
 
   const withBusy = useCallback(
-    async (action, successMessage = '') => {
+    async (action, successMessage = '', describeError = null) => {
       setBusy(true)
       setError('')
       setNotice('')
@@ -373,8 +411,11 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
         if (successMessage) setNotice(successMessage)
         await load()
       } catch (actionError) {
+        // An action that reads one of its refusals better than the generic line
+        // passes describeError (the bulk verdict's switch, 31 Oct 2026), which
+        // answers '' for anything else.
         // An instant request the AI service could not answer in time (503 ai_busy_retry_later, Release G) says so, and that nothing was saved.
-        setError(aiBusyMessage(actionError, language) || readApiError(actionError))
+        setError(describeError?.(actionError) || aiBusyMessage(actionError, language) || readApiError(actionError))
       } finally {
         setBusy(false)
       }
@@ -396,8 +437,20 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
   const unresolvedFlags = useMemo(() => allFlags.filter(({ flag }) => !flag.resolved), [allFlags])
   const recordedFlags = useMemo(() => allFlags.filter(({ flag }) => flag.resolved), [allFlags])
   // What the one verdict for all covers: the references the review card lists
-  // that carry no verdict yet, in the order the card shows them.
-  const openFlags = useMemo(() => unresolvedFlags.filter(({ flag }) => isOpenFlag(flag)), [unresolvedFlags])
+  // that carry no verdict yet, in the order the card shows them, less those on
+  // content a regeneration replaced (each recorded on its own: isReplacedContent).
+  const openFlags = useMemo(
+    () => unresolvedFlags.filter(({ artifact, flag }) => isOpenFlag(flag) && !isReplacedContent(artifact)),
+    [unresolvedFlags],
+  )
+  // What keeps the publish button closed. The server's gate reads only the
+  // content that is still the package (the latest run's artifacts with no
+  // superseded_by), so an unresolved reference on replaced content stays in the
+  // review card and keeps nothing closed (review, 31 Oct 2026).
+  const publicationBlockingFlags = useMemo(
+    () => unresolvedFlags.filter(({ artifact }) => !isReplacedContent(artifact)),
+    [unresolvedFlags],
+  )
   // Which recorded verdicts the reviewer has opened for re-review.
   const [reopened, setReopened] = useState({})
 
@@ -447,6 +500,9 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
                 flag.citation,
                 draft.verification_status,
                 draft.review_notes,
+                // The stable identity the server prefers; a legacy flag has none
+                // and is matched by its citation (31 Oct 2026).
+                flag.flag_id,
               )
               setReopened((prev) => ({ ...prev, [key]: false }))
               setSourceVerdicts((prev) => ({ ...prev, [key]: { verification_status: '', review_notes: '' } }))
@@ -477,6 +533,16 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
    * (SOURCE_BULK_STALE_VIEW), never half-recorded. A reference whose verdict is
    * already on record, a rejection say, is not included: a bulk verdict never
    * overrides a recorded one, and changing that one is a review of its own.
+   * Neither is one on content a regeneration replaced (isReplacedContent).
+   *
+   * A REFUSAL RELOADS (review, 31 Oct 2026). Every refusal records nothing, and
+   * most mean this screen has fallen behind the server: a newer run, a reference
+   * decided in another tab, the switch turned off. The review data is reloaded
+   * at once, so the list, the run and the switch the next attempt uses are the
+   * current ones and a retry can succeed, and every draft is kept: the bulk
+   * verdict and basis and each reference's own form, because a stale screen is
+   * no reason to make the reviewer write the basis again. The refusal is then
+   * rethrown, so it is still what the screen says.
    */
   const recordBulkVerdict = () => {
     const shown = openFlags
@@ -488,13 +554,19 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
       citation: flag.citation,
     }))
     withBusy(async () => {
-      const response = await resolveAiPackageSourcesBulk(
-        programId,
-        run.id,
-        draft.verification_status,
-        draft.review_notes.trim(),
-        flags,
-      )
+      let response
+      try {
+        response = await resolveAiPackageSourcesBulk(
+          programId,
+          run.id,
+          draft.verification_status,
+          draft.review_notes.trim(),
+          flags,
+        )
+      } catch (refusal) {
+        await load()
+        throw refusal
+      }
       setBulkVerdict({ verification_status: '', review_notes: '' })
       setSourceVerdicts((prev) => {
         const next = { ...prev }
@@ -505,7 +577,7 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
       })
       // The server's own count of what it recorded (it records all or none).
       setNotice(copy.bulkDone.replace('{n}', response?.data?.recorded ?? flags.length))
-    })
+    }, '', (refusal) => (isBulkSwitchedOff(refusal) ? copy.bulkSwitchedOff : ''))
   }
 
   const renderBulkVerdict = () => {
@@ -568,9 +640,16 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
   const liveCopy = LIVE_COPY[language] || LIVE_COPY.en
   // Offered only when the server says the owner's switch
   // (governance.bulk_source_verdicts) is on: an older server says nothing and
-  // has no endpoint for it. And only for two or more open references; a single
-  // one has its own form.
-  const offerBulkVerdict = status?.bulk_source_verdicts_enabled === true && Boolean(run) && openFlags.length >= 2
+  // has no endpoint for it. Only on a finished draft awaiting review: nothing is
+  // generating, and the run is ai_draft, never queued, generating, failed or
+  // archived, the one state the server records it on (review, 31 Oct 2026:
+  // SOURCE_BULK_RUN_NOT_REVIEWABLE). And only for two or more open references; a
+  // single one has its own form.
+  const offerBulkVerdict =
+    status?.bulk_source_verdicts_enabled === true &&
+    !isRunning &&
+    run?.status === 'ai_draft' &&
+    openFlags.length >= 2
 
   return (
     <div className="space-y-6">
@@ -783,7 +862,7 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
                   <>
                     <Button
                       variant="secondary"
-                      disabled={busy || unresolvedFlags.length > 0}
+                      disabled={busy || publicationBlockingFlags.length > 0}
                       onClick={() => withBusy(() => publishTrainingPackage(programId))}
                     >
                       <UploadCloud className="h-4 w-4" aria-hidden="true" /> {copy.publish}
@@ -892,33 +971,46 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
               <ShieldAlert className="h-4 w-4" aria-hidden="true" /> SOURCE_REVIEW_REQUIRED
             </h4>
             {offerBulkVerdict ? renderBulkVerdict() : null}
-            {unresolvedFlags.map(({ artifact, flag }) => (
-              <div
-                key={`${artifact.id}::${flag.citation}`}
-                className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <span className="block">
-                    <strong>{flag.citation}</strong>
-                    <span className="mt-0.5 block text-xs text-amber-700">
-                      {flagOrigin(artifact)} · {copy.sourceReview}
+            {unresolvedFlags.map(({ artifact, flag }) => {
+              const open = isOpenFlag(flag)
+              const replaced = isReplacedContent(artifact)
+              return (
+                <div
+                  key={`${artifact.id}::${flag.citation}`}
+                  className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <span className="block">
+                      <strong>{flag.citation}</strong>
+                      <span className="mt-0.5 block text-xs text-amber-700">
+                        {flagOrigin(artifact)} · {copy.sourceReview}
+                      </span>
                     </span>
-                  </span>
-                  {/* Unresolved but not open (a rejection, say): the card shows the
-                      verdict on record and says the one verdict for all leaves it out. */}
-                  {isOpenFlag(flag) ? null : (
-                    <div className="flex flex-col items-end gap-1">
-                      <Badge variant={VERDICT_VARIANT[flag.verification_status] || 'neutral'}>
-                        {flag.verification_status || '—'}
-                      </Badge>
-                      {flag.review_mode === 'bulk' ? <Badge variant="info">{copy.bulkBadge}</Badge> : null}
-                      <span className="text-[11px] text-amber-700">{copy.notInBulk}</span>
-                    </div>
-                  )}
+                    {/* Unresolved but not open (a rejection, say): the card shows the
+                        verdict on record and says the one verdict for all leaves it out.
+                        On replaced content it says that too, as the history list does. */}
+                    {open && !replaced ? null : (
+                      <div className="flex flex-col items-end gap-1">
+                        {replaced ? <Badge variant="secondary">{copy.superseded}</Badge> : null}
+                        {open ? null : (
+                          <>
+                            <Badge variant={VERDICT_VARIANT[flag.verification_status] || 'neutral'}>
+                              {flag.verification_status || '—'}
+                            </Badge>
+                            {flag.review_mode === 'bulk' ? <Badge variant="info">{copy.bulkBadge}</Badge> : null}
+                            <span className="text-[11px] text-amber-700">{copy.notInBulk}</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {/* Why it is listed but neither blocks publication nor joins the
+                      one verdict for all; its own form below stays (isReplacedContent). */}
+                  {replaced ? <p className="text-xs text-amber-700">{copy.supersededContentNote}</p> : null}
+                  {renderVerdictForm(artifact, flag)}
                 </div>
-                {renderVerdictForm(artifact, flag)}
-              </div>
-            ))}
+              )
+            })}
           </CardContent>
         </Card>
       ) : null}
