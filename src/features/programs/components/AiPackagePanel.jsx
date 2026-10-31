@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bot, CheckCircle2, Clock, Download, ExternalLink, KeyRound,
+import { Bot, CheckCheck, CheckCircle2, Clock, Download, ExternalLink, KeyRound, ListChecks,
   ShieldOff, Loader2, RefreshCw, ShieldAlert, Sparkles, Trash2, UploadCloud } from 'lucide-react'
 import { Badge, Button, Card, CardContent, Select, Textarea } from '../../../components/ui'
 import {
@@ -14,6 +14,7 @@ import {
   regenerateAiPackageComponent,
   rejectAiPackage,
   resolveAiPackageSource,
+  resolveAiPackageSourcesBulk,
 } from '../services/programsService'
 import { getCurrentLanguage } from '../../../utils/localization'
 import { readApiError } from '../../../services/apiResponse'
@@ -63,6 +64,15 @@ const COPY = {
     noPreviousNotes: '— لم يُسجَّل أي أساس —',
     reReview: 'إعادة تقييم الحكم',
     supersededWarning: 'تنبيه: SUPERSEDED يرفع منع النشر تمامًا مثل الاعتماد. لا تسجّله إلا بعد تعديل المحتوى فعلًا إلى المرجع الأحدث.',
+    // One verdict for many references (owner, 31 Oct 2026). The count sits in
+    // parentheses so no Arabic number-noun agreement is needed.
+    bulkTitle: 'حكم واحد لكل المراجع غير المراجَعة ({n})',
+    bulkHint: 'يُسجَّل الحكم نفسه والأساس نفسه على كل مرجع في هذه القائمة لم يُسجَّل عليه حكم بعد ({n})، باسمك، ويُوسَم كل سجل في الأثر التدقيقي بأنه حكم جماعي. المرجع الذي عليه حكم مسجَّل (كالمرفوض) لا يشمله هذا الحكم ويُراجَع وحده.',
+    bulkNotesPlaceholder: 'اكتب الأساس مرة واحدة، وسيُحفظ كما هو على كل مرجع.',
+    bulkRecord: 'تسجيل الحكم على كل المراجع ({n})',
+    bulkDone: 'سُجّل الحكم على كل المراجع دفعة واحدة ({n}).',
+    bulkBadge: 'حكم جماعي',
+    notInBulk: 'حكم مسجَّل — يُراجَع وحده',
     reject: 'رفض المسودة بالكامل',
     rejectConfirm: 'سيُحذف المحتوى الذي أنشأه الذكاء الاصطناعي لهذه المسودة (يبقى السجل التدقيقي). متابعة؟',
     publish: 'نشر الحقيبة (إصدار مجمّد)',
@@ -137,6 +147,13 @@ const COPY = {
     noPreviousNotes: '— no basis was recorded —',
     reReview: 'Re-review verdict',
     supersededWarning: 'Warning: SUPERSEDED lifts the publication block exactly as approval does. Do not record it until the content actually cites the newer reference.',
+    bulkTitle: 'One verdict for every unreviewed reference ({n})',
+    bulkHint: 'The same verdict and the same basis are recorded on every reference in this list that has no verdict yet ({n}), in your name, and each record is marked in the audit trail as a bulk verdict. A reference that already carries a recorded verdict (such as a rejection) is not included and is reviewed on its own.',
+    bulkNotesPlaceholder: 'Write the basis once; it is stored as written on every reference.',
+    bulkRecord: 'Record the verdict on all references ({n})',
+    bulkDone: 'The verdict was recorded on all references at once ({n}).',
+    bulkBadge: 'Bulk verdict',
+    notInBulk: 'Recorded verdict — reviewed on its own',
     reject: 'Reject entire draft',
     rejectConfirm: 'AI-generated content for this draft will be removed (audit history is kept). Continue?',
     publish: 'Publish package (frozen version)',
@@ -194,6 +211,20 @@ const VERDICT_VARIANT = {
   REJECTED: 'danger',
   SUPERSEDED: 'warning',
   SOURCE_REVIEW_REQUIRED: 'warning',
+}
+
+/*
+ * OPEN, EXACTLY AS THE SERVER COUNTS IT (resolve-sources-bulk, 31 Oct 2026).
+ *
+ * A reference is open while no verdict is on record: its status is
+ * SOURCE_REVIEW_REQUIRED (or absent, on a legacy flag) and it is not resolved.
+ * A REJECTED reference is unresolved too, so it stays in the review card, but
+ * its verdict is on record: the one-verdict-for-all never includes it, and the
+ * server refuses a bulk call that names it (SOURCE_BULK_ALREADY_REVIEWED). A
+ * verdict on record is changed one reference at a time.
+ */
+function isOpenFlag(flag) {
+  return (flag?.verification_status ?? 'SOURCE_REVIEW_REQUIRED') === 'SOURCE_REVIEW_REQUIRED' && flag?.resolved !== true
 }
 
 const TREE_COPY = {
@@ -286,6 +317,9 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
   // Per-citation verdict draft: nothing is sent until the reviewer picks a
   // verdict AND writes its basis (fail-closed source governance).
   const [sourceVerdicts, setSourceVerdicts] = useState({})
+  // The one verdict and basis for every open reference at once. Its own draft:
+  // it neither fills nor reads any reference's own form.
+  const [bulkVerdict, setBulkVerdict] = useState({ verification_status: '', review_notes: '' })
   // Written basis for a generation authorization. Kept out of the request until
   // the reviewer has actually typed one: see the note in the block that uses it.
   const [authorizationNote, setAuthorizationNote] = useState('')
@@ -361,6 +395,9 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
   )
   const unresolvedFlags = useMemo(() => allFlags.filter(({ flag }) => !flag.resolved), [allFlags])
   const recordedFlags = useMemo(() => allFlags.filter(({ flag }) => flag.resolved), [allFlags])
+  // What the one verdict for all covers: the references the review card lists
+  // that carry no verdict yet, in the order the card shows them.
+  const openFlags = useMemo(() => unresolvedFlags.filter(({ flag }) => isOpenFlag(flag)), [unresolvedFlags])
   // Which recorded verdicts the reviewer has opened for re-review.
   const [reopened, setReopened] = useState({})
 
@@ -422,6 +459,92 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
     )
   }
 
+  /*
+   * ONE VERDICT FOR EVERY OPEN REFERENCE (owner, 31 Oct 2026).
+   *
+   *   "i want the ability to confirm all those in one click and same message for
+   *    all the sources like everything is correct i will write what ever i want"
+   *
+   * A run with dozens of references meant dozens of identical forms. The rule
+   * that a citation is never approved by omission stands, so this relaxes the
+   * number of forms and nothing else: the verdict is still chosen from the same
+   * three, the basis is still written (ten characters at least, the floor the
+   * server enforces), and the server records it on each reference separately, in
+   * the reviewer's name, each audit entry marked as part of one bulk decision.
+   *
+   * It sends exactly the open references this card lists, with the run they
+   * belong to: a screen that has fallen behind is refused whole
+   * (SOURCE_BULK_STALE_VIEW), never half-recorded. A reference whose verdict is
+   * already on record, a rejection say, is not included: a bulk verdict never
+   * overrides a recorded one, and changing that one is a review of its own.
+   */
+  const recordBulkVerdict = () => {
+    const shown = openFlags
+    const draft = bulkVerdict
+    const flags = shown.map(({ artifact, flag }) => ({
+      artifact_id: artifact.id,
+      // The stable identity where the flag has one; the citation decides otherwise.
+      flag_id: flag.flag_id || null,
+      citation: flag.citation,
+    }))
+    withBusy(async () => {
+      const response = await resolveAiPackageSourcesBulk(
+        programId,
+        run.id,
+        draft.verification_status,
+        draft.review_notes.trim(),
+        flags,
+      )
+      setBulkVerdict({ verification_status: '', review_notes: '' })
+      setSourceVerdicts((prev) => {
+        const next = { ...prev }
+        for (const { artifact, flag } of shown) {
+          next[`${artifact.id}::${flag.citation}`] = { verification_status: '', review_notes: '' }
+        }
+        return next
+      })
+      // The server's own count of what it recorded (it records all or none).
+      setNotice(copy.bulkDone.replace('{n}', response?.data?.recorded ?? flags.length))
+    })
+  }
+
+  const renderBulkVerdict = () => {
+    const count = openFlags.length
+    const title = copy.bulkTitle.replace('{n}', count)
+    const ready = bulkVerdict.verification_status && bulkVerdict.review_notes.trim().length >= 10
+    return (
+      <section aria-label={title} className="space-y-2 rounded-lg border border-amber-400 bg-white p-3 text-sm">
+        <h5 className="flex items-center gap-2 font-semibold text-[var(--color-text)]">
+          <ListChecks className="h-4 w-4 text-amber-700" aria-hidden="true" /> {title}
+        </h5>
+        <p className="text-xs text-[var(--color-text-muted)]">{copy.bulkHint.replace('{n}', count)}</p>
+        <Select
+          label={copy.sourceVerdict}
+          value={bulkVerdict.verification_status}
+          onChange={(e) => setBulkVerdict((prev) => ({ ...prev, verification_status: e.target.value }))}
+        >
+          <option value="">{copy.sourceVerdictPlaceholder}</option>
+          <option value="VERIFIED_APPROVED">{copy.verdictApproved}</option>
+          <option value="REJECTED">{copy.verdictRejected}</option>
+          <option value="SUPERSEDED">{copy.verdictSuperseded}</option>
+        </Select>
+        {bulkVerdict.verification_status === 'SUPERSEDED' ? (
+          <p className="text-xs font-semibold text-amber-700">{copy.supersededWarning}</p>
+        ) : null}
+        <Textarea
+          label={copy.sourceNotes}
+          rows={3}
+          value={bulkVerdict.review_notes}
+          onChange={(e) => setBulkVerdict((prev) => ({ ...prev, review_notes: e.target.value }))}
+          placeholder={copy.bulkNotesPlaceholder}
+        />
+        <Button size="sm" variant="secondary" disabled={busy || !ready} onClick={recordBulkVerdict}>
+          <CheckCheck className="h-4 w-4" aria-hidden="true" /> {copy.bulkRecord.replace('{n}', count)}
+        </Button>
+      </section>
+    )
+  }
+
   if (!programId) {
     return (
       <Card>
@@ -443,6 +566,11 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
   const canGenerate = !isPublished && !isRunning && aiStatus !== 'ai_draft'
   const liveNotice = isRunning ? liveRunNotice(status) : null
   const liveCopy = LIVE_COPY[language] || LIVE_COPY.en
+  // Offered only when the server says the owner's switch
+  // (governance.bulk_source_verdicts) is on: an older server says nothing and
+  // has no endpoint for it. And only for two or more open references; a single
+  // one has its own form.
+  const offerBulkVerdict = status?.bulk_source_verdicts_enabled === true && Boolean(run) && openFlags.length >= 2
 
   return (
     <div className="space-y-6">
@@ -763,17 +891,31 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
             <h4 className="flex items-center gap-2 text-sm font-semibold text-amber-700">
               <ShieldAlert className="h-4 w-4" aria-hidden="true" /> SOURCE_REVIEW_REQUIRED
             </h4>
+            {offerBulkVerdict ? renderBulkVerdict() : null}
             {unresolvedFlags.map(({ artifact, flag }) => (
               <div
                 key={`${artifact.id}::${flag.citation}`}
                 className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm"
               >
-                <span className="block">
-                  <strong>{flag.citation}</strong>
-                  <span className="mt-0.5 block text-xs text-amber-700">
-                    {flagOrigin(artifact)} · {copy.sourceReview}
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <span className="block">
+                    <strong>{flag.citation}</strong>
+                    <span className="mt-0.5 block text-xs text-amber-700">
+                      {flagOrigin(artifact)} · {copy.sourceReview}
+                    </span>
                   </span>
-                </span>
+                  {/* Unresolved but not open (a rejection, say): the card shows the
+                      verdict on record and says the one verdict for all leaves it out. */}
+                  {isOpenFlag(flag) ? null : (
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge variant={VERDICT_VARIANT[flag.verification_status] || 'neutral'}>
+                        {flag.verification_status || '—'}
+                      </Badge>
+                      {flag.review_mode === 'bulk' ? <Badge variant="info">{copy.bulkBadge}</Badge> : null}
+                      <span className="text-[11px] text-amber-700">{copy.notInBulk}</span>
+                    </div>
+                  )}
+                </div>
                 {renderVerdictForm(artifact, flag)}
               </div>
             ))}
@@ -809,6 +951,8 @@ export default function AiPackagePanel({ programId, isGoverned, officialCode = '
                       <Badge variant={VERDICT_VARIANT[flag.verification_status] || 'neutral'}>
                         {flag.verification_status || '—'}
                       </Badge>
+                      {/* Recorded by the one verdict for all; the audit entry says so too. */}
+                      {flag.review_mode === 'bulk' ? <Badge variant="info">{copy.bulkBadge}</Badge> : null}
                       <span className="text-[11px] text-[var(--color-text-muted)]">{copy.previouslyRecorded}</span>
                     </div>
                   </div>

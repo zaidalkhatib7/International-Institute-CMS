@@ -42,6 +42,7 @@ vi.mock('../services/programsService', () => ({
   regenerateAiPackageComponent: mocks.regenerateAiPackageComponent,
   rejectAiPackage: vi.fn(),
   resolveAiPackageSource: vi.fn(),
+  resolveAiPackageSourcesBulk: vi.fn(),
 }))
 vi.mock('../../competency/services/competencyFrameworkService', () => ({ fetchCompetencyFramework: mocks.fetchCompetencyFramework }))
 vi.mock('../../../utils/localization', async (importOriginal) => ({ ...(await importOriginal()), getCurrentLanguage: () => mocks.language.current }))

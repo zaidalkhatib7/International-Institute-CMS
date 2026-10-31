@@ -204,6 +204,34 @@ export async function resolveAiPackageSource(programId, artifactId, citation, ve
   return response.data
 }
 
+/*
+ * ONE VERDICT, ONE WRITTEN BASIS, MANY REFERENCES (owner, 31 Oct 2026).
+ *
+ *   "i want the ability to confirm all those in one click and same message for
+ *    all the sources like everything is correct i will write what ever i want"
+ *
+ * Only the number of forms is relaxed. The verdict is still an explicit choice
+ * and the basis is still written (ten characters at least); the server records
+ * the verdict on each reference separately, against the person who sent it,
+ * with one audit entry per reference marked as part of one bulk decision.
+ *
+ * `runId` is the run the screen showed and `flags` are exactly the open
+ * references it listed, each {artifact_id, flag_id (null on a legacy flag),
+ * citation}. All or nothing: the server records none of them if the screen is
+ * stale (SOURCE_BULK_STALE_VIEW), a reference is unknown, or one already
+ * carries a verdict (SOURCE_BULK_ALREADY_REVIEWED). It answers 403 when the
+ * owner's switch (governance.bulk_source_verdicts) is off.
+ */
+export async function resolveAiPackageSourcesBulk(programId, runId, verificationStatus, reviewNotes, flags) {
+  const response = await http.post(`/admin/programs/${programId}/ai-package/resolve-sources-bulk`, {
+    run_id: runId,
+    verification_status: verificationStatus,
+    review_notes: reviewNotes,
+    flags,
+  })
+  return response.data
+}
+
 // The two-key gate: someone holding rpl.settings.manage records that package
 // vN.N may be authored, and only then may someone holding programs.manage start
 // the run. The endpoint has existed since the auth-window work; the CMS never
