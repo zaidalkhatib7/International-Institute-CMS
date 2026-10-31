@@ -194,12 +194,50 @@ export async function regenerateAiPackageComponent(programId, component, refId) 
 
 // The verdict and its written basis are mandatory server-side: a source is
 // never approved by omission, so both are explicit arguments here.
-export async function resolveAiPackageSource(programId, artifactId, citation, verificationStatus, reviewNotes) {
+//
+// flag_id (review of the bulk verdict, 31 Oct 2026): the flag's stable identity,
+// which the server prefers to the citation. A citation stored with a blank or a
+// direction mark at either end no longer equals the one a request carries once
+// Laravel's TrimStrings has trimmed it, so matching by text alone could refuse a
+// verdict on a reference the screen shows. Null on a legacy flag written before
+// flag_id existed; the server then matches the citation, trimmed on both sides.
+export async function resolveAiPackageSource(programId, artifactId, citation, verificationStatus, reviewNotes, flagId) {
   const response = await http.post(`/admin/programs/${programId}/ai-package/resolve-source`, {
     artifact_id: artifactId,
+    flag_id: flagId ?? null,
     citation,
     verification_status: verificationStatus,
     review_notes: reviewNotes,
+  })
+  return response.data
+}
+
+/*
+ * ONE VERDICT, ONE WRITTEN BASIS, MANY REFERENCES (owner, 31 Oct 2026).
+ *
+ *   "i want the ability to confirm all those in one click and same message for
+ *    all the sources like everything is correct i will write what ever i want"
+ *
+ * Only the number of forms is relaxed. The verdict is still an explicit choice
+ * and the basis is still written (ten characters at least); the server records
+ * the verdict on each reference separately, against the person who sent it,
+ * with one audit entry per reference marked as part of one bulk decision.
+ *
+ * `runId` is the run the screen showed and `flags` are exactly the open
+ * references it listed, each {artifact_id, flag_id (null on a legacy flag),
+ * citation}. All or nothing: the server records none of them if the screen is
+ * stale (SOURCE_BULK_STALE_VIEW), the run is not a finished draft awaiting
+ * review (SOURCE_BULK_RUN_NOT_REVIEWABLE), a reference is unknown, one already
+ * carries a verdict (SOURCE_BULK_ALREADY_REVIEWED) or one belongs to content a
+ * regeneration replaced (SOURCE_BULK_SUPERSEDED_CONTENT). It answers 403 when
+ * the owner's switch (governance.bulk_source_verdicts) is off.
+ */
+export async function resolveAiPackageSourcesBulk(programId, runId, verificationStatus, reviewNotes, flags) {
+  const response = await http.post(`/admin/programs/${programId}/ai-package/resolve-sources-bulk`, {
+    run_id: runId,
+    verification_status: verificationStatus,
+    review_notes: reviewNotes,
+    flags,
   })
   return response.data
 }

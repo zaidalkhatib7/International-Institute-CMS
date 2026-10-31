@@ -34,6 +34,7 @@ vi.mock('../services/programsService', () => ({
   regenerateAiPackageComponent: vi.fn(),
   rejectAiPackage: vi.fn(),
   resolveAiPackageSource: vi.fn(),
+  resolveAiPackageSourcesBulk: vi.fn(),
 }))
 
 vi.mock('../../../utils/localization', () => ({

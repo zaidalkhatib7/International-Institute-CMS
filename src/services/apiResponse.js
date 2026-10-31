@@ -52,6 +52,15 @@ const genericErrors = {
   },
 }
 
+// How SOURCE_BULK_ALREADY_REVIEWED (in KNOWN_SERVER_LINES below) names a recorded
+// state that is not a verdict code (ProgramAiAuthoringController::
+// recordedSourceState). A code such as REJECTED stays as written, the way the
+// review card shows it.
+const RECORDED_SOURCE_STATE_AR = new Map([
+  ['marked resolved with no recorded verdict', 'مُعلَّم كمحسوم دون حكم مسجَّل'],
+  ['an unrecognised verification status', 'حالة تحقق غير معروفة'],
+])
+
 /**
  * Every distinct validation message the server sent, as one readable block.
  *
@@ -100,6 +109,52 @@ const KNOWN_SERVER_LINES = [
   {
     pattern: /^The applicable RPL fee must be reconciled before the application can be submitted\.$/,
     ar: () => 'يجب تأكيد دفع الرسوم المستحقة قبل إرسال الطلب.',
+  },
+  /*
+   * THE SOURCE VERDICTS' FIXED REFUSALS (review of the one verdict for all, 31 Oct
+   * 2026). ProgramAiAuthoringController writes them for the one-by-one verdict
+   * (resolve-source) and for one verdict on many references
+   * (resolve-sources-bulk), and neither records anything when it refuses. The
+   * citation and the recorded status stay as the server wrote them: the citation
+   * is how the reviewer finds the reference, and the status is the code the
+   * review card shows. A citation may hold quotes, brackets or a line break, so
+   * those patterns read it greedily up to the fixed words after it (flag s).
+   */
+  {
+    pattern: /^SOURCE_BULK_STALE_VIEW: the review screen was built from authoring run #-?\d+, but (?:this programme has no authoring run|the latest run of this programme is #\d+)\. Reload the review screen; nothing was recorded\.$/,
+    ar: () => 'تغيّرت مسودة الحقيبة منذ فُتحت هذه الصفحة؛ أُعيد تحميل القائمة، فراجعها ثم أعد المحاولة. لم يُسجَّل شيء.',
+  },
+  {
+    pattern: /^SOURCE_BULK_RUN_NOT_REVIEWABLE: authoring run #\d+ is .*?; one verdict for many references is recorded only on a finished draft awaiting review \(ai_draft\)\. Nothing was recorded\.$/,
+    ar: () => 'لا يُسجَّل حكم واحد على مراجع كثيرة إلا على مسودة مكتملة تنتظر المراجعة. لم يُسجَّل شيء.',
+  },
+  {
+    pattern: /^SOURCE_BULK_ALREADY_REVIEWED: the reference "(.*)" on artifact #\d+ already carries a recorded verdict \((.*)\)\. A bulk verdict never overrides a recorded verdict — re-review it on its own\. Nothing was recorded\.$/s,
+    ar: (match) => `المرجع «${match[1]}» عليه حكم مسجَّل (${RECORDED_SOURCE_STATE_AR.get(match[2]) ?? match[2]})، والحكم الواحد على مراجع كثيرة لا يلغي حكمًا مسجَّلًا؛ راجعه وحده. لم يُسجَّل شيء.`,
+  },
+  {
+    pattern: /^SOURCE_BULK_SUPERSEDED_CONTENT: the reference "(.*)" on artifact #\d+ belongs to content a regeneration replaced; record its verdict on its own\. Nothing was recorded\.$/s,
+    ar: (match) => `المرجع «${match[1]}» من محتوى استُبدل بإعادة التوليد، فيُسجَّل حكمه وحده. لم يُسجَّل شيء.`,
+  },
+  // resolve-source: no flag on the artifact matches the reference the form named.
+  {
+    pattern: /^SOURCE_FLAG_NOT_FOUND: no source flag on artifact #\d+ matches this reference\. Reload the review screen — the artifact may have been superseded by a regeneration\.$/,
+    ar: () => 'لم يُعثر على المرجع في مسودة هذه الحقيبة (ربما استُبدل بإعادة التوليد)؛ أعد تحميل القائمة. لم يُسجَّل شيء.',
+  },
+  // resolve-sources-bulk: an artifact outside the run, and a reference no flag matches.
+  {
+    pattern: /^SOURCE_FLAG_NOT_FOUND: artifact #-?\d+ is not part of authoring run #\d+ of this programme\. Reload the review screen; nothing was recorded\.$/,
+    ar: () => 'لم يُعثر على المرجع في مسودة هذه الحقيبة (ربما استُبدل بإعادة التوليد)؛ أعد تحميل القائمة. لم يُسجَّل شيء.',
+  },
+  {
+    pattern: /^SOURCE_FLAG_NOT_FOUND: no source flag on artifact #\d+ matches the reference "(.*)"\. Reload the review screen — the artifact may have been superseded by a regeneration; nothing was recorded\.$/s,
+    ar: (match) => `لم يُعثر على المرجع «${match[1]}» في مسودة هذه الحقيبة (ربما استُبدل بإعادة التوليد)؛ أعد تحميل القائمة. لم يُسجَّل شيء.`,
+  },
+  // The bulk call lists ten refusals and counts the rest. The number sits in
+  // parentheses, so no Arabic number-noun agreement is needed.
+  {
+    pattern: /^And (\d+) more refused reference\(s\)\. Nothing was recorded\.$/,
+    ar: (match) => `ورُفضت مراجع أخرى (${match[1]}). لم يُسجَّل شيء.`,
   },
 ]
 
